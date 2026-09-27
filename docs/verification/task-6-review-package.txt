@@ -1,0 +1,2421 @@
+--- before-task6/src/audio/recording/captureCore.ts
++++ src/audio/recording/captureCore.ts
+@@ -0,0 +1,280 @@
++export type CaptureMode = 'manual' | 'sound';
++export type CaptureState = 'monitoring' | 'armed' | 'recording' | 'waiting-for-quiet' | 'stopped' | 'closed' | 'error';
++export type CompletionReason = 'silence' | 'length' | 'manual';
++
++export interface CaptureOptions {
++  mode: CaptureMode;
++  sampleRate: number;
++  channels: number;
++  thresholdDb?: number;
++  hysteresisDb?: number;
++  preRollSeconds?: number;
++  silenceSeconds?: number;
++  rearmSeconds?: number;
++  maxSeconds?: number;
++}
++
++export interface ValidatedCaptureOptions {
++  mode: CaptureMode;
++  sampleRate: number;
++  channels: number;
++  thresholdDb: number;
++  hysteresisDb: number;
++  high: number;
++  low: number;
++  preRollFrames: number;
++  silenceFrames: number;
++  rearmFrames: number;
++  maxFrames: number;
++}
++
++export interface CompletedTakeFrames {
++  startFrame: number;
++  endFrame: number;
++  frames: number;
++  preRollFrames: number;
++  reason: CompletionReason;
++  channels: Float32Array[];
++}
++
++export interface CaptureProcessResult {
++  takes: CompletedTakeFrames[];
++  meter?: { frame: number; peaks: number[]; recordedFrames:number };
++  state: CaptureState;
++}
++
++function bounded(value: number | undefined, fallback: number, min: number, max: number, label: string) {
++  const actual = value ?? fallback;
++  if (!Number.isFinite(actual) || actual < min || actual > max) throw new RangeError(`${label} must be between ${min} and ${max}`);
++  return actual;
++}
++
++export function validateCaptureOptions(options: CaptureOptions): ValidatedCaptureOptions {
++  if (!Number.isFinite(options.sampleRate) || options.sampleRate < 8_000 || options.sampleRate > 96_000) {
++    throw new RangeError('Capture sample rate must be between 8,000 and 96,000 Hz');
++  }
++  if (!Number.isInteger(options.channels) || options.channels < 1 || options.channels > 2) {
++    throw new RangeError('Recording supports a mono or stereo input');
++  }
++  const thresholdDb = bounded(options.thresholdDb, -30, -72, -6, 'Trigger threshold');
++  const hysteresisDb = bounded(options.hysteresisDb, 6, 3, 24, 'Trigger hysteresis');
++  const preRollSeconds = bounded(options.preRollSeconds, .25, 0, 2, 'Pre-roll');
++  const silenceSeconds = bounded(options.silenceSeconds, .5, .1, 5, 'Silence stop');
++  const rearmSeconds = bounded(options.rearmSeconds, .25, .1, 2, 'Re-arm quiet time');
++  const maxSeconds = bounded(options.maxSeconds, 20, 1, 20, 'Maximum take');
++  if (preRollSeconds >= maxSeconds) throw new RangeError('Pre-roll must be shorter than the maximum take');
++  const roundedPositive = (seconds: number) => Math.max(1, Math.round(seconds * options.sampleRate));
++  const maxFrames = Math.max(1, Math.floor(maxSeconds * options.sampleRate));
++  const bytes = options.channels * (Math.round(preRollSeconds * options.sampleRate) + maxFrames) * 4;
++  if (!Number.isSafeInteger(bytes)) throw new RangeError('Capture dimensions are too large');
++  return {
++    mode: options.mode,
++    sampleRate: options.sampleRate,
++    channels: options.channels,
++    thresholdDb,
++    hysteresisDb,
++    high: 10 ** (thresholdDb / 20),
++    low: 10 ** ((thresholdDb - hysteresisDb) / 20),
++    preRollFrames: Math.round(preRollSeconds * options.sampleRate),
++    silenceFrames: roundedPositive(silenceSeconds),
++    rearmFrames: roundedPositive(rearmSeconds),
++    maxFrames,
++  };
++}
++
++/** Pure, allocation-bounded sample-clock capture state machine used by the worklet and unit fixtures. */
++export class CaptureCore {
++  readonly options: ValidatedCaptureOptions;
++  readonly memoryBytes: number;
++  state: CaptureState = 'monitoring';
++  pendingTake = false;
++
++  private readonly ring: Float32Array[];
++  private active: Float32Array[];
++  private ringWrite = 0;
++  private ringLength = 0;
++  private expectedFrame: number | null = null;
++  private activeStart = 0;
++  private activeLength = 0;
++  private activePreRoll = 0;
++  private activeNonzero = false;
++  private quietFrames = 0;
++  private rearmQuietFrames = 0;
++  private lastTakeEnd = 0;
++  private meterOutstanding = false;
++
++  constructor(options: CaptureOptions) {
++    this.options = validateCaptureOptions(options);
++    this.ring = Array.from({ length: this.options.channels }, () => new Float32Array(this.options.preRollFrames));
++    this.active = Array.from({ length: this.options.channels }, () => new Float32Array(this.options.maxFrames));
++    this.memoryBytes = this.options.channels * (this.options.preRollFrames + this.options.maxFrames) * 4;
++  }
++
++  arm() {
++    if (this.options.mode !== 'sound') throw new Error('Sound trigger is unavailable in manual mode');
++    if (this.pendingTake) throw new Error('A completed take is pending acknowledgement');
++    if (this.state === 'recording') throw new Error('A take is already recording');
++    if (this.state === 'closed' || this.state === 'error') throw new Error('Capture is not available');
++    this.state = 'armed';
++  }
++
++  startManual() {
++    if (this.options.mode !== 'manual') throw new Error('Manual start is unavailable in sound-triggered mode');
++    if (this.pendingTake) throw new Error('A completed take is pending acknowledgement');
++    if (this.state === 'recording') throw new Error('A take is already recording');
++    if (this.state === 'closed' || this.state === 'error') throw new Error('Capture is not available');
++    this.beginTake(this.expectedFrame ?? 0, false);
++  }
++
++  acknowledgeTake(replacement?: Float32Array[]) {
++    if (!this.pendingTake) return;
++    const supplied = replacement ?? Array.from({ length: this.options.channels }, () => new Float32Array(this.options.maxFrames));
++    if (supplied.length !== this.options.channels || supplied.some(channel => channel.length !== this.options.maxFrames)) {
++      throw new Error('Replacement take buffer has invalid dimensions');
++    }
++    this.active = supplied;
++    this.pendingTake = false;
++    if (this.state === 'waiting-for-quiet' && this.rearmQuietFrames >= this.options.rearmFrames) this.state = 'armed';
++  }
++
++  acknowledgeMeter() { this.meterOutstanding = false; }
++
++  process(channels: readonly Float32Array[], firstFrame: number): CaptureProcessResult {
++    if (this.state === 'closed' || this.state === 'stopped' || this.state === 'error') return { takes: [], state: this.state };
++    if (channels.length !== this.options.channels || channels.some(channel => channel.length !== channels[0]?.length)) {
++      throw new Error('Capture channel dimensions changed');
++    }
++    if (!Number.isSafeInteger(firstFrame) || firstFrame < 0) throw new Error('Invalid capture frame');
++    if (this.expectedFrame !== null && firstFrame !== this.expectedFrame) throw new Error(`Capture frame discontinuity: expected ${this.expectedFrame}, received ${firstFrame}`);
++    const length = channels[0]?.length ?? 0;
++    if (length === 0) return { takes: [], state: this.state };
++    if (this.expectedFrame === null) {
++      this.expectedFrame = firstFrame;
++      if (this.state === 'recording' && this.activeLength === 0) this.activeStart = firstFrame;
++    }
++    const peaks = channels.map(() => 0);
++    const takes: CompletedTakeFrames[] = [];
++    for (let offset = 0; offset < length; offset += 1) {
++      const frame = firstFrame + offset;
++      let peak = 0;
++      for (let channel = 0; channel < channels.length; channel += 1) {
++        const value = channels[channel][offset];
++        if (!Number.isFinite(value)) throw new Error('Capture contains a non-finite sample');
++        const absolute = Math.abs(value);
++        peaks[channel] = Math.max(peaks[channel], absolute);
++        peak = Math.max(peak, absolute);
++      }
++      if (this.state === 'armed') {
++        if (peak >= this.options.high && !this.pendingTake) {
++          this.beginTake(frame, true);
++          this.append(channels, offset);
++          const completed = this.maybeComplete(peak);
++          if (completed) takes.push(completed);
++        } else this.pushRing(channels, offset);
++      } else if (this.state === 'recording') {
++        this.append(channels, offset);
++        const completed = this.maybeComplete(peak);
++        if (completed) takes.push(completed);
++      } else if (this.state === 'waiting-for-quiet') {
++        this.pushRing(channels, offset);
++        if (peak < this.options.low) this.rearmQuietFrames += 1;
++        else this.rearmQuietFrames = 0;
++        if (!this.pendingTake && this.rearmQuietFrames >= this.options.rearmFrames) this.state = 'armed';
++      }
++    }
++    this.expectedFrame = firstFrame + length;
++    const meter = this.meterOutstanding ? undefined : { frame: firstFrame, peaks, recordedFrames:this.state==='recording'?this.activeLength:0 };
++    if (meter) this.meterOutstanding = true;
++    return { takes, meter, state: this.state };
++  }
++
++  stop(): CaptureProcessResult {
++    const takes: CompletedTakeFrames[] = [];
++    if (this.state === 'recording' && this.activeLength > 0 && this.activeNonzero) {
++      const completed = this.complete('manual');
++      if (completed) takes.push(completed);
++    }
++    this.state = 'stopped';
++    return { takes, state: this.state };
++  }
++
++  close() {
++    this.state = 'closed';
++    this.pendingTake = false;
++    this.activeLength = this.ringLength = 0;
++  }
++
++  private beginTake(onsetFrame: number, includePreRoll: boolean) {
++    if (this.active.length !== this.options.channels) throw new Error('No take buffer credit is available');
++    this.activeLength = 0;
++    this.activeNonzero = false;
++    this.quietFrames = 0;
++    let available = includePreRoll ? Math.min(this.ringLength, this.options.preRollFrames, onsetFrame - this.lastTakeEnd) : 0;
++    available = Math.max(0, available);
++    const start = onsetFrame - available;
++    this.activeStart = start;
++    this.activePreRoll = available;
++    for (let index = 0; index < available; index += 1) {
++      const ringIndex = (this.ringWrite - available + index + Math.max(1, this.options.preRollFrames)) % Math.max(1, this.options.preRollFrames);
++      for (let channel = 0; channel < this.options.channels; channel += 1) {
++        const value = this.ring[channel][ringIndex];
++        this.active[channel][this.activeLength] = value;
++        if (value !== 0) this.activeNonzero = true;
++      }
++      this.activeLength += 1;
++    }
++    this.state = 'recording';
++  }
++
++  private append(channels: readonly Float32Array[], offset: number) {
++    if (this.activeLength >= this.options.maxFrames) return;
++    for (let channel = 0; channel < channels.length; channel += 1) {
++      const value = channels[channel][offset];
++      this.active[channel][this.activeLength] = value;
++      if (value !== 0) this.activeNonzero = true;
++    }
++    this.activeLength += 1;
++  }
++
++  private maybeComplete(peak: number) {
++    if (peak < this.options.low) this.quietFrames += 1;
++    else this.quietFrames = 0;
++    if (this.activeLength >= this.options.maxFrames) return this.complete('length');
++    if (this.options.mode === 'sound' && this.quietFrames >= this.options.silenceFrames) return this.complete('silence');
++    return undefined;
++  }
++
++  private complete(reason: CompletionReason): CompletedTakeFrames | undefined {
++    if (!this.activeNonzero && this.options.mode === 'manual') {
++      this.lastTakeEnd = this.activeStart + this.activeLength;
++      this.activeLength = 0;
++      this.state = 'monitoring';
++      return undefined;
++    }
++    const frames = this.activeLength;
++    const result = {
++      startFrame: this.activeStart,
++      endFrame: this.activeStart + frames,
++      frames,
++      preRollFrames: this.activePreRoll,
++      reason,
++      // Ownership of these preallocated arrays is handed off whole. The receiver
++      // materializes only [0, frames) and returns credit with a fresh buffer set.
++      channels: this.active,
++    };
++    this.lastTakeEnd = result.endFrame;
++    this.pendingTake = true;
++    this.active = [];
++    this.rearmQuietFrames = 0;
++    this.activeLength = 0;
++    this.state = this.options.mode === 'sound' ? 'waiting-for-quiet' : 'monitoring';
++    return result;
++  }
++
++  private pushRing(channels: readonly Float32Array[], offset: number) {
++    if (this.options.preRollFrames === 0) return;
++    for (let channel = 0; channel < channels.length; channel += 1) this.ring[channel][this.ringWrite] = channels[channel][offset];
++    this.ringWrite = (this.ringWrite + 1) % this.options.preRollFrames;
++    this.ringLength = Math.min(this.options.preRollFrames, this.ringLength + 1);
++  }
++}
+--- before-task6/src/audio/recording/captureProcessor.ts
++++ src/audio/recording/captureProcessor.ts
+@@ -0,0 +1,69 @@
++import { CaptureCore, type CaptureOptions } from './captureCore';
++
++declare const AudioWorkletProcessor: { new(options?:unknown): {port:MessagePort} };
++declare const currentFrame: number;
++declare const sampleRate: number;
++declare function registerProcessor(name:string, ctor:unknown):void;
++
++type ProcessorConfig = Omit<CaptureOptions, 'sampleRate' | 'channels'> & {channels?:number};
++
++class OpPatchCaptureProcessor extends AudioWorkletProcessor {
++  private core:CaptureCore|null=null;
++  private requested:'monitoring'|'armed'|'recording'='monitoring';
++  private readonly config:ProcessorConfig;
++  private missingFrames=0;
++  private failed=false;
++  private formatSent=false;
++
++  constructor(options?:{processorOptions?:ProcessorConfig}) {
++    super();
++    this.config=options?.processorOptions ?? {mode:'manual'};
++    if(this.config.channels===1||this.config.channels===2)this.core=new CaptureCore({...this.config,sampleRate,channels:this.config.channels});
++    this.port.onmessage=(event:MessageEvent<{type:string}>)=>{
++      try {
++        if(event.data.type==='arm'){this.requested='armed';this.core?.arm();}
++        else if(event.data.type==='start'){this.requested='recording';this.core?.startManual();}
++        else if(event.data.type==='ack-take')this.core?.acknowledgeTake();
++        else if(event.data.type==='ack-meter')this.core?.acknowledgeMeter();
++        else if(event.data.type==='stop'){
++          const result=this.core?.stop(); if(result) this.publish(result.takes);
++          this.port.postMessage({type:'stopped'}); this.requested='monitoring';
++        } else if(event.data.type==='close'){this.core?.close();this.port.close();}
++      } catch(error){this.port.postMessage({type:'error',message:error instanceof Error?error.message:'Capture processor failed'});}
++    };
++  }
++
++  process(inputs:Float32Array[][],outputs:Float32Array[][]) {
++    for(const output of outputs)for(const channel of output)channel.fill(0);
++    const input=inputs[0];
++    if(!input?.length || !input[0]?.length){
++      this.missingFrames+=outputs[0]?.[0]?.length??128;
++      const active=this.core&&this.core.state!=='monitoring'&&this.core.state!=='stopped';
++      if(!this.failed&&(active||this.missingFrames>Math.round(sampleRate*.5))){this.failed=true;this.core?.close();this.port.postMessage({type:'error',message:active?'Audio input was interrupted during capture.':'The selected input produced no audio frames.'});}
++      return true;
++    }
++    this.missingFrames=0;
++    try {
++      if(!this.core){
++        // Some browsers omit channelCount settings. This one-time startup
++        // allocation discovers the delivered format; per-take completion never allocates.
++        this.core=new CaptureCore({...this.config,sampleRate,channels:input.length});
++        if(this.requested==='armed')this.core.arm(); else if(this.requested==='recording')this.core.startManual();
++      }
++      if(!this.formatSent){this.formatSent=true;this.port.postMessage({type:'format',sampleRate,channels:input.length,memoryBytes:this.core.memoryBytes});}
++      const result=this.core.process(input,currentFrame);
++      if(result.meter)this.port.postMessage({type:'meter',...result.meter,state:result.state});
++      this.publish(result.takes);
++    } catch(error){this.failed=true;this.core?.close();this.port.postMessage({type:'error',message:error instanceof Error?error.message:'Capture processor failed'});}
++    return true;
++  }
++
++  private publish(takes:ReturnType<CaptureCore['process']>['takes']) {
++    for(const take of takes){
++      const transfer=take.channels.map(channel=>channel.buffer);
++      this.port.postMessage({type:'take',take:{...take,sampleRate,channelCount:take.channels.length}},transfer);
++    }
++  }
++}
++
++registerProcessor('op-patchstudio-capture',OpPatchCaptureProcessor);
+--- before-task6/src/audio/recording/captureSession.ts
++++ src/audio/recording/captureSession.ts
+@@ -0,0 +1,201 @@
++import type { CaptureOptions, CompletionReason } from './captureCore';
++
++export const RECORDING_LIMITS={takes:32,ownedBytes:256*1024*1024,flushMs:500} as const;
++
++export interface SessionTake {
++  id:string; audioBuffer:AudioBuffer; frames:number; sampleRate:number; channels:number;
++  actualPreRollFrames:number; completionReason:CompletionReason;
++}
++
++export interface CaptureStatus {
++  state:'idle'|'requesting-permission'|'monitoring'|'armed'|'recording'|'waiting-for-quiet'|'capacity-full'|'stopped'|'error'|'closed';
++  sampleRate?:number; channels?:number; settingsReported?:boolean; elapsedFrames?:number; peaks?:number[];
++}
++
++interface CaptureSessionDependencies {
++  mediaDevices:MediaDevices;
++  createContext:(sampleRate?:number)=>AudioContext;
++  createWorkletNode:(context:AudioContext,options:AudioWorkletNodeOptions)=>AudioWorkletNode;
++  workletUrl:string;
++  capture?:Omit<CaptureOptions,'sampleRate'|'channels'>;
++  onStatus?:(status:CaptureStatus)=>void;
++  onTake?:(take:SessionTake)=>void|Promise<void>;
++  onError?:(message:string)=>void;
++  getRetainedUsage?:()=>{count:number;bytes:number};
++  setTimer?:(callback:()=>void,ms:number)=>ReturnType<typeof setTimeout>;
++  clearTimer?:(timer:ReturnType<typeof setTimeout>)=>void;
++}
++
++interface ProcessorTakeMessage {
++  type:'take';
++  take:{frames:number;startFrame:number;endFrame:number;preRollFrames:number;reason:CompletionReason;sampleRate:number;channels:Float32Array[]};
++}
++type ProcessorMessage=ProcessorTakeMessage|{type:'stopped'}|{type:'error';message?:string}|{type:'format';channels:number;sampleRate:number}|{type:'meter';state:CaptureStatus['state'];recordedFrames:number;peaks:number[]};
++
++export function captureErrorMessage(reason:unknown) {
++  const name=reason instanceof DOMException?reason.name:(reason as {name?:string})?.name;
++  if(name==='NotAllowedError')return 'Microphone permission was denied. Allow input access in the browser, then retry.';
++  if(name==='NotFoundError')return 'No audio input was found. Connect an input or choose another device, then retry.';
++  if(name==='NotReadableError')return 'The selected input is in use or unavailable. Close other audio apps or reconnect it.';
++  if(name==='OverconstrainedError')return 'The selected device cannot provide a supported input. Choose a mono or stereo input.';
++  return reason instanceof Error?reason.message:'Recording could not start. Check the input and retry.';
++}
++
++function stopTracks(stream:MediaStream|undefined) {stream?.getTracks().forEach(track=>track.stop());}
++
++export class CaptureSession {
++  status:CaptureStatus={state:'idle'};
++  private generation=0;
++  private stream?:MediaStream;
++  private track?:MediaStreamTrack;
++  private context?:AudioContext;
++  private source?:MediaStreamAudioSourceNode;
++  private node?:AudioWorkletNode;
++  private stopResolver?:()=>void;
++  private stopTimer?:ReturnType<typeof setTimeout>;
++  private processorStopped=false;
++  private pendingMaterializations=0;
++  private flushTimedOut=false;
++  private terminalError=false;
++  private disposed=false;
++  private readonly processorError=()=>{void this.fail('The capture processor stopped. Re-enable the input to continue.');};
++  private readonly trackEnded=()=>{void this.fail('The selected input disconnected. Reconnect it, then re-enable input.');};
++  private readonly contextState=()=>{if(this.context && this.context.state!=='running')void this.fail('Audio capture was interrupted. Re-enable the input to continue.');};
++
++  private readonly deps:CaptureSessionDependencies;
++  constructor(deps:CaptureSessionDependencies) {this.deps=deps;}
++
++  async enumerateInputs() {
++    if(!this.deps.mediaDevices?.enumerateDevices)return [];
++    const generation=this.generation;
++    const devices=await this.deps.mediaDevices.enumerateDevices();
++    if(generation!==this.generation||this.disposed)return [];
++    let ordinal=0;
++    return devices.filter(device=>device.kind==='audioinput').map(device=>({deviceId:device.deviceId,label:device.label||`Input ${++ordinal}`}));
++  }
++
++  async enableInput(deviceId:string) {
++    if(this.disposed)this.disposed=false;
++    this.terminalError=false;
++    const generation=++this.generation;
++    await this.releaseGraph(false);
++    if(generation!==this.generation)return false;
++    this.setStatus({state:'requesting-permission'});
++    let stream:MediaStream;
++    try {
++      stream=await this.deps.mediaDevices.getUserMedia({audio:{...(deviceId?{deviceId:{exact:deviceId}}:{}),echoCancellation:false,autoGainControl:false,noiseSuppression:false}});
++    } catch(reason) {
++      if(generation!==this.generation)return false;
++      return this.reject(captureErrorMessage(reason));
++    }
++    if(generation!==this.generation||this.disposed){stopTracks(stream);return false;}
++    const tracks=stream.getAudioTracks();
++    if(tracks.length!==1){stopTracks(stream);return this.reject('Choose a stream with exactly one audio input track.');}
++    const track=tracks[0],settings=track.getSettings();
++    const reportedRate=settings.sampleRate;
++    const reportedChannels=settings.channelCount;
++    if(reportedRate!==undefined&&(reportedRate<8_000||reportedRate>96_000)){stopTracks(stream);return this.reject('The selected input sample rate is outside the supported 8–96 kHz range.');}
++    if(reportedChannels!==undefined&&(reportedChannels<1||reportedChannels>2)){stopTracks(stream);return this.reject('Choose a mono or stereo input. Multichannel capture is not yet supported.');}
++    const retained=this.deps.getRetainedUsage?.()??{count:0,bytes:0};
++    const reservation=this.reservationBytes(reportedRate??48_000,reportedChannels??2);
++    if(retained.count>=RECORDING_LIMITS.takes||retained.bytes+reservation>RECORDING_LIMITS.ownedBytes){stopTracks(stream);return this.reject('Recording capacity is full. Remove or add reviewed takes before enabling input.');}
++    let context:AudioContext|undefined;
++    try {
++      context=this.deps.createContext(reportedRate);
++      if(context.sampleRate<8_000||context.sampleRate>96_000)throw new Error('The browser capture rate is outside the supported 8–96 kHz range.');
++      if(reportedRate!==undefined&&context.sampleRate!==reportedRate)throw new Error(`The browser could not preserve the reported ${reportedRate} Hz input rate.`);
++      await context.audioWorklet.addModule(this.deps.workletUrl);
++      if(context.state==='suspended')await context.resume();
++      if(generation!==this.generation||this.disposed){await context.close();stopTracks(stream);return false;}
++      const source=context.createMediaStreamSource(stream);
++      const node=this.deps.createWorkletNode(context,{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCountMode:'max',channelInterpretation:'discrete',
++        processorOptions:{...(this.deps.capture??{mode:'manual'}),channels:reportedChannels}});
++      source.connect(node); node.connect(context.destination);
++      this.stream=stream;this.track=track;this.context=context;this.source=source;this.node=node;
++      track.addEventListener('ended',this.trackEnded); node.addEventListener('processorerror',this.processorError); context.addEventListener('statechange',this.contextState);
++      node.port.onmessage=event=>{void this.handleMessage(event.data,generation);};
++      this.setStatus({state:'monitoring',sampleRate:context.sampleRate,channels:reportedChannels,settingsReported:reportedRate!==undefined});
++      return true;
++    } catch(reason) {
++      if(context)await context.close().catch(()=>undefined);stopTracks(stream);
++      if(generation!==this.generation)return false;
++      return this.reject(captureErrorMessage(reason));
++    }
++  }
++
++  arm(){if(!this.node)throw new Error('Enable input before arming');this.node.port.postMessage({type:'arm'});this.setStatus({...this.status,state:'armed'});}
++  start(){if(!this.node)throw new Error('Enable input before recording');this.node.port.postMessage({type:'start'});this.setStatus({...this.status,state:'recording'});}
++
++  async stop() {
++    if(!this.node){++this.generation;await this.releaseGraph(false);this.setStatus({state:this.terminalError?'error':'stopped'});return;}
++    const node=this.node;
++    await new Promise<void>(resolve=>{
++      let finished=false; const done=()=>{if(finished||(!this.processorStopped||this.pendingMaterializations>0)&&!this.flushTimedOut)return;finished=true;this.stopResolver=undefined;resolve();};
++      this.processorStopped=false;this.flushTimedOut=false;this.terminalError=false;this.stopResolver=done; node.port.postMessage({type:'stop'});
++      const set=this.deps.setTimer??setTimeout; this.stopTimer=set(()=>{this.flushTimedOut=true;this.deps.onError?.('Recording stopped before the unfinished take could be sealed. The incomplete take was discarded.');done();},RECORDING_LIMITS.flushMs);
++    });
++    ++this.generation;await this.releaseGraph(false);this.setStatus({state:this.flushTimedOut||this.terminalError?'error':'stopped'});
++  }
++
++  async dispose() {if(this.disposed)return;this.disposed=true;++this.generation;await this.releaseGraph(true);this.setStatus({state:'closed'});}
++
++  private async handleMessage(data:ProcessorMessage,generation:number) {
++    if(generation!==this.generation||this.disposed)return;
++    if(data?.type==='stopped'){this.processorStopped=true;if(this.status.state==='capacity-full'){++this.generation;await this.releaseGraph(false);}this.stopResolver?.();return;}
++    if(data?.type==='error'){await this.fail(data.message||'Capture processor failed');return;}
++    if(data?.type==='format'){
++      if(data.channels<1||data.channels>2||data.sampleRate!==this.context?.sampleRate){await this.fail('The input changed to an unsupported capture format.');return;}
++      this.setStatus({...this.status,sampleRate:data.sampleRate,channels:data.channels});return;
++    }
++    if(data?.type==='meter'){
++      this.setStatus({...this.status,state:data.state,elapsedFrames:data.recordedFrames,peaks:data.peaks});this.node?.port.postMessage({type:'ack-meter'});return;
++    }
++    if(data?.type==='take'){
++      const take=data.take,channels=take?.channels;
++      if(!Array.isArray(channels)||!Number.isInteger(take.frames)||take.frames<1||take.frames>channels[0]?.length||take.endFrame-take.startFrame!==take.frames||channels.length<1||channels.length>2) {
++        await this.fail('The capture processor returned invalid take dimensions.');return;
++      }
++      const retained=this.deps.getRetainedUsage?.()??{count:0,bytes:0};
++      const transferredBytes=channels.reduce((sum:number,channel:Float32Array)=>sum+channel.byteLength,0);
++      const pcmBytes=take.frames*channels.length*4,storedBytes=24+pcmBytes;
++      const ringBytes=Math.round((this.deps.capture?.preRollSeconds??.25)*take.sampleRate)*channels.length*4;
++      const peakOwnedBytes=retained.bytes+ringBytes+transferredBytes+pcmBytes+2*storedBytes+transferredBytes;
++      if(retained.count>=RECORDING_LIMITS.takes||!Number.isSafeInteger(peakOwnedBytes)||peakOwnedBytes>RECORDING_LIMITS.ownedBytes){
++        await this.fail('Recording capacity is full. Remove or add reviewed takes before recording more.');return;
++      }
++      this.pendingMaterializations+=1;
++      try {
++        const audioBuffer=this.context!.createBuffer(channels.length,take.frames,take.sampleRate);
++        channels.forEach((channel:Float32Array,index:number)=>audioBuffer.copyToChannel(channel.subarray(0,take.frames),index));
++        const result:SessionTake={id:crypto.randomUUID(),audioBuffer,frames:take.frames,sampleRate:take.sampleRate,channels:channels.length,
++          actualPreRollFrames:take.preRollFrames,completionReason:take.reason};
++        await this.deps.onTake?.(result);
++        if(generation===this.generation&&!this.disposed){
++          const observed=this.deps.getRetainedUsage?.()??{count:retained.count+1,bytes:retained.bytes+pcmBytes+storedBytes};
++          const after={count:Math.max(observed.count,retained.count+1),bytes:Math.max(observed.bytes,retained.bytes+pcmBytes+storedBytes)};
++          if(after.count>=RECORDING_LIMITS.takes||after.bytes+this.reservationBytes(take.sampleRate,channels.length)>RECORDING_LIMITS.ownedBytes){
++            this.setStatus({...this.status,state:'capacity-full'});this.node?.port.postMessage({type:'stop'});
++          } else this.node?.port.postMessage({type:'ack-take'});
++        }
++      } catch(reason) {
++        await this.fail(`Recorded take preparation failed: ${captureErrorMessage(reason)}`);
++      } finally {
++        this.pendingMaterializations=Math.max(0,this.pendingMaterializations-1);this.stopResolver?.();
++      }
++    }
++  }
++
++  private reject(message:string){this.setStatus({state:'error'});this.deps.onError?.(message);return false;}
++  private async fail(message:string){this.terminalError=true;this.deps.onError?.(message);++this.generation;this.processorStopped=true;await this.releaseGraph(true);this.setStatus({state:'error'});this.stopResolver?.();}
++  private setStatus(status:CaptureStatus){this.status=status;this.deps.onStatus?.(status);}
++  private reservationBytes(rate:number,channels:number){const maxFrames=Math.floor((this.deps.capture?.maxSeconds??20)*rate),ringFrames=Math.round((this.deps.capture?.preRollSeconds??.25)*rate);
++    const maxPcm=maxFrames*channels*4,ring=ringFrames*channels*4;return ring+5*maxPcm+48;}
++  private async releaseGraph(closePort:boolean) {
++    const clear=this.deps.clearTimer??clearTimeout;if(this.stopTimer){clear(this.stopTimer);this.stopTimer=undefined;}
++    const node=this.node,source=this.source,track=this.track,context=this.context,stream=this.stream;
++    this.node=this.source=this.track=this.context=this.stream=undefined;
++    if(track)track.removeEventListener('ended',this.trackEnded);if(node)node.removeEventListener('processorerror',this.processorError);if(context)context.removeEventListener('statechange',this.contextState);
++    if(node){node.port.onmessage=null;if(closePort){try{node.port.postMessage({type:'close'});}catch{ /* already closed */ }}node.port.close();node.disconnect();}
++    source?.disconnect();stopTracks(stream);if(context)await context.close().catch(()=>undefined);
++  }
++}
+--- before-task6/src/components/common/RecordingModal.tsx
++++ src/components/common/RecordingModal.tsx
+@@ -1,791 +1,91 @@
+-import { useState, useRef, useEffect, useCallback } from 'react';
++import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
++import captureWorkletUrl from '../../audio/recording/captureProcessor.ts?worker&url';
++import { CaptureSession, RECORDING_LIMITS, type CaptureStatus, type SessionTake } from '../../audio/recording/captureSession';
++import { prepareRecordingApplication, proposeUnusedRootNotes, type RecordingTarget } from '../../utils/recordingApplication';
++import { useAppContext } from '../../context/AppContext';
+ 
+-interface RecordingModalProps {
+-  isOpen: boolean;
+-  onClose: () => void;
+-  onSave: (audioBuffer: AudioBuffer, filename: string) => void;
+-  maxDuration?: number; // in seconds
++interface Props {isOpen:boolean;onClose:()=>void;instrument:'drum'|'multisample';target:RecordingTarget;maxDuration?:number}
++interface ReviewTake extends SessionTake {name:string;selected:boolean;rootNote:number}
++type Resolution=''|'replace'|'choose-empty'|'choose-free'|'cancel';
++const box:React.CSSProperties={border:'1px solid var(--color-border-medium, #bbb)',borderRadius:6,padding:10};
++const button:React.CSSProperties={minHeight:44,padding:'0.5rem 0.75rem',border:'1px solid var(--color-border-medium, #bbb)',borderRadius:4,background:'var(--color-bg-primary, #fff)',color:'inherit'};
++
++export function RecordingModal({isOpen,onClose,instrument,target,maxDuration=20}:Props) {
++  const {state,dispatch}=useAppContext();
++  const [devices,setDevices]=useState<Array<{deviceId:string;label:string}>>([]),[deviceId,setDeviceId]=useState('');
++  const [mode,setMode]=useState<'manual'|'sound'>('manual'),[thresholdDb,setThresholdDb]=useState(-30),[hysteresisDb,setHysteresisDb]=useState(6);
++  const [preRoll,setPreRoll]=useState(.25),[silenceStop,setSilenceStop]=useState(.5),[durationLimit,setDurationLimit]=useState(Math.min(20,maxDuration));
++  const [status,setStatus]=useState<CaptureStatus>({state:'idle'}),[error,setError]=useState(''),[feedback,setFeedback]=useState('');
++  const [takes,setTakes]=useState<ReviewTake[]>([]),takesRef=useRef<ReviewTake[]>([]);
++  const [resolution,setResolution]=useState<Resolution>(''),[applying,setApplying]=useState(false);
++  const sessionRef=useRef<CaptureSession|undefined>(undefined),previewRef=useRef<{context:AudioContext;source:AudioBufferSourceNode;id:string}|undefined>(undefined),operationRef=useRef<string|undefined>(undefined),generationRef=useRef(0);
++  const updateTakes=useCallback((update:(current:ReviewTake[])=>ReviewTake[])=>{
++    const next=update(takesRef.current);takesRef.current=next;setTakes(next);
++  },[]);
++  const occupied=useMemo(()=>target.kind==='drum'&&target.padIndex!==undefined?state.drumSamples[target.padIndex]?.isLoaded:
++    target.kind==='multisample'&&target.rootNote!==undefined?state.multisampleFiles.some(file=>file.rootNote===target.rootNote):false,[state.drumSamples,state.multisampleFiles,target]);
++  const supported=!!navigator.mediaDevices?.getUserMedia&&typeof AudioContext!=='undefined'&&typeof AudioWorkletNode!=='undefined'&&window.isSecureContext!==false;
++  const stopPreview=useCallback(async()=>{const owned=previewRef.current;previewRef.current=undefined;if(!owned)return;owned.source.onended=null;try{owned.source.stop();}catch{/* ended */}owned.source.disconnect();await owned.context.close().catch(()=>undefined);},[]);
++  const dispose=useCallback(async()=>{const owned=sessionRef.current;sessionRef.current=undefined;await owned?.dispose();},[]);
++  const close=useCallback(()=>{generationRef.current+=1;operationRef.current=undefined;void stopPreview();void dispose();onClose();},[dispose,onClose,stopPreview]);
++  useEffect(()=>{if(!isOpen){void dispose();void stopPreview();return;}const generation=++generationRef.current;takesRef.current=[];setTakes([]);setStatus({state:'idle'});setError('');setFeedback('');setResolution('');
++    const refresh=()=>{void navigator.mediaDevices?.enumerateDevices?.().then(items=>{if(generation===generationRef.current)setDevices(items.filter(item=>item.kind==='audioinput').map((item,index)=>({deviceId:item.deviceId,label:item.label||'Input '+(index+1)})));}).catch(()=>{if(generation===generationRef.current)setDevices([]);});};
++    refresh();navigator.mediaDevices?.addEventListener?.('devicechange',refresh);
++    return()=>{generationRef.current+=1;navigator.mediaDevices?.removeEventListener?.('devicechange',refresh);void dispose();void stopPreview();};},[dispose,isOpen,stopPreview]);
++  useEffect(()=>{const receipt=state.recordingCommitResult;if(!operationRef.current||receipt?.operationId!==operationRef.current)return;operationRef.current=undefined;setApplying(false);
++    if(receipt.status==='rejected'){setError(receipt.error||'The project changed. No takes were added.');return;}
++    const applied=new Set(receipt.appliedIds||[]);updateTakes(current=>current.filter(take=>!applied.has(take.id)));
++    setFeedback(String(receipt.assignedCount||0)+' takes added'+(receipt.retainedIds?.length?'; '+receipt.retainedIds.length+' retained in review':'')+'.');
++  },[state.recordingCommitResult,updateTakes]);
++  const usage=useCallback(()=>({count:takesRef.current.length,bytes:takesRef.current.reduce((sum,take)=>{const pcm=take.frames*take.channels*4;return sum+pcm+24+pcm;},0)}),[]);
++  const makeSession=(generation:number)=>new CaptureSession({mediaDevices:navigator.mediaDevices,workletUrl:captureWorkletUrl,
++    createContext:rate=>new AudioContext(rate?{sampleRate:rate}:undefined),createWorkletNode:(context,options)=>new AudioWorkletNode(context,'op-patchstudio-capture',options),
++    capture:{mode,thresholdDb,hysteresisDb,preRollSeconds:preRoll,silenceSeconds:silenceStop,rearmSeconds:.25,maxSeconds:durationLimit},getRetainedUsage:usage,
++    onStatus:value=>{if(generation===generationRef.current)setStatus(value);},onError:value=>{if(generation===generationRef.current)setError(value);},onTake:async take=>{if(generation!==generationRef.current)throw new DOMException('Recording closed','AbortError');const existing=takesRef.current;if(existing.length>=32)throw new Error('The review tray is full.');
++      const explicitRoot=target.kind==='multisample'&&target.rootNote!==undefined&&existing.length===0?target.rootNote:undefined;
++      const start=explicitRoot??60;
++      const rootNote=explicitRoot??proposeUnusedRootNotes(state.multisampleFiles,existing.length+1,start).at(-1)??Math.min(127,start+existing.length);
++      if(generation===generationRef.current)updateTakes(current=>[...current,{...take,name:'Take '+(current.length+1),selected:true,rootNote}]);}});
++  const enable=async()=>{if(!supported){setError('Recording requires a supported browser on HTTPS; import an audio file instead.');return;}const generation=generationRef.current;setError('');await stopPreview();if(generation!==generationRef.current)return;await dispose();if(generation!==generationRef.current)return;
++    const session=makeSession(generation);sessionRef.current=session;const enabled=await session.enableInput(deviceId);if(generation!==generationRef.current){await session.dispose();if(sessionRef.current===session)sessionRef.current=undefined;return;}if(enabled){const found=await session.enumerateInputs();if(generation===generationRef.current&&found.length)setDevices(found);}};
++  const start=async(kind:'start'|'arm')=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(!sessionRef.current)await enable();if(generation!==generationRef.current)return;try{if(kind==='arm')sessionRef.current?.arm();else sessionRef.current?.start();}catch(reason){setError(reason instanceof Error?reason.message:'Recording could not start.');}};
++  const stop=async()=>{const owned=sessionRef.current;if(!owned)return;await owned.stop();if(sessionRef.current===owned)sessionRef.current=undefined;};
++  const audition=async(take:ReviewTake)=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(sessionRef.current&&['armed','recording','waiting-for-quiet'].includes(sessionRef.current.status.state))await stop();if(generation!==generationRef.current)return;
++    const context=new AudioContext();try{await context.resume();if(generation!==generationRef.current){await context.close();return;}const source=context.createBufferSource();source.buffer=take.audioBuffer;source.connect(context.destination);previewRef.current={context,source,id:take.id};source.onended=()=>{if(previewRef.current?.id===take.id)void stopPreview();};source.start();}catch(reason){await context.close().catch(()=>undefined);if(generation===generationRef.current)setError(reason instanceof Error?reason.message:'Preview could not start.');}};
++  const apply=async()=>{if(occupied&&!resolution){setError('Choose how to resolve the occupied recording target.');return;}if(resolution==='cancel')return;const generation=generationRef.current;setApplying(true);await stopPreview();if(generation!==generationRef.current)return;await stop();if(generation!==generationRef.current)return;const selected=takesRef.current.filter(take=>take.selected);if(!selected.length){setApplying(false);return;}
++    const effective:RecordingTarget=target.kind==='drum'?(resolution==='choose-empty'?{kind:'drum',decision:'choose-empty'}:{...target,decision:resolution==='replace'?'replace':target.decision}):{...target,decision:resolution==='replace'?'replace':resolution==='choose-free'?'choose-free':target.decision};
++    setError('');try{const prepared=await prepareRecordingApplication({instrument,takes:selected.map((take,index)=>({id:take.id,name:take.name,audioBuffer:take.audioBuffer,rootNote:effective.kind==='multisample'&&effective.decision==='replace'&&index===0&&effective.rootNote!==undefined?effective.rootNote:take.rootNote})),state,target:effective});
++      if(generation!==generationRef.current){setApplying(false);return;}const operationId=crypto.randomUUID();operationRef.current=operationId;dispatch({type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId,prepared}});
++    }catch(reason){setApplying(false);setError(reason instanceof Error?reason.message:'Takes could not be prepared.');}};
++  if(!isOpen)return null;
++  const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current,used=usage();
++  return <div onMouseDown={event=>{if(event.target===event.currentTarget)close();}} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',display:'grid',placeItems:'center',padding:16}}>
++    <section role="dialog" aria-modal="true" aria-labelledby="record-takes-title" style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',overflow:'auto',padding:20,borderRadius:8}}>
++      <div style={{display:'flex',justifyContent:'space-between'}}><h2 id="record-takes-title">Record takes</h2><button aria-label="Close" onClick={close} style={button}>Close</button></div>
++      <p>Browser-delivered mono/stereo PCM. Input processing is requested off; actual settings appear after permission. Maximum take: {durationLimit} seconds.</p>
++      {!supported&&<p role="alert">Recording requires a supported browser on HTTPS; import an audio file instead.</p>}
++      <div style={{...box,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:10}}>
++        <label>Input device<select aria-label="Input device" value={deviceId} disabled={configured} onChange={e=>setDeviceId(e.target.value)} style={{...button,width:'100%'}}><option value="">Default input</option>{devices.map(device=><option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}</select></label>
++        <label>Capture mode<select aria-label="Capture mode" value={mode} disabled={configured} onChange={e=>setMode(e.target.value as 'manual'|'sound')} style={{...button,width:'100%'}}><option value="manual">Manual</option><option value="sound">Sound triggered</option></select></label>
++        <Numeric label="Maximum take length" value={durationLimit} min={1} max={20} step={1} disabled={configured} set={setDurationLimit}/>
++        {mode==='sound'&&<><Numeric label="Trigger threshold" value={thresholdDb} min={-72} max={-6} step={1} disabled={configured} set={setThresholdDb}/><Numeric label="Trigger hysteresis" value={hysteresisDb} min={3} max={24} step={1} disabled={configured} set={setHysteresisDb}/><Numeric label="Pre-roll" value={preRoll} min={0} max={2} step={.05} disabled={configured} set={setPreRoll}/><Numeric label="Silence stop" value={silenceStop} min={.1} max={5} step={.1} disabled={configured} set={setSilenceStop}/></>}
++      </div>
++      <p aria-live="polite"><strong>State:</strong> {status.state}. {status.sampleRate?status.sampleRate+' Hz, '+(status.channels||'unknown')+' channels. '+(status.settingsReported?'Input rate reported by the browser. ':'Input rate was not reported; capture context rate shown. '):''}Level {Math.round(Math.max(0,...(status.peaks||[0]))*100)}%. Take time {((status.elapsedFrames||0)/(status.sampleRate||1)).toFixed(2)} s.</p>
++      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>void enable()} disabled={!supported||active} style={button}>Enable input</button><button onClick={()=>void start('start')} disabled={mode!=='manual'||status.state==='recording'} style={button}>Start recording</button><button onClick={()=>void start('arm')} disabled={mode!=='sound'||active} style={button}>Arm sound trigger</button><button onClick={()=>void stop()} disabled={!sessionRef.current} style={button}>Stop recording</button><button onClick={()=>void stopPreview()} disabled={!previewRef.current} style={button}>Stop preview</button></div>
++      {error&&<p role="alert">{error}</p>}{feedback&&<p role="status">{feedback}</p>}
++      <h3>Review tray</h3><p>{takes.length}/{RECORDING_LIMITS.takes} takes · {Math.min(100,Math.round(used.bytes/RECORDING_LIMITS.ownedBytes*100))}% of 256 MiB</p>
++      {!takes.length?<p>No takes yet. The project changes only after Add selected takes.</p>:takes.map(take=><div key={take.id} role="group" aria-label={'Take '+take.name+' '+take.id} style={{...box,marginBottom:8,display:'flex',gap:8,alignItems:'end',flexWrap:'wrap'}}>
++        <label><input aria-label={'Select take '+take.id} type="checkbox" disabled={applying} checked={take.selected} onChange={e=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,selected:e.target.checked}:item))}/> Select</label>
++        <label>Name<input aria-label={'Name for take '+take.id} disabled={applying} value={take.name} onChange={e=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,name:e.target.value}:item))} style={button}/></label>
++        {instrument==='multisample'&&<Numeric label={'Root note for take '+take.id} value={take.rootNote} min={0} max={127} step={1} disabled={applying} set={value=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,rootNote:value}:item))}/>}
++        <button aria-label={'Audition take '+take.id} disabled={applying} onClick={()=>void audition(take)} style={button}>Audition</button><button aria-label={'Remove take '+take.id} disabled={applying} onClick={()=>{if(previewRef.current?.id===take.id)void stopPreview();updateTakes(current=>current.filter(item=>item.id!==take.id));}} style={button}>Remove</button>
++      </div>)}
++      {occupied&&<fieldset><legend>Occupied target</legend><p>Replacement approval is bound to the current target sample.</p><label><input type="radio" name="resolution" onChange={()=>setResolution('replace')}/> Replace</label>{' '}<label><input type="radio" name="resolution" onChange={()=>{setResolution(target.kind==='drum'?'choose-empty':'choose-free');if(target.kind==='multisample'){const note=proposeUnusedRootNotes(state.multisampleFiles,1,target.rootNote||60)[0];if(note!==undefined)updateTakes(current=>current.map((take,index)=>index?take:{...take,rootNote:note}));}}}/> Choose {target.kind==='drum'?'empty pad':'free note'}</label>{' '}<label><input type="radio" name="resolution" onChange={()=>setResolution('cancel')}/> Cancel</label></fieldset>}
++      <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14}}><button onClick={close} style={button}>Cancel</button><button onClick={()=>void apply()} disabled={applying||!takes.some(take=>take.selected)||resolution==='cancel'} style={button}>{applying?'Preparing takes…':'Add selected takes'}</button></div>
++    </section></div>;
+ }
+ 
+-interface AudioDevice {
+-  deviceId: string;
+-  label: string;
++function Numeric({label,value,min,max,step,set,disabled=false}:{label:string;value:number;min:number;max:number;step:number;set:(value:number)=>void;disabled?:boolean}) {
++  return <label>{label}<input aria-label={label} type="number" value={value} min={min} max={max} step={step} disabled={disabled} onChange={event=>set(Number(event.target.value))} style={{...button,width:'100%',boxSizing:'border-box'}}/></label>;
+ }
+-
+-export function RecordingModal({ 
+-  isOpen, 
+-  onClose, 
+-  onSave, 
+-  maxDuration = 20 
+-}: RecordingModalProps) {
+-  const [devices, setDevices] = useState<AudioDevice[]>([]);
+-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+-  const [isRecording, setIsRecording] = useState(false);
+-  const [isPlaying, setIsPlaying] = useState(false);
+-  const [recordingTime, setRecordingTime] = useState(0);
+-  const [recordedBuffer, setRecordedBuffer] = useState<AudioBuffer | null>(null);
+-  const [error, setError] = useState<string>('');
+-  const [filename, setFilename] = useState<string>('');
+-  
+-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+-  const streamRef = useRef<MediaStream | null>(null);
+-  const audioChunksRef = useRef<Blob[]>([]);
+-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+-  const canvasRef = useRef<HTMLCanvasElement>(null);
+-  const audioContextRef = useRef<AudioContext | null>(null);
+-  const analyserRef = useRef<AnalyserNode | null>(null);
+-  const animationRef = useRef<number | null>(null);
+-
+-  // Get available audio input devices
+-  const getAudioDevices = useCallback(async () => {
+-    try {
+-      // First request permission to get device labels
+-      await navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+-        stream.getTracks().forEach(track => track.stop());
+-      });
+-      
+-      const devices = await navigator.mediaDevices.enumerateDevices();
+-      const audioInputs = devices
+-        .filter(device => device.kind === 'audioinput')
+-        .map(device => ({
+-          deviceId: device.deviceId,
+-          label: device.label || `microphone ${device.deviceId.slice(0, 8)}`
+-        }));
+-      
+-      setDevices(audioInputs);
+-      if (audioInputs.length > 0 && !selectedDeviceId) {
+-        setSelectedDeviceId(audioInputs[0].deviceId);
+-      }
+-    } catch (err) {
+-      console.error('Error getting audio devices:', err);
+-      setError('failed to access audio devices. please check permissions.');
+-      // Set a default device even if we can't enumerate
+-      setDevices([{ deviceId: 'default', label: 'default microphone' }]);
+-      setSelectedDeviceId('default');
+-    }
+-  }, []);
+-
+-  // Initialize when modal opens
+-  useEffect(() => {
+-    if (isOpen) {
+-      resetRecording();
+-      getAudioDevices();
+-    } else {
+-      cleanup();
+-    }
+-  }, [isOpen, getAudioDevices]);
+-
+-  // Generate default filename when modal opens
+-  useEffect(() => {
+-    if (isOpen) {
+-      const now = new Date();
+-      const dateStr = now.getFullYear().toString() + 
+-                     (now.getMonth() + 1).toString().padStart(2, '0') + 
+-                     now.getDate().toString().padStart(2, '0');
+-      const timeStr = now.getHours().toString().padStart(2, '0') + 
+-                     now.getMinutes().toString().padStart(2, '0') + 
+-                     now.getSeconds().toString().padStart(2, '0');
+-      setFilename(`rec-sample-${dateStr}-${timeStr}-note`);
+-    }
+-  }, [isOpen]);
+-
+-  const cleanup = () => {
+-    if (streamRef.current) {
+-      streamRef.current.getTracks().forEach(track => track.stop());
+-      streamRef.current = null;
+-    }
+-    if (mediaRecorderRef.current) {
+-      mediaRecorderRef.current = null;
+-    }
+-    if (timerRef.current) {
+-      clearInterval(timerRef.current);
+-      timerRef.current = null;
+-    }
+-    if (audioContextRef.current) {
+-      audioContextRef.current.close();
+-      audioContextRef.current = null;
+-    }
+-    if (animationRef.current) {
+-      cancelAnimationFrame(animationRef.current);
+-      animationRef.current = null;
+-    }
+-  };
+-
+-  const resetRecording = () => {
+-    setIsRecording(false);
+-    setIsPlaying(false);
+-    setRecordingTime(0);
+-    setRecordedBuffer(null);
+-    setError('');
+-    audioChunksRef.current = [];
+-    cleanup();
+-  };
+-
+-  const startRecording = async () => {
+-    try {
+-      setError('');
+-      console.log('Starting recording with device:', selectedDeviceId);
+-      
+-      // Request microphone access with selected device
+-      const constraints: MediaStreamConstraints = {
+-        audio: selectedDeviceId && selectedDeviceId !== 'default' 
+-          ? { deviceId: { exact: selectedDeviceId } } 
+-          : true
+-      };
+-      
+-      streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
+-      
+-      // Set up MediaRecorder
+-      const options: MediaRecorderOptions = {};
+-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+-        options.mimeType = 'audio/webm;codecs=opus';
+-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+-        options.mimeType = 'audio/webm';
+-      }
+-      
+-      mediaRecorderRef.current = new MediaRecorder(streamRef.current, options);
+-      
+-      audioChunksRef.current = [];
+-      
+-      mediaRecorderRef.current.ondataavailable = (event) => {
+-        if (event.data.size > 0) {
+-          audioChunksRef.current.push(event.data);
+-        }
+-      };
+-      
+-      mediaRecorderRef.current.onstop = async () => {
+-        const audioBlob = new Blob(audioChunksRef.current, { 
+-          type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
+-        });
+-        await processRecordedAudio(audioBlob);
+-      };
+-      
+-      // Set up real-time waveform visualization
+-      setupWaveformVisualization();
+-      
+-      // Start recording
+-      mediaRecorderRef.current.start(100);
+-      setIsRecording(true);
+-      
+-      // Start timer
+-      const startTime = Date.now();
+-      timerRef.current = setInterval(() => {
+-        const elapsed = (Date.now() - startTime) / 1000;
+-        setRecordingTime(elapsed);
+-        
+-        // Auto-stop at max duration
+-        if (elapsed >= maxDuration) {
+-          stopRecording();
+-        }
+-      }, 100);
+-      
+-    } catch (err) {
+-      console.error('Error starting recording:', err);
+-      setError('failed to start recording. please check microphone permissions.');
+-    }
+-  };
+-
+-  const stopRecording = () => {
+-    if (mediaRecorderRef.current && isRecording) {
+-      mediaRecorderRef.current.stop();
+-      setIsRecording(false);
+-      
+-      if (timerRef.current) {
+-        clearInterval(timerRef.current);
+-        timerRef.current = null;
+-      }
+-      
+-      if (animationRef.current) {
+-        cancelAnimationFrame(animationRef.current);
+-        animationRef.current = null;
+-      }
+-    }
+-  };
+-
+-  const setupWaveformVisualization = () => {
+-    if (!streamRef.current || !canvasRef.current) return;
+-    
+-    audioContextRef.current = new AudioContext();
+-    analyserRef.current = audioContextRef.current.createAnalyser();
+-    const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
+-    source.connect(analyserRef.current);
+-    
+-    analyserRef.current.fftSize = 2048;
+-    const bufferLength = analyserRef.current.frequencyBinCount;
+-    const dataArray = new Uint8Array(bufferLength);
+-    
+-    const draw = () => {
+-      if (!analyserRef.current || !canvasRef.current) return;
+-      
+-      const canvas = canvasRef.current;
+-      const ctx = canvas.getContext('2d');
+-      if (!ctx) return;
+-      
+-      analyserRef.current.getByteTimeDomainData(dataArray);
+-      
+-      ctx.fillStyle = '#f8f9fa';
+-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+-      
+-      ctx.lineWidth = 2;
+-      ctx.strokeStyle = isRecording ? '#333' : '#666';
+-      ctx.beginPath();
+-      
+-      const sliceWidth = canvas.width / bufferLength;
+-      let x = 0;
+-      
+-      for (let i = 0; i < bufferLength; i++) {
+-        const v = dataArray[i] / 128.0;
+-        const y = v * canvas.height / 2;
+-        
+-        if (i === 0) {
+-          ctx.moveTo(x, y);
+-        } else {
+-          ctx.lineTo(x, y);
+-        }
+-        
+-        x += sliceWidth;
+-      }
+-      
+-      ctx.stroke();
+-      
+-      if (isRecording) {
+-        animationRef.current = requestAnimationFrame(draw);
+-      }
+-    };
+-    
+-    draw();
+-  };
+-
+-  const processRecordedAudio = async (audioBlob: Blob) => {
+-    try {
+-      const arrayBuffer = await audioBlob.arrayBuffer();
+-      const audioContext = new AudioContext();
+-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+-      setRecordedBuffer(audioBuffer);
+-      
+-      // Draw final waveform with high quality rendering
+-      drawHighQualityWaveform(audioBuffer);
+-    } catch (err) {
+-      console.error('Error processing recorded audio:', err);
+-      setError('failed to process recorded audio.');
+-    }
+-  };
+-
+-
+-
+-  const drawHighQualityWaveform = (audioBuffer: AudioBuffer) => {
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-    
+-    const ctx = canvas.getContext('2d');
+-    if (!ctx) return;
+-    
+-    const width = canvas.width;
+-    const height = canvas.height;
+-    const data = audioBuffer.getChannelData(0);
+-    
+-    // Clear canvas with background
+-    ctx.fillStyle = '#f8f9fa';
+-    ctx.fillRect(0, 0, width, height);
+-    
+-    // Use the same waveform rendering approach as WaveformEditor
+-    const step = Math.ceil(data.length / width);
+-    const amp = height / 2;
+-    
+-    ctx.fillStyle = '#333333';
+-    ctx.beginPath();
+-    
+-    for (let i = 0; i < width; i++) {
+-      let min = 1.0;
+-      let max = -1.0;
+-      
+-      for (let j = 0; j < step; j++) {
+-        const datum = data[(i * step) + j];
+-        if (datum < min) min = datum;
+-        if (datum > max) max = datum;
+-      }
+-      
+-      // Draw a vertical line from min to max for each pixel column
+-      ctx.rect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+-    }
+-    
+-    ctx.fill();
+-  };
+-
+-  const playRecording = async () => {
+-    if (!recordedBuffer) return;
+-    
+-    try {
+-      const audioContext = new AudioContext();
+-      const source = audioContext.createBufferSource();
+-      source.buffer = recordedBuffer;
+-      source.connect(audioContext.destination);
+-      
+-      setIsPlaying(true);
+-      source.start();
+-      
+-      source.onended = () => {
+-        setIsPlaying(false);
+-      };
+-      
+-      // Auto-stop after duration
+-      setTimeout(() => {
+-        setIsPlaying(false);
+-      }, recordedBuffer.duration * 1000);
+-      
+-    } catch (err) {
+-      console.error('Error playing recording:', err);
+-      setError('failed to play recording.');
+-    }
+-  };
+-
+-  const handleSave = () => {
+-    if (recordedBuffer) {
+-      onSave(recordedBuffer, filename);
+-      onClose();
+-    }
+-  };
+-
+-  const formatTime = (seconds: number) => {
+-    const mins = Math.floor(seconds / 60);
+-    const secs = Math.floor(seconds % 60);
+-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+-  };
+-
+-  if (!isOpen) return null;
+-
+-  return (
+-    <div 
+-      style={{
+-        position: 'fixed',
+-        top: 0,
+-        left: 0,
+-        right: 0,
+-        bottom: 0,
+-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+-        display: 'flex',
+-        alignItems: 'center',
+-        justifyContent: 'center',
+-        zIndex: 9999,
+-        fontFamily: '"Montserrat", "Arial", sans-serif'
+-      }}
+-      onClick={onClose}
+-    >
+-      <div 
+-        style={{
+-          backgroundColor: '#fff',
+-          borderRadius: '6px',
+-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+-          maxWidth: '500px',
+-          width: '90%',
+-          margin: '0 1rem',
+-          overflow: 'hidden'
+-        }}
+-        onClick={(e) => e.stopPropagation()}
+-      >
+-        {/* Header */}
+-        <div style={{
+-          padding: '1.5rem 1.5rem 1rem 1.5rem',
+-          borderBottom: '1px solid #f0f0f0'
+-        }}>
+-          <h3 style={{
+-            margin: '0',
+-            fontSize: '1.25rem',
+-            fontWeight: '300',
+-            color: '#222',
+-            display: 'flex',
+-            alignItems: 'center',
+-            gap: '0.5rem'
+-          }}>
+-            <i className="fas fa-microphone" style={{
+-              color: 'var(--color-accent-primary)',
+-              fontSize: '1.25rem'
+-            }}></i>
+-            record sample
+-          </h3>
+-        </div>
+-
+-        {/* Content */}
+-        <div style={{
+-          padding: '1.5rem',
+-          color: '#555',
+-          fontSize: '0.95rem',
+-          lineHeight: '1.5'
+-        }}>
+-          {/* Input Device Selection */}
+-          <div style={{ marginBottom: '1.5rem' }}>
+-            <label style={{ 
+-              display: 'block', 
+-              marginBottom: '0.5rem', 
+-              fontSize: '0.9rem',
+-              color: '#333',
+-              fontWeight: '500'
+-            }}>
+-              input device
+-            </label>
+-            <select
+-              value={selectedDeviceId}
+-              onChange={(e) => setSelectedDeviceId(e.target.value)}
+-              disabled={isRecording}
+-              style={{
+-                width: '100%',
+-                padding: '0.5rem',
+-                border: '1px solid #d1d5db',
+-                borderRadius: '3px',
+-                fontSize: '0.9rem',
+-                backgroundColor: '#fff',
+-                color: '#333'
+-              }}
+-            >
+-              {devices.length === 0 ? (
+-                <option value="">loading devices...</option>
+-              ) : (
+-                devices.map((device) => (
+-                  <option key={device.deviceId} value={device.deviceId}>
+-                    {device.label}
+-                  </option>
+-                ))
+-              )}
+-            </select>
+-          </div>
+-
+-          {/* Filename Input */}
+-          <div style={{ marginBottom: '1.5rem' }}>
+-            <label style={{ 
+-              display: 'block', 
+-              marginBottom: '0.5rem', 
+-              fontSize: '0.9rem',
+-              color: '#333',
+-              fontWeight: '500'
+-            }}>
+-              filename
+-            </label>
+-            <input
+-              type="text"
+-              value={filename}
+-              onChange={(e) => setFilename(e.target.value)}
+-              disabled={isRecording}
+-              style={{
+-                width: '100%',
+-                padding: '0.5rem',
+-                border: '1px solid #d1d5db',
+-                borderRadius: '3px',
+-                fontSize: '0.9rem',
+-                backgroundColor: '#fff',
+-                color: '#333',
+-                boxSizing: 'border-box'
+-              }}
+-              placeholder="enter filename for the recording"
+-            />
+-          </div>
+-
+-          {/* Recording Status */}
+-          <div style={{ 
+-            display: 'flex', 
+-            justifyContent: 'space-between', 
+-            alignItems: 'center',
+-            marginBottom: '1rem',
+-            padding: '1rem',
+-            backgroundColor: '#f8f9fa',
+-            borderRadius: '3px'
+-          }}>
+-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+-              {isRecording && (
+-                <div style={{
+-                  width: '16px',
+-                  height: '16px',
+-                  backgroundColor: 'var(--color-accent-primary)',
+-                  borderRadius: '50%',
+-                  animation: 'pulse 1s infinite'
+-                }} />
+-              )}
+-              <span style={{ fontSize: '1.1rem', color: isRecording ? 'var(--color-accent-primary)' : '#333' }}>
+-                {isRecording ? 'recording...' : recordedBuffer ? 'recording complete' : 'ready to record'}
+-              </span>
+-            </div>
+-            <div style={{ 
+-              fontSize: '1.25rem', 
+-              fontWeight: 'bold', 
+-              color: isRecording ? 'var(--color-accent-primary)' : '#333',
+-              animation: isRecording ? 'pulse 1s infinite' : 'none',
+-              minWidth: '60px',
+-              textAlign: 'right',
+-              paddingRight: '8px'
+-            }}>
+-              {formatTime(recordingTime)}
+-            </div>
+-          </div>
+-
+-          {/* Recording Controls */}
+-          <div style={{ 
+-            display: 'flex', 
+-            gap: '0.75rem', 
+-            justifyContent: 'center',
+-            marginBottom: '0.5rem'
+-          }}>
+-            {!isRecording && !recordedBuffer && (
+-              <button
+-                onClick={startRecording}
+-                style={{
+-                  padding: '0.625rem 1.25rem',
+-                  border: 'none',
+-                  borderRadius: '3px',
+-                  backgroundColor: 'var(--color-accent-primary)',
+-                  color: '#fff',
+-                  fontSize: '0.875rem',
+-                  fontWeight: '500',
+-                  cursor: 'pointer',
+-                  transition: 'all 0.2s ease',
+-                  fontFamily: 'inherit',
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: '0.5rem'
+-                }}
+-                onMouseEnter={(e) => {
+-                  e.currentTarget.style.backgroundColor = 'var(--color-accent-primary)';
+-                  e.currentTarget.style.transform = 'translateY(-1px)';
+-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+-                }}
+-                onMouseLeave={(e) => {
+-                  e.currentTarget.style.backgroundColor = 'var(--color-accent-primary)';
+-                  e.currentTarget.style.transform = 'translateY(0)';
+-                  e.currentTarget.style.boxShadow = 'none';
+-                }}
+-              >
+-                <i className="fas fa-microphone" style={{ color: '#fff' }}></i>
+-                start recording
+-              </button>
+-            )}
+-            
+-            {isRecording && (
+-              <button
+-                onClick={stopRecording}
+-                style={{
+-                  padding: '0.625rem 1.25rem',
+-                  border: '1px solid #d1d5db',
+-                  borderRadius: '3px',
+-                  backgroundColor: '#fff',
+-                  color: '#6b7280',
+-                  fontSize: '0.875rem',
+-                  fontWeight: '500',
+-                  cursor: 'pointer',
+-                  transition: 'all 0.2s ease',
+-                  fontFamily: 'inherit',
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: '0.5rem'
+-                }}
+-                onMouseEnter={(e) => {
+-                  e.currentTarget.style.backgroundColor = '#f9fafb';
+-                  e.currentTarget.style.borderColor = '#9ca3af';
+-                  e.currentTarget.style.color = '#374151';
+-                }}
+-                onMouseLeave={(e) => {
+-                  e.currentTarget.style.backgroundColor = '#fff';
+-                  e.currentTarget.style.borderColor = '#d1d5db';
+-                  e.currentTarget.style.color = '#6b7280';
+-                }}
+-              >
+-                <i className="fas fa-stop"></i>
+-                stop recording
+-              </button>
+-            )}
+-            
+-            {recordedBuffer && (
+-              <>
+-                <button
+-                  onClick={playRecording}
+-                  disabled={isPlaying}
+-                  style={{
+-                    padding: '0.625rem 1.25rem',
+-                    border: '1px solid #d1d5db',
+-                    borderRadius: '3px',
+-                    backgroundColor: '#fff',
+-                    color: isPlaying ? '#9ca3af' : '#6b7280',
+-                    fontSize: '0.875rem',
+-                    fontWeight: '500',
+-                    cursor: isPlaying ? 'not-allowed' : 'pointer',
+-                    transition: 'all 0.2s ease',
+-                    fontFamily: 'inherit',
+-                    display: 'flex',
+-                    alignItems: 'center',
+-                    gap: '0.5rem',
+-                    opacity: isPlaying ? 0.6 : 1
+-                  }}
+-                  onMouseEnter={(e) => {
+-                    if (!isPlaying) {
+-                      e.currentTarget.style.backgroundColor = '#f9fafb';
+-                      e.currentTarget.style.borderColor = '#9ca3af';
+-                      e.currentTarget.style.color = '#374151';
+-                    }
+-                  }}
+-                  onMouseLeave={(e) => {
+-                    if (!isPlaying) {
+-                      e.currentTarget.style.backgroundColor = '#fff';
+-                      e.currentTarget.style.borderColor = '#d1d5db';
+-                      e.currentTarget.style.color = '#6b7280';
+-                    }
+-                  }}
+-                >
+-                  <i className={`fas fa-${isPlaying ? 'pause' : 'play'}`}></i>
+-                  {isPlaying ? 'playing...' : 'play'}
+-                </button>
+-                <button
+-                  onClick={resetRecording}
+-                  style={{
+-                    padding: '0.625rem 1.25rem',
+-                    border: '1px solid #d1d5db',
+-                    borderRadius: '3px',
+-                    backgroundColor: '#fff',
+-                    color: '#6b7280',
+-                    fontSize: '0.875rem',
+-                    fontWeight: '500',
+-                    cursor: 'pointer',
+-                    transition: 'all 0.2s ease',
+-                    fontFamily: 'inherit',
+-                    display: 'flex',
+-                    alignItems: 'center',
+-                    gap: '0.5rem'
+-                  }}
+-                  onMouseEnter={(e) => {
+-                    e.currentTarget.style.backgroundColor = '#f9fafb';
+-                    e.currentTarget.style.borderColor = '#9ca3af';
+-                    e.currentTarget.style.color = '#374151';
+-                  }}
+-                  onMouseLeave={(e) => {
+-                    e.currentTarget.style.backgroundColor = '#fff';
+-                    e.currentTarget.style.borderColor = '#d1d5db';
+-                    e.currentTarget.style.color = '#6b7280';
+-                  }}
+-                >
+-                  <i className="fas fa-redo"></i>
+-                  retake
+-                </button>
+-              </>
+-            )}
+-          </div>
+-
+-          {/* Maximum Recording Time Info */}
+-          {!isRecording && !recordedBuffer && (
+-            <div style={{ 
+-              fontSize: '0.8rem', 
+-              color: '#666',
+-              textAlign: 'center',
+-              marginBottom: '1.5rem'
+-            }}>
+-              maximum recording time: {maxDuration}s
+-            </div>
+-          )}
+-
+-          {/* Waveform Display */}
+-          <div style={{ marginBottom: '1rem' }}>
+-            <canvas
+-              ref={canvasRef}
+-              width={400}
+-              height={80}
+-              style={{
+-                width: '100%',
+-                height: '80px',
+-                border: '1px solid #e0e0e0',
+-                borderRadius: '3px',
+-                backgroundColor: '#fff'
+-              }}
+-            />
+-          </div>
+-
+-          {/* Error Display */}
+-          {error && (
+-            <div style={{
+-              padding: '1rem',
+-              backgroundColor: '#f5f5f5',
+-              border: '1px solid #ccc',
+-              borderRadius: '3px',
+-              color: '#333',
+-              fontSize: '0.9rem',
+-              marginBottom: '1rem'
+-            }}>
+-              {error}
+-            </div>
+-          )}
+-
+-
+-        </div>
+-
+-        {/* Actions */}
+-        <div style={{
+-          padding: '1rem 1.5rem 1.5rem 1.5rem',
+-          display: 'flex',
+-          gap: '0.75rem',
+-          justifyContent: 'flex-end'
+-        }}>
+-          <button
+-            onClick={onClose}
+-            style={{
+-              padding: '0.625rem 1.25rem',
+-              border: '1px solid #d1d5db',
+-              borderRadius: '3px',
+-              backgroundColor: '#fff',
+-              color: '#6b7280',
+-              fontSize: '0.875rem',
+-              fontWeight: '500',
+-              cursor: 'pointer',
+-              transition: 'all 0.2s ease',
+-              fontFamily: 'inherit',
+-              minWidth: '80px'
+-            }}
+-            onMouseEnter={(e) => {
+-              e.currentTarget.style.backgroundColor = '#f9fafb';
+-              e.currentTarget.style.borderColor = '#9ca3af';
+-              e.currentTarget.style.color = '#374151';
+-            }}
+-            onMouseLeave={(e) => {
+-              e.currentTarget.style.backgroundColor = '#fff';
+-              e.currentTarget.style.borderColor = '#d1d5db';
+-              e.currentTarget.style.color = '#6b7280';
+-            }}
+-          >
+-            cancel
+-          </button>
+-          {recordedBuffer && (
+-            <button
+-              onClick={handleSave}
+-              style={{
+-                padding: '0.625rem 1.25rem',
+-                border: 'none',
+-                borderRadius: '3px',
+-                backgroundColor: '#333',
+-                color: '#fff',
+-                fontSize: '0.875rem',
+-                fontWeight: '500',
+-                cursor: 'pointer',
+-                transition: 'all 0.2s ease',
+-                fontFamily: 'inherit',
+-                minWidth: '80px'
+-              }}
+-              onMouseEnter={(e) => {
+-                e.currentTarget.style.backgroundColor = '#555';
+-                e.currentTarget.style.transform = 'translateY(-1px)';
+-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+-              }}
+-              onMouseLeave={(e) => {
+-                e.currentTarget.style.backgroundColor = '#333';
+-                e.currentTarget.style.transform = 'translateY(0)';
+-                e.currentTarget.style.boxShadow = 'none';
+-              }}
+-            >
+-              save
+-            </button>
+-          )}
+-        </div>
+-      </div>
+-
+-      <style>{`
+-        @keyframes pulse {
+-          0% { opacity: 1; }
+-          50% { opacity: 0.3; }
+-          100% { opacity: 1; }
+-        }
+-      `}</style>
+-    </div>
+-  );
+-} +export type {RecordingTarget};
+--- before-task6/src/components/drum/DrumTool.tsx
++++ src/components/drum/DrumTool.tsx
+@@ -1,7 +1,7 @@
+ import React, { useState, useEffect, useRef } from 'react';
+ import { useAppContext } from '../../context/AppContext';
+ import { ConfirmationModal } from '../common/ConfirmationModal';
+-import { RecordingModal } from '../common/RecordingModal';
++import { RecordingModal, type RecordingTarget } from '../common/RecordingModal';
+ import { AudioProcessingSection } from '../common/AudioProcessingSection';
+ import { GeneratePresetSection } from '../common/GeneratePresetSection';
+ 
+@@ -33,8 +33,8 @@
+   }>({ isOpen: false, message: '', onConfirm: async () => {} });
+   const [recordingModal, setRecordingModal] = useState<{
+     isOpen: boolean;
+-    targetIndex: number | null;
+-  }>({ isOpen: false, targetIndex: null });
++    target: RecordingTarget;
++  }>({ isOpen: false, target: {kind:'drum'} });
+   const [bulkEditModal, setBulkEditModal] = useState(false);
+   const [isOrganizeMode, setIsOrganizeMode] = useState(false);
+   const [sliceRequest, setSliceRequest] = useState<SliceSourceRequest | null>(null);
+@@ -380,56 +380,12 @@
+   };
+ 
+   const handleOpenRecording = (targetIndex: number | null = null) => {
+-    setRecordingModal({ isOpen: true, targetIndex });
++    const current=targetIndex===null?undefined:state.drumSamples[targetIndex];
++    setRecordingModal({ isOpen: true, target: {kind:'drum',...(targetIndex===null?{}:{padIndex:targetIndex,expected:{audioBuffer:current?.audioBuffer??null,file:current?.file??null}})} });
+   };
+ 
+   const handleCloseRecording = () => {
+-    setRecordingModal({ isOpen: false, targetIndex: null });
+-  };
+-
+-  const handleSaveRecording = async (audioBuffer: AudioBuffer, filename: string) => {
+-    try {
+-      // Convert AudioBuffer to File-like object for processing
+-      const numberOfChannels = audioBuffer.numberOfChannels;
+-      const length = audioBuffer.length;
+-      const sampleRate = audioBuffer.sampleRate;
+-
+-      // Create a new buffer with the same properties
+-      const offlineContext = new OfflineAudioContext(numberOfChannels, length, sampleRate);
+-      const source = offlineContext.createBufferSource();
+-      source.buffer = audioBuffer;
+-      source.connect(offlineContext.destination);
+-      source.start();
+-
+-      const renderedBuffer = await offlineContext.startRendering();
+-
+-      // Create a File-like object from the buffer with metadata
+-      const wavData = await audioBufferToWav(renderedBuffer, 16, {
+-        rootNote: 60, // Default to C4 for recorded samples
+-        loopStart: 0,
+-        loopEnd: renderedBuffer.length - 1
+-      });
+-
+-      // Use the provided filename or fallback to default
+-      const finalFilename = filename.trim() || 'recorded_sample';
+-      const recordedFile = new File([wavData], `${finalFilename}.wav`, { type: 'audio/wav' });
+-
+-      // If a specific target index was set, upload to that slot
+-      if (recordingModal.targetIndex !== null) {
+-        await handleFileUpload(recordingModal.targetIndex, recordedFile);
+-      } else {
+-        // Find first empty slot or ask user to choose
+-        const emptyIndex = state.drumSamples.findIndex(sample => !sample || !sample.isLoaded);
+-        if (emptyIndex !== -1) {
+-          await handleFileUpload(emptyIndex, recordedFile);
+-        } else {
+-          // All slots full - could show a selection modal here
+-          console.warn('All drum slots are full');
+-        }
+-      }
+-    } catch (error) {
+-      console.error('Error saving recording:', error);
+-    }
++    setRecordingModal(current => ({ ...current, isOpen: false }));
+   };
+ 
+   const hasLoadedSamples = state.drumSamples.some(s => s && s.isLoaded);
+@@ -650,6 +606,9 @@
+                 onClick={() => sliceSourceInputRef.current?.click()}
+                 style={{minHeight:'44px',minWidth:'44px',padding:'0.75rem 1.5rem',border:'none',borderRadius:'6px',backgroundColor:'var(--color-interactive-focus)',color:'var(--color-white)',fontSize:'0.9rem',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.75rem',width:isMobile?'100%':'auto'}}
+               ><i className="fas fa-cut" aria-hidden="true"/>slice audio</button>
++              <button onClick={() => handleOpenRecording()} style={{minHeight:'44px',minWidth:'44px',padding:'0.75rem 1.5rem',border:'none',borderRadius:'6px',backgroundColor:'var(--color-interactive-focus)',color:'var(--color-white)',fontSize:'0.9rem',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',width:isMobile?'100%':'auto'}}>
++                <i className="fas fa-microphone" aria-hidden="true"/> Record takes
++              </button>
+               <button
+                 onClick={() => setBulkEditModal(true)}
+                 disabled={!hasMultipleLoadedSamples}
+@@ -798,7 +757,8 @@
+       <RecordingModal
+         isOpen={recordingModal.isOpen}
+         onClose={handleCloseRecording}
+-        onSave={handleSaveRecording}
++        instrument="drum"
++        target={recordingModal.target}
+         maxDuration={20}
+       />
+ 
+--- before-task6/src/components/multisample/MultisampleTool.tsx
++++ src/components/multisample/MultisampleTool.tsx
+@@ -1,7 +1,7 @@
+ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+ import { useAppContext } from '../../context/AppContext';
+ import { ConfirmationModal } from '../common/ConfirmationModal';
+-import { RecordingModal } from '../common/RecordingModal';
++import { RecordingModal, type RecordingTarget } from '../common/RecordingModal';
+ import { AudioProcessingSection } from '../common/AudioProcessingSection';
+ import { GeneratePresetSection } from '../common/GeneratePresetSection';
+ import { ErrorDisplay } from '../common/ErrorDisplay';
+@@ -11,7 +11,6 @@
+ import { useFileUpload } from '../../hooks/useFileUpload';
+ import { usePatchGeneration } from '../../hooks/usePatchGeneration';
+ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+-import { audioBufferToWav } from '../../utils/wavExport';
+ import { cookieUtils, COOKIE_KEYS } from '../../utils/cookies';
+ import { savePresetToLibrary } from '../../utils/libraryUtils';
+ import { sessionStorageIndexedDB } from '../../utils/sessionStorageIndexedDB';
+@@ -35,8 +34,8 @@
+   }>({ isOpen: false, message: '', onConfirm: async () => {} });
+   const [recordingModal, setRecordingModal] = useState<{
+     isOpen: boolean;
+-    targetIndex: number | null;
+-  }>({ isOpen: false, targetIndex: null });
++    target: RecordingTarget;
++  }>({ isOpen: false, target: {kind:'multisample'} });
+ 
+   const [targetMidiNote, setTargetMidiNote] = useState<number | null>(null);
+   const [selectedMidiChannel, setSelectedMidiChannel] = useState(() => {
+@@ -332,37 +331,12 @@
+   };
+ 
+   const handleOpenRecording = (targetIndex: number | null = null) => {
+-    setRecordingModal({ isOpen: true, targetIndex });
++    const current=targetIndex===null?undefined:state.multisampleFiles[targetIndex];
++    setRecordingModal({isOpen:true,target:{kind:'multisample',...(current?{rootNote:current.rootNote,expected:{audioBuffer:current.audioBuffer,file:current.file}}:{})}});
+   };
+ 
+   const handleCloseRecording = () => {
+-    setRecordingModal({ isOpen: false, targetIndex: null });
+-  };
+-
+-  const handleSaveRecording = async (audioBuffer: AudioBuffer, filename: string) => {
+-    try {
+-      // Convert AudioBuffer to WAV blob with metadata
+-      const wavBlob = await audioBufferToWav(audioBuffer, 16, {
+-        rootNote: targetMidiNote ?? 60,
+-        loopStart: 0,
+-        loopEnd: audioBuffer.length - 1
+-      });
+-
+-      // Create a File object with the provided filename
+-      const file = new File([wavBlob], `${filename}.wav`, { type: 'audio/wav' });
+-
+-      // If we have a target MIDI note, use it; otherwise let the system assign one
+-      if (targetMidiNote !== null) {
+-        await handleMultisampleUpload(file, targetMidiNote);
+-      } else {
+-        await handleMultisampleUpload(file);
+-      }
+-
+-      // Reset target note
+-      setTargetMidiNote(null);
+-    } catch (error) {
+-      console.error('Error saving recording:', error);
+-    }
++    setRecordingModal(current=>({...current,isOpen:false}));
+   };
+ 
+   const handleAudioFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+@@ -646,7 +620,7 @@
+                 clear all
+               </button>
+               <button
+-                onClick={() => setRecordingModal({ isOpen: true, targetIndex: null })}
++                onClick={() => setRecordingModal({ isOpen: true, target:{kind:'multisample'} })}
+                 style={{
+                   minHeight: '44px',
+                   minWidth: '44px',
+@@ -678,7 +652,7 @@
+                 }}
+               >
+                 <i className="fas fa-microphone" style={{ fontSize: '1rem', color: 'var(--color-accent-primary)' }}></i>
+-                record
++                Record takes
+               </button>
+               <button
+                 onClick={() => {
+@@ -798,7 +772,8 @@
+       <RecordingModal
+         isOpen={recordingModal.isOpen}
+         onClose={handleCloseRecording}
+-        onSave={handleSaveRecording}
++        instrument="multisample"
++        target={recordingModal.target}
+         maxDuration={20}
+       />
+ 
+--- before-task6/src/context/AppContext.tsx
++++ src/context/AppContext.tsx
+@@ -14,6 +14,7 @@
+ import { associateImportedCrossfades } from '../utils/importedCrossfade';
+ import { framesToSeconds, normalizeSecondRanges } from '../utils/loopEditing';
+ import { finalizeSliceApplication, type PreparedSliceApplication } from '../utils/audioSlicing';
++import { finalizeRecordingApplication, type PreparedRecordingApplication } from '../utils/recordingApplication';
+ 
+ // Define enhanced types for the application state
+ export interface DrumSample {
+@@ -91,6 +92,7 @@
+   // Current tab
+   currentTab: 'drum' | 'multisample' | 'feedback' | 'library' | 'donate';
+   sliceCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;assignedCount?:number;overflowCount?:number};
++  recordingCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;appliedIds?:string[];retainedIds?:string[];assignedCount?:number;overflowCount?:number};
+   
+   // Drum tool settings
+   drumSettings: {
+@@ -243,6 +245,7 @@
+   | { type: 'ADD_UNASSIGNED_DRUM_SAMPLE'; payload: { file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata } }
+   | { type: 'STORE_DRUM_SAMPLE_ASSET'; payload: { sample: DrumSample; targetKeyIndex: number | null } }
+   | { type: 'COMMIT_PREPARED_SLICES'; payload: {operationId:string;prepared:PreparedSliceApplication} }
++  | { type: 'COMMIT_PREPARED_RECORDINGS'; payload: {operationId:string;prepared:PreparedRecordingApplication} }
+   | { type: 'ASSIGN_DRUM_SAMPLE'; payload: { sampleIndex: number; targetKeyIndex: number } }
+   | { type: 'UNASSIGN_DRUM_SAMPLE'; payload: number }
+   | { type: 'IMPORT_OP1_DRUM_PRESET'; payload: { samples: Array<{ keyIndex: number; file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata; name: string }>; presetName: string } }
+@@ -977,6 +980,22 @@
+       } catch(reason) {
+         const message=reason instanceof Error?reason.message:'The project changed while slicing. No slices were added; retry.';
+         return {...state,sliceCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'slices not applied',message}]};
++      }
++    }
++
++    case 'COMMIT_PREPARED_RECORDINGS': {
++      try {
++        const committed=finalizeRecordingApplication(action.payload.prepared,state);
++        if(!committed.appliedIds.length)throw new Error('No recording takes could be added; the review tray is unchanged.');
++        return {...state,drumSamples:committed.drumSamples,multisampleFiles:committed.multisampleFiles,
++          recordingCommitResult:{operationId:action.payload.operationId,status:'committed',appliedIds:committed.appliedIds,
++            retainedIds:committed.retainedIds,assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},
++          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'success',title:'recorded takes added',
++            message:`${committed.assignedCount} take${committed.assignedCount===1?'':'s'} added${committed.retainedIds.length?`; ${committed.retainedIds.length} retained in review`:''}`} ]};
++      } catch(reason) {
++        const message=reason instanceof Error?reason.message:'The project changed while recordings were preparing. No takes were added.';
++        return {...state,recordingCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},
++          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'recorded takes not added',message}]};
+       }
+     }
+     
+--- before-task6/src/test/audio/recording/captureCore.test.ts
++++ src/test/audio/recording/captureCore.test.ts
+@@ -0,0 +1,114 @@
++import { describe, expect, it } from 'vitest';
++import { CaptureCore, validateCaptureOptions } from '../../../audio/recording/captureCore';
++
++function blocks(values: number[], sizes: number[]) {
++  const result: Array<{ firstFrame: number; channels: Float32Array[] }> = [];
++  let offset = 0;
++  for (const size of sizes) {
++    result.push({ firstFrame: offset, channels: [Float32Array.from(values.slice(offset, offset + size))] });
++    offset += size;
++  }
++  return result;
++}
++
++describe('CaptureCore', () => {
++  it('captures exact pre-roll and the onset once across variable block boundaries', () => {
++    const signal = [0, 0.1, 0.2, 0.3, 0.9, 0.4, ...Array(800).fill(0)];
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 8_000, channels: 1,
++      thresholdDb: -6, hysteresisDb: 6, preRollSeconds: 3 / 8_000, silenceSeconds: .1,
++      rearmSeconds: .1, maxSeconds: 1 });
++    core.arm();
++    const takes = blocks(signal, [1, 3, 1, 127, 128, 129, 257, 160]).flatMap(block => core.process(block.channels, block.firstFrame).takes);
++    expect(takes).toHaveLength(1);
++    expect(takes[0]).toMatchObject({ startFrame: 1, endFrame: 806, frames: 805, preRollFrames: 3, reason: 'silence' });
++    expect(Array.from(takes[0].channels[0].slice(0, 8))).toEqual(Array.from(Float32Array.from([0.1, 0.2, 0.3, 0.9, 0.4, 0, 0, 0])));
++  });
++
++  it('uses channel-wise peak detection and preserves opposite-polarity stereo', () => {
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 8_000, channels: 2,
++      thresholdDb: -6, hysteresisDb: 6, preRollSeconds: 0, silenceSeconds: .1,
++      rearmSeconds: .1, maxSeconds: 1 });
++    core.arm();
++    const left = Float32Array.from([.8, ...Array(800).fill(0)]);
++    const right = Float32Array.from([-.8, ...Array(800).fill(0)]);
++    const result = core.process([left, right], 0);
++    expect(result.takes).toHaveLength(1);
++    expect(Array.from(result.takes[0].channels[0].subarray(0, result.takes[0].frames))).toEqual(Array.from(left));
++    expect(Array.from(result.takes[0].channels[1].subarray(0, result.takes[0].frames))).toEqual(Array.from(right));
++  });
++
++  it('prioritizes the exact length cap and does not overlap a later pre-roll', () => {
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 8_000, channels: 1,
++      thresholdDb: -6, hysteresisDb: 6, preRollSeconds: 3 / 8_000, silenceSeconds: .1,
++      rearmSeconds: .1, maxSeconds: 1 });
++    core.arm();
++    const firstSignal = Float32Array.from([0, 0, ...Array(8_000).fill(.8)]);
++    const first = core.process([firstSignal], 0).takes[0];
++    expect(first).toMatchObject({ startFrame: 0, endFrame: 8_000, frames: 8_000, reason: 'length' });
++    core.acknowledgeTake();
++    const secondSignal = Float32Array.from([...Array(800).fill(0), .9, ...Array(800).fill(0)]);
++    const second = core.process([secondSignal], firstSignal.length).takes[0];
++    expect(second).toMatchObject({ startFrame: 8_799, endFrame: 9_603, preRollFrames: 3 });
++    expect(Array.from(second.channels[0].slice(0, 6))).toEqual(Array.from(Float32Array.from([0, 0, 0, .9, 0, 0])));
++  });
++
++  it('keeps quiet monitoring bounded and holds re-arm until take credit is acknowledged', () => {
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 8_000, channels: 1,
++      thresholdDb: -30, hysteresisDb: 6, preRollSeconds: 2, silenceSeconds: .1,
++      rearmSeconds: .1, maxSeconds: 20 });
++    core.arm();
++    for (let frame = 0; frame < 2_000_000; frame += 257) {
++      const size = Math.min(257, 2_000_000 - frame);
++      expect(core.process([new Float32Array(size)], frame).takes).toHaveLength(0);
++    }
++    expect(core.memoryBytes).toBe((16_000 + 160_000) * 4);
++    expect(core.pendingTake).toBe(false);
++  });
++
++  it('manual stop omits all-zero takes but retains genuinely quiet nonzero audio', () => {
++    const silent = new CaptureCore({ mode: 'manual', sampleRate: 8_000, channels: 1, maxSeconds: 1 });
++    silent.startManual();
++    silent.process([new Float32Array(10)], 0);
++    expect(silent.stop().takes).toEqual([]);
++    const quiet = new CaptureCore({ mode: 'manual', sampleRate: 8_000, channels: 1, maxSeconds: 1 });
++    quiet.startManual();
++    quiet.process([Float32Array.from([0, 1e-9, 0])], 0);
++    expect(Array.from(quiet.stop().takes[0].channels[0].subarray(0, 3))).toEqual([0, Math.fround(1e-9), 0]);
++  });
++
++  it('does not emit an all-zero manual take at the exact maximum length', () => {
++    const core = new CaptureCore({ mode: 'manual', sampleRate: 8_000, channels: 1, maxSeconds: 1 });
++    core.startManual();
++    expect(core.process([new Float32Array(8_000)], 0).takes).toEqual([]);
++    expect(core.pendingTake).toBe(false);
++    expect(core.state).toBe('monitoring');
++  });
++
++  it('does not let repeated arm or start calls replace an active or in-flight take', () => {
++    const manual = new CaptureCore({ mode: 'manual', sampleRate: 8_000, channels: 1, maxSeconds: 1 });
++    manual.startManual();
++    expect(() => manual.startManual()).toThrow(/already/);
++    manual.process([Float32Array.from([.1])], 0);
++    manual.stop();
++    expect(() => manual.startManual()).toThrow(/pending/);
++  });
++
++  it('rejects gaps, channel changes, invalid ranges and unbounded dimensions', () => {
++    for (const rate of [8_000,44_100,48_000,96_000]) expect(validateCaptureOptions({mode:'sound',sampleRate:rate,channels:1,maxSeconds:1}).maxFrames).toBe(rate);
++    expect(() => validateCaptureOptions({ mode: 'sound', sampleRate: 7_999, channels: 1 })).toThrow(/8,000/);
++    expect(() => validateCaptureOptions({ mode: 'sound', sampleRate: 48_000, channels: 3 })).toThrow(/mono or stereo/);
++    expect(() => validateCaptureOptions({ mode: 'sound', sampleRate: 48_000, channels: 1, preRollSeconds: 2, maxSeconds: 2 })).toThrow(/shorter/);
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 48_000, channels: 1 }); core.arm();
++    core.process([new Float32Array(1)], 4);
++    expect(() => core.process([new Float32Array(1)], 6)).toThrow(/discontinuity/);
++    expect(() => core.process([new Float32Array(1), new Float32Array(1)], 5)).toThrow(/channel/);
++  });
++
++  it('bounds meter delivery to one outstanding message', () => {
++    const core = new CaptureCore({ mode: 'sound', sampleRate: 8_000, channels: 1 }); core.arm();
++    expect(core.process([Float32Array.from([.25])], 0).meter).toMatchObject({ peaks: [.25], frame: 0 });
++    expect(core.process([Float32Array.from([.5])], 1).meter).toBeUndefined();
++    core.acknowledgeMeter();
++    expect(core.process([Float32Array.from([.75])], 2).meter).toMatchObject({ peaks: [.75], frame: 2 });
++  });
++});
+--- before-task6/src/test/audio/recording/captureProcessor.test.ts
++++ src/test/audio/recording/captureProcessor.test.ts
+@@ -0,0 +1,49 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++
++interface Posted {message:Record<string,unknown>;transfer?:Transferable[]}
++class FakePort {
++  onmessage:((event:MessageEvent<{type:string}>)=>void)|null=null;
++  posted:Posted[]=[];
++  postMessage(message:Record<string,unknown>,transfer?:Transferable[]){this.posted.push({message,transfer})}
++  close=vi.fn();
++}
++type ProcessorInstance={port:FakePort;process:(inputs:Float32Array[][],outputs:Float32Array[][])=>boolean};
++type ProcessorConstructor=new(options?:{processorOptions?:Record<string,unknown>})=>ProcessorInstance;
++let Registered:ProcessorConstructor;
++
++async function loadProcessor(){
++  vi.resetModules();
++  class Base {port=new FakePort()}
++  Object.defineProperty(globalThis,'AudioWorkletProcessor',{value:Base,configurable:true});
++  Object.defineProperty(globalThis,'sampleRate',{value:48_000,configurable:true});
++  Object.defineProperty(globalThis,'currentFrame',{value:0,writable:true,configurable:true});
++  Object.defineProperty(globalThis,'registerProcessor',{value:(_name:string,ctor:ProcessorConstructor)=>{Registered=ctor},configurable:true});
++  await import('../../../audio/recording/captureProcessor');
++}
++
++describe('bundled capture processor',()=>{
++  beforeEach(loadProcessor);
++
++  it('zeros its output and reports one visible error after the bounded setup grace',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),output=new Float32Array(128).fill(.75);
++    for(let block=0;block<189;block+=1)processor.process([[]],[[output]]);
++    expect(Array.from(output)).toEqual(Array(128).fill(0));
++    const errors=processor.port.posted.filter(item=>item.message.type==='error');expect(errors).toHaveLength(1);expect(errors[0].message.message).toMatch(/no audio frames/i);
++  });
++
++  it('aborts an active take on its first missing input quantum',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}});
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
++    processor.process([[]],[[new Float32Array(128)]]);
++    expect(processor.port.posted.find(item=>item.message.type==='error')?.message.message).toMatch(/interrupted/i);
++  });
++
++  it('hands off the full owned buffer before stopped without slicing in the audio callback',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),input=Float32Array.from({length:128},(_,index)=>index?Math.fround(index/256):0);
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);processor.process([[input]],[[new Float32Array(128)]]);processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
++    const takeIndex=processor.port.posted.findIndex(item=>item.message.type==='take'),stoppedIndex=processor.port.posted.findIndex(item=>item.message.type==='stopped');
++    expect(takeIndex).toBeGreaterThanOrEqual(0);expect(stoppedIndex).toBeGreaterThan(takeIndex);
++    const take=processor.port.posted[takeIndex].message.take as {frames:number;channels:Float32Array[]};expect(take.frames).toBe(128);expect(take.channels[0].length).toBe(48_000);
++    expect(processor.port.posted[takeIndex].transfer).toEqual([take.channels[0].buffer]);
++  });
++});
+--- before-task6/src/test/audio/recording/captureSession.test.ts
++++ src/test/audio/recording/captureSession.test.ts
+@@ -0,0 +1,175 @@
++import { describe, expect, it, vi } from 'vitest';
++import { CaptureSession, captureErrorMessage } from '../../../audio/recording/captureSession';
++
++function deferred<T>() { let resolve!: (value:T)=>void; let reject!: (reason?:unknown)=>void;
++  const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no}); return {promise,resolve,reject}; }
++
++type FakeTrack=MediaStreamTrack&{listeners:Map<string,EventListener>};
++function fakeTrack(settings: MediaTrackSettings = {sampleRate:48_000,channelCount:1}):FakeTrack {
++  const listeners=new Map<string,EventListener>();
++  return {kind:'audio',stop:vi.fn(),getSettings:()=>settings,addEventListener:(name:string,fn:EventListener)=>listeners.set(name,fn),
++    removeEventListener:(name:string)=>listeners.delete(name),listeners} as unknown as FakeTrack;
++}
++
++function graph(track:MediaStreamTrack) {
++  const port={postMessage:vi.fn(),close:vi.fn(),onmessage:null as ((event:MessageEvent)=>void)|null};
++  const node={port,connect:vi.fn(),disconnect:vi.fn(),addEventListener:vi.fn(),removeEventListener:vi.fn()};
++  const source={connect:vi.fn(),disconnect:vi.fn()};
++  const context={sampleRate:48_000,state:'running',audioWorklet:{addModule:vi.fn().mockResolvedValue(undefined)},destination:{},
++    createMediaStreamSource:vi.fn(()=>source),createBuffer:(channels:number,frames:number,rate:number)=>new AudioContext().createBuffer(channels,frames,rate),
++    close:vi.fn().mockResolvedValue(undefined),resume:vi.fn().mockResolvedValue(undefined),
++    addEventListener:vi.fn(),removeEventListener:vi.fn()};
++  const stream={getAudioTracks:()=>[track],getTracks:()=>[track]} as unknown as MediaStream;
++  return {port,node,source,context,stream};
++}
++
++describe('CaptureSession lifecycle', () => {
++  it('reports permission denial without allocating a capture context',async()=>{
++    const onError=vi.fn(),createContext=vi.fn(),session=new CaptureSession({mediaDevices:{getUserMedia:async()=>{throw new DOMException('denied','NotAllowedError')},enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext,createWorkletNode:vi.fn(),workletUrl:'/capture.js',onError});
++    await expect(session.enableInput('')).resolves.toBe(false);expect(onError).toHaveBeenCalledWith(expect.stringMatching(/permission/i));expect(createContext).not.toHaveBeenCalled();expect(session.status.state).toBe('error');
++  });
++
++  it('stops every late permission track after immediate close and never constructs a graph', async () => {
++    const permission=deferred<MediaStream>(), track=fakeTrack(), made=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:()=>permission.promise,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:made,createWorkletNode:vi.fn(),workletUrl:'/assets/capture.js'});
++    const enabling=session.enableInput('input-1');
++    await Promise.resolve();
++    await session.dispose();
++    permission.resolve({getTracks:()=>[track],getAudioTracks:()=>[track]} as unknown as MediaStream);
++    await expect(enabling).resolves.toBe(false);
++    expect(track.stop).toHaveBeenCalledOnce();
++    expect(made).not.toHaveBeenCalled();
++  });
++
++  it('requests processing constraints off and reports actual browser-delivered settings', async () => {
++    const track=fakeTrack({sampleRate:48_000,channelCount:2,echoCancellation:false,autoGainControl:false,noiseSuppression:false});
++    const g=graph(track), getUserMedia=vi.fn().mockResolvedValue(g.stream), onStatus=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/base/assets/capture.js',onStatus});
++    await expect(session.enableInput('input-2')).resolves.toBe(true);
++    expect(getUserMedia).toHaveBeenCalledWith({audio:{deviceId:{exact:'input-2'},echoCancellation:false,autoGainControl:false,noiseSuppression:false}});
++    expect(g.context.audioWorklet.addModule).toHaveBeenCalledWith('/base/assets/capture.js');
++    expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({state:'monitoring',sampleRate:48_000,channels:2,settingsReported:true}));
++    await session.dispose();
++    expect(g.source.disconnect).toHaveBeenCalledOnce(); expect(g.node.disconnect).toHaveBeenCalledOnce();
++    expect(g.port.close).toHaveBeenCalledOnce(); expect(track.stop).toHaveBeenCalledOnce(); expect(g.context.close).toHaveBeenCalledOnce();
++  });
++
++  it('maps actionable media errors without hiding the browser error class', () => {
++    for (const [name,text] of [['NotAllowedError','permission'],['NotFoundError','connect'],['NotReadableError','in use'],['OverconstrainedError','supported input']]) {
++      const error=new DOMException('detail',name); expect(captureErrorMessage(error)).toMatch(new RegExp(text,'i'));
++    }
++  });
++
++  it('makes Stop available during permission and invalidates the pending generation', async () => {
++    const permission=deferred<MediaStream>(), track=fakeTrack();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:()=>permission.promise,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:vi.fn(),createWorkletNode:vi.fn(),workletUrl:'/capture.js'});
++    const setup=session.enableInput('');
++    await Promise.resolve();
++    await session.stop();
++    permission.resolve({getTracks:()=>[track],getAudioTracks:()=>[track]} as unknown as MediaStream);
++    await setup;
++    expect(track.stop).toHaveBeenCalledOnce(); expect(session.status.state).toBe('stopped');
++  });
++
++  it('tears down a live graph on processor error and ignores a late take callback', async () => {
++    const track=fakeTrack(), g=graph(track), onError=vi.fn(), onTake=vi.fn();
++    let processorError:EventListener|undefined;
++    g.node.addEventListener=vi.fn((name:string,fn:EventListener)=>{if(name==='processorerror')processorError=fn});
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/capture.js',onError,onTake});
++    await session.enableInput('');
++    processorError?.(new Event('processorerror'));
++    await Promise.resolve(); await Promise.resolve();
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[new Float32Array([.5])]}}} as MessageEvent);
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/processor/i));
++    expect(onTake).not.toHaveBeenCalled(); expect(track.stop).toHaveBeenCalledOnce();
++  });
++
++  it('aborts and releases the graph when the selected device ends',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn(),session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onError});
++    await session.enableInput('');track.listeners.get('ended')?.(new Event('ended'));await vi.waitFor(()=>expect(session.status.state).toBe('error'));
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/disconnected/i));expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();expect(session.status.state).toBe('error');
++  });
++
++  it('accepts the owned final take before stopped and waits for async materialization',async()=>{
++    const track=fakeTrack(),g=graph(track),materialized=deferred<void>(),onTake=vi.fn(()=>materialized.promise);
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/capture.js',onTake});
++    await session.enableInput('');session.start();const stopping=session.stop();
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[Float32Array.from([.5])]}}} as MessageEvent);
++    g.port.onmessage?.({data:{type:'stopped'}} as MessageEvent);
++    await Promise.resolve();expect(onTake).toHaveBeenCalledOnce();expect(track.stop).not.toHaveBeenCalled();
++    materialized.resolve();await stopping;expect(track.stop).toHaveBeenCalledOnce();
++  });
++
++  it('reports a bounded flush timeout instead of claiming an unfinished take succeeded',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn();let timeout:undefined|(()=>void);
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/capture.js',onError,setTimer:callback=>{timeout=callback;return 1 as unknown as ReturnType<typeof setTimeout>},clearTimer:vi.fn()});
++    await session.enableInput('');session.start();const stopping=session.stop();timeout?.();await stopping;
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/unfinished take/i));expect(session.status.state).toBe('error');
++  });
++
++  it('turns materialization failure into actionable cleanup and never acknowledges the take',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/capture.js',onError,onTake:async()=>{throw new Error('encoding broke')}});
++    await session.enableInput('');
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[Float32Array.from([.5])]}}} as MessageEvent);
++    await Promise.resolve();await Promise.resolve();await Promise.resolve();
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/encoding broke/i));expect(track.stop).toHaveBeenCalledOnce();
++    expect(g.port.postMessage).not.toHaveBeenCalledWith({type:'ack-take'});
++  });
++
++  it('keeps the error state when final-take materialization rejects during Stop',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
++      workletUrl:'/capture.js',onError,onTake:async()=>{throw new Error('final encoding broke')}});
++    await session.enableInput('');session.start();const stopping=session.stop();
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[Float32Array.from([.5])]}}} as MessageEvent);
++    g.port.onmessage?.({data:{type:'stopped'}} as MessageEvent);await stopping;
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/final encoding broke/i));expect(session.status.state).toBe('error');expect(track.stop).toHaveBeenCalledOnce();
++  });
++
++  it('rejects recorder ownership capacity before allocating the exact AudioBuffer',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn(),createContext=vi.fn(()=>g.context as unknown as AudioContext);g.context.createBuffer=vi.fn(g.context.createBuffer);
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onError,
++      getRetainedUsage:()=>({count:32,bytes:1})});
++    await expect(session.enableInput('')).resolves.toBe(false);
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[new Float32Array(960_000)]}}} as MessageEvent);
++    await Promise.resolve();await Promise.resolve();
++    expect(createContext).not.toHaveBeenCalled();expect(g.context.createBuffer).not.toHaveBeenCalled();expect(onError).toHaveBeenCalledWith(expect.stringMatching(/capacity is full/i));
++  });
++
++  it('admits the one-before-count reservation when its full peak memory fits',async()=>{
++    const track=fakeTrack(),g=graph(track);
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',capture:{mode:'manual',maxSeconds:1},
++      getRetainedUsage:()=>({count:31,bytes:0})});
++    await expect(session.enableInput('')).resolves.toBe(true);await session.dispose();
++  });
++
++  it('withholds next-take credit when an accepted take moves a stale 31-count view to 32',async()=>{
++    const track=fakeTrack(),g=graph(track),onTake=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',capture:{mode:'sound',maxSeconds:1},onTake,
++      getRetainedUsage:()=>({count:31,bytes:0})});
++    await session.enableInput('');
++    g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'silence',sampleRate:48_000,channels:[new Float32Array(48_000)]}}} as MessageEvent);
++    await Promise.resolve();await Promise.resolve();
++    expect(onTake).toHaveBeenCalledOnce();expect(g.port.postMessage).toHaveBeenCalledWith({type:'stop'});expect(g.port.postMessage).not.toHaveBeenCalledWith({type:'ack-take'});
++    g.port.onmessage?.({data:{type:'stopped'}} as MessageEvent);await Promise.resolve();expect(track.stop).toHaveBeenCalledOnce();
++  });
++});
+--- before-task6/src/test/components/RecordingModal.test.tsx
++++ src/test/components/RecordingModal.test.tsx
+@@ -0,0 +1,92 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { useState } from 'react';
++import { AppContextProvider, useAppContext } from '../../context/AppContext';
++import { RecordingModal, type RecordingTarget } from '../../components/common/RecordingModal';
++import type { SessionTake } from '../../audio/recording/captureSession';
++
++vi.mock('../../audio/recording/captureProcessor.ts?worker&url',()=>({default:'/assets/capture-test.js'}));
++let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined;
++interface FakeDeps {onStatus:(status:{state:string})=>void;onTake:(take:SessionTake)=>void|Promise<void>}
++const sessions:Array<{disposed:boolean;deps:FakeDeps}>=[];
++vi.mock('../../audio/recording/captureSession',()=>({
++  RECORDING_LIMITS:{takes:32,ownedBytes:256*1024*1024,flushMs:500},
++  CaptureSession:class {
++    status={state:'idle'}; deps:FakeDeps;disposed=false;
++    constructor(deps:FakeDeps){this.deps=deps;sessions.push(this)}
++    async enableInput(){await enableGate;this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
++    async enumerateInputs(){return [{deviceId:'synthetic',label:'Synthetic input'}]}
++    start(){this.status={state:'recording'};this.deps.onStatus(this.status);const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
++      void this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'});this.status={state:'monitoring'};this.deps.onStatus(this.status);}
++    arm(){this.start()} async stop(){await stopGate;this.status={state:'stopped'};this.deps.onStatus(this.status)} async dispose(){this.disposed=true;this.status={state:'closed'}}
++  }
++}));
++
++const OriginalAudioContext=globalThis.AudioContext;
++function ProjectCount(){const {state}=useAppContext();return <><output aria-label="Loaded drum count">{state.drumSamples.filter(sample=>sample.isLoaded).length}</output><output aria-label="Loaded multisample count">{state.multisampleFiles.length}</output></>}
++function Harness({instrument='drum',target=instrument==='drum'?{kind:'drum' as const}:{kind:'multisample' as const,rootNote:64}}:{instrument?:'drum'|'multisample';target?:RecordingTarget}) {
++  return <AppContextProvider><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={target}/></AppContextProvider>;
++}
++function ClosingHarness(){const [open,setOpen]=useState(true);return <AppContextProvider><ProjectCount/><RecordingModal isOpen={open} onClose={()=>setOpen(false)} instrument="drum" target={{kind:'drum'}}/></AppContextProvider>}
++
++describe('RecordingModal review workflow',()=>{
++  beforeEach(()=>{sequence=0;enableGate=stopGate=undefined;sessions.length=0;Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true});Object.defineProperty(globalThis,'AudioWorkletNode',{value:class{},configurable:true});Object.defineProperty(window,'isSecureContext',{value:true,configurable:true});
++    Object.assign(navigator.mediaDevices,{getUserMedia:vi.fn(),enumerateDevices:vi.fn().mockResolvedValue([]),addEventListener:vi.fn(),removeEventListener:vi.fn()});});
++  afterEach(()=>Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true}));
++
++  it('keeps distinct take IDs through rename/remove and applies the selected tray atomically',async()=>{
++    const user=userEvent.setup();render(<Harness/>);expect(screen.getByRole('dialog',{name:'Record takes'})).toBeInTheDocument();
++    await user.click(screen.getByRole('button',{name:'Enable input'}));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));
++    const names=await screen.findAllByLabelText(/Name for take/);expect(names).toHaveLength(2);
++    await user.clear(names[0]);await user.type(names[0],'Kick');const remove=screen.getAllByRole('button',{name:/Remove take/});await user.click(remove[1]);
++    expect(screen.getByRole('group',{name:/Take Kick take-1/})).toBeInTheDocument();
++    await user.click(screen.getByRole('button',{name:'Add selected takes'}));
++    await waitFor(()=>expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('1'));
++    expect(screen.getByText(/1 takes added/)).toBeInTheDocument();expect(screen.getByText(/No takes yet/)).toBeInTheDocument();
++  });
++
++  it('creates a fresh owned input session for each manual Start after Stop',async()=>{
++    const user=userEvent.setup();render(<Harness/>);
++    await user.click(screen.getByRole('button',{name:'Start recording'}));await screen.findByLabelText('Name for take take-1');
++    await user.click(screen.getByRole('button',{name:'Stop recording'}));
++    await user.click(screen.getByRole('button',{name:'Start recording'}));await screen.findByLabelText('Name for take take-2');
++    expect(sessions).toHaveLength(2);
++  });
++
++  it('invalidates an input setup that resolves after Close',async()=>{
++    let release!:()=>void;enableGate=new Promise<void>(resolve=>{release=resolve});const user=userEvent.setup();render(<ClosingHarness/>);
++    await user.click(screen.getByRole('button',{name:'Enable input'}));await user.click(screen.getByRole('button',{name:'Close'}));
++    expect(screen.queryByRole('dialog',{name:'Record takes'})).not.toBeInTheDocument();release();
++    await waitFor(()=>expect(sessions[0].disposed).toBe(true));
++  });
++
++  it('closes an audition context whose resume finishes after Close',async()=>{
++    const user=userEvent.setup();render(<ClosingHarness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
++    const resumed:{resolve?:()=>void}={},close=vi.fn().mockResolvedValue(undefined),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
++    class PreviewContext {destination={};resume=()=>new Promise<void>(resolve=>{resumed.resolve=resolve});close=close;createBufferSource=()=>source}
++    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});
++    await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await user.click(screen.getByRole('button',{name:'Close'}));resumed.resolve?.();
++    await waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(source.start).not.toHaveBeenCalled();
++  });
++
++  it('does not apply after Close wins a pending capture stop',async()=>{
++    let release!:()=>void;const user=userEvent.setup();render(<ClosingHarness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
++    stopGate=new Promise<void>(resolve=>{release=resolve});await user.click(screen.getByRole('button',{name:'Add selected takes'}));await user.click(screen.getByRole('button',{name:'Close'}));release();
++    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Record takes'})).not.toBeInTheDocument());expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('0');
++  });
++
++  it('shows and edits the explicit multisample target root before one guarded apply',async()=>{
++    const user=userEvent.setup();render(<Harness instrument="multisample"/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
++    const note=await screen.findByLabelText('Root note for take take-1');expect(note).toHaveValue(64);await user.clear(note);await user.type(note,'65');
++    await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));
++  });
++
++  it('shows the bounded file-import fallback when worklet capture is unavailable',async()=>{
++    Object.defineProperty(globalThis,'AudioWorkletNode',{value:undefined,configurable:true});const rendered=render(<Harness/>);
++    expect(await screen.findByRole('alert')).toHaveTextContent('Recording requires a supported browser on HTTPS; import an audio file instead.');
++    await waitFor(()=>expect(navigator.mediaDevices.enumerateDevices).toHaveBeenCalled());
++    expect(screen.getByRole('button',{name:'Stop recording'})).toBeInTheDocument();
++    expect(navigator.mediaDevices.addEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));rendered.unmount();expect(navigator.mediaDevices.removeEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));
++  });
++});
+--- before-task6/src/test/context/recordingApplication.test.ts
++++ src/test/context/recordingApplication.test.ts
+@@ -0,0 +1,110 @@
++import { Blob as NodeBlob, File as NodeFile } from 'node:buffer';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { appReducer, initialState, type AppState, type DrumSample, type MultisampleFile } from '../../context/AppContext';
++import { createHistory, reduceHistory } from '../../utils/projectHistory';
++import { STORED_AUDIO_TYPE } from '../../utils/storedAudio';
++import { prepareRecordingApplication } from '../../utils/recordingApplication';
++import { exportProjectArchive, importProjectArchive } from '../../utils/projectArchive';
++
++function audio(values:number[],sampleRate=8_000) {const result=new AudioContext().createBuffer(1,values.length,sampleRate);result.copyToChannel(Float32Array.from(values),0);return result;}
++function drum(buffer:AudioBuffer,name:string,key:number):DrumSample {const file=new File(['old'],name);return {file,audioBuffer:buffer,name,isLoaded:true,inPoint:0,outPoint:buffer.duration,
++  originalBitDepth:32,originalSampleRate:buffer.sampleRate,originalChannels:1,fileSize:file.size,duration:buffer.duration,isFloat:true,
++  playmode:'oneshot',reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:key};}
++function multi(buffer:AudioBuffer,name:string,rootNote:number):MultisampleFile {const file=new File(['old'],name);return {file,audioBuffer:buffer,name,isLoaded:true,rootNote,
++  inPoint:0,outPoint:buffer.duration,loopStart:0,loopEnd:buffer.duration,originalBitDepth:32,originalSampleRate:buffer.sampleRate,originalChannels:1,fileSize:file.size,duration:buffer.duration,isFloat:true};}
++function state(patch:Partial<AppState>):AppState{return {...initialState,...patch};}
++
++const PositionalAudioBuffer=globalThis.AudioBuffer as unknown as new(channels:number,length:number,sampleRate:number)=>AudioBuffer;
++beforeEach(()=>{vi.stubGlobal('Blob',NodeBlob);vi.stubGlobal('File',NodeFile);vi.stubGlobal('AudioBuffer',class extends PositionalAudioBuffer {
++  constructor(options:AudioBufferOptions){super(options.numberOfChannels??1,options.length,options.sampleRate)}
++})});
++afterEach(()=>vi.unstubAllGlobals());
++
++describe('guarded recording application',()=>{
++  it('atomically fills drum holes, keeps overflow unassigned, and one Undo removes the whole batch',async()=>{
++    const occupied=drum(audio([.2]),'old.opfloat',1);
++    const drums=initialState.drumSamples.map((sample,index)=>index===1?occupied:{...sample,isLoaded:false,audioBuffer:null,file:null,name:''});
++    const before=state({drumSamples:drums});
++    const prepared=await prepareRecordingApplication({instrument:'drum',takes:[
++      {id:'take-a',name:'Kick',audioBuffer:audio([.1,.2]),rootNote:60},
++      ...Array.from({length:24},(_,index)=>({id:`take-${index}`,name:`Take ${index}`,audioBuffer:audio([index/100]),rootNote:61+index})),
++    ],state:before,target:{kind:'drum'}});
++    let history=createHistory(before);
++    history=reduceHistory(history,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'record-1',prepared}},appReducer);
++    expect(history.present.recordingCommitResult).toMatchObject({operationId:'record-1',status:'committed',appliedIds:expect.arrayContaining(['take-a']),assignedCount:23,overflowCount:2});
++    expect(history.present.drumSamples.slice(0,24).filter(sample=>sample.isLoaded)).toHaveLength(24);
++    expect(history.present.drumSamples.slice(24).filter(sample=>sample.isLoaded)).toHaveLength(2);
++    history=reduceHistory(history,{type:'UNDO'},appReducer);
++    expect(history.present.drumSamples).toEqual(before.drumSamples);
++  });
++
++  it('binds drum replacement consent to the current target identity and preserves the displaced sample unassigned',async()=>{
++    const old=drum(audio([.2]),'old.opfloat',3),before=state({drumSamples:initialState.drumSamples.map((sample,index)=>index===3?old:sample)});
++    const prepared=await prepareRecordingApplication({instrument:'drum',takes:[{id:'new',name:'Snare',audioBuffer:audio([.7]),rootNote:60}],state:before,
++      target:{kind:'drum',padIndex:3,decision:'replace',expected:{audioBuffer:old.audioBuffer,file:old.file}}});
++    const committed=appReducer(before,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'replace',prepared}});
++    expect(committed.drumSamples[3].name).toBe('Snare.opfloat');
++    expect(committed.drumSamples.at(-1)).toMatchObject({name:'old.opfloat',isAssigned:false,assignedKey:undefined});
++    const changed=state({drumSamples:before.drumSamples.map((sample,index)=>index===3?drum(audio([.9]),'other.opfloat',3):sample)});
++    const rejected=appReducer(changed,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'stale',prepared}});
++    expect(rejected.recordingCommitResult).toMatchObject({status:'rejected'});
++    expect(rejected.drumSamples).toBe(changed.drumSamples);
++  });
++
++  it('applies only remaining multisample capacity, keeps excess IDs, and never silently replaces an occupied note',async()=>{
++    const files=Array.from({length:23},(_,index)=>multi(audio([.1]),`m${index}.opfloat`,index));
++    const before=state({multisampleFiles:files});
++    const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[
++      {id:'a',name:'A',audioBuffer:audio([.25]),rootNote:60},{id:'b',name:'B',audioBuffer:audio([.5]),rootNote:61}],state:before,target:{kind:'multisample'}});
++    const committed=appReducer(before,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'multi',prepared}});
++    expect(committed.recordingCommitResult).toMatchObject({status:'committed',appliedIds:['a'],retainedIds:['b'],assignedCount:1});
++    expect(committed.multisampleFiles).toHaveLength(24);
++    await expect(prepareRecordingApplication({instrument:'multisample',takes:[{id:'x',name:'X',audioBuffer:audio([.2]),rootNote:22}],state:before,target:{kind:'multisample'}})).rejects.toThrow(/occupied/);
++  });
++
++  it('preserves every Float32 frame and honest opfloat source metadata',async()=>{
++    const source=audio([Math.fround(.123456789),Math.fround(-.987654321)]);
++    const prepared=await prepareRecordingApplication({instrument:'drum',takes:[{id:'precise',name:'Precise take',audioBuffer:source,rootNote:60}],
++      state:state({drumSamples:initialState.drumSamples.map(sample=>({...sample,isLoaded:false}))}),target:{kind:'drum'}});
++    const asset=prepared.assets[0];
++    expect(asset.file.type).toBe(STORED_AUDIO_TYPE);expect(asset.file.name).toBe('Precise take.opfloat');
++    expect(asset.sample.originalSampleRate).toBe(8_000);expect(asset.sample.originalBitDepth).toBe(32);expect(asset.sample.outPoint).toBe(2/8_000);
++    const raw=await asset.file.arrayBuffer();
++    const bytes=new DataView(raw);
++    expect([bytes.getFloat32(24,true),bytes.getFloat32(28,true)]).toEqual(Array.from(source.getChannelData(0)));
++    const committed=appReducer(state({drumSamples:initialState.drumSamples.map(sample=>({...sample,isLoaded:false}))}),{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'precision',prepared}});
++    const restored=await importProjectArchive(await exportProjectArchive(committed));
++    expect(restored.drumSamples).toHaveLength(1);const recovered=restored.drumSamples[0];if(!recovered.file||!recovered.audioBuffer)throw new Error('Recorded archive did not restore its owned assets');
++    expect(recovered.file.type).toBe(STORED_AUDIO_TYPE);expect(recovered.file.size).toBe(32);
++    expect(Array.from(recovered.audioBuffer.getChannelData(0))).toEqual(Array.from(source.getChannelData(0)));
++  });
++
++  it('admits a size-neutral identity-bound multisample replacement at the 256-reference limit',async()=>{
++    const drums=Array.from({length:233},(_,index)=>{const item=drum(audio([.1]),'d'+index+'.opfloat',Math.min(index,23));return index<24?item:{...item,isAssigned:false,assignedKey:undefined};});
++    const files=Array.from({length:23},(_,index)=>multi(audio([.1]),'m'+index+'.opfloat',index));
++    const old=files[22],before=state({drumSamples:drums,multisampleFiles:files});
++    const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[{id:'replacement',name:'Replacement',audioBuffer:audio([.2]),rootNote:22}],state:before,
++      target:{kind:'multisample',rootNote:22,decision:'replace',expected:{audioBuffer:old.audioBuffer,file:old.file}}});
++    const result=appReducer(before,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'limit-replace',prepared}});
++    expect(result.recordingCommitResult).toMatchObject({status:'committed',appliedIds:['replacement']});
++    expect(result.drumSamples.length+result.multisampleFiles.length).toBe(256);
++    expect(result.multisampleFiles.find(file=>file.rootNote===22)?.name).toBe('Replacement.opfloat');
++  });
++
++  it('removes only the targeted multisample reference from projected replacement usage',async()=>{
++    const shared=audio([.1]),old=multi(shared,'shared.opfloat',60),alsoReferenced=drum(shared,'shared.opfloat',0);
++    alsoReferenced.file=old.file;
++    const filler=Array.from({length:254},(_,index)=>{const item=drum(audio([.1]),'d'+index+'.opfloat',Math.min(index,23));return {...item,isAssigned:index<23,assignedKey:index<23?index:undefined};});
++    const before=state({drumSamples:[alsoReferenced,...filler],multisampleFiles:[old]});
++    await expect(prepareRecordingApplication({instrument:'multisample',takes:[{id:'replacement',name:'Replacement',audioBuffer:audio([.2]),rootNote:60}],state:before,
++      target:{kind:'multisample',rootNote:60,decision:'replace',expected:{audioBuffer:old.audioBuffer,file:old.file}}})).resolves.toMatchObject({assets:[{id:'replacement'}]});
++  });
++
++  it('allows one size-neutral replacement without trimming a legacy multisample over 24 zones',async()=>{
++    const files=Array.from({length:25},(_,index)=>multi(audio([.1]),'legacy-'+index+'.opfloat',index)),old=files[24],before=state({multisampleFiles:files});
++    const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[{id:'legacy-replacement',name:'Legacy replacement',audioBuffer:audio([.4]),rootNote:24}],state:before,
++      target:{kind:'multisample',rootNote:24,decision:'replace',expected:{audioBuffer:old.audioBuffer,file:old.file}}});
++    const result=appReducer(before,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'legacy-replace',prepared}});
++    expect(result.recordingCommitResult).toMatchObject({status:'committed',appliedIds:['legacy-replacement']});expect(result.multisampleFiles).toHaveLength(25);expect(result.multisampleFiles.find(file=>file.rootNote===24)?.name).toBe('Legacy replacement.opfloat');
++  });
++});
+--- before-task6/src/utils/audioSlicing.ts
++++ src/utils/audioSlicing.ts
+@@ -265,6 +265,28 @@
+   audioBuffer?: AudioBuffer | null; file?: File | null; isLoaded?: boolean; sliceProvenance?: DrumSample['sliceProvenance'];
+ };
+ 
++export interface ProjectAudioAddition {audioBuffer:AudioBuffer;fileSize:number;hasSourceFile:boolean}
++
++/** Shared portable-project admission using logical opfloat multiplicity and ordinary source copies. */
++export function planProjectAudioCapacity(existingSamples:readonly ProjectAudioAsset[],additions:readonly ProjectAudioAddition[]) {
++  const loaded=existingSamples.filter(sample=>sample.isLoaded&&sample.audioBuffer);
++  if(loaded.length+additions.length>SLICE_LIMITS.projectSamples)throw new Error('Applying this audio would exceed the 256-sample project limit');
++  const logicalBytes=(audio:AudioBuffer)=>{
++    const pcm=audio.length*audio.numberOfChannels*4;
++    if(!Number.isSafeInteger(pcm)||audio.length<1||audio.numberOfChannels<1)return NaN;
++    return STORED_AUDIO_HEADER_BYTES+pcm;
++  };
++  let decodedBytes=0,storedBytes=0;
++  for(const sample of loaded){const logical=logicalBytes(sample.audioBuffer!);if(!Number.isSafeInteger(logical))throw new Error('Project audio has invalid dimensions');
++    decodedBytes+=logical;storedBytes+=logical+(sample.sliceProvenance?0:sample.file?.size??0);}
++  for(const addition of additions){const logical=logicalBytes(addition.audioBuffer);if(!Number.isSafeInteger(logical)||!Number.isSafeInteger(addition.fileSize)||addition.fileSize<0)throw new Error('Recorded audio has invalid dimensions');
++    decodedBytes+=logical;storedBytes+=logical+(addition.hasSourceFile?addition.fileSize:0);}
++  if(!Number.isSafeInteger(decodedBytes)||decodedBytes>SLICE_LIMITS.projectDecodedBytes)throw new Error('Applying this audio would exceed the 128 MiB decoded-project limit');
++  const projectedArchiveBytes=storedBytes+SLICE_LIMITS.projectManifestReserveBytes+SLICE_LIMITS.projectZipStructureReserveBytes;
++  if(!Number.isSafeInteger(projectedArchiveBytes)||projectedArchiveBytes>SLICE_LIMITS.projectStoredBytes)throw new Error('Applying this audio would exceed the portable project size limit, including manifest and ZIP reserves');
++  return {sampleCount:loaded.length+additions.length,decodedBytes,storedBytes,projectedArchiveBytes};
++}
++
+ export function planSliceApplication({ source, ranges, existingSamples, retainExternalSource, sourceFileBytes }: {
+   source: AudioBuffer; ranges: readonly FrameRange[]; existingSamples: readonly ProjectAudioAsset[];
+   retainExternalSource: boolean; sourceFileBytes: number;
+--- before-task6/src/utils/recordingApplication.ts
++++ src/utils/recordingApplication.ts
+@@ -0,0 +1,143 @@
++import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
++import { SLICE_LIMITS, planProjectAudioCapacity } from './audioSlicing';
++import { encodeStoredAudio, STORED_AUDIO_TYPE } from './storedAudio';
++import { midiNoteToString } from './audio';
++
++export interface RecordingTakeDraft {id:string;name:string;audioBuffer:AudioBuffer;rootNote:number}
++export interface ExpectedAssetIdentity {audioBuffer:AudioBuffer|null;file:File|null}
++export type RecordingTarget =
++  | {kind:'drum';padIndex?:number;decision?:'replace'|'choose-empty';expected?:ExpectedAssetIdentity}
++  | {kind:'multisample';rootNote?:number;decision?:'replace'|'choose-free';expected?:ExpectedAssetIdentity};
++export interface PreparedRecordingAsset {id:string;file:File;audioBuffer:AudioBuffer;rootNote:number;sample:DrumSample}
++export interface PreparedRecordingApplication {
++  instrument:'drum'|'multisample';assets:PreparedRecordingAsset[];retainedIds:string[];target:RecordingTarget;
++}
++
++function filename(value:string) {
++  const base=(value.trim()||'Recorded take').replace(/\.opfloat$/i,'').slice(0,120);
++  return `${base}.opfloat`;
++}
++
++function sampleFor(file:File,audioBuffer:AudioBuffer):DrumSample {
++  return {file,audioBuffer,name:file.name,isLoaded:true,inPoint:0,outPoint:audioBuffer.length/audioBuffer.sampleRate,
++    originalBitDepth:32,originalSampleRate:audioBuffer.sampleRate,originalChannels:audioBuffer.numberOfChannels,
++    fileSize:file.size,duration:audioBuffer.length/audioBuffer.sampleRate,isFloat:true,playmode:'oneshot',reverse:false,
++    transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:false};
++}
++
++function assertIdentity(current:{audioBuffer:AudioBuffer|null;file:File|null}|undefined,expected:ExpectedAssetIdentity|undefined,label:string) {
++  if(!expected||!current||current.audioBuffer!==expected.audioBuffer||current.file!==expected.file)throw new Error(`${label} changed while recordings were preparing. No takes were added; review the destination again.`);
++}
++
++function toMultisample(asset:PreparedRecordingAsset,mapping:AppState['midiNoteMapping']):MultisampleFile {
++  const {audioBuffer,file}=asset;
++  return {file,audioBuffer,name:file.name,isLoaded:true,rootNote:asset.rootNote,note:midiNoteToString(asset.rootNote,mapping),inPoint:0,outPoint:audioBuffer.duration,
++    loopStart:0,loopEnd:audioBuffer.duration,originalBitDepth:32,originalSampleRate:audioBuffer.sampleRate,
++    originalChannels:audioBuffer.numberOfChannels,fileSize:file.size,duration:audioBuffer.duration,isFloat:true};
++}
++
++function validateDrafts(takes:readonly RecordingTakeDraft[]) {
++  if(!takes.length)throw new Error('Select at least one take to add');
++  if(takes.length>32)throw new Error('A recording tray can retain at most 32 takes');
++  const ids=new Set<string>(); let owned=0;
++  for(const take of takes){
++    if(!take.id||ids.has(take.id))throw new Error('Every selected take must have a distinct identity');ids.add(take.id);
++    const pcm=take.audioBuffer.length*take.audioBuffer.numberOfChannels*4;
++    if(!Number.isSafeInteger(pcm)||take.audioBuffer.length<1||take.audioBuffer.numberOfChannels<1||take.audioBuffer.numberOfChannels>2||take.audioBuffer.sampleRate<8_000||take.audioBuffer.sampleRate>96_000)throw new Error('A selected take has unsupported audio dimensions');
++    if(!Number.isInteger(take.rootNote)||take.rootNote<0||take.rootNote>127)throw new Error('Root notes must be whole MIDI values from 0 to 127');
++    owned+=pcm+2*(24+pcm);
++  }
++  if(owned>256*1024*1024)throw new Error('Preparing these takes would exceed the recorder 256 MiB owned-audio limit');
++}
++
++/** Resolves project capacity before encoding source copies where destination limits permit. */
++export async function prepareRecordingApplication(options:{instrument:'drum'|'multisample';takes:readonly RecordingTakeDraft[];state:AppState;target:RecordingTarget;signal?:AbortSignal}) {
++  validateDrafts(options.takes);
++  if(options.target.kind!==options.instrument)throw new Error('Recording target does not match the instrument');
++  let candidates=[...options.takes],retainedIds:string[]=[];
++  if(options.instrument==='multisample'){
++    const target=options.target as Extract<RecordingTarget,{kind:'multisample'}>;
++    const occupiedByNote=new Map(options.state.multisampleFiles.map(file=>[file.rootNote,file]));
++    const replace=target.decision==='replace';
++    if(replace){
++      const existing=options.state.multisampleFiles.find(file=>file.rootNote===target.rootNote);assertIdentity(existing,target.expected,'The multisample replacement target');
++    }
++    const used=new Set<number>();
++    for(const take of candidates){
++      if(used.has(take.rootNote))throw new Error(`Root note ${take.rootNote} is assigned to more than one selected take`);used.add(take.rootNote);
++      const occupied=occupiedByNote.get(take.rootNote);
++      if(occupied&&!(replace&&take===candidates[0]&&take.rootNote===target.rootNote))throw new Error(`Root note ${take.rootNote} is occupied. Choose another note or explicitly replace it.`);
++    }
++    const remaining=(replace?1:0)+Math.max(0,24-options.state.multisampleFiles.length);
++    retainedIds=candidates.slice(remaining).map(take=>take.id);candidates=candidates.slice(0,remaining);
++    if(!candidates.length)throw new Error('The multisample has no remaining zone capacity; remove a zone or explicitly replace one');
++  }
++  const estimates=candidates.map(take=>({audioBuffer:take.audioBuffer,fileSize:24+take.audioBuffer.length*take.audioBuffer.numberOfChannels*4,hasSourceFile:true}));
++  let existing=[...options.state.drumSamples,...options.state.multisampleFiles];
++  if(options.instrument==='multisample'&&options.target.kind==='multisample'&&options.target.decision==='replace'){
++    const replacementRoot=options.target.rootNote;
++    const replacementIndex=options.state.multisampleFiles.findIndex(file=>file.rootNote===replacementRoot);
++    existing=[...options.state.drumSamples,...options.state.multisampleFiles.filter((_,index)=>index!==replacementIndex)];
++  }
++  planProjectAudioCapacity(existing,estimates);
++  const assets:PreparedRecordingAsset[]=[];
++  for(const take of candidates){
++    if(options.signal?.aborted)throw new DOMException('Recording Apply canceled','AbortError');
++    const payload=encodeStoredAudio(take.audioBuffer);const file=new File([payload],filename(take.name),{type:STORED_AUDIO_TYPE});
++    assets.push({id:take.id,file,audioBuffer:take.audioBuffer,rootNote:take.rootNote,sample:sampleFor(file,take.audioBuffer)});
++    await Promise.resolve();
++  }
++  return {instrument:options.instrument,assets,retainedIds,target:options.target} satisfies PreparedRecordingApplication;
++}
++
++export function finalizeRecordingApplication(prepared:PreparedRecordingApplication,state:AppState) {
++  if(!prepared.assets.length)throw new Error('Prepared recording assets are empty');
++  if(prepared.instrument==='drum'){
++    const target=prepared.target as Extract<RecordingTarget,{kind:'drum'}>;const drums=[...state.drumSamples];
++    const first=prepared.assets[0];let start=0;
++    if(target.padIndex!==undefined){
++      if(!Number.isInteger(target.padIndex)||target.padIndex<0||target.padIndex>=24)throw new Error('The recording pad target is invalid');
++      const current=drums[target.padIndex];
++      if(target.decision==='replace'){
++        assertIdentity(current,target.expected,'The drum replacement target');
++        if(current?.isLoaded)drums.push({...current,isAssigned:false,assignedKey:undefined});
++        drums[target.padIndex]={...first.sample,isAssigned:true,assignedKey:target.padIndex};start=1;
++      } else if(target.decision!=='choose-empty'){
++        if(current?.isLoaded)throw new Error('The target pad is occupied. Choose Replace, choose an empty pad, or cancel.');
++        if(target.expected&&(current?.audioBuffer!==target.expected.audioBuffer||current?.file!==target.expected.file))throw new Error('The target pad changed while recordings were preparing.');
++        drums[target.padIndex]={...first.sample,isAssigned:true,assignedKey:target.padIndex};start=1;
++      }
++    }
++    const assignedIds:string[]=[];if(start)assignedIds.push(first.id);
++    for(const asset of prepared.assets.slice(start)){
++      const empty=drums.slice(0,24).findIndex(sample=>!sample?.isLoaded);
++      if(empty>=0){drums[empty]={...asset.sample,isAssigned:true,assignedKey:empty};assignedIds.push(asset.id);}
++      else drums.push({...asset.sample,isAssigned:false,assignedKey:undefined});
++    }
++    planProjectAudioCapacity([...drums,...state.multisampleFiles],[]);
++    return {drumSamples:drums,multisampleFiles:state.multisampleFiles,appliedIds:prepared.assets.map(asset=>asset.id),retainedIds:prepared.retainedIds,
++      assignedCount:assignedIds.length,overflowCount:prepared.assets.length-assignedIds.length};
++  }
++  const target=prepared.target as Extract<RecordingTarget,{kind:'multisample'}>;let multis=[...state.multisampleFiles];
++  if(target.decision==='replace'){
++    const index=multis.findIndex(file=>file.rootNote===target.rootNote);assertIdentity(multis[index],target.expected,'The multisample replacement target');multis.splice(index,1);
++  }
++  const existingNotes=new Set(multis.map(file=>file.rootNote));const capacity=Math.max(target.decision==='replace'?1:0,24-multis.length);const applying:PreparedRecordingAsset[]=[];const retained=[...prepared.retainedIds];
++  for(const asset of prepared.assets){
++    if(existingNotes.has(asset.rootNote))throw new Error(`Root note ${asset.rootNote} became occupied while recordings were preparing.`);
++    if(applying.length>=capacity){retained.push(asset.id);continue;} existingNotes.add(asset.rootNote);applying.push(asset);
++  }
++  multis=[...multis,...applying.map(asset=>toMultisample(asset,state.midiNoteMapping))].sort((a,b)=>b.rootNote-a.rootNote);
++  planProjectAudioCapacity([...state.drumSamples,...multis],[]);
++  return {drumSamples:state.drumSamples,multisampleFiles:multis,appliedIds:applying.map(asset=>asset.id),retainedIds:retained,
++    assignedCount:applying.length,overflowCount:retained.length};
++}
++
++export function proposeUnusedRootNotes(files:readonly MultisampleFile[],count:number,start=60) {
++  const used=new Set(files.map(file=>file.rootNote)),notes:number[]=[];
++  for(let note=Math.max(0,Math.min(127,Math.round(start)));note<=127&&notes.length<count;note+=1)if(!used.has(note))notes.push(note);
++  for(let note=0;note<Math.max(0,start)&&notes.length<count;note+=1)if(!used.has(note))notes.push(note);
++  return notes;
++}
++
++export {SLICE_LIMITS as PROJECT_RECORDING_LIMITS};

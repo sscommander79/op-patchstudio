@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { useStudioCanvasColors } from '../../hooks/useStudioCanvasTheme';
 
 interface EnhancedWaveformEditorProps {
   audioBuffer: AudioBuffer;
@@ -24,6 +25,7 @@ export function EnhancedWaveformEditor({
   defaultSnapToZero = true,
 }: EnhancedWaveformEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasColors=useStudioCanvasColors();
   const [snapToZero, setSnapToZero] = useState(defaultSnapToZero);
   const [dragging, setDragging] = useState<'in' | 'out' | null>(null);
 
@@ -43,20 +45,24 @@ export function EnhancedWaveformEditor({
     let bestPosition = searchStart;
     let minAbsValue = Math.abs(data[searchStart]);
 
-    const searchLimit = Math.min(maxSearchDistance, 
-      searchDirection > 0 ? data.length - searchStart : searchStart);
+    const searchLimit = Math.min(maxSearchDistance,
+      searchDirection > 0 ? data.length - 1 - searchStart
+        : searchDirection < 0 ? searchStart
+          : Math.max(searchStart, data.length - 1 - searchStart));
 
     for (let i = 1; i <= searchLimit; i++) {
-      const checkPos = searchStart + (i * searchDirection);
-      if (checkPos < 0 || checkPos >= data.length) break;
-
-      const absValue = Math.abs(data[checkPos]);
-      if (absValue < minAbsValue) {
-        minAbsValue = absValue;
-        bestPosition = checkPos;
+      const positions = searchDirection === 0
+        ? [searchStart - i, searchStart + i]
+        : [searchStart + (i * searchDirection)];
+      for (const checkPos of positions) {
+        if (checkPos < 0 || checkPos >= data.length) continue;
+        const absValue = Math.abs(data[checkPos]);
+        if (absValue < minAbsValue) {
+          minAbsValue = absValue;
+          bestPosition = checkPos;
+        }
+        if (absValue < 0.01) return checkPos;
       }
-
-      if (absValue < 0.01) break;
     }
 
     return bestPosition;
@@ -82,15 +88,15 @@ export function EnhancedWaveformEditor({
     const outX = sampleToPixel(outPoint);
 
     // Out-of-bounds area (light grey)
-    ctx.fillStyle = '#f0f0f0';
+    ctx.fillStyle = canvasColors.outside;
     ctx.fillRect(0, 0, width, height);
 
     // In-bounds area (white)
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = canvasColors.inside;
     ctx.fillRect(inX, 0, outX - inX, height);
 
     // Waveform
-    ctx.fillStyle = '#333333';
+    ctx.fillStyle = canvasColors.waveform;
     const step = Math.ceil(data.length / width);
     const amp = height / 2;
 
@@ -108,7 +114,7 @@ export function EnhancedWaveformEditor({
     }
 
     // Draw center line
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = canvasColors.waveform;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
@@ -116,7 +122,7 @@ export function EnhancedWaveformEditor({
     ctx.stroke();
 
 
-  }, [audioBuffer, inPoint, outPoint, snapToZero]);
+  }, [audioBuffer, canvasColors, inPoint, outPoint]);
 
   const drawMarkers = useCallback(() => {
     const canvas = canvasRef.current;
@@ -133,7 +139,7 @@ export function EnhancedWaveformEditor({
     const outPos = (outPoint / data.length) * width;
 
     // In/Out markers (dark grey) - solid lines
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = canvasColors.waveform;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(inPos, 0);
@@ -143,10 +149,10 @@ export function EnhancedWaveformEditor({
     ctx.stroke();
 
     // In/Out marker handles - triangles with connected squares
-    ctx.fillStyle = '#333333';
+    ctx.fillStyle = canvasColors.waveform;
     const sampleTriangleSize = 10;
     const squareSize = sampleTriangleSize; // Square width matches triangle base
-    
+
     // Sample start marker (triangle above square, triangle pointing up)
     const squareY = height - squareSize;
     const triBaseY = squareY;
@@ -158,7 +164,7 @@ export function EnhancedWaveformEditor({
     ctx.closePath();
     ctx.fill();
     ctx.fillRect(inPos - squareSize / 2, squareY, squareSize, squareSize);
-    
+
     // Sample end marker (triangle above square, triangle pointing up)
     ctx.beginPath();
     ctx.moveTo(outPos - sampleTriangleSize / 2, triBaseY);
@@ -167,7 +173,7 @@ export function EnhancedWaveformEditor({
     ctx.closePath();
     ctx.fill();
     ctx.fillRect(outPos - squareSize / 2, squareY, squareSize, squareSize);
-  }, [audioBuffer, inPoint, outPoint]);
+  }, [audioBuffer, canvasColors, inPoint, outPoint]);
 
   // Combined effect for initialization and resizing
   useEffect(() => {
@@ -209,12 +215,12 @@ export function EnhancedWaveformEditor({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    
+
     const inPos = (inPoint / audioBuffer.length) * width;
     const outPos = (outPoint / audioBuffer.length) * width;
-    
+
     const tolerance = 15; // pixels - increased for better touch targets
-    
+
     if (Math.abs(x - inPos) < tolerance) {
       setDragging('in');
     } else if (Math.abs(x - outPos) < tolerance) {
@@ -231,20 +237,21 @@ export function EnhancedWaveformEditor({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    
+
     let newFrame = Math.floor((x / width) * audioBuffer.length);
     newFrame = Math.max(0, Math.min(audioBuffer.length, newFrame));
-    
+
     // Apply snap to zero if enabled
     if (snapToZero) {
       newFrame = findNearestZeroCrossing(newFrame, 0);
     }
-    
+
+    const minimumGap = Math.min(1000, audioBuffer.length);
     if (dragging === 'in') {
-      const newInPoint = Math.min(newFrame, outPoint - 1000); // Ensure minimum gap
+      const newInPoint = Math.max(0, Math.min(newFrame, outPoint - minimumGap));
       onMarkersChange({ inPoint: newInPoint, outPoint });
     } else if (dragging === 'out') {
-      const newOutPoint = Math.max(newFrame, inPoint + 1000); // Ensure minimum gap
+      const newOutPoint = Math.min(audioBuffer.length, Math.max(newFrame, inPoint + minimumGap));
       onMarkersChange({ inPoint, outPoint: newOutPoint });
     }
   };
@@ -279,23 +286,23 @@ export function EnhancedWaveformEditor({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       />
-      
+
       {showFrameDisplay && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1fr 1fr', 
-          gap: '1rem', 
-          marginTop: '0.5rem' 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1rem',
+          marginTop: '0.5rem'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '0.25rem',
             flexWrap: 'nowrap'
           }}>
-            <span style={{ 
-              minWidth: '70px', 
-              fontSize: '0.7rem', 
+            <span style={{
+              minWidth: '70px',
+              fontSize: '0.7rem',
               color: c.textSecondary,
               flexShrink: 0
             }}>
@@ -314,16 +321,16 @@ export function EnhancedWaveformEditor({
             }}>
               {inPoint.toLocaleString()}
             </span>
-            <span style={{ 
-              fontSize: '0.7rem', 
+            <span style={{
+              fontSize: '0.7rem',
               color: c.textSecondary,
               marginLeft: '0.25rem',
               flexShrink: 0
             }}>
               frames ({frameToTime(inPoint).toFixed(3)}s)
             </span>
-            <span style={{ 
-              fontSize: '0.65rem', 
+            <span style={{
+              fontSize: '0.65rem',
               color: isNearZeroCrossing(inPoint) ? '#6b7280' : '#9ca3af',
               fontWeight: '500',
               marginLeft: '0.25rem',
@@ -332,16 +339,16 @@ export function EnhancedWaveformEditor({
               {isNearZeroCrossing(inPoint) ? '✓ zero' : '✗ not zero'}
             </span>
           </div>
-          
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '0.25rem',
             flexWrap: 'nowrap'
           }}>
-            <span style={{ 
-              minWidth: '70px', 
-              fontSize: '0.7rem', 
+            <span style={{
+              minWidth: '70px',
+              fontSize: '0.7rem',
               color: c.textSecondary,
               flexShrink: 0
             }}>
@@ -360,16 +367,16 @@ export function EnhancedWaveformEditor({
             }}>
               {outPoint.toLocaleString()}
             </span>
-            <span style={{ 
-              fontSize: '0.7rem', 
+            <span style={{
+              fontSize: '0.7rem',
               color: c.textSecondary,
               marginLeft: '0.25rem',
               flexShrink: 0
             }}>
               frames ({frameToTime(outPoint).toFixed(3)}s)
             </span>
-            <span style={{ 
-              fontSize: '0.65rem', 
+            <span style={{
+              fontSize: '0.65rem',
               color: isNearZeroCrossing(outPoint) ? '#6b7280' : '#9ca3af',
               fontWeight: '500',
               marginLeft: '0.25rem',
@@ -380,19 +387,19 @@ export function EnhancedWaveformEditor({
           </div>
         </div>
       )}
-      
+
       {showSnapToZero && (
-        <div style={{ 
+        <div style={{
           marginTop: '0.5rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
         }}>
-          <label style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.25rem', 
-            fontSize: '0.75rem', 
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            fontSize: '0.75rem',
             fontWeight: '500',
             color: c.textSecondary,
             cursor: 'pointer'
@@ -413,4 +420,4 @@ export function EnhancedWaveformEditor({
       )}
     </div>
   );
-} 
+}

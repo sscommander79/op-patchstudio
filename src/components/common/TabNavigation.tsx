@@ -15,7 +15,7 @@ export function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -28,8 +28,8 @@ export function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       const baseTabs = ['drum', 'multisample', 'library'] as const;
-      const tabs = FEATURE_FLAGS.DONATE_PAGE ? [...baseTabs, 'donate', 'feedback'] : [...baseTabs, 'feedback'];
-      const currentIndex = tabs.indexOf(currentTab as any);
+      const tabs: TabName[] = FEATURE_FLAGS.DONATE_PAGE ? [...baseTabs, 'donate', 'feedback'] : [...baseTabs, 'feedback'];
+      const currentIndex = tabs.indexOf(currentTab);
       const direction = e.key === 'ArrowLeft' ? -1 : 1;
       const newIndex = (currentIndex + direction + tabs.length) % tabs.length;
       onTabChange(tabs[newIndex] as TabName);
@@ -81,7 +81,7 @@ export function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
 
   const renderTab = (name: TabName, label: string) => {
     const isActive = currentTab === name;
-    
+
     return (
       <button
         id={`${name}-tab`}
@@ -112,12 +112,12 @@ export function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
   };
 
   return (
-    <div 
+    <div
       role="tablist"
       aria-label="main navigation tabs"
       aria-orientation="horizontal"
       className="tab-bar"
-      style={{ 
+      style={{
         display: 'flex',
         marginBottom: '0',
         borderBottom: '1px solid var(--color-border-subtle)',
@@ -132,4 +132,4 @@ export function TabNavigation({ currentTab, onTabChange }: TabNavigationProps) {
       {renderTab('feedback', 'feedback')}
     </div>
   );
-} 
+}

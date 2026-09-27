@@ -54,6 +54,22 @@ describe('valueConversions', () => {
   })
 
   describe('deepMerge', () => {
+    it('preserves ordinary unknown fields without allowing prototype mutation keys', () => {
+      const target: Record<string, unknown> = {};
+      const source = JSON.parse(
+        '{"safe":{"custom":1,"prototype":{"opstudioReviewProbe":true},"nested":{"constructor":{"prototype":{"opstudioReviewProbe":true}}}},"__proto__":{"opstudioReviewProbe":true}}',
+      ) as Record<string, unknown>;
+
+      try {
+        deepMerge(target, source);
+
+        expect(target).toEqual({ safe: { custom: 1, nested: {} } });
+        expect(({} as Record<string, unknown>).opstudioReviewProbe).toBeUndefined();
+      } finally {
+        delete (Object.prototype as Record<string, unknown>).opstudioReviewProbe;
+      }
+    });
+
     it('should merge simple objects', () => {
       const target = { a: 1, b: 2 }
       const source = { c: 3, d: 4 }

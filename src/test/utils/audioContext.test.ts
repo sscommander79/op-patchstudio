@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { audioContextManager } from '../../utils/audioContext'
 
 // Create mock AudioContext with proper state management
-const createMockAudioContext = (initialState = 'running') => ({
-  state: initialState,
+const createMockAudioContext = (initialState: AudioContextState = 'running') => ({
+  state: initialState as AudioContextState,
   sampleRate: 44100,
   resume: vi.fn(() => Promise.resolve()),
   close: vi.fn(() => Promise.resolve()),
@@ -18,17 +18,15 @@ const mockOfflineAudioContext = {
 }
 
 describe('audioContextManager', () => {
-  let mockAudioContext: any
+  let mockAudioContext: ReturnType<typeof createMockAudioContext>
 
-  beforeEach(() => {
-    // Reset the singleton instance by accessing private properties
-    ;(audioContextManager as any).audioContext = null
-    ;(audioContextManager as any).isInitialized = false
-    
+  beforeEach(async () => {
+    await audioContextManager.closeAudioContext()
+
     // Mock AudioContext constructor
     mockAudioContext = createMockAudioContext()
-    global.AudioContext = vi.fn(() => mockAudioContext) as any
-    global.OfflineAudioContext = vi.fn(() => mockOfflineAudioContext) as any
+    global.AudioContext = vi.fn(function MockAudioContext() { return mockAudioContext }) as unknown as typeof AudioContext
+    global.OfflineAudioContext = vi.fn(function MockOfflineAudioContext() { return mockOfflineAudioContext }) as unknown as typeof OfflineAudioContext
   })
 
   afterEach(() => {
@@ -45,7 +43,7 @@ describe('audioContextManager', () => {
     it('should maintain state across getInstance calls', async () => {
       await audioContextManager.getAudioContext()
       expect(audioContextManager.isReady()).toBe(true)
-      
+
       // Get another instance reference
       const anotherRef = audioContextManager
       expect(anotherRef.isReady()).toBe(true)
@@ -55,7 +53,7 @@ describe('audioContextManager', () => {
   describe('getAudioContext', () => {
     it('should create new AudioContext when none exists', async () => {
       const context = await audioContextManager.getAudioContext()
-      
+
       expect(global.AudioContext).toHaveBeenCalledTimes(1)
       expect(context).toBe(mockAudioContext)
       expect(audioContextManager.isReady()).toBe(true)
@@ -65,14 +63,14 @@ describe('audioContextManager', () => {
       // First call creates context
       await audioContextManager.getAudioContext()
       expect(global.AudioContext).toHaveBeenCalledTimes(1)
-      
+
       // Simulate closed state
       mockAudioContext.state = 'closed'
-      
+
       // Second call should create new context
       const newMockContext = createMockAudioContext()
-      global.AudioContext = vi.fn(() => newMockContext) as any
-      
+      global.AudioContext = vi.fn(function MockAudioContext() { return newMockContext }) as unknown as typeof AudioContext
+
       const context = await audioContextManager.getAudioContext()
       expect(global.AudioContext).toHaveBeenCalledTimes(1) // Called once more with new mock
       expect(context).toBe(newMockContext)
@@ -80,9 +78,9 @@ describe('audioContextManager', () => {
 
     it('should resume suspended AudioContext', async () => {
       mockAudioContext.state = 'suspended'
-      
+
       const context = await audioContextManager.getAudioContext()
-      
+
       expect(mockAudioContext.resume).toHaveBeenCalledTimes(1)
       expect(context).toBe(mockAudioContext)
     })
@@ -90,10 +88,10 @@ describe('audioContextManager', () => {
     it('should return existing AudioContext if running', async () => {
       // First call
       const context1 = await audioContextManager.getAudioContext()
-      
+
       // Second call should return same context
       const context2 = await audioContextManager.getAudioContext()
-      
+
       expect(global.AudioContext).toHaveBeenCalledTimes(1)
       expect(context1).toBe(context2)
       expect(context2).toBe(mockAudioContext)
@@ -105,10 +103,10 @@ describe('audioContextManager', () => {
       // Create context first
       await audioContextManager.getAudioContext()
       expect(audioContextManager.isReady()).toBe(true)
-      
+
       // Close context
       await audioContextManager.closeAudioContext()
-      
+
       expect(mockAudioContext.close).toHaveBeenCalledTimes(1)
       expect(audioContextManager.isReady()).toBe(false)
       expect(audioContextManager.getState()).toBeNull()
@@ -116,19 +114,19 @@ describe('audioContextManager', () => {
 
     it('should not attempt to close if no context exists', async () => {
       await audioContextManager.closeAudioContext()
-      
+
       expect(mockAudioContext.close).not.toHaveBeenCalled()
     })
 
     it('should not attempt to close if context is already closed', async () => {
       // Create context
       await audioContextManager.getAudioContext()
-      
+
       // Simulate closed state
       mockAudioContext.state = 'closed'
-      
+
       await audioContextManager.closeAudioContext()
-      
+
       expect(mockAudioContext.close).not.toHaveBeenCalled()
     })
   })
@@ -141,7 +139,7 @@ describe('audioContextManager', () => {
     it('should return AudioContext state when context exists', async () => {
       await audioContextManager.getAudioContext()
       expect(audioContextManager.getState()).toBe('running')
-      
+
       mockAudioContext.state = 'suspended'
       expect(audioContextManager.getState()).toBe('suspended')
     })
@@ -155,7 +153,7 @@ describe('audioContextManager', () => {
     it('should return AudioContext sample rate when context exists', async () => {
       mockAudioContext.sampleRate = 48000
       await audioContextManager.getAudioContext()
-      
+
       expect(audioContextManager.getSampleRate()).toBe(48000)
     })
   })
@@ -168,20 +166,20 @@ describe('audioContextManager', () => {
     it('should return false when AudioContext is not running', async () => {
       mockAudioContext.state = 'suspended'
       await audioContextManager.getAudioContext()
-      
+
       expect(audioContextManager.isReady()).toBe(false)
     })
 
     it('should return true when AudioContext is running', async () => {
       await audioContextManager.getAudioContext()
-      
+
       expect(audioContextManager.isReady()).toBe(true)
     })
 
     it('should return false after context is closed', async () => {
       await audioContextManager.getAudioContext()
       expect(audioContextManager.isReady()).toBe(true)
-      
+
       await audioContextManager.closeAudioContext()
       expect(audioContextManager.isReady()).toBe(false)
     })
@@ -190,14 +188,14 @@ describe('audioContextManager', () => {
   describe('createOfflineContext', () => {
     it('should create OfflineAudioContext with specified parameters', () => {
       const context = audioContextManager.createOfflineContext(2, 1000, 44100)
-      
+
       expect(global.OfflineAudioContext).toHaveBeenCalledWith(2, 1000, 44100)
       expect(context).toBe(mockOfflineAudioContext)
     })
 
     it('should create offline context regardless of main context state', () => {
       const context = audioContextManager.createOfflineContext(1, 500, 48000)
-      
+
       expect(global.OfflineAudioContext).toHaveBeenCalledWith(1, 500, 48000)
       expect(context).toBe(mockOfflineAudioContext)
       // Main context should still not be initialized
@@ -208,34 +206,36 @@ describe('audioContextManager', () => {
   describe('cleanup', () => {
     it('should call closeAudioContext', async () => {
       const spy = vi.spyOn(audioContextManager, 'closeAudioContext')
-      
+
       await audioContextManager.cleanup()
-      
+
       expect(spy).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('Error Handling', () => {
     it('should handle AudioContext creation errors gracefully', async () => {
-      global.AudioContext = vi.fn(() => {
+      global.AudioContext = vi.fn(function MockAudioContext() {
         throw new Error('AudioContext creation failed')
-      })
-      
+      }) as unknown as typeof AudioContext
+
       await expect(audioContextManager.getAudioContext()).rejects.toThrow('AudioContext creation failed')
     })
 
     it('should handle resume errors gracefully', async () => {
       mockAudioContext.state = 'suspended'
       mockAudioContext.resume = vi.fn(() => Promise.reject(new Error('Resume failed')))
-      
+
       await expect(audioContextManager.getAudioContext()).rejects.toThrow('Resume failed')
     })
 
     it('should handle close errors gracefully', async () => {
       await audioContextManager.getAudioContext()
       mockAudioContext.close = vi.fn(() => Promise.reject(new Error('Close failed')))
-      
+
       await expect(audioContextManager.closeAudioContext()).rejects.toThrow('Close failed')
+      expect(audioContextManager.getState()).toBeNull()
+      expect(audioContextManager.isReady()).toBe(false)
     })
   })
 
@@ -246,4 +246,4 @@ describe('audioContextManager', () => {
       expect(typeof window !== 'undefined').toBe(true)
     })
   })
-}) 
+})

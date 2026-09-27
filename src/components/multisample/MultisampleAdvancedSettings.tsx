@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import type { AppState } from '../../context/AppContext';
 import { Modal, Slider, Select, SelectItem, Toggle } from '@carbon/react';
 import { ADSREnvelope } from '../common/ADSREnvelope';
 
@@ -81,14 +82,10 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
   const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
   const handleSave = () => {
-    // Save loop settings to global context
-    dispatch({ type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: settings.loopEnabled });
-    dispatch({ type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: settings.loopOnRelease });
-    
-    // Store other settings in the imported preset which gets used during patch generation
-    dispatch({
-      type: 'SET_IMPORTED_MULTISAMPLE_PRESET',
-      payload: {
+    dispatch({ type: 'BATCH_EDIT', payload: [
+      { type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: settings.loopEnabled },
+      { type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: settings.loopOnRelease },
+      { type: 'SET_IMPORTED_MULTISAMPLE_PRESET', payload: {
         engine: {
           playmode: settings.playmode,
           transpose: settings.transpose,
@@ -115,8 +112,8 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
           },
         },
         regions: [] // Will be populated during patch generation
-      }
-    });
+      } },
+    ] });
 
     // Show success notification
     dispatch({
@@ -165,18 +162,18 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
         onSecondarySubmit={handleReset}
         size="lg"
       >
-        <div style={{ 
-          display: 'grid', 
+        <div style={{
+          display: 'grid',
           gap: '2rem',
           maxHeight: '70vh',
           overflowY: 'auto',
           padding: '1rem 0'
         }}>
-          
+
           {/* Playback Settings */}
           <section>
-            <h4 style={{ 
-              marginBottom: '1rem', 
+            <h4 style={{
+              marginBottom: '1rem',
               color: 'var(--color-text-primary)',
               fontWeight: '500',
               borderBottom: '1px solid var(--color-border-subtle)',
@@ -184,7 +181,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
             }}>
               Playback
             </h4>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
@@ -193,7 +190,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <Select
                   id="playmode"
                   value={settings.playmode}
-                  onChange={(e) => updateSetting('playmode', e.target.value as any)}
+                  onChange={(e) => updateSetting('playmode', e.target.value as AppState['multisampleSettings']['playmode'])}
                 >
                   <SelectItem value="poly" text="Polyphonic" />
                   <SelectItem value="mono" text="Monophonic" />
@@ -228,7 +225,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 `}</style>
               </div>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <Toggle
@@ -261,16 +258,16 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
 
           {/* Global Parameters */}
           <section>
-            <h4 style={{ 
-              marginBottom: '1rem', 
-              color: '#222',
+            <h4 style={{
+              marginBottom: '1rem',
+              color: 'var(--color-text-primary)',
               fontWeight: '500',
               borderBottom: '1px solid #e0e0e0',
               paddingBottom: '0.5rem'
             }}>
               Global Parameters
             </h4>
-            
+
             <div style={{ display: 'grid', gap: '1rem' }}>
               <div>
                 <div style={{
@@ -296,7 +293,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <div style={{
                   fontSize: '0.9rem',
                   fontWeight: '500',
-                  color: '#222',
+                  color: 'var(--color-text-primary)',
                   marginBottom: '0.5rem'
                 }}>
                   velocity sensitivity: {settings.velocitySensitivity}%
@@ -316,7 +313,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <div style={{
                   fontSize: '0.9rem',
                   fontWeight: '500',
-                  color: '#222',
+                  color: 'var(--color-text-primary)',
                   marginBottom: '0.5rem'
                 }}>
                   volume: {settings.volume}%
@@ -336,7 +333,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <div style={{
                   fontSize: '0.9rem',
                   fontWeight: '500',
-                  color: '#222',
+                  color: 'var(--color-text-primary)',
                   marginBottom: '0.5rem'
                 }}>
                   width: {settings.width}%
@@ -356,7 +353,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <div style={{
                   fontSize: '0.9rem',
                   fontWeight: '500',
-                  color: '#222',
+                  color: 'var(--color-text-primary)',
                   marginBottom: '0.5rem'
                 }}>
                   highpass filter: {settings.highpass}%
@@ -376,16 +373,16 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
 
           {/* Portamento */}
           <section>
-            <h4 style={{ 
-              marginBottom: '1rem', 
-              color: '#222',
+            <h4 style={{
+              marginBottom: '1rem',
+              color: 'var(--color-text-primary)',
               fontWeight: '500',
               borderBottom: '1px solid #e0e0e0',
               paddingBottom: '0.5rem'
             }}>
               Portamento
             </h4>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
@@ -394,7 +391,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <Select
                   id="portamento-type"
                   value={settings.portamentoType}
-                  onChange={(e) => updateSetting('portamentoType', e.target.value as any)}
+                  onChange={(e) => updateSetting('portamentoType', e.target.value as AppState['multisampleSettings']['portamentoType'])}
                 >
                   <SelectItem value="linear" text="Linear" />
                   <SelectItem value="exponential" text="Exponential" />
@@ -405,7 +402,7 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
                 <div style={{
                   fontSize: '0.9rem',
                   fontWeight: '500',
-                  color: '#222',
+                  color: 'var(--color-text-primary)',
                   marginBottom: '0.5rem'
                 }}>
                   amount: {settings.portamentoAmount}%
@@ -425,16 +422,16 @@ export function MultisampleAdvancedSettings({ isOpen, onClose }: MultisampleAdva
 
           {/* Tuning */}
           <section>
-            <h4 style={{ 
-              marginBottom: '1rem', 
-              color: '#222',
+            <h4 style={{
+              marginBottom: '1rem',
+              color: 'var(--color-text-primary)',
               fontWeight: '500',
               borderBottom: '1px solid #e0e0e0',
               paddingBottom: '0.5rem'
             }}>
               Tuning
             </h4>
-            
+
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
                 Root Note

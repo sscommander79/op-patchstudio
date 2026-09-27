@@ -2,11 +2,15 @@ import { useRef, useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Select, SelectItem, Slider } from '@carbon/react';
 import { ConfirmationModal } from '../common/ConfirmationModal';
-import { importPresetFromFile, extractDrumSettings, type DrumPresetJson } from '../../utils/presetImport';
+import { useProjectEditGesture } from '../../hooks/useProjectEditGesture';
 
 export function DrumPresetSettings() {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, importPresetFile } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const transposeGesture = useProjectEditGesture('drum-preset-transpose');
+  const velocityGesture = useProjectEditGesture('drum-preset-velocity');
+  const volumeGesture = useProjectEditGesture('drum-preset-volume');
+  const widthGesture = useProjectEditGesture('drum-preset-width');
   const [isMobile, setIsMobile] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -18,7 +22,7 @@ export function DrumPresetSettings() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -54,12 +58,14 @@ export function DrumPresetSettings() {
       message: 'are you sure you want to reset all preset settings to default values?',
       onConfirm: () => {
         // Reset to default values (from initialState in AppContext)
-        dispatch({ type: 'SET_DRUM_PRESET_PLAYMODE', payload: 'poly' });
-        dispatch({ type: 'SET_DRUM_PRESET_TRANSPOSE', payload: 0 });
-                  dispatch({ type: 'SET_DRUM_PRESET_VELOCITY', payload: 20 });
-        dispatch({ type: 'SET_DRUM_PRESET_VOLUME', payload: 69 });
-        dispatch({ type: 'SET_DRUM_PRESET_WIDTH', payload: 0 });
-        
+        dispatch({ type: 'BATCH_EDIT', payload: [
+          { type: 'SET_DRUM_PRESET_PLAYMODE', payload: 'poly' },
+          { type: 'SET_DRUM_PRESET_TRANSPOSE', payload: 0 },
+          { type: 'SET_DRUM_PRESET_VELOCITY', payload: 20 },
+          { type: 'SET_DRUM_PRESET_VOLUME', payload: 69 },
+          { type: 'SET_DRUM_PRESET_WIDTH', payload: 0 },
+        ] });
+
         // Show success notification
         dispatch({
           type: 'ADD_NOTIFICATION',
@@ -70,7 +76,7 @@ export function DrumPresetSettings() {
             message: 'successfully reset preset settings to default values'
           }
         });
-        
+
         setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
       }
     });
@@ -83,57 +89,8 @@ export function DrumPresetSettings() {
     // Reset the input so the same file can be selected again
     event.target.value = '';
 
-    try {
-      const result = await importPresetFromFile(file, 'drum');
-      
-      if (result.success && result.data) {
-        const importedPreset = result.data as DrumPresetJson;
-        const drumSettings = extractDrumSettings(importedPreset);
-        
-        // Store the complete imported preset for patch generation
-        dispatch({ type: 'SET_IMPORTED_DRUM_PRESET', payload: importedPreset });
-        
-        // Update all preset settings (no name field in actual patch JSON)
-        dispatch({ type: 'SET_DRUM_PRESET_PLAYMODE', payload: drumSettings.presetSettings.playmode });
-        dispatch({ type: 'SET_DRUM_PRESET_TRANSPOSE', payload: drumSettings.presetSettings.transpose });
-        dispatch({ type: 'SET_DRUM_PRESET_VELOCITY', payload: drumSettings.presetSettings.velocity });
-        dispatch({ type: 'SET_DRUM_PRESET_VOLUME', payload: drumSettings.presetSettings.volume });
-        dispatch({ type: 'SET_DRUM_PRESET_WIDTH', payload: drumSettings.presetSettings.width });
-
-        // Show success notification
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'success',
-            title: 'settings imported',
-            message: 'successfully imported drum preset settings'
-          }
-        });
-      } else {
-        // Show error notification
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'error',
-            title: 'import failed',
-            message: result.error || 'failed to import preset'
-          }
-        });
-      }
-    } catch (error) {
-      // Show error notification for unexpected errors
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
-          type: 'error',
-          title: 'import error',
-          message: `unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }
-      });
-    }
+    if(!importPresetFile)throw new Error('Preset import is unavailable');
+    await importPresetFile(file,'drum');
   };
 
   // Check if preset settings have been changed from defaults
@@ -166,7 +123,7 @@ export function DrumPresetSettings() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
             <h3 style={{
               margin: 0,
-              color: '#222',
+              color: 'var(--color-text-primary)',
               fontSize: '1.25rem',
               fontWeight: 300,
             }}>
@@ -176,7 +133,7 @@ export function DrumPresetSettings() {
         </div>
 
         {/* Content */}
-        <div style={{ 
+        <div style={{
           padding: isMobile ? '1rem' : '2rem',
         }}>
           {/* Settings Layout */}
@@ -235,12 +192,16 @@ export function DrumPresetSettings() {
                     step={1}
                     value={state.drumSettings.presetSettings.transpose}
                     onChange={({ value }) => handleTransposeChange(value)}
+                    onRelease={transposeGesture.end}
+                    onKeyUp={transposeGesture.end}
+                    onBlur={transposeGesture.end}
+                    {...transposeGesture.sliderProps}
                     hideTextInput
                   />
 
                 </div>
               </div>
-              
+
               <div>
                 <div style={{
                   fontSize: '0.9rem',
@@ -258,6 +219,10 @@ export function DrumPresetSettings() {
                     step={1}
                     value={state.drumSettings.presetSettings.velocity}
                     onChange={({ value }) => handleVelocityChange(value)}
+                    onRelease={velocityGesture.end}
+                    onKeyUp={velocityGesture.end}
+                    onBlur={velocityGesture.end}
+                    {...velocityGesture.sliderProps}
                     hideTextInput
                   />
                 </div>
@@ -283,11 +248,15 @@ export function DrumPresetSettings() {
                     step={1}
                     value={state.drumSettings.presetSettings.volume}
                     onChange={({ value }) => handleVolumeChange(value)}
+                    onRelease={volumeGesture.end}
+                    onKeyUp={volumeGesture.end}
+                    onBlur={volumeGesture.end}
+                    {...volumeGesture.sliderProps}
                     hideTextInput
                   />
                 </div>
               </div>
-              
+
               <div>
                 <div style={{
                   fontSize: '0.9rem',
@@ -305,13 +274,17 @@ export function DrumPresetSettings() {
                     step={1}
                     value={state.drumSettings.presetSettings.width}
                     onChange={({ value }) => handleWidthChange(value)}
+                    onRelease={widthGesture.end}
+                    onKeyUp={widthGesture.end}
+                    onBlur={widthGesture.end}
+                    {...widthGesture.sliderProps}
                     hideTextInput
                   />
                 </div>
               </div>
             </div>
           </div>
-          
+
           {/* Action Buttons Below Settings */}
           <div style={{
             display: 'flex',
@@ -363,7 +336,7 @@ export function DrumPresetSettings() {
               <i className="fas fa-undo" style={{ fontSize: '1rem' }} />
               reset settings
             </button>
-            
+
             <button
               onClick={handleImportClick}
               style={{
@@ -373,7 +346,7 @@ export function DrumPresetSettings() {
                 border: 'none',
                 borderRadius: '6px',
                 backgroundColor: 'var(--color-interactive-focus)',
-                color: 'var(--color-white)',
+                color: 'var(--studio-accent-text)',
                 fontSize: '0.9rem',
                 fontWeight: '500',
                 cursor: 'pointer',
@@ -396,10 +369,11 @@ export function DrumPresetSettings() {
               import patch.json
             </button>
           </div>
-          
+
           <input
             ref={fileInputRef}
             type="file"
+            aria-label="choose drum patch settings"
             accept=".json"
             onChange={handleFileImport}
             style={{ display: 'none' }}
@@ -446,4 +420,4 @@ export function DrumPresetSettings() {
       />
     </div>
   );
-} 
+}

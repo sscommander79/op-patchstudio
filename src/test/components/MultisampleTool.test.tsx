@@ -4,10 +4,13 @@ import { MultisampleTool } from '../../components/multisample/MultisampleTool';
 import { useAppContext } from '../../context/AppContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { createCompleteMultisampleSettings } from '../utils/testHelpers';
+import type { AppState } from '../../context/AppContext';
 
 // Mock dependencies
 vi.mock('../../context/AppContext');
+const mockUseAppContext = vi.mocked(useAppContext) as unknown as { mockReturnValue(value: unknown): void; mockImplementation(factory: () => unknown): void };
 vi.mock('../../hooks/useAudioPlayer');
+const mockUseAudioPlayer = vi.mocked(useAudioPlayer) as unknown as { mockReturnValue(value: unknown): void };
 vi.mock('../../utils/audio', () => ({
   audioBufferToWav: vi.fn(() => new ArrayBuffer(8)),
   getPatchSizeWarning: vi.fn(() => ({ warning: false, percentage: 0 })),
@@ -59,7 +62,7 @@ vi.mock('../../components/common/ErrorDisplay', () => ({
 }));
 
 vi.mock('../../components/common/ToggleSwitch', () => ({
-  ToggleSwitch: ({ leftLabel, rightLabel, isRight, onToggle }: any) => (
+  ToggleSwitch: ({ leftLabel, rightLabel, isRight, onToggle }: { leftLabel: string; rightLabel: string; isRight: boolean; onToggle(): void }) => (
     <div data-testid="toggle-switch">
       <button onClick={onToggle}>
         {isRight ? rightLabel : leftLabel}
@@ -79,11 +82,11 @@ vi.mock('../../components/multisample/MultisamplePresetSettings', () => ({
 // Mock canvas and ResizeObserver for test environment
 Object.defineProperty(window, 'ResizeObserver', {
   writable: true,
-  value: vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  })),
+  value: class MockResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  },
 });
 
 // Mock canvas getContext
@@ -113,11 +116,11 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   rect: vi.fn(),
   clip: vi.fn(),
   setLineDash: vi.fn(), // Add this to fix the setLineDash issue
-} as any));
+} as unknown as CanvasRenderingContext2D)) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 // Mock the VirtualMidiKeyboard component with better event handling
 vi.mock('../../components/multisample/VirtualMidiKeyboard', () => ({
-  VirtualMidiKeyboard: ({ onKeyClick, onKeyRelease, onUnassignedKeyClick }: any) => {
+  VirtualMidiKeyboard: ({ onKeyClick, onKeyRelease, onUnassignedKeyClick,isActive }: { onKeyClick(note: number): void; onKeyRelease?(note: number): void; onUnassignedKeyClick(note: number): void;isActive:boolean }) => {
     const handleMouseUp = (midiNote: number) => {
       if (onKeyRelease) {
         onKeyRelease(midiNote);
@@ -131,7 +134,7 @@ vi.mock('../../components/multisample/VirtualMidiKeyboard', () => ({
     };
 
     return (
-      <div data-testid="virtual-midi-keyboard">
+      <div data-testid="virtual-midi-keyboard" data-active={String(isActive)}>
         <button 
           data-testid="assigned-key-60" 
           onClick={() => onKeyClick(60)}
@@ -155,6 +158,7 @@ describe('MultisampleTool ADSR Integration', () => {
   const mockPlayWithADSR = vi.fn();
   const mockReleaseNote = vi.fn();
   const mockPlay = vi.fn();
+  const mockStopAllNotes = vi.fn();
 
   const mockAudioBuffer = {
     duration: 2.0,
@@ -223,22 +227,23 @@ describe('MultisampleTool ADSR Integration', () => {
     vi.clearAllMocks();
 
     // Mock useAppContext
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: defaultState,
       dispatch: vi.fn(),
     });
 
     // Mock useAudioPlayer
-    (useAudioPlayer as any).mockReturnValue({
+    mockUseAudioPlayer.mockReturnValue({
       play: mockPlay,
       playWithADSR: mockPlayWithADSR,
       releaseNote: mockReleaseNote,
+      stopAllNotes: mockStopAllNotes,
       stop: vi.fn(),
       getState: vi.fn(() => ({ isPlaying: false, currentTime: 0, duration: 0 })),
     });
 
     // Mock global active notes array
-    (window as any).opPatchstudioActiveNotes = [];
+    window.opPatchstudioActiveNotes = [];
   });
 
   it('should render multisample tool with keyboard', () => {
@@ -247,6 +252,28 @@ describe('MultisampleTool ADSR Integration', () => {
     expect(screen.getByTestId('virtual-midi-keyboard')).toBeInTheDocument();
     expect(screen.getByTestId('assigned-key-60')).toBeInTheDocument();
     expect(screen.getByTestId('unassigned-key-61')).toBeInTheDocument();
+  });
+
+  it('stops app playback and disables keyboard MIDI ownership while recording is open',()=>{
+    render(<MultisampleTool/>);expect(screen.getByTestId('virtual-midi-keyboard')).toHaveAttribute('data-active','true');fireEvent.click(screen.getAllByRole('button',{name:'Record takes'})[0]);expect(mockStopAllNotes).toHaveBeenCalledOnce();expect(screen.getByTestId('virtual-midi-keyboard')).toHaveAttribute('data-active','false');
+  });
+
+  it('keeps the automatically selected asset after a root-note sort', async () => {
+    const dispatch=vi.fn();
+    const high={...defaultState.multisampleFiles[0],name:'high.wav',file:new File(['high'],'high.wav'),rootNote:72,note:'C5'};
+    const low={...defaultState.multisampleFiles[0],name:'low.wav',file:new File(['low'],'low.wav'),rootNote:60,note:'C4'};
+    let liveState={...defaultState,multisampleFiles:[],selectedMultisample:null} as unknown as AppState;
+    mockUseAppContext.mockImplementation(()=>({state:liveState,dispatch}));
+    const view=render(<MultisampleTool/>);
+
+    liveState={...liveState,multisampleFiles:[high,low]};
+    view.rerender(<MultisampleTool/>);
+    await waitFor(()=>expect(screen.getByRole('combobox',{name:'Selected multisample zone'})).toHaveValue('0'));
+
+    liveState={...liveState,multisampleFiles:[low,{...high,rootNote:48,note:'C3'}]};
+    view.rerender(<MultisampleTool/>);
+    await waitFor(()=>expect(screen.getByRole('combobox',{name:'Selected multisample zone'})).toHaveValue('1'));
+    expect(dispatch).toHaveBeenCalledWith({type:'SET_SELECTED_MULTISAMPLE',payload:1});
   });
 
   it('should play assigned key with ADSR envelope', async () => {
@@ -290,7 +317,7 @@ describe('MultisampleTool ADSR Integration', () => {
     fireEvent.click(assignedKey);
     
     // Add an active note to the global array to simulate a playing note
-    (window as any).opPatchstudioActiveNotes = ['multisample-60-1234567890'];
+    window.opPatchstudioActiveNotes = ['multisample-60-1234567890'];
     
     // Release note
     fireEvent.mouseUp(assignedKey);
@@ -309,7 +336,7 @@ describe('MultisampleTool ADSR Integration', () => {
     fireEvent.click(assignedKey);
     
     // Add an active note to the global array to simulate a playing note
-    (window as any).opPatchstudioActiveNotes = ['multisample-60-1234567890'];
+    window.opPatchstudioActiveNotes = ['multisample-60-1234567890'];
     
     // Mouse leaves key
     fireEvent.mouseLeave(assignedKey);
@@ -325,7 +352,7 @@ describe('MultisampleTool ADSR Integration', () => {
       importedMultisamplePreset: null,
     };
 
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: stateWithoutPreset,
       dispatch: vi.fn(),
     });
@@ -361,7 +388,7 @@ describe('MultisampleTool ADSR Integration', () => {
       },
     };
 
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: stateWithMonoMode,
       dispatch: vi.fn(),
     });
@@ -455,7 +482,7 @@ describe('MultisampleTool ADSR Integration', () => {
       midiNoteMapping: 'C3' as const
     };
 
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: mockState,
       dispatch: vi.fn()
     });
@@ -520,7 +547,7 @@ describe('MultisampleTool ADSR Integration', () => {
     };
 
     const mockDispatch = vi.fn();
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: mockState,
       dispatch: mockDispatch
     });
@@ -555,7 +582,7 @@ describe('MultisampleTool ADSR Integration', () => {
       }),
     };
 
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: stateWithGain,
       dispatch: vi.fn(),
     });
@@ -576,9 +603,9 @@ describe('MultisampleTool ADSR Integration', () => {
     });
   });
 
-  it('should handle save settings as default', async () => {
+  it('keeps root and loop editing in Focus with advanced settings reachable', async () => {
     const mockDispatch = vi.fn();
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: {
         ...defaultState,
         importedMultisamplePreset: {
@@ -615,23 +642,16 @@ describe('MultisampleTool ADSR Integration', () => {
 
     render(<MultisampleTool />);
 
-    const saveAsDefaultButton = screen.getByText('save as default');
-    fireEvent.click(saveAsDefaultButton);
-
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: expect.any(String),
-          type: 'success',
-          title: 'settings saved',
-          message: 'multisample settings saved as default'
-        }
-      });
-    });
+    expect(screen.getByRole('region',{name:'Focused multisample editor'})).toBeVisible();
+    expect(screen.getByRole('spinbutton',{name:'Root note'})).toBeVisible();
+    expect(screen.getByRole('spinbutton',{name:/Loop Start/})).toBeVisible();
+    expect(screen.getByText(/Preset and performance settings/)).toBeVisible();
+    expect(screen.getByTestId('multisample-preset-settings')).not.toBeVisible();
+    fireEvent.click(screen.getByText(/Preset and performance settings/));
+    expect(screen.getByTestId('multisample-preset-settings')).toBeVisible();
   });
 
-  it('should handle save settings as default with advanced settings', async () => {
+  it('retains Table as an explicit alternate view', async () => {
     const mockDispatch = vi.fn();
     const advancedPreset = {
       engine: {
@@ -662,7 +682,7 @@ describe('MultisampleTool ADSR Integration', () => {
       regions: []
     };
 
-    (useAppContext as any).mockReturnValue({
+    mockUseAppContext.mockReturnValue({
       state: {
         ...defaultState,
         importedMultisamplePreset: advancedPreset
@@ -672,21 +692,9 @@ describe('MultisampleTool ADSR Integration', () => {
 
     render(<MultisampleTool />);
 
-    const saveAsDefaultButton = screen.getByText('save as default');
-    fireEvent.click(saveAsDefaultButton);
-
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: expect.any(String),
-          type: 'success',
-          title: 'settings saved',
-          message: 'multisample settings saved as default'
-        }
-      });
-    });
+    fireEvent.click(screen.getByRole('button',{name:'Table'}));
+    expect(screen.getByTestId('multisample-sample-table')).toBeVisible();
   });
 
 
-}); 
+});

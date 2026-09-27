@@ -1,0 +1,13 @@
+
+> op-patchstudio@0.16.0 test
+> vitest --run src/test/context/finalCandidateAdmission.test.ts src/test/context/audioImportApplication.test.ts
+
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  08:16:38
+   Duration  773ms (transform 311ms, setup 169ms, import 378ms, tests 157ms, environment 552ms)
+

@@ -1,0 +1,1115 @@
+Task7 round1 scoped diff against frozen initial Task7. No runtime/e2e changes during review.
+Changed files:
+src/components/common/AudioImportProvider.tsx
+src/components/drum/DrumPresetSettings.tsx
+src/components/drum/DrumSampleTable.tsx
+src/components/drum/DrumTool.tsx
+src/components/multisample/MultisamplePresetSettings.tsx
+src/components/multisample/MultisampleSampleTable.tsx
+src/context/AppContext.tsx
+src/test/components/AudioImportProvider.test.tsx
+src/test/components/DrumTool.test.tsx
+src/test/components/MultisamplePresetSettings.test.tsx
+src/test/context/audioImportApplication.test.ts
+src/test/context/presetImportApplication.test.tsx
+src/test/utils/audioFormats.test.ts
+src/test/utils/externalFileIntake.test.ts
+src/test/utils/presetImport.test.ts
+src/test/utils/projectArchive.test.ts
+src/utils/aifParser.ts
+src/utils/audioFormats.ts
+src/utils/audioImport.ts
+src/utils/externalFileIntake.ts
+src/utils/presetImport.ts
+src/utils/projectArchive.ts
+src/utils/projectSerialization.ts
+tests/e2e/audio-import.spec.ts
+
+--- before/src/components/common/AudioImportProvider.tsx
++++ after/src/components/common/AudioImportProvider.tsx
+@@ -26,10 +26,14 @@
+     void (async()=>{try{const resolved=await resolveCapturedTransfer(captured,controller.signal);if(owned!==generation.current||(stateRef.current.projectGeneration??0)!==expectedProjectGeneration)return;setPhase('preparing');
+       const currentAssets=[...stateRef.current.drumSamples,...stateRef.current.multisampleFiles];const existingDecodedBytes=currentAssets.reduce((sum,item)=>sum+(item.audioBuffer?24+4*item.audioBuffer.numberOfChannels*item.audioBuffer.length:0),0);
+       const prepared=await prepareAudioImportFiles(resolved.files,intent.instrument,expectedProjectGeneration,stateRef.current.midiNoteMapping,controller.signal,value=>{if(owned===generation.current)setProgress({discovered:value.discovered,prepared:value.prepared,rejected:value.rejected,capacityExcess:value.capacityExcess});},undefined,{existingDecodedBytes});
+-      if(owned!==generation.current||(stateRef.current.projectGeneration??0)!==expectedProjectGeneration)return;const occupiedDrums=stateRef.current.drumSamples;const proposals=proposeDrumDestinations(prepared.assets,occupiedDrums);
++      if(owned!==generation.current||(stateRef.current.projectGeneration??0)!==expectedProjectGeneration)return;const occupiedDrums=stateRef.current.drumSamples;
++      const requestedPads=new Map<string,number>();resolved.files.forEach((record,index)=>{const pad=intent.drumPads?.[record.sourceOrdinal??index];if(pad!==undefined)requestedPads.set(record.id,pad);});
++      const explicitPads=new Map<string,number>(),reservedPads=new Set<number>();
++      if(intent.instrument==='drum')for(const asset of prepared.assets){const pad=requestedPads.get(asset.id);if(pad!==undefined&&Number.isInteger(pad)&&pad>=0&&pad<24&&!occupiedDrums[pad]?.isLoaded&&!reservedPads.has(pad)){explicitPads.set(asset.id,pad);reservedPads.add(pad);}}
++      const suggestedAssets=prepared.assets.filter(asset=>!explicitPads.has(asset.id));const suggested=proposeDrumDestinations(suggestedAssets,occupiedDrums,reservedPads);const proposals=new Map(suggested.map(item=>[item.id,item]));
+       const usedRoots=new Set(stateRef.current.multisampleFiles.map(file=>file.rootNote));const reservedRoots=new Set<number>();
+-      const rows=prepared.assets.map((asset,index):ReviewRow=>{if(intent.instrument==='drum'){const explicit=intent.drumPads?.[index];const proposed=explicit??proposals[index].destination;const available=proposed!==null&&!occupiedDrums[proposed]?.isLoaded;
+-          return {asset,reason:explicit!==undefined?available?'chosen drop pad':'chosen drop pad is occupied; kept unassigned':proposals[index].reason,destination:available?`pad:${proposed}`:'unassigned',rootNote:60,include:true};}
++      const rows=prepared.assets.map((asset,index):ReviewRow=>{if(intent.instrument==='drum'){const requested=requestedPads.get(asset.id),explicit=explicitPads.get(asset.id),proposal=proposals.get(asset.id);const proposed=explicit??proposal?.destination??null;const available=proposed!==null&&!occupiedDrums[proposed]?.isLoaded;
++          return {asset,reason:requested!==undefined?(explicit!==undefined?'chosen drop pad':'chosen drop pad is occupied or already reserved; kept unassigned'):(proposal?.reason??'no confident filename match'),destination:available?`pad:${proposed}`:'unassigned',rootNote:60,include:true};}
+         const suggested=index===0&&intent.multisampleRoot!==undefined?intent.multisampleRoot:asset.metadata.midiNote;const usable=Number.isInteger(suggested)&&suggested>=0&&suggested<=127&&!usedRoots.has(suggested)&&!reservedRoots.has(suggested);if(usable)reservedRoots.add(suggested);
+         return {asset,reason:usable?'note detected from destination or filename':'choose an unused root note',destination:usable?'root':'unassigned',rootNote:usable?suggested:60,include:usable};});
+       const issues=[...resolved.failed,...resolved.unsupported,...prepared.rejected.map(item=>({name:item.path,reason:item.reason})),...prepared.excess.map(item=>({name:item.path,reason:item.reason}))];setReview({operationId:captured.operationId,instrument:intent.instrument,expectedProjectGeneration,rows,issues});setPhase('review');
+--- before/src/components/drum/DrumPresetSettings.tsx
++++ after/src/components/drum/DrumPresetSettings.tsx
+@@ -2,11 +2,10 @@
+ import { useAppContext } from '../../context/AppContext';
+ import { Select, SelectItem, Slider } from '@carbon/react';
+ import { ConfirmationModal } from '../common/ConfirmationModal';
+-import { importPresetFromFile, extractDrumSettings, type DrumPresetJson } from '../../utils/presetImport';
+ import { useProjectEditGesture } from '../../hooks/useProjectEditGesture';
+ 
+ export function DrumPresetSettings() {
+-  const { state, dispatch } = useAppContext();
++  const { state, dispatch, importPresetFile } = useAppContext();
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   const transposeGesture = useProjectEditGesture('drum-preset-transpose');
+   const velocityGesture = useProjectEditGesture('drum-preset-velocity');
+@@ -90,57 +89,8 @@
+     // Reset the input so the same file can be selected again
+     event.target.value = '';
+ 
+-    try {
+-      const result = await importPresetFromFile(file, 'drum', state.importedMultisamplePreset);
+-
+-      if (result.success && result.data) {
+-        const importedPreset = result.data as DrumPresetJson;
+-        const drumSettings = extractDrumSettings(importedPreset);
+-
+-        // Store the complete imported preset for patch generation
+-        dispatch({ type: 'BATCH_EDIT', payload: [
+-          { type: 'SET_IMPORTED_DRUM_PRESET', payload: importedPreset },
+-          { type: 'SET_DRUM_PRESET_PLAYMODE', payload: drumSettings.presetSettings.playmode },
+-          { type: 'SET_DRUM_PRESET_TRANSPOSE', payload: drumSettings.presetSettings.transpose },
+-          { type: 'SET_DRUM_PRESET_VELOCITY', payload: drumSettings.presetSettings.velocity },
+-          { type: 'SET_DRUM_PRESET_VOLUME', payload: drumSettings.presetSettings.volume },
+-          { type: 'SET_DRUM_PRESET_WIDTH', payload: drumSettings.presetSettings.width },
+-        ] });
+-
+-        // Show success notification
+-        dispatch({
+-          type: 'ADD_NOTIFICATION',
+-          payload: {
+-            id: Date.now().toString(),
+-            type: 'success',
+-            title: 'settings imported',
+-            message: 'successfully imported drum preset settings'
+-          }
+-        });
+-      } else {
+-        // Show error notification
+-        dispatch({
+-          type: 'ADD_NOTIFICATION',
+-          payload: {
+-            id: Date.now().toString(),
+-            type: 'error',
+-            title: 'import failed',
+-            message: result.error || 'failed to import preset'
+-          }
+-        });
+-      }
+-    } catch (error) {
+-      // Show error notification for unexpected errors
+-      dispatch({
+-        type: 'ADD_NOTIFICATION',
+-        payload: {
+-          id: Date.now().toString(),
+-          type: 'error',
+-          title: 'import error',
+-          message: `unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
+-        }
+-      });
+-    }
++    if(!importPresetFile)throw new Error('Preset import is unavailable');
++    await importPresetFile(file,'drum');
+   };
+ 
+   // Check if preset settings have been changed from defaults
+@@ -423,6 +373,7 @@
+           <input
+             ref={fileInputRef}
+             type="file"
++            aria-label="choose drum patch settings"
+             accept=".json"
+             onChange={handleFileImport}
+             style={{ display: 'none' }}
+--- before/src/components/drum/DrumSampleTable.tsx
++++ after/src/components/drum/DrumSampleTable.tsx
+@@ -16,6 +16,7 @@
+ 
+ interface DrumSampleTableProps {
+   onFileUpload: (index: number, file: File) => void;
++  onFilesUpload?: (startIndex: number, files: File[]) => void;
+   onClearSample: (index: number) => void;
+   onRecordSample?: (index: number) => void;
+   isOrganizeMode?: boolean;
+@@ -55,7 +56,7 @@
+ // Default indices (0-23)
+ const defaultIndices = Array.from({ length: 24 }, (_, i) => i);
+ 
+-export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, onSliceSample, isOrganizeMode = false }: DrumSampleTableProps) {
++export function DrumSampleTable({ onFileUpload, onFilesUpload, onClearSample, onRecordSample, onSliceSample, isOrganizeMode = false }: DrumSampleTableProps) {
+   const { state, dispatch } = useAppContext();
+   const { play } = useAudioPlayer();
+   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+@@ -91,6 +92,11 @@
+     } catch (error) {
+       console.error('Error in handleFileSelect:', error);
+     }
++  };
++
++  const handleFilesSelect = (index:number, files:File[]) => {
++    if(onFilesUpload)onFilesUpload(index,files);
++    else files.forEach((file,offset)=>handleFileSelect(index+offset,file));
+   };
+ 
+   const openFileDialog = (index: number) => {
+@@ -557,12 +563,13 @@
+               <input
+                 type="file"
+                 multiple
++                aria-label={`choose drum row ${index+1} audio files`}
+                 accept={AUDIO_FILE_ACCEPT}
+                 style={{ display: 'none' }}
+                 ref={(el) => { fileInputRefs.current[index] = el; }}
+                 onChange={(e) => {
+                   const files = [...(e.target.files || [])];
+-                  files.forEach((file, i) => handleFileSelect(index + i, file));
++                  handleFilesSelect(index,files);
+                   e.target.value = '';
+                 }}
+               />
+--- before/src/components/drum/DrumTool.tsx
++++ after/src/components/drum/DrumTool.tsx
+@@ -100,6 +100,7 @@
+ 
+   const handleFileUpload = async (index: number, file: File) => {
+     try {
++      if(audioImport){audioImport.beginFiles([file],{instrument:'drum',drumPads:[index]});return;}
+       // Validate file before processing
+       if (!file || file.size === 0) {
+         throw new Error('Invalid file: file is empty or null');
+@@ -119,12 +120,17 @@
+         throw new Error(`Unsupported file type: ${file.type}. Please upload a WAV, AIF, AIFF, MP3, M4A, OGG, or FLAC file.`);
+       }
+ 
+-      if(audioImport)audioImport.beginFiles([file],{instrument:'drum',drumPads:[index]});
+-      else await handleDrumSampleUpload(file,index);
++      await handleDrumSampleUpload(file,index);
+     } catch (error) {
+       console.error('Error uploading file:', error);
+       // You could add user notification here if needed
+     }
++  };
++
++  const handleFilesUpload = async (startIndex:number,files:File[]) => {
++    const pads=files.map((_file,offset)=>startIndex+offset).filter(index=>index<24);
++    if(audioImport){audioImport.beginFiles(files,{instrument:'drum',drumPads:pads});return;}
++    for(const [offset,file] of files.entries())await handleFileUpload(startIndex+offset,file);
+   };
+ 
+   const handleOP1PresetImport = async (file: File) => {
+@@ -488,6 +494,7 @@
+           }}>
+             <DrumSampleTable
+               onFileUpload={handleFileUpload}
++              onFilesUpload={handleFilesUpload}
+               onClearSample={handleClearSample}
+               onRecordSample={handleOpenRecording}
+               isOrganizeMode={isOrganizeMode}
+--- before/src/components/multisample/MultisamplePresetSettings.tsx
++++ after/src/components/multisample/MultisamplePresetSettings.tsx
+@@ -3,8 +3,6 @@
+ import type { AppAction } from '../../context/AppContext';
+ import { Select, SelectItem, Toggle, Slider } from '@carbon/react';
+ import { ADSREnvelope } from '../common/ADSREnvelope';
+-import { importPresetFromFile } from '../../utils/presetImport';
+-import type { MultisamplePresetJson } from '../../utils/presetImport';
+ import { useProjectEditGesture } from '../../hooks/useProjectEditGesture';
+ 
+ // ADSR Presets for different instrument types (copied from ADSREnvelope component)
+@@ -81,7 +79,7 @@
+ };
+ 
+ export function MultisamplePresetSettings() {
+-  const { state, dispatch } = useAppContext();
++  const { state, dispatch, importPresetFile } = useAppContext();
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   const transposeGesture = useProjectEditGesture('multisample-preset-transpose');
+   const widthGesture = useProjectEditGesture('multisample-preset-width');
+@@ -190,49 +188,8 @@
+     // Reset the input so the same file can be selected again
+     event.target.value = '';
+ 
+-    try {
+-      const result = await importPresetFromFile(file, 'multisampler', state.importedDrumPreset);
+-
+-      if (result.success && result.data) {
+-        const importedPreset = result.data as MultisamplePresetJson;
+-
+-        // Store the complete preset and hydrate its editable settings together.
+-        dispatch({ type: 'IMPORT_MULTISAMPLE_PRESET', payload: importedPreset });
+-
+-        // Show success notification
+-        dispatch({
+-          type: 'ADD_NOTIFICATION',
+-          payload: {
+-            id: Date.now().toString(),
+-            type: 'success',
+-            title: 'settings imported',
+-            message: 'successfully imported multisample preset settings'
+-          }
+-        });
+-      } else {
+-        // Show error notification
+-        dispatch({
+-          type: 'ADD_NOTIFICATION',
+-          payload: {
+-            id: Date.now().toString(),
+-            type: 'error',
+-            title: 'import failed',
+-            message: result.error || 'failed to import preset'
+-          }
+-        });
+-      }
+-    } catch (error) {
+-      // Show error notification for unexpected errors
+-      dispatch({
+-        type: 'ADD_NOTIFICATION',
+-        payload: {
+-          id: Date.now().toString(),
+-          type: 'error',
+-          title: 'import error',
+-          message: `unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
+-        }
+-      });
+-    }
++    if(!importPresetFile)throw new Error('Preset import is unavailable');
++    await importPresetFile(file,'multisample');
+   };
+ 
+   const handleReset = () => {
+@@ -884,6 +841,7 @@
+         <input
+           ref={fileInputRef}
+           type="file"
++          aria-label="choose multisample patch settings"
+           accept=".json"
+           onChange={handleFileImport}
+           style={{ display: 'none' }}
+--- before/src/components/multisample/MultisampleSampleTable.tsx
++++ after/src/components/multisample/MultisampleSampleTable.tsx
+@@ -246,34 +246,8 @@
+ 
+   const handleBrowseFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const files = Array.from(e.target.files || []);
+-    if (files.length > 0) {
+-      const audioFiles = await extractAudioFiles(files);
+-      if (audioFiles.length > 0) {
+-        onFilesSelected(audioFiles);
+-      } else {
+-        console.log('No audio files found in selected files');
+-      }
+-    }
++    if (files.length > 0) onFilesSelected(files);
+     e.target.value = '';
+-  };
+-
+-  const extractAudioFiles = async (files: File[]): Promise<File[]> => {
+-    const audioFiles: File[] = [];
+-    
+-    for (const file of files) {
+-      if (file.type.startsWith('audio/') || 
+-          file.name.toLowerCase().endsWith('.wav') ||
+-          file.name.toLowerCase().endsWith('.aif') ||
+-          file.name.toLowerCase().endsWith('.aiff') ||
+-          file.name.toLowerCase().endsWith('.mp3') ||
+-          file.name.toLowerCase().endsWith('.m4a') ||
+-          file.name.toLowerCase().endsWith('.ogg') ||
+-          file.name.toLowerCase().endsWith('.flac')) {
+-        audioFiles.push(file);
+-      }
+-    }
+-    
+-    return audioFiles;
+   };
+ 
+   const handleEmptyAreaClick = () => {
+--- before/src/context/AppContext.tsx
++++ after/src/context/AppContext.tsx
+@@ -16,6 +16,8 @@
+ import { finalizeSliceApplication, type PreparedSliceApplication } from '../utils/audioSlicing';
+ import { finalizeRecordingApplication, type PreparedRecordingApplication } from '../utils/recordingApplication';
+ import { finalizeAudioImport, type PreparedAudioImport } from '../utils/audioImport';
++import { extractDrumSettings, importPresetFromFile, type ImportResult } from '../utils/presetImport';
++import { validateProjectArchiveMetadata } from '../utils/projectArchive';
+ 
+ // Define enhanced types for the application state
+ export interface DrumSample {
+@@ -99,6 +101,7 @@
+   sliceCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;assignedCount?:number;overflowCount?:number};
+   recordingCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;appliedIds?:string[];retainedIds?:string[];assignedCount?:number;overflowCount?:number};
+   importCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;appliedIds?:string[];retainedIds?:string[];assignedCount?:number;overflowCount?:number};
++  pendingPresetImport?: {operationId:string;expectedProjectGeneration:number};
+   
+   // Drum tool settings
+   drumSettings: {
+@@ -269,6 +272,8 @@
+   | { type: 'SET_IMPORTED_DRUM_PRESET'; payload: any | null }
+   | { type: 'SET_IMPORTED_MULTISAMPLE_PRESET'; payload: any | null }
+   | { type: 'IMPORT_MULTISAMPLE_PRESET'; payload: ImportedPresetJson }
++  | { type: 'BEGIN_PRESET_IMPORT'; payload: {operationId:string} }
++  | { type: 'COMMIT_PRESET_IMPORT'; payload: {operationId:string;instrument:'drum'|'multisample';result:ImportResult} }
+   | { type: 'TOGGLE_DRUM_KEYBOARD_PIN' }
+   | { type: 'TOGGLE_MULTISAMPLE_KEYBOARD_PIN' }
+   | { type: 'RESTORE_SESSION'; payload: Omit<RestoredProject, 'importedDrumPreset' | 'importedMultisamplePreset' | 'midiNoteMapping'> & Partial<Pick<RestoredProject, 'importedDrumPreset' | 'importedMultisamplePreset' | 'midiNoteMapping'>> }
+@@ -389,7 +394,7 @@
+ function appReducer(state: AppState, action: AppAction): AppState {
+   switch (action.type) {
+     case 'BUMP_PROJECT_GENERATION':
+-      return {...state,projectGeneration:(state.projectGeneration??0)+1};
++      return {...state,projectGeneration:(state.projectGeneration??0)+1,pendingPresetImport:undefined};
+     case 'SET_TAB':
+       // Save tab to cookie for persistence
+       try {
+@@ -1388,6 +1393,32 @@
+         multisampleSettings: hydrateMultisampleSettings(state.multisampleSettings, action.payload),
+         multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload, { replaceMatched: true }).files,
+       };
++
++    case 'BEGIN_PRESET_IMPORT':
++      return {...state,pendingPresetImport:{operationId:action.payload.operationId,expectedProjectGeneration:state.projectGeneration??0}};
++
++    case 'COMMIT_PRESET_IMPORT': {
++      const pending=state.pendingPresetImport;
++      if(!pending || pending.operationId!==action.payload.operationId) return state;
++      if(pending.expectedProjectGeneration!==(state.projectGeneration??0)) return {...state,pendingPresetImport:undefined};
++      const failure=(message:string):AppState=>({...state,pendingPresetImport:undefined,notifications:[...state.notifications,{id:`preset-import-${action.payload.operationId}`,type:'error',title:'import failed',message}]});
++      if(!action.payload.result.success || !action.payload.result.data) return failure(action.payload.result.error||'failed to import preset');
++      const preset=action.payload.result.data;
++      let candidate:AppState;
++      if(action.payload.instrument==='drum') {
++        if(preset.type!=='drum') return failure('The selected file is not a drum preset');
++        const imported=extractDrumSettings(preset);
++        candidate={...state,pendingPresetImport:undefined,importedDrumPreset:preset,drumSettings:{...state.drumSettings,presetSettings:imported.presetSettings}};
++      } else {
++        if(preset.type!=='multisampler') return failure('The selected file is not a multisample preset');
++        candidate={...state,pendingPresetImport:undefined,importedMultisamplePreset:preset,
++          multisampleSettings:hydrateMultisampleSettings(state.multisampleSettings,preset),
++          multisampleFiles:associateImportedCrossfades(state.multisampleFiles,preset,{replaceMatched:true}).files};
++      }
++      try {validateProjectArchiveMetadata(candidate);}
++      catch(error){return failure(error instanceof Error?error.message:'Preset settings cannot be stored in this project');}
++      return {...candidate,notifications:[...candidate.notifications,{id:`preset-import-${action.payload.operationId}`,type:'success',title:'settings imported',message:`successfully imported ${action.payload.instrument} preset settings`}]};
++    }
+       
+     case 'TOGGLE_DRUM_KEYBOARD_PIN':
+       return { ...state, isDrumKeyboardPinned: !state.isDrumKeyboardPinned };
+@@ -1403,8 +1434,8 @@
+       const {mode,project} = action.payload;
+       const restored = appReducer(state,{type:'RESTORE_SESSION',payload:project});
+       return mode === 'drum'
+-        ? {...state,projectGeneration:restored.projectGeneration,currentTab:'drum',drumSettings:restored.drumSettings,drumSamples:restored.drumSamples,importedDrumPreset:restored.importedDrumPreset}
+-        : {...state,projectGeneration:restored.projectGeneration,currentTab:'multisample',multisampleSettings:restored.multisampleSettings,multisampleFiles:restored.multisampleFiles,selectedMultisample:restored.selectedMultisample,importedMultisamplePreset:restored.importedMultisamplePreset};
++        ? {...state,pendingPresetImport:undefined,projectGeneration:restored.projectGeneration,currentTab:'drum',drumSettings:restored.drumSettings,drumSamples:restored.drumSamples,importedDrumPreset:restored.importedDrumPreset}
++        : {...state,pendingPresetImport:undefined,projectGeneration:restored.projectGeneration,currentTab:'multisample',multisampleSettings:restored.multisampleSettings,multisampleFiles:restored.multisampleFiles,selectedMultisample:restored.selectedMultisample,importedMultisamplePreset:restored.importedMultisamplePreset};
+     }
+     case 'IMPORT_PROJECT':
+     case 'RESTORE_SESSION': {
+@@ -1451,6 +1482,7 @@
+       const newState = {
+         ...state,
+         projectGeneration: (state.projectGeneration ?? 0) + 1,
++        pendingPresetImport: undefined,
+         importedDrumPreset: action.payload.importedDrumPreset ?? null,
+         importedMultisamplePreset: action.payload.importedMultisamplePreset ?? null,
+         midiNoteMapping: action.payload.midiNoteMapping ?? state.midiNoteMapping,
+@@ -1567,6 +1599,7 @@
+   dispatch: React.Dispatch<AppAction>;
+   canUndo:boolean; canRedo:boolean; historyLimited:boolean;
+   beginEdit: (token:string)=>void; endEdit:(token:string)=>void; cancelEdit:(token:string)=>void;
++  importPresetFile:(file:File,instrument:'drum'|'multisample')=>Promise<void>;
+ }
+ const AppContext = createContext<AppContextValue | null>(null);
+ 
+@@ -1577,21 +1610,27 @@
+   const beginEdit=useCallback((token:string)=>dispatch({type:'BEGIN_EDIT',payload:token}),[]);
+   const endEdit=useCallback((token:string)=>dispatch({type:'END_EDIT',payload:token}),[]);
+   const cancelEdit=useCallback((token:string)=>dispatch({type:'CANCEL_EDIT',payload:token}),[]);
++  const importPresetFile=useCallback(async(file:File,instrument:'drum'|'multisample')=>{
++    const operationId=crypto.randomUUID();
++    dispatch({type:'BEGIN_PRESET_IMPORT',payload:{operationId}});
++    const result=await importPresetFromFile(file,instrument==='drum'?'drum':'multisampler');
++    dispatch({type:'COMMIT_PRESET_IMPORT',payload:{operationId,instrument,result}});
++  },[]);
+ 
+   return (
+-    <AppContext.Provider value={{ state, dispatch,canUndo:history.past.length>0,canRedo:history.future.length>0,historyLimited:history.limited,beginEdit,endEdit,cancelEdit }}>
++    <AppContext.Provider value={{ state, dispatch,canUndo:history.past.length>0,canRedo:history.future.length>0,historyLimited:history.limited,beginEdit,endEdit,cancelEdit,importPresetFile }}>
+       {children}
+     </AppContext.Provider>
+   );
+ }
+ 
+ // Custom hook to use the context
+-export function useAppContext() {
++export function useAppContext():{state:AppState;dispatch:React.Dispatch<AppAction>;importPresetFile?:AppContextValue['importPresetFile']} {
+   const context = useContext(AppContext);
+   if (!context) {
+     throw new Error('useAppContext must be used within AppContextProvider');
+   }
+-  return {state:context.state,dispatch:context.dispatch};
++  return {state:context.state,dispatch:context.dispatch,importPresetFile:context.importPresetFile};
+ }
+ 
+ export function useProjectHistory() {
+--- before/src/test/components/AudioImportProvider.test.tsx
++++ after/src/test/components/AudioImportProvider.test.tsx
+@@ -16,6 +16,8 @@
+ function metadata(audioBuffer:AudioBuffer){return {format:'wav' as const,sampleRate:8_000,sourceSampleRate:8_000,bitDepth:16,channels:1,sourceChannels:1,duration:audioBuffer.duration,audioBuffer,fileSize:1,midiNote:-1,loopStart:0,loopEnd:audioBuffer.duration,hasLoopData:false};}
+ function Harness({occupied=false}:{occupied?:boolean}){const intake=useAudioImport();const {dispatch}=useAppContext();
+   return <><button onClick={()=>intake?.beginFiles([new File(['new'],'kick.wav')],{instrument:'drum',drumPads:[0]})}>Start import</button>
++    <button onClick={()=>intake?.beginFiles([new File(['texture'],'texture.wav'),new File(['kick'],'kick.wav')],{instrument:'drum',drumPads:[0]})}>Start explicit batch</button>
++    <button onClick={()=>intake?.beginFiles([new File(['texture'],'texture.wav'),new File([], 'empty.wav'),new File(['kick'],'kick.wav')],{instrument:'drum',drumPads:[0,1,2]})}>Start batch with rejection</button>
+     <button onClick={()=>dispatch({type:'BUMP_PROJECT_GENERATION'})}>Replace project</button>
+     {occupied&&<><button onClick={()=>{const audioBuffer=buffer(.7);dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:0,file:new File(['old'],'old.wav'),audioBuffer,metadata:metadata(audioBuffer)}})}}>Load occupied</button>
+       <button onClick={()=>{const audioBuffer=buffer(.9);dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:0,updates:{file:new File(['changed'],'changed.wav'),audioBuffer}}})}}>Change target</button></>}
+@@ -50,6 +52,26 @@
+     expect(await screen.findByRole('alert')).toHaveTextContent(/changed while imports were preparing/i);
+   });
+ 
++  it('reserves explicit pad intent before filename suggestions',async()=>{
++    mocked.prepare.mockImplementation(async(records:Array<{id:string;path:string;file:File}>)=>({instrument:'drum',expectedProjectGeneration:0,assets:records.map(record=>{const audioBuffer=buffer();return {...record,sourceIdentity:`source-${record.id}`,audioBuffer,metadata:metadata(audioBuffer)}}),rejected:[],excess:[]}));
++    const user=userEvent.setup();setup();await user.click(screen.getByRole('button',{name:'Start explicit batch'}));
++    expect(await screen.findByRole('combobox',{name:'Destination for texture.wav'})).toHaveValue('pad:0');
++    expect(screen.getByRole('combobox',{name:'Destination for kick.wav'})).toHaveValue('pad:1');
++    await user.click(screen.getByRole('button',{name:'Apply import'}));
++    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Import audio'})).not.toBeInTheDocument());
++  });
++
++  it('keeps explicit file-to-pad intent aligned across rejected batch entries',async()=>{
++    mocked.prepare.mockImplementation(async(records:Array<{id:string;path:string;file:File}>)=>{
++      const assets=records.map((record,index)=>{const audioBuffer=buffer();return {...record,sourceIdentity:`source-${index}`,audioBuffer,metadata:metadata(audioBuffer)}});
++      return {instrument:'drum',expectedProjectGeneration:0,assets,rejected:[{path:'empty.wav',reason:'file is empty'}],excess:[]};
++    });
++    const user=userEvent.setup();setup();await user.click(screen.getByRole('button',{name:'Start batch with rejection'}));
++    expect(await screen.findByRole('combobox',{name:'Destination for texture.wav'})).toHaveValue('pad:0');
++    expect(screen.getByRole('combobox',{name:'Destination for kick.wav'})).toHaveValue('pad:2');
++    expect(screen.getByRole('dialog',{name:'Import audio'})).toHaveTextContent(/empty\.wav: file is empty/i);
++  });
++
+   it('requires an explicit identity-bound multisample replacement decision',async()=>{
+     const audioBuffer=buffer(),file=new File(['new'],'a.wav');mocked.prepare.mockResolvedValue({instrument:'multisample',expectedProjectGeneration:0,assets:[{id:'new',sourceIdentity:'source-new',path:file.name,file,audioBuffer,metadata:{...metadata(audioBuffer),midiNote:60}}],rejected:[],excess:[]});
+     const user=userEvent.setup();setupMulti();await user.click(screen.getByRole('button',{name:'Load root 60'}));await user.click(screen.getByRole('button',{name:'Start multi import'}));
+--- before/src/test/components/DrumTool.test.tsx
++++ after/src/test/components/DrumTool.test.tsx
+@@ -6,8 +6,11 @@
+ import { vi as vitestVi } from 'vitest';
+ import { AUDIO_CONSTANTS } from '../../utils/constants';
+ 
++const audioImportMocks=vi.hoisted(()=>({beginFiles:vi.fn(),beginDrop:vi.fn()}));
++
+ // Mock dependencies
+ vi.mock('../../context/AppContext');
++vi.mock('../../components/common/AudioImportContext',()=>({useAudioImport:()=>audioImportMocks}));
+ 
+ // Mock the hooks and components
+ vi.mock('../../hooks/useFileUpload', () => ({
+@@ -114,9 +117,10 @@
+ }));
+ 
+ vi.mock('../../components/drum/DrumSampleTable', () => ({
+-  DrumSampleTable: ({ onFileUpload, onClearSample, onRecordSample, onSliceSample }: any) => (
++  DrumSampleTable: ({ onFileUpload, onFilesUpload, onClearSample, onRecordSample, onSliceSample }: any) => (
+     <div data-testid="drum-sample-table">
+       <button onClick={() => onFileUpload(0, new File([''], 'test.wav'))}>upload sample</button>
++      <button onClick={() => onFilesUpload(0, [new File(['audio'], 'valid.weird'),new File([], 'empty.wav'),new File(['text'], 'unsupported.txt')])}>upload batch</button>
+       <button onClick={() => onClearSample(0)}>clear sample</button>
+       <button onClick={() => onRecordSample(0)}>record sample</button>
+       <button onClick={() => onSliceSample(0)}>slice loaded sample</button>
+@@ -252,6 +256,15 @@
+     expect(screen.getByTestId('generate-preset-section')).toBeInTheDocument();
+   });
+ 
++  it('sends one complete desktop row batch to shared intake without caller filtering',async()=>{
++    render(<DrumTool/>);
++    await userEvent.click(screen.getByRole('button',{name:'upload batch'}));
++    expect(audioImportMocks.beginFiles).toHaveBeenCalledTimes(1);
++    const [files,intent]=audioImportMocks.beginFiles.mock.calls[0];
++    expect(files.map((file:File)=>file.name)).toEqual(['valid.weird','empty.wav','unsupported.txt']);
++    expect(intent).toEqual({instrument:'drum',drumPads:[0,1,2]});
++  });
++
+   it('opens the shared slicer for an existing sample and dispatches its one prepared batch', async () => {
+     const source=new AudioContext().createBuffer(1,100,48000);
+     const loaded={...defaultState.drumSamples[0],file:new File(['x'],'break.wav',{type:'audio/wav'}),audioBuffer:source,name:'break.wav',isLoaded:true,duration:source.duration,fileSize:1};
+--- before/src/test/components/MultisamplePresetSettings.test.tsx
++++ after/src/test/components/MultisamplePresetSettings.test.tsx
+@@ -5,21 +5,16 @@
+ 
+ const mocks = vi.hoisted(() => ({
+   dispatch: vi.fn(),
+-  importPresetFromFile: vi.fn(),
++  importPresetFile: vi.fn(),
+ }));
+ 
+ vi.mock('../../context/AppContext', async () => {
+   const actual = await vi.importActual<typeof import('../../context/AppContext')>('../../context/AppContext');
+   return {
+     ...actual,
+-    useAppContext: () => ({ state: actual.initialState, dispatch: mocks.dispatch }),
++    useAppContext: () => ({ state: actual.initialState, dispatch: mocks.dispatch,importPresetFile:mocks.importPresetFile }),
+     useProjectHistory: () => ({ beginEdit: vi.fn(), endEdit: vi.fn(), cancelEdit: vi.fn(), canUndo:false, canRedo:false, historyLimited:false }),
+   };
+-});
+-
+-vi.mock('../../utils/presetImport', async () => {
+-  const actual = await vi.importActual<typeof import('../../utils/presetImport')>('../../utils/presetImport');
+-  return { ...actual, importPresetFromFile: mocks.importPresetFromFile };
+ });
+ 
+ vi.mock('../../components/common/ADSREnvelope', () => ({
+@@ -29,17 +24,11 @@
+ describe('MultisamplePresetSettings import', () => {
+   beforeEach(() => {
+     mocks.dispatch.mockReset();
+-    mocks.importPresetFromFile.mockReset();
++    mocks.importPresetFile.mockReset();
+   });
+ 
+   it('dispatches one coherent preset import for raw preservation and editable hydration', async () => {
+-    const importedPreset = {
+-      type: 'multisampler',
+-      engine: { playmode: 'mono', transpose: 12, 'vendor.mode': 456 },
+-      envelope: { amp: { attack: 123, decay: 456, sustain: 789, release: 1_000 } },
+-      octave: 2,
+-    };
+-    mocks.importPresetFromFile.mockResolvedValue({ success: true, data: importedPreset });
++    mocks.importPresetFile.mockResolvedValue(undefined);
+     const { container } = render(<MultisamplePresetSettings />);
+     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+     expect(input).not.toBeNull();
+@@ -49,10 +38,7 @@
+     });
+ 
+     await waitFor(() => {
+-      expect(mocks.dispatch).toHaveBeenCalledWith({
+-        type: 'IMPORT_MULTISAMPLE_PRESET',
+-        payload: importedPreset,
+-      });
++      expect(mocks.importPresetFile).toHaveBeenCalledWith(expect.objectContaining({name:'patch.json'}),'multisample');
+     });
+     expect(initialState.multisampleSettings.transpose).toBe(0);
+   });
+--- before/src/test/context/audioImportApplication.test.ts
++++ after/src/test/context/audioImportApplication.test.ts
+@@ -23,6 +23,15 @@
+     expect(result.assets.map(asset=>asset.file.name)).toEqual(['a.wav','c.wav']);
+     expect(result.rejected).toEqual([{id:'id-1',path:'kit/bad.wav',reason:'decoder rejected content'}]);
+     expect(progress.at(-1)).toBe(2);
++  });
++
++  it('allocates durable source identity independently of a resettable intake ordinal',async()=>{
++    const file=new File(['audio'],'restored-prefix.wav'),record={id:'intake-1-file-1',path:file.name,file};
++    const decode=async()=>{const audioBuffer=audio();return {format:'wav' as const,sampleRate:8_000,sourceSampleRate:8_000,bitDepth:16,channels:1,sourceChannels:1,duration:audioBuffer.duration,audioBuffer,fileSize:file.size,midiNote:-1,loopStart:0,loopEnd:audioBuffer.duration,hasLoopData:false};};
++    const first=await prepareAudioImportFiles([record],'drum',0,'C3',undefined,undefined,decode),freshSession=await prepareAudioImportFiles([record],'drum',0,'C3',undefined,undefined,decode);
++    expect(first.assets[0].sourceIdentity).not.toBe('source:intake-1-file-1');
++    expect(first.assets[0].sourceIdentity).toMatch(/^[0-9a-f-]{36}$/i);
++    expect(freshSession.assets[0].sourceIdentity).not.toBe(first.assets[0].sourceIdentity);
+   });
+ 
+   it('proposes explainable free drum slots and leaves ambiguous, conflicting, and occupied matches unassigned',()=>{
+--- before/src/test/context/presetImportApplication.test.tsx
++++ after/src/test/context/presetImportApplication.test.tsx
+@@ -0,0 +1,73 @@
++import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { AppContextProvider, appReducer, initialState, useAppContext } from '../../context/AppContext';
++import type { ImportResult } from '../../utils/presetImport';
++
++const mocks=vi.hoisted(()=>({importPresetFromFile:vi.fn()}));
++vi.mock('../../utils/presetImport',async()=>{
++  const actual=await vi.importActual<typeof import('../../utils/presetImport')>('../../utils/presetImport');
++  return {...actual,importPresetFromFile:mocks.importPresetFromFile};
++});
++
++function deferred<T>() {let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done});return {promise,resolve};}
++function Harness() {
++  const {state,dispatch,importPresetFile}=useAppContext();
++  return <>
++    <button onClick={()=>void importPresetFile!(new File(['{}'],'drum.json'),'drum')}>drum import</button>
++    <button onClick={()=>void importPresetFile!(new File(['{}'],'multi.json'),'multisample')}>multi import</button>
++    <button onClick={()=>dispatch({type:'BUMP_PROJECT_GENERATION'})}>replace project</button>
++    <button onClick={()=>dispatch({type:'UNDO'})}>undo</button>
++    <output data-testid="state">{JSON.stringify({generation:state.projectGeneration,drum:state.importedDrumPreset,multi:state.importedMultisamplePreset,playmode:state.drumSettings.presetSettings.playmode})}</output>
++  </>;
++}
++const read=()=>JSON.parse(screen.getByTestId('state').textContent||'{}') as {generation:number;drum:unknown;multi:unknown;playmode:string};
++
++describe('guarded preset settings import',()=>{
++  beforeEach(()=>mocks.importPresetFromFile.mockReset());
++
++  it('lets the latest cross-mode operation win even when an older read finishes first',async()=>{
++    const old=deferred<ImportResult>(),latest=deferred<ImportResult>();
++    mocks.importPresetFromFile.mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
++    render(<AppContextProvider><Harness/></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'drum import'}));
++    fireEvent.click(screen.getByRole('button',{name:'multi import'}));
++    await waitFor(()=>expect(mocks.importPresetFromFile).toHaveBeenCalledTimes(2));
++    await act(async()=>old.resolve({success:true,data:{type:'drum',engine:{playmode:'mono'},vendor:{operation:'old'}}}));
++    expect(JSON.stringify(read().drum)).not.toContain('"operation":"old"');
++    await act(async()=>latest.resolve({success:true,data:{type:'multisampler',vendor:{operation:'latest'}}}));
++    await waitFor(()=>expect(JSON.stringify(read().multi)).toContain('"operation":"latest"'));
++  });
++
++  it('ignores a delayed completion after the project replacement boundary',async()=>{
++    const pending=deferred<ImportResult>();mocks.importPresetFromFile.mockReturnValue(pending.promise);
++    render(<AppContextProvider><Harness/></AppContextProvider>);
++    const before=JSON.stringify(read().drum);
++    fireEvent.click(screen.getByRole('button',{name:'drum import'}));
++    fireEvent.click(screen.getByRole('button',{name:'replace project'}));
++    await act(async()=>pending.resolve({success:true,data:{type:'drum',vendor:{operation:'stale'}}}));
++    await waitFor(()=>expect(read().generation).toBe(1));
++    expect(JSON.stringify(read().drum)).toBe(before);
++  });
++
++  it('commits valid settings as one undoable edit',async()=>{
++    mocks.importPresetFromFile.mockResolvedValue({success:true,data:{type:'drum',engine:{playmode:'mono'},vendor:{operation:'valid'}}});
++    render(<AppContextProvider><Harness/></AppContextProvider>);
++    const before=JSON.stringify(read().drum),beforeMode=read().playmode;
++    fireEvent.click(screen.getByRole('button',{name:'drum import'}));
++    await waitFor(()=>expect(JSON.stringify(read().drum)).toContain('"operation":"valid"'));
++    expect(read().playmode).toBe('mono');
++    fireEvent.click(screen.getByRole('button',{name:'undo'}));
++    await waitFor(()=>expect(JSON.stringify(read().drum)).toBe(before));
++    expect(read().playmode).toBe(beforeMode);
++  });
++
++  it('validates the exact live cross-mode manifest atomically before commit',()=>{
++    const retained={type:'multisampler',vendor:'m'.repeat(1_048_300)};
++    const before={...initialState,importedDrumPreset:null,importedMultisamplePreset:retained,notifications:[]};
++    const pending=appReducer(before,{type:'BEGIN_PRESET_IMPORT',payload:{operationId:'combined'}});
++    const result=appReducer(pending,{type:'COMMIT_PRESET_IMPORT',payload:{operationId:'combined',instrument:'drum',result:{success:true,data:{type:'drum',vendor:'d'.repeat(1_048_300)}}}});
++    expect(result.importedDrumPreset).toBeNull();
++    expect(result.importedMultisamplePreset).toBe(retained);
++    expect(result.notifications.at(-1)).toMatchObject({type:'error',title:'import failed'});
++  });
++});
+--- before/src/test/utils/audioFormats.test.ts
++++ after/src/test/utils/audioFormats.test.ts
+@@ -1,4 +1,5 @@
+ import { describe, it, expect, vi, beforeEach } from 'vitest'
++import { readFileSync } from 'node:fs'
+ import {
+   readAudioMetadata,
+   readAudioMetadataFromArrayBuffer,
+@@ -190,10 +191,18 @@
+       expect(metadata.bitDepth).toBeUndefined()
+       expect(metadata.isFloat).toBeUndefined()
+     })
++    it('rejects impossible known AIFF dimensions before invoking a decoder or allocator',async()=>{
++      const source=readFileSync('tests/fixtures/task7-audio/sample.aiff')
++      const bytes=new Uint8Array(source),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength)
++      view.setUint32(22,1_000_000_000,false)
++      await expect(readAudioMetadataFromArrayBuffer(bytes.buffer,'declared-billion.aiff',bytes.length,'C3')).rejects.toThrow(/dimension|extent|truncated|budget/i)
++      expect(mockAudioContext.decodeAudioData).not.toHaveBeenCalled()
++      expect(mockAudioContext.createBuffer).not.toHaveBeenCalled()
++    })
+     it('rejects AIFF when neither browser nor manual decoding yields audio frames',async()=>{
+       mockAudioContext.decodeAudioData.mockRejectedValueOnce(new DOMException('unsupported','EncodingError'))
+-      const bytes=new Uint8Array(38),view=new DataView(bytes.buffer),encoder=new TextEncoder();bytes.set(encoder.encode('FORM'),0);view.setUint32(4,30,false);bytes.set(encoder.encode('AIFF'),8);bytes.set(encoder.encode('COMM'),12);view.setUint32(16,18,false);view.setUint16(20,1,false);view.setUint32(22,8,false);view.setUint16(26,16,false);
+-      await expect(readAudioMetadataFromArrayBuffer(bytes.buffer,'broken.aiff',bytes.length,'C3')).rejects.toThrow(/decode/i)
++      const bytes=new Uint8Array(38),view=new DataView(bytes.buffer),encoder=new TextEncoder();bytes.set(encoder.encode('FORM'),0);view.setUint32(4,30,false);bytes.set(encoder.encode('AIFF'),8);bytes.set(encoder.encode('COMM'),12);view.setUint32(16,18,false);view.setUint16(20,1,false);view.setUint32(22,8,false);view.setUint16(26,16,false);view.setUint16(28,0x400e,false);view.setUint32(30,0xbb800000,false);
++      await expect(readAudioMetadataFromArrayBuffer(bytes.buffer,'broken.aiff',bytes.length,'C3')).rejects.toThrow(/decode|sample rate/i)
+     })
+     it('should read WAV metadata', async () => {
+       const { readWavMetadataFromArrayBuffer } = await import('../../utils/audio')
+@@ -246,7 +255,7 @@
+       dataView.setUint16(20, 1, false) // channels
+       dataView.setUint32(22, 44100, false) // numSampleFrames
+       dataView.setUint16(26, 16, false) // bitDepth
+-      dataView.setUint16(28, 0x4000, false) // exponent
++      dataView.setUint16(28, 0x400e, false) // exponent
+       dataView.setUint32(30, 0xAC440000, false) // mantissa (44100)
+ 
+       // Write MARK chunk at offset 38
+@@ -403,7 +412,7 @@
+       dataView.setUint16(20, 1, false)
+       dataView.setUint32(22, 44100, false)
+       dataView.setUint16(26, 16, false)
+-      dataView.setUint16(28, 0x4000, false)
++      dataView.setUint16(28, 0x400e, false)
+       dataView.setUint32(30, 0xAC440000, false)
+ 
+       const { parseFilename } = await import('../../utils/audio')
+@@ -436,7 +445,7 @@
+       dataView.setUint16(20, 1, false)
+       dataView.setUint32(22, 44100, false)
+       dataView.setUint16(26, 16, false)
+-      dataView.setUint16(28, 0x4000, false)
++      dataView.setUint16(28, 0x400e, false)
+       dataView.setUint32(30, 0xAC440000, false)
+ 
+       // Write MARK chunk
+--- before/src/test/utils/externalFileIntake.test.ts
++++ after/src/test/utils/externalFileIntake.test.ts
+@@ -68,6 +68,19 @@
+     expect(result.failed.map(item=>item.reason)).toEqual(expect.arrayContaining(['permission denied','modern denied']));
+   });
+ 
++  it('keeps children captured before a later legacy batch or modern iterator failure',async()=>{
++    const legacyFile=new File(['legacy'],'legacy.wav',{type:'audio/wav'}),modernFile=new File(['modern'],'modern.wav',{type:'audio/wav'});
++    let batch=0;const legacy:Entry={name:'legacy-kit',isFile:false,isDirectory:true,createReader:()=>({readEntries:(ok,fail)=>queueMicrotask(()=>batch++===0?ok([fileEntry(legacyFile)]):fail(new Error('later directory batch denied')))})};
++    const modern={kind:'directory',name:'modern-kit',async *values(){yield {kind:'file',name:'modern.wav',getFile:async()=>modernFile};throw new Error('later iterator denied')}};
++    const data={types:['Files'],files:[] as unknown as FileList,items:[
++      {kind:'file',getAsFile:()=>null,webkitGetAsEntry:()=>legacy},
++      {kind:'file',getAsFile:()=>null,webkitGetAsEntry:()=>null,getAsFileSystemHandle:()=>Promise.resolve(modern)},
++    ] as unknown as DataTransferItemList} as unknown as DataTransfer;
++    const result=await resolveCapturedTransfer(captureExternalTransfer(data));
++    expect(result.files.map(item=>item.path)).toEqual(['legacy-kit/legacy.wav','modern-kit/modern.wav']);
++    expect(result.failed.map(item=>item.reason)).toEqual(expect.arrayContaining(['later directory batch denied','later iterator denied']));
++  });
++
+   it('uses the matching FileList fallback when all item access channels are unreadable',async()=>{
+     const fallback=new File(['fallback'],'fallback.wav',{type:'audio/wav'});
+     const result=await resolveCapturedTransfer(captureExternalTransfer(transfer([{entry:null,file:null,throwCapture:true}],[fallback])));
+--- before/src/test/utils/presetImport.test.ts
++++ after/src/test/utils/presetImport.test.ts
+@@ -4,7 +4,7 @@
+ describe('presetImport', () => {
+   it.each([
+     ['array', []], ['null engine', {type:'drum',engine:null}], ['infinite transpose',{type:'drum',engine:{transpose:Number.POSITIVE_INFINITY}}],
+-    ['wrong playmode',{type:'drum',engine:{playmode:'duophonic'}}], ['wrong envelope scalar',{type:'drum',engine:{},envelope:{amp:{attack:'fast'}}}],
++    ['wrong playmode',{type:'drum',engine:{playmode:'duophonic'}}], ['coerced playmode array',{type:'drum',engine:{playmode:['mono']}}], ['wrong envelope scalar',{type:'drum',engine:{},envelope:{amp:{attack:'fast'}}}],
+   ])('rejects malformed known shape: %s',(_label,value)=>{
+     expect(validatePresetJson(value,'drum').success).toBe(false)
+   })
+--- before/src/test/utils/projectArchive.test.ts
++++ after/src/test/utils/projectArchive.test.ts
+@@ -9,6 +9,7 @@
+   PROJECT_ARCHIVE_MANIFEST,
+   exportProjectArchive,
+   importProjectArchive,
++  validateProjectArchiveMetadata,
+ } from '../../utils/projectArchive';
+ import { TASK3_LEGACY_ARCHIVE_BASE64 } from '../fixtures/task3LegacyArchive';
+ 
+@@ -74,6 +75,21 @@
+ }
+ 
+ describe('portable project archive', () => {
++  it('admits a near-limit complete manifest that its exporter can reopen',async()=>{
++    const state=projectState();state.importedDrumPreset={type:'drum',payload:'d'.repeat(1_040_000)};state.importedMultisamplePreset={type:'multisampler',payload:'m'.repeat(1_040_000)};
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(state))).not.toThrow();
++    const restored=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(state)));
++    expect((restored.importedDrumPreset as {payload:string}).payload).toHaveLength(1_040_000);
++  });
++
++  it('rejects complete-manifest byte, key, and wrapped-depth overflow before export',()=>{
++    const oversized=projectState();oversized.importedDrumPreset={type:'drum',payload:'d'.repeat(1_048_500)};oversized.importedMultisamplePreset={type:'multisampler',payload:'m'.repeat(1_048_500)};
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(oversized))).toThrow(/manifest.*large/i);
++    const longKey=projectState();longKey.importedDrumPreset={type:'drum',[`k${'x'.repeat(1_024)}`]:1};
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(longKey))).toThrow(/key/i);
++    const deep=projectState();let value:Record<string,unknown>={leaf:true};for(let index=0;index<31;index++)value={nested:value};deep.importedDrumPreset={type:'drum',vendor:value};
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(deep))).toThrow(/deep/i);
++  });
+   it('round trips an unknown compressed-source bit depth without inventing 32-bit PCM',async()=>{
+     const state=projectState();
+     const compressed={...state.drumSamples[5],file:new File([new Uint8Array([0x66,0x4c,0x61,0x43])],'source.flac',{type:'audio/flac'}),originalBitDepth:undefined,originalSampleRate:undefined,originalChannels:undefined,isFloat:undefined};
+--- before/src/utils/aifParser.ts
++++ after/src/utils/aifParser.ts
+@@ -100,6 +100,7 @@
+   numSampleFrames: number;
+   bitDepth: number;
+   sampleRate: number;
++  rawSampleRate: number;
+   isLittleEndian: boolean;
+   isFloat: boolean;
+   compressionType?: string;
+@@ -175,6 +176,7 @@
+     numSampleFrames,
+     bitDepth,
+     sampleRate: validatedSampleRate,
++    rawSampleRate: sampleRate,
+     isLittleEndian,
+     isFloat,
+     compressionType
+@@ -343,4 +345,4 @@
+     loopEnd,
+     foundLoopPoints
+   };
+-} +}
+--- before/src/utils/audioFormats.ts
++++ after/src/utils/audioFormats.ts
+@@ -75,7 +75,10 @@
+     let numSampleFrames = 0;
+     let bitDepth = 16;
+     let sampleRate = 44100;
++    let rawSampleRate = 44100;
+     let isFloat = false;
++    let compressionType: string | undefined;
++    let foundComm = false;
+     let loopStart: number | undefined;
+     let loopEnd: number | undefined;
+     let rootNote: number | undefined;
+@@ -91,6 +94,7 @@
+       const chunkId = textDecoder.decode(new Uint8Array(bufferCopy, offset, 4));
+       const chunkSize = dataView.getUint32(offset + 4, false);
+       const chunkDataOffset = offset + 8;
++      if ((chunkId==='COMM'||chunkId==='SSND')&&chunkDataOffset+chunkSize>bufferCopy.byteLength) throw new Error(`Truncated ${chunkId} chunk`);
+       
+       // Parse COMM chunk for core audio properties
+       if (chunkId === 'COMM' && chunkSize >= 18) {
+@@ -99,7 +103,10 @@
+         numSampleFrames = commChunk.numSampleFrames;
+         bitDepth = commChunk.bitDepth;
+         sampleRate = commChunk.sampleRate;
++        rawSampleRate = commChunk.rawSampleRate;
+         isFloat = commChunk.isFloat;
++        compressionType = commChunk.compressionType;
++        foundComm = true;
+         
+         // Log format detection for debugging
+         if (isFloat) {
+@@ -159,6 +166,16 @@
+       // Move to next chunk (chunks are padded to even boundaries)
+       offset += 8 + chunkSize + (chunkSize % 2);
+     }
++
++    if(!foundComm)throw new Error('AIFF is missing a COMM chunk');
++    if(!Number.isInteger(channels)||channels<1||channels>32)throw new Error('AIFF channel dimensions are invalid');
++    if(!Number.isInteger(numSampleFrames)||numSampleFrames<1)throw new Error('AIFF frame dimensions are invalid');
++    if(!Number.isFinite(rawSampleRate)||rawSampleRate<8_000||rawSampleRate>768_000)throw new Error('AIFF sample rate is invalid');
++    if(!Number.isInteger(bitDepth)||bitDepth<1||bitDepth>64)throw new Error('AIFF bit depth is invalid');
++    const decodedBytes=24+4*channels*numSampleFrames;
++    if(!Number.isSafeInteger(decodedBytes)||decodedBytes>128*1024*1024)throw new Error('AIFF decoded dimensions exceed the project budget');
++    if(ssndOffset>0){if(ssndSize<8)throw new Error('AIFF SSND extent is invalid');const soundOffset=dataView.getUint32(ssndOffset,false);if(soundOffset>ssndSize-8)throw new Error('AIFF SSND extent is invalid');
++      const uncompressed=formatId==='AIFF'||compressionType===undefined||['NONE','twos','sowt','fl32','fl64'].includes(compressionType);if(uncompressed){const sourceBytes=Math.ceil(bitDepth/8)*channels*numSampleFrames;if(!Number.isSafeInteger(sourceBytes)||sourceBytes>ssndSize-8-soundOffset)throw new Error('AIFF PCM extent is shorter than its declared dimensions');}}
+ 
+     // Fallbacks and validation for missing or incomplete metadata
+     if (!numSampleFrames && markersList.length > 0) {
+--- before/src/utils/audioImport.ts
++++ after/src/utils/audioImport.ts
+@@ -23,7 +23,7 @@
+   const check=()=>{if(signal?.aborted)throw new DOMException('Import canceled','AbortError')};check();publish();
+   for(const record of records){check();if(budgetExhausted){excess.push({id:record.id,path:record.path,reason:'128 MiB decoded-audio project limit reached'});finished++;publish();continue;}publish(1);
+     try{const metadata=await decode(record.file,mapping);check();if(!metadata.audioBuffer||metadata.audioBuffer.length<1)throw new Error('decoder returned no audio frames');const cost=24+4*metadata.audioBuffer.numberOfChannels*metadata.audioBuffer.length;
+-      if(decodedBytes+cost>maximum){budgetExhausted=true;excess.push({id:record.id,path:record.path,reason:'128 MiB decoded-audio project limit reached'});}else{decodedBytes+=cost;assets.push({...record,sourceIdentity:`source:${record.id}`,audioBuffer:metadata.audioBuffer,metadata});}
++      if(decodedBytes+cost>maximum){budgetExhausted=true;excess.push({id:record.id,path:record.path,reason:'128 MiB decoded-audio project limit reached'});}else{decodedBytes+=cost;assets.push({...record,sourceIdentity:crypto.randomUUID(),audioBuffer:metadata.audioBuffer,metadata});}
+     }catch(error){check();rejected.push({id:record.id,path:record.path,reason:error instanceof Error?error.message:'Audio decode failed'});}finally{finished++;publish();}}
+   check();if(finished!==records.length)throw new Error('Audio preparation stopped before every file was classified');
+   return {instrument,expectedProjectGeneration,assets,rejected,excess};
+@@ -37,7 +37,7 @@
+   if(t.has('kick')||t.has('bd')||t.has('kd'))found.push('kick');if(t.has('snare')||t.has('sd'))found.push('snare');if(t.has('clap')||t.has('clp'))found.push('clap');if(t.has('tom'))found.push('tom');
+   return [...new Set(found)];}
+ const categoryLabel:Record<Category,string>={kick:'kick',snare:'snare',clap:'clap',closedHat:'closed hi-hat',openHat:'open hi-hat',tom:'tom'};
+-export function proposeDrumDestinations(assets:readonly PreparedImportAsset[],drums:readonly DrumSample[]) {const reserved=new Set(drums.slice(0,24).flatMap((sample,index)=>sample?.isLoaded?[index]:[]));
++export function proposeDrumDestinations(assets:readonly PreparedImportAsset[],drums:readonly DrumSample[],reservedPads:Iterable<number>=[]) {const reserved=new Set([...drums.slice(0,24).flatMap((sample,index)=>sample?.isLoaded?[index]:[]),...reservedPads]);
+   return assets.map(asset=>{const found=categories(asset.file.name);if(found.length!==1)return {id:asset.id,destination:null,reason:found.length?'filename matches more than one drum type':'no confident filename match'};
+     const category=found[0],destination=categorySlots[category].find(slot=>!reserved.has(slot))??null;if(destination===null)return {id:asset.id,destination,reason:`filename contains ${categoryLabel[category]}; matching pads are occupied`};reserved.add(destination);
+     return {id:asset.id,destination,reason:`filename contains ${categoryLabel[category]}${category==='kick'?'; first matching free pad':''}`};});}
+--- before/src/utils/externalFileIntake.ts
++++ after/src/utils/externalFileIntake.ts
+@@ -4,7 +4,7 @@
+  */
+ export const EXTERNAL_INTAKE_LIMITS={files:256,entries:1024,depth:16,sourceBytes:256*1024*1024} as const;
+ export const INTERNAL_SAMPLE_DRAG_TYPE='application/x-op-patchstudio-sample';
+-export interface IntakeFileRecord {id:string;file:File;path:string}
++export interface IntakeFileRecord {id:string;file:File;path:string;sourceOrdinal?:number}
+ export interface IntakeIssue {name:string;reason:string}
+ type LegacyEntry={name:string;isFile:boolean;isDirectory:boolean;file?:(ok:(file:File)=>void,fail?:(reason:unknown)=>void)=>void;createReader?:()=>{readEntries:(ok:(entries:LegacyEntry[])=>void,fail?:(reason:unknown)=>void)=>void}};
+ type ModernHandle={kind:'file'|'directory';name:string;getFile?:()=>Promise<File>;values?:()=>AsyncIterableIterator<ModernHandle>};
+@@ -41,13 +41,13 @@
+ }
+ 
+ export async function resolveCapturedTransfer(captured:CapturedExternalTransfer,signal?:AbortSignal):Promise<{files:IntakeFileRecord[];failed:IntakeIssue[];unsupported:IntakeIssue[]}> {
+-  const files:IntakeFileRecord[]=[],failed:IntakeIssue[]=[],unsupported:IntakeIssue[]=[];let encountered=0,totalBytes=0,fileSerial=0;
++  const files:IntakeFileRecord[]=[],failed:IntakeIssue[]=[],unsupported:IntakeIssue[]=[];let encountered=0,totalBytes=0,fileSerial=0,sourceOrdinal=0;
+   const check=()=>{if(signal?.aborted)throw new DOMException('Import canceled','AbortError')};
+   const abortError=(error:unknown)=>error instanceof DOMException&&error.name==='AbortError';
+-  const add=(file:File,path:string)=>{check();if(encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});return;}
++  const add=(file:File,path:string)=>{check();const ordinal=sourceOrdinal++;if(encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});return;}
+     if(!file.size){unsupported.push({name:path,reason:'file is empty'});return;}if(files.length>=EXTERNAL_INTAKE_LIMITS.files){unsupported.push({name:path,reason:'256-file intake limit reached'});return;}
+     if(totalBytes+file.size>EXTERNAL_INTAKE_LIMITS.sourceBytes){unsupported.push({name:path,reason:'256 MiB source-byte limit reached'});return;}
+-    totalBytes+=file.size;files.push({id:`${captured.operationId}-file-${++fileSerial}`,file,path});};
++    totalBytes+=file.size;files.push({id:`${captured.operationId}-file-${++fileSerial}`,file,path,sourceOrdinal:ordinal});};
+   const readFile=(entry:LegacyEntry)=>new Promise<File>((resolve,reject)=>{
+     if(!entry.file){reject(new Error('file entry is unreadable'));return;}
+     entry.file(resolve,reject);
+@@ -57,14 +57,21 @@
+     if(depth>EXTERNAL_INTAKE_LIMITS.depth){unsupported.push({name:path,reason:'directory depth limit reached'});return;}
+     if(encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});return;}
+     if(entry.isFile){add(await readFile(entry),path);return;}if(!entry.isDirectory||!entry.createReader)throw new Error('unsupported directory entry');
+-    const reader=entry.createReader(),children:LegacyEntry[]=[];while(true){check();const batch=await readBatch(reader);if(!batch.length)break;children.push(...batch);if(encountered+children.length>EXTERNAL_INTAKE_LIMITS.entries)break;}
++    const reader=entry.createReader(),children:LegacyEntry[]=[];let enumerationError:unknown;
++    try{while(true){check();const batch=await readBatch(reader);if(!batch.length)break;children.push(...batch);if(encountered+children.length>EXTERNAL_INTAKE_LIMITS.entries)break;}}
++    catch(error){if(abortError(error))throw error;enumerationError=error;}
+     children.sort((a,b)=>a.name.localeCompare(b.name));for(const child of children){try{await walkEntry(child,path,depth+1);}catch(error){if(abortError(error))throw error;failed.push({name:`${path}/${child.name}`,reason:reason(error)});}}
++    if(enumerationError)failed.push({name:path,reason:reason(enumerationError)});
+   };
+   const walkHandle=async(handle:ModernHandle,parent:string,depth:number):Promise<void>=>{check();encountered++;const path=parent?`${parent}/${handle.name}`:handle.name;
+     if(depth>EXTERNAL_INTAKE_LIMITS.depth){unsupported.push({name:path,reason:'directory depth limit reached'});return;}
+     if(encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});return;}
+     if(handle.kind==='file'&&handle.getFile){add(await handle.getFile(),path);return;}if(handle.kind!=='directory'||!handle.values)throw new Error('unsupported file-system handle');
+-    const children:ModernHandle[]=[];for await(const child of handle.values()){children.push(child);if(children.length+encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});break;}}children.sort((a,b)=>a.name.localeCompare(b.name));for(const child of children){try{await walkHandle(child,path,depth+1);}catch(error){if(abortError(error))throw error;failed.push({name:`${path}/${child.name}`,reason:reason(error)});}}
++    const children:ModernHandle[]=[];let enumerationError:unknown;
++    try{for await(const child of handle.values()){children.push(child);if(children.length+encountered>EXTERNAL_INTAKE_LIMITS.entries){unsupported.push({name:path,reason:'entry limit reached'});break;}}}
++    catch(error){if(abortError(error))throw error;enumerationError=error;}
++    children.sort((a,b)=>a.name.localeCompare(b.name));for(const child of children){try{await walkHandle(child,path,depth+1);}catch(error){if(abortError(error))throw error;failed.push({name:`${path}/${child.name}`,reason:reason(error)});}}
++    if(enumerationError)failed.push({name:path,reason:reason(enumerationError)});
+   };
+   if(captured.kind==='internal')return {files,failed,unsupported};
+   if(captured.items.length){for(const item of captured.items){check();const label=item.entry?.name??item.file?.name??`item ${item.ordinal+1}`;let resolved=false;
+--- before/src/utils/presetImport.ts
++++ after/src/utils/presetImport.ts
+@@ -52,7 +52,7 @@
+ }
+ function validateKnown(data:Record<string,unknown>):void {
+   const engine=data.engine;if(engine===undefined)return validateKnownWithoutEngine(data);if(!plain(engine))throw new Error('Invalid "engine" field');
+-  if(engine.playmode!==undefined&&(!['poly','mono','legato'].includes(String(engine.playmode))))throw new Error('Invalid engine.playmode');
++  if(engine.playmode!==undefined&&(typeof engine.playmode!=='string'||!['poly','mono','legato'].includes(engine.playmode)))throw new Error('Invalid engine.playmode');
+   const internal=['bendrange','velocity.sensitivity','volume','width','highpass','portamento.amount'] as const;for(const key of internal)if(engine[key]!==undefined)number(engine[key],0,32767,`engine.${key}`);
+   if(engine.transpose!==undefined)number(engine.transpose,-48,48,'engine.transpose');if(engine['portamento.type']!==undefined)number(engine['portamento.type'],0,32767,'engine.portamento.type');if(engine['tuning.root']!==undefined)number(engine['tuning.root'],0,11,'engine.tuning.root',true);
+   if(data.name!==undefined&&(typeof data.name!=='string'||data.name.length>256))throw new Error('Invalid preset name');if(data.octave!==undefined)number(data.octave,-8,8,'octave',true);
+--- before/src/utils/projectArchive.ts
++++ after/src/utils/projectArchive.ts
+@@ -31,6 +31,20 @@
+   samples:ArchiveSample[];
+ }
+ interface ZipEntryInfo {name:string; compressedSize:number; uncompressedSize:number; method:number; localOffset:number; directory:boolean}
++
++function archiveProject(session:SessionData):ArchiveManifestV1['project'] {return {
++  drumSettings:session.drumSettings,multisampleSettings:session.multisampleSettings,drumSamples:session.drumSamples,
++  multisampleFiles:session.multisampleFiles,selectedMultisample:session.selectedMultisample,
++  isDrumKeyboardPinned:session.isDrumKeyboardPinned,isMultisampleKeyboardPinned:session.isMultisampleKeyboardPinned,
++  importedDrumPreset:session.importedDrumPreset,importedMultisamplePreset:session.importedMultisamplePreset,midiNoteMapping:session.midiNoteMapping,
++};}
++
++function encodeManifest(manifest:ArchiveManifestV1):string {
++  const json=JSON.stringify(manifest);
++  if(new TextEncoder().encode(json).length>PROJECT_ARCHIVE_LIMITS.manifestBytes)throw new Error('Project manifest is too large');
++  validateJson(JSON.parse(json),'project manifest');
++  return json;
++}
+ 
+ function isRecord(value:unknown):value is JsonRecord {
+   return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+@@ -247,14 +261,25 @@
+   return new Uint8Array(await blob.arrayBuffer());
+ }
+ 
++/** Validate exact manifest metadata without encoding or copying project audio. */
++export function validateProjectArchiveMetadata(snapshot:ProjectSnapshot):void {
++  const {session,samples}=serializeProject(snapshot,'portable-project',{metadataOnly:true});
++  const live=[...snapshot.drumSamples.filter(sample=>sample?.isLoaded&&sample.audioBuffer),...snapshot.multisampleFiles.filter(sample=>sample.isLoaded&&sample.audioBuffer)];
++  if(live.length!==samples.length)throw new Error('Project sample metadata is inconsistent');
++  const sourcePaths=new Map<Blob,string>();
++  const manifestSamples=samples.map((sample,index):ArchiveSample=>{const asset=live[index],audio=asset.audioBuffer!;let sourcePath:string|undefined;
++    if(sample.sourceFile){sourcePath=sourcePaths.get(sample.sourceFile);if(!sourcePath){sourcePath=`assets/source-${String(index).padStart(4,'0')}.bin`;sourcePaths.set(sample.sourceFile,sourcePath);}}
++    return {id:sample.id,name:sample.name,type:sample.type,size:sample.sourceFile?.size??sample.size,sourceLastModified:sample.sourceLastModified,
++      metadata:sample.metadata,tags:sample.tags,audioPath:`assets/audio-${String(index).padStart(4,'0')}.opfloat`,sourcePath,
++      audio:{bytes:24+4*audio.numberOfChannels*audio.length,channels:audio.numberOfChannels,frames:audio.length,sampleRate:audio.sampleRate}};});
++  const manifest:ArchiveManifestV1={format:'op-patchstudio-project',version:1,project:archiveProject(session),samples:manifestSamples};
++  encodeManifest(manifest);
++  validateSettings(manifest.project as unknown as JsonRecord);
++}
++
+ export async function exportProjectArchive(snapshot:ProjectSnapshot):Promise<Blob> {
+   const {session,samples}=serializeProject(snapshot,'portable-project');
+-  const project:ArchiveManifestV1['project']={
+-    drumSettings:session.drumSettings,multisampleSettings:session.multisampleSettings,drumSamples:session.drumSamples,
+-    multisampleFiles:session.multisampleFiles,selectedMultisample:session.selectedMultisample,
+-    isDrumKeyboardPinned:session.isDrumKeyboardPinned,isMultisampleKeyboardPinned:session.isMultisampleKeyboardPinned,
+-    importedDrumPreset:session.importedDrumPreset,importedMultisamplePreset:session.importedMultisamplePreset,midiNoteMapping:session.midiNoteMapping,
+-  };
++  const project=archiveProject(session);
+   const zip=new JSZip(),audioPaths=new Map<Blob,string>(),sourcePaths=new Map<Blob,string>();
+   const manifestSamples:ArchiveSample[]=[];
+   const addAsset=async (blob:Blob,kind:'audio'|'source',index:number,map:Map<Blob,string>,prepared?:Uint8Array) => {
+@@ -276,8 +301,7 @@
+       audio:{bytes:dataBytes.byteLength,channels:audioInfo.channels,frames:audioInfo.frames,sampleRate:audioInfo.sampleRate}});
+   }
+   const manifest:ArchiveManifestV1={format:'op-patchstudio-project',version:1,project,samples:manifestSamples};
+-  const manifestJson=JSON.stringify(manifest);
+-  validateJson(JSON.parse(manifestJson),'project manifest');
++  const manifestJson=encodeManifest(manifest);
+   zip.file(PROJECT_ARCHIVE_MANIFEST,manifestJson,{createFolders:false});
+   const generated=await zip.generateAsync({type:'uint8array',compression:'STORE',platform:'DOS'});
+   if(generated.byteLength>PROJECT_ARCHIVE_LIMITS.archiveBytes) throw new Error('Project archive is too large to download');
+--- before/src/utils/projectSerialization.ts
++++ after/src/utils/projectSerialization.ts
+@@ -18,7 +18,7 @@
+   };
+ }
+ 
+-export function serializeProject(state: ProjectSnapshot, id = 'current-session'): {session: SessionData; samples: SampleData[]} {
++export function serializeProject(state: ProjectSnapshot, id = 'current-session', options:{metadataOnly?:boolean}={}): {session: SessionData; samples: SampleData[]} {
+   const timestamp = Date.now();
+   const snapshotId = crypto.randomUUID();
+   const samples: SampleData[] = [];
+@@ -29,7 +29,7 @@
+     const derivedSlice = 'sliceProvenance' in sample && Boolean(sample.sliceProvenance);
+     samples.push({id: sampleId, name: sample.file?.name ?? sample.name, type: sample.file?.type ?? '', size: sample.fileSize ?? sample.file?.size ?? 0,
+       sourceFile: derivedSlice ? undefined : sample.file ?? undefined, sourceLastModified: sample.file?.lastModified,
+-      data: encodeStoredAudio(audio), createdAt: timestamp,
++      data: options.metadataOnly ? new Blob([],{type:'application/vnd.op-patchstudio.float32'}) : encodeStoredAudio(audio), createdAt: timestamp,
+       metadata: {...(sample.originalSampleRate===undefined?{}:{sampleRate:sample.originalSampleRate}),...(sample.originalChannels===undefined?{}:{channels:sample.originalChannels}),
+         ...(sample.originalBitDepth === undefined ? {} : {bitDepth:sample.originalBitDepth}), isFloat: sample.isFloat, duration: sample.duration ?? audio.duration}});
+     return sampleId;
+--- before/tests/e2e/audio-import.spec.ts
++++ after/tests/e2e/audio-import.spec.ts
+@@ -1,8 +1,11 @@
+-import {expect,test} from '@playwright/test';
++import {expect,test,type Download} from '@playwright/test';
+ import path from 'node:path';
+ import {readFile} from 'node:fs/promises';
++import JSZip from 'jszip';
+ 
+ const fixture=(name:string)=>path.join(process.cwd(),'tests/fixtures/task7-audio',name);
++async function downloadedBytes(download:Download){expect(await download.failure()).toBeNull();const saved=await download.path();if(!saved)throw new Error('Project download produced no file');return readFile(saved);}
++async function inspectProject(bytes:Buffer){const zip=await JSZip.loadAsync(bytes),entry=zip.file('manifest.json');if(!entry)throw new Error('Project backup has no manifest');return {zip,manifest:JSON.parse(await entry.async('string')) as {samples:Array<{name:string;sourcePath?:string;metadata:Record<string,unknown>;audio:{frames:number;sampleRate:number;channels:number}}>}};}
+ 
+ test('actual codec files stay truthful through chooser review, one Apply, and Undo',async({page,browserName})=>{
+   await page.goto('/',{waitUntil:'domcontentloaded'});
+@@ -15,7 +18,46 @@
+   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(/decoded 48000 Hz/);
+   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
+   await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expect(page.getByText(`${expectedPrepared} samples loaded`,{exact:true})).toBeVisible();
++
++  const backupEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download project',exact:true}).click();const backup=await backupEvent,backupBytes=await downloadedBytes(backup);
++  const saved=await inspectProject(backupBytes),mp3=saved.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
++  expect(mp3?.sourcePath).toBeTruthy();expect(mp3?.metadata).not.toHaveProperty('bitDepth');expect(mp3?.metadata).not.toHaveProperty('sampleRate');expect(mp3?.metadata).not.toHaveProperty('channels');
++  expect(mp3?.audio.sampleRate).toBe(48_000);expect(mp3?.audio.frames).toBeGreaterThan(8_000);
++  expect(Buffer.from(await saved.zip.file(mp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
+   await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByText('0 samples loaded',{exact:true})).toBeVisible();
++  const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open project',exact:true}).click();await (await chooser).setFiles({name:backup.suggestedFilename(),mimeType:'application/zip',buffer:backupBytes});
++  await expect(page.getByText(`${expectedPrepared} samples loaded`,{exact:true})).toBeVisible();
++  const restoredEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download project',exact:true}).click();const restored=await inspectProject(await downloadedBytes(await restoredEvent));const restoredMp3=restored.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
++  expect(restoredMp3?.metadata).not.toHaveProperty('sampleRate');expect(Buffer.from(await restored.zip.file(restoredMp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
++});
++
++test('desktop row multi-chooser is one reviewed batch with collision-free explicit pads',async({page},testInfo)=>{
++  test.skip(testInfo.project.name.startsWith('Mobile'),'desktop row chooser acceptance');
++  await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByLabel('choose drum row 1 audio files').setInputFiles([
++    {name:'texture.wav',mimeType:'audio/wav',buffer:await readFile(fixture('original.wav'))},
++    {name:'kick.wav',mimeType:'audio/wav',buffer:await readFile(fixture('original.wav'))},
++  ]);
++  const dialog=page.getByRole('dialog',{name:'Import audio'});await expect(dialog.getByLabel(/^Include /)).toHaveCount(2);
++  await expect(dialog.getByLabel('Destination for texture.wav')).toHaveValue('pad:0');await expect(dialog.getByLabel('Destination for kick.wav')).toHaveValue('pad:1');
++  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(page.getByText('2 samples loaded',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByText('0 samples loaded',{exact:true})).toBeVisible();
++});
++
++test('actual chooser sends unknown-extension, empty, and unsupported files to shared review classification',async({page})=>{
++  await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByRole('tab',{name:'multisample tab',exact:true}).click();
++  await page.getByLabel('choose multisample audio files').setInputFiles([
++    {name:'C4.weird',mimeType:'',buffer:await readFile(fixture('original.wav'))},
++    {name:'empty.wav',mimeType:'audio/wav',buffer:Buffer.alloc(0)},
++    {name:'unsupported.txt',mimeType:'text/plain',buffer:Buffer.from('plain text')},
++  ]);
++  const dialog=page.getByRole('dialog',{name:'Import audio'});await expect(dialog.getByLabel('Include C4.weird')).toBeVisible();await expect(dialog).toContainText(/empty\.wav:.*empty/i);await expect(dialog).toContainText(/unsupported\.txt:.*(unsupported|signature|audio)/i);
++  await dialog.getByRole('button',{name:'Cancel import'}).click();await expect(page.getByText('0 samples loaded',{exact:true})).toBeVisible();
++});
++
++test('malformed patch settings are rejected in both modes without changing settings',async({page})=>{
++  await page.goto('/',{waitUntil:'domcontentloaded'});const invalid=Buffer.from(JSON.stringify({type:'drum',engine:{playmode:['mono']}}));
++  await page.getByLabel('choose drum patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalid});await expect(page.getByText('import failed',{exact:true}).last()).toBeVisible();await expect(page.locator('#preset-playmode')).toHaveValue('poly');
++  await page.getByRole('tab',{name:'multisample tab',exact:true}).click();const invalidMulti=Buffer.from(JSON.stringify({type:'multisampler',engine:{playmode:['mono']}}));
++  await page.getByLabel('choose multisample patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalidMulti});await expect(page.getByText('import failed',{exact:true}).last()).toBeVisible();await expect(page.locator('#playmode')).toHaveValue('poly');
+ });
+ 
+ test('a captured nested drop keeps a valid sibling and reports the blocked child',async({page})=>{

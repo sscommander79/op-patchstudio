@@ -1,0 +1,9 @@
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  08:11:37
+   Duration  691ms (transform 157ms, setup 55ms, import 178ms, tests 196ms, environment 179ms)
+

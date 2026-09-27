@@ -91,18 +91,7 @@ const generateExponentialCurveWithFactor = (
 
 
 
-/**
- * ADSREnvelope Component - OP-XY Device Faithful Recreation
- * 
- * This component replicates the exact dimensions and ratios of the OP-XY hardware
- * envelope editor. All measurements are based on physical device specs:
- * 
- * CRITICAL: These ratios must be maintained across ALL functions:
- * - getPhasePositions() for envelope curve positioning  
- * - handleMouseDown() dragging area boundaries
- * - SVG element positioning and sizing
- * - Any future layout modifications
- */
+/** Visual editor for raw OP-XY ADSR values. Its curve and timing are browser approximations. */
 export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
   ampEnvelope,
   filterEnvelope,
@@ -174,19 +163,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
 
   // Calculate fixed positions based on OP-XY exact device constraints
   const getPhasePositions = useCallback((envelope: ADSRValues) => {
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // OP-XY DEVICE EXACT RATIOS - DO NOT MODIFY WITHOUT UPDATING ALL REFERENCES
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // Physical device measurements:
-    // • Outer border: 62mm × 31mm (6px rounded corners) → 2:1 ratio
-    // • Inner border: 55mm × 25mm (square corners) → 2.2:1 ratio  
-    // • Envelope area: 46mm × 20mm (drawing area) → 2.3:1 ratio
-    //
-    // Digital implementation at 7.74x scale factor:
-    // • Container: 480px × 240px (62mm × 31mm × 7.74)
-    // • Inner: 426px × 194px (55mm × 25mm × 7.74)
-    // • Envelope: 356px × 155px (46mm × 20mm × 7.74)
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // These proportions are only the browser drawing layout. They are not a measured device-time curve.
     const innerWidth = Math.round(55 * 7.74);   // 426px
     const innerHeight = Math.round(25 * 7.74);  // 194px
     const envelopeWidth = Math.round(46 * 7.74); // 356px
@@ -753,13 +730,13 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
       {/* ADSR Control Knobs */}
       <FourKnobControl
         knobs={[
-          { label: 'attack', value: valueToPercent(currentEnvelope.attack), color: 'black' },
-          { label: 'decay', value: valueToPercent(currentEnvelope.decay), color: 'dark' },
-          { label: 'sustain', value: valueToPercent(currentEnvelope.sustain), color: 'light' },
-          { label: 'release', value: valueToPercent(currentEnvelope.release), color: 'white' }
+          { label: 'attack', value: valueToPercent(currentEnvelope.attack), rawValue: currentEnvelope.attack, color: 'black' },
+          { label: 'decay', value: valueToPercent(currentEnvelope.decay), rawValue: currentEnvelope.decay, color: 'dark' },
+          { label: 'sustain', value: valueToPercent(currentEnvelope.sustain), rawValue: currentEnvelope.sustain, color: 'light' },
+          { label: 'release', value: valueToPercent(currentEnvelope.release), rawValue: currentEnvelope.release, color: 'white' }
         ]}
         onValueChange={handleKnobValueChange}
       />
     </div>
   );
-}; 
+};

@@ -1,33 +1,40 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { ConfirmationModal } from '../common/ConfirmationModal';
-import { RecordingModal } from '../common/RecordingModal';
+import { RecordingModal, type GuidedRecordingIntent, type RecordingTarget } from '../common/RecordingModal';
 import { AudioProcessingSection } from '../common/AudioProcessingSection';
-import { GeneratePresetSection } from '../common/GeneratePresetSection';
 import { ErrorDisplay } from '../common/ErrorDisplay';
 import { MultisampleSampleTable } from './MultisampleSampleTable';
 import { MultisamplePresetSettings } from './MultisamplePresetSettings';
 import { VirtualMidiKeyboard } from './VirtualMidiKeyboard';
 import { useFileUpload } from '../../hooks/useFileUpload';
-import { usePatchGeneration } from '../../hooks/usePatchGeneration';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
-import { audioBufferToWav } from '../../utils/wavExport';
 import { cookieUtils, COOKIE_KEYS } from '../../utils/cookies';
-import { savePresetToLibrary } from '../../utils/libraryUtils';
 import { sessionStorageIndexedDB } from '../../utils/sessionStorageIndexedDB';
 import { ToggleSwitch } from '../common/ToggleSwitch';
-import { saveMultisampleSettingsAsDefault } from '../../utils/defaultSettings';
 import { AUDIO_CONSTANTS } from '../../utils/constants';
+import { useAudioImport } from '../common/AudioImportContext';
+import { AUDIO_FILE_ACCEPT } from '../../utils/audioFormats';
+import { MultisampleFocusWorkspace } from './MultisampleFocusWorkspace';
+import type { RecorderRequest } from '../common/MainTabs';
 
 
-export function MultisampleTool() {
+export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: {
+  recorderRequest?: RecorderRequest | null;
+  onRecorderRequestConsumed?: () => void;
+} = {}) {
   const { state, dispatch } = useAppContext();
+  const audioImport=useAudioImport();
+  const consumedRecorderRequest = useRef<number | null>(null);
   const { handleMultisampleUpload, clearMultisampleFile } = useFileUpload();
-  const { generateMultisamplePatchFile } = usePatchGeneration();
-  const { playWithADSR, releaseNote } = useAudioPlayer();
+  const { playWithADSR, releaseNote, stopAllNotes } = useAudioPlayer();
   const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const browseInputRef = useRef<HTMLInputElement>(null);
+  const directoryInputRef = useRef<HTMLInputElement>(null);
   const browseFilesRef = useRef<(() => void) | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [workspaceView,setWorkspaceView]=useState<'focus'|'table'>('focus');
+  const [selectedIndex,setSelectedIndex]=useState(state.selectedMultisample??0);
+  const selectedAssetRef=useRef<(typeof state.multisampleFiles)[number]|undefined>(state.multisampleFiles[selectedIndex]);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     message: string;
@@ -35,14 +42,21 @@ export function MultisampleTool() {
   }>({ isOpen: false, message: '', onConfirm: async () => {} });
   const [recordingModal, setRecordingModal] = useState<{
     isOpen: boolean;
-    targetIndex: number | null;
-  }>({ isOpen: false, targetIndex: null });
+    target: RecordingTarget;
+    guidedIntent?: GuidedRecordingIntent;
+  }>({ isOpen: false, target: {kind:'multisample'} });
 
   const [targetMidiNote, setTargetMidiNote] = useState<number | null>(null);
   const [selectedMidiChannel, setSelectedMidiChannel] = useState(() => {
     const saved = localStorage.getItem('midi-channel');
     return saved ? parseInt(saved, 10) : 1;
   });
+  const selectZone=useCallback((index:number)=>{setSelectedIndex(index);selectedAssetRef.current=state.multisampleFiles[index];dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:index});},[dispatch,state.multisampleFiles]);
+  useEffect(()=>{const files=state.multisampleFiles;if(!files.length){selectedAssetRef.current=undefined;if(selectedIndex!==0)setSelectedIndex(0);if(state.selectedMultisample!=null)dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:null});return;}
+    const selected=selectedAssetRef.current;let resolved=selected?files.findIndex(file=>file===selected||(file.file===selected.file&&file.audioBuffer===selected.audioBuffer)):-1;
+    if(resolved<0)resolved=state.selectedMultisample!==null&&state.selectedMultisample!==undefined&&state.selectedMultisample>=0&&state.selectedMultisample<files.length?state.selectedMultisample:Math.min(selectedIndex,files.length-1);
+    selectedAssetRef.current=files[resolved];if(resolved!==selectedIndex)setSelectedIndex(resolved);if(state.selectedMultisample!==resolved)dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:resolved});
+  },[dispatch,state.multisampleFiles,state.selectedMultisample,selectedIndex]);
 
   // Get pin state from context
   const { isMultisampleKeyboardPinned } = state;
@@ -50,7 +64,7 @@ export function MultisampleTool() {
   const handleTogglePin = useCallback(() => {
     dispatch({ type: 'TOGGLE_MULTISAMPLE_KEYBOARD_PIN' });
   }, [dispatch]);
-  
+
   // Effect to save pin state to cookies
   useEffect(() => {
     try {
@@ -69,19 +83,19 @@ export function MultisampleTool() {
 
     // Sort samples by rootNote ascending for proper zone calculation
     const sortedSamples = [...state.multisampleFiles].sort((a, b) => a.rootNote - b.rootNote);
-    
+
     // Iterate through all MIDI notes
     for (let midiNote = 0; midiNote <= 127; midiNote++) {
       let rootSample = null;
-      
+
       // Find the sample that should handle this MIDI note
       // Rule: Each sample covers from its root note DOWN to just above the next lower sample
       // The topmost sample also covers notes UP from its root note
-      
+
       for (let i = sortedSamples.length - 1; i >= 0; i--) {
         const sample = sortedSamples[i];
         const prevSample = i > 0 ? sortedSamples[i - 1] : null;
-        
+
         if (i === sortedSamples.length - 1) {
           // Topmost sample - covers from its root note UP to 127
           if (midiNote >= sample.rootNote) {
@@ -89,7 +103,7 @@ export function MultisampleTool() {
             break;
           }
         }
-        
+
         // All samples (including topmost) cover DOWN from their root note
         if (prevSample) {
           // Has a lower sample - covers from just above prev sample down to its own root
@@ -116,17 +130,6 @@ export function MultisampleTool() {
     return map;
   }, [state.multisampleFiles]);
 
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   const handleSampleRateChange = (value: string) => {
     dispatch({ type: 'SET_MULTISAMPLE_SAMPLE_RATE', payload: parseInt(value, 10) });
   };
@@ -137,10 +140,6 @@ export function MultisampleTool() {
 
   const handleChannelsChange = (value: string) => {
     dispatch({ type: 'SET_MULTISAMPLE_CHANNELS', payload: parseInt(value, 10) });
-  };
-
-  const handlePresetNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: 'SET_MULTISAMPLE_PRESET_NAME', payload: e.target.value });
   };
 
   const handleNormalizeChange = (enabled: boolean) => {
@@ -164,30 +163,32 @@ export function MultisampleTool() {
       isOpen: true,
       message: 'are you sure you want to reset all audio processing settings to defaults?',
       onConfirm: () => {
-        dispatch({ type: 'SET_MULTISAMPLE_SAMPLE_RATE', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_BIT_DEPTH', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_CHANNELS', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_NORMALIZE', payload: false });
-        dispatch({ type: 'SET_MULTISAMPLE_NORMALIZE_LEVEL', payload: AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL });
-        dispatch({ type: 'SET_MULTISAMPLE_CUT_AT_LOOP_END', payload: false });
-        dispatch({ type: 'SET_MULTISAMPLE_GAIN', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: true });
-        dispatch({ type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: true });
+        dispatch({ type:'BATCH_EDIT', payload:[
+          { type:'SET_MULTISAMPLE_SAMPLE_RATE', payload:0 },
+          { type:'SET_MULTISAMPLE_BIT_DEPTH', payload:0 },
+          { type:'SET_MULTISAMPLE_CHANNELS', payload:0 },
+          { type:'SET_MULTISAMPLE_NORMALIZE', payload:false },
+          { type:'SET_MULTISAMPLE_NORMALIZE_LEVEL', payload:AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL },
+          { type:'SET_MULTISAMPLE_CUT_AT_LOOP_END', payload:false },
+          { type:'SET_MULTISAMPLE_GAIN', payload:0 },
+          { type:'SET_MULTISAMPLE_LOOP_ENABLED', payload:true },
+          { type:'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload:true },
+        ] });
         setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
       }
     });
   };
 
   const handleFilesSelected = async (files: File[]) => {
-    // Process files one by one
-    for (const file of files) {
-      await handleMultisampleUpload(file);
-    }
+    if(audioImport)audioImport.beginFiles(files,{instrument:'multisample'});
+    else for (const file of files) await handleMultisampleUpload(file);
   };
 
-  const handleFileUpload = async (_index: number, file: File) => {
+  const handleFileUpload = async (index: number, file: File) => {
     try {
-      await handleMultisampleUpload(file);
+      const root=state.multisampleFiles[index]?.rootNote;
+      if(audioImport)audioImport.beginFiles([file],{instrument:'multisample',multisampleRoot:root});
+      else await handleMultisampleUpload(file,root);
     } catch (error) {
       console.error('Error uploading file:', error);
     }
@@ -206,89 +207,15 @@ export function MultisampleTool() {
 
 
 
-  const handleSaveToLibrary = async () => {
-    try {
-      const result = await savePresetToLibrary(state, state.multisampleSettings.presetName, 'multisample');
-      if (result.success) {
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'success',
-            title: 'preset saved',
-            message: `"${state.multisampleSettings.presetName}" saved to library`
-          }
-        });
-        // Trigger library refresh event
-        window.dispatchEvent(new CustomEvent('library-refresh'));
-      } else {
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'error',
-            title: 'save failed',
-            message: result.error || 'failed to save preset to library'
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error saving to library:', error);
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
-          type: 'error',
-          title: 'save failed',
-          message: 'failed to save preset to library'
-        }
-      });
-    }
-  };
-
-  const handleDownloadPreset = async () => {
-    try {
-      const patchName = state.multisampleSettings.presetName.trim() || 'multisample_patch';
-      await generateMultisamplePatchFile(patchName);
-    } catch (error) {
-      console.error('Error downloading preset:', error);
-    }
-  };
-
-  const handleSaveSettingsAsDefault = () => {
-    try {
-      saveMultisampleSettingsAsDefault(state.multisampleSettings, state.importedMultisamplePreset);
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
-          type: 'success',
-          title: 'settings saved',
-          message: 'multisample settings saved as default'
-        }
-      });
-    } catch (error) {
-      console.error('Error saving settings as default:', error);
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
-          type: 'error',
-          title: 'save failed',
-          message: 'failed to save settings as default'
-        }
-      });
-    }
-  };
-
   const handleClearAll = async () => {
     setConfirmDialog({
       isOpen: true,
       message: 'are you sure you want to clear all loaded samples?',
       onConfirm: async () => {
-        for (let i = state.multisampleFiles.length - 1; i >= 0; i--) {
-          clearMultisampleFile(i);
-        }
+        dispatch({ type:'BATCH_EDIT', payload:state.multisampleFiles.map((_,index)=>({
+          type:'CLEAR_MULTISAMPLE_FILE' as const,
+          payload:state.multisampleFiles.length-index-1,
+        })) });
         // Reset saved to library flag since we're starting fresh
         await sessionStorageIndexedDB.resetSavedToLibraryFlag();
         setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
@@ -301,72 +228,50 @@ export function MultisampleTool() {
       isOpen: true,
       message: 'are you sure you want to reset everything to defaults? this will clear all samples, reset preset name and audio settings.',
       onConfirm: async () => {
-        // Clear all samples
-        for (let i = state.multisampleFiles.length - 1; i >= 0; i--) {
-          clearMultisampleFile(i);
-        }
-        
-        // Reset preset name
-        dispatch({ type: 'SET_MULTISAMPLE_PRESET_NAME', payload: '' });
-        
-        // Reset audio format settings to defaults (0 = original)
-        dispatch({ type: 'SET_MULTISAMPLE_SAMPLE_RATE', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_BIT_DEPTH', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_CHANNELS', payload: 0 });
-        
-        // Reset normalize and cut settings
-        dispatch({ type: 'SET_MULTISAMPLE_NORMALIZE', payload: false });
-        dispatch({ type: 'SET_MULTISAMPLE_NORMALIZE_LEVEL', payload: AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL });
-        dispatch({ type: 'SET_MULTISAMPLE_CUT_AT_LOOP_END', payload: false });
-        dispatch({ type: 'SET_MULTISAMPLE_GAIN', payload: 0 });
-        dispatch({ type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: true });
-        dispatch({ type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: true });
-        
-        // Reset file renaming settings to defaults
-        dispatch({ type: 'SET_MULTISAMPLE_RENAME_FILES', payload: false });
-        dispatch({ type: 'SET_MULTISAMPLE_FILENAME_SEPARATOR', payload: ' ' });
-        
+        dispatch({ type:'BATCH_EDIT', payload:[
+          { type:'BUMP_PROJECT_GENERATION' },
+          ...state.multisampleFiles.map((_,index)=>({
+            type:'CLEAR_MULTISAMPLE_FILE' as const,
+            payload:state.multisampleFiles.length-index-1,
+          })),
+          { type:'SET_MULTISAMPLE_PRESET_NAME', payload:'' },
+          { type:'SET_MULTISAMPLE_SAMPLE_RATE', payload:0 },
+          { type:'SET_MULTISAMPLE_BIT_DEPTH', payload:0 },
+          { type:'SET_MULTISAMPLE_CHANNELS', payload:0 },
+          { type:'SET_MULTISAMPLE_NORMALIZE', payload:false },
+          { type:'SET_MULTISAMPLE_NORMALIZE_LEVEL', payload:AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL },
+          { type:'SET_MULTISAMPLE_CUT_AT_LOOP_END', payload:false },
+          { type:'SET_MULTISAMPLE_GAIN', payload:0 },
+          { type:'SET_MULTISAMPLE_LOOP_ENABLED', payload:true },
+          { type:'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload:true },
+          { type:'SET_MULTISAMPLE_RENAME_FILES', payload:false },
+          { type:'SET_MULTISAMPLE_FILENAME_SEPARATOR', payload:' ' },
+        ] });
+
         // Reset saved to library flag since we're starting fresh
         await sessionStorageIndexedDB.resetSavedToLibraryFlag();
-        
+
         setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
       }
     });
   };
 
-  const handleOpenRecording = (targetIndex: number | null = null) => {
-    setRecordingModal({ isOpen: true, targetIndex });
-  };
+  const handleOpenRecording = useCallback((targetIndex: number | null = null, guidedIntent?:GuidedRecordingIntent) => {
+    stopAllNotes();
+    const current=targetIndex===null?undefined:state.multisampleFiles[targetIndex];
+    setRecordingModal({isOpen:true,target:{kind:'multisample',...(current?{rootNote:current.rootNote,expected:{audioBuffer:current.audioBuffer,file:current.file}}:{})},guidedIntent});
+  },[state.multisampleFiles,stopAllNotes]);
 
   const handleCloseRecording = () => {
-    setRecordingModal({ isOpen: false, targetIndex: null });
+    setRecordingModal(current=>({...current,isOpen:false,guidedIntent:undefined}));
   };
 
-  const handleSaveRecording = async (audioBuffer: AudioBuffer, filename: string) => {
-    try {
-      // Convert AudioBuffer to WAV blob with metadata
-      const wavBlob = await audioBufferToWav(audioBuffer, 16, {
-        rootNote: targetMidiNote ?? 60,
-        loopStart: 0,
-        loopEnd: audioBuffer.length - 1
-      });
-      
-      // Create a File object with the provided filename
-      const file = new File([wavBlob], `${filename}.wav`, { type: 'audio/wav' });
-      
-      // If we have a target MIDI note, use it; otherwise let the system assign one
-      if (targetMidiNote !== null) {
-        await handleMultisampleUpload(file, targetMidiNote);
-      } else {
-        await handleMultisampleUpload(file);
-      }
-      
-      // Reset target note
-      setTargetMidiNote(null);
-    } catch (error) {
-      console.error('Error saving recording:', error);
-    }
-  };
+  useEffect(() => {
+    if (!recorderRequest || consumedRecorderRequest.current === recorderRequest.id) return;
+    consumedRecorderRequest.current = recorderRequest.id;
+    handleOpenRecording(null, recorderRequest.guided ? { source: recorderRequest.source, requestId: recorderRequest.id } : undefined);
+    onRecorderRequestConsumed?.();
+  }, [handleOpenRecording, onRecorderRequestConsumed, recorderRequest]);
 
   const handleAudioFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -379,7 +284,8 @@ export function MultisampleTool() {
       try {
         // Here, we manually create the payload for handleMultisampleUpload
         // so we can set the rootNote BEFORE it goes into the context and gets sorted.
-        await handleMultisampleUpload(file, targetMidiNote);
+        if(audioImport)audioImport.beginFiles([file],{instrument:'multisample',multisampleRoot:targetMidiNote});
+        else await handleMultisampleUpload(file, targetMidiNote);
         setTargetMidiNote(null);
       } catch (error) {
         console.error('Error uploading file for MIDI note assignment:', error);
@@ -394,7 +300,7 @@ export function MultisampleTool() {
     if (!zoneInfo) return;
 
     const { rootNote, pitchOffset } = zoneInfo;
-    
+
     // Find the sample that is the root for this zone
     const rootSample = state.multisampleFiles.find(f => f.rootNote === rootNote);
 
@@ -402,13 +308,13 @@ export function MultisampleTool() {
       try {
         // Apply pitch shifting
         const playbackRate = Math.pow(2, pitchOffset / 12);
-        
+
         // Get ADSR settings from current multisample settings (which includes defaults and user adjustments)
         const adsrSettings = state.multisampleSettings.ampEnvelope;
-        
+
         // Get play mode from current multisample settings
         const playMode = state.multisampleSettings.playmode;
-        
+
         // Use the ADSR-enabled audio player
         const noteId = `multisample-${midiNote}-${Date.now()}`;
         await playWithADSR(rootSample.audioBuffer, noteId, {
@@ -437,7 +343,7 @@ export function MultisampleTool() {
     // We'll try all possible noteIds for this midiNote
     // (e.g., multisample-60, multisample-60-<timestamp>)
     // For robust release, release all notes that start with `multisample-${midiNote}`
-    const activeNotes = (window as any).opPatchstudioActiveNotes || [];
+    const activeNotes = window.opPatchstudioActiveNotes || [];
     if (Array.isArray(activeNotes)) {
       activeNotes
         .filter((id: string) => id.startsWith(`multisample-${midiNote}`))
@@ -450,49 +356,23 @@ export function MultisampleTool() {
     }
   }, [releaseNote]);
 
-  // Handler for clicking an unassigned key
+  // Empty keys become the current import target. The nearby Add action opens the chooser.
   const handleUnassignedKeyClick = useCallback((midiNote: number) => {
-    // Store the target MIDI note and open audio file browser
     setTargetMidiNote(midiNote);
-    audioFileInputRef.current?.click();
   }, []);
 
   // Handler for dropping files onto keys
   const handleKeyDrop = useCallback(async (midiNote: number, files: File[]) => {
     // Handle drag and drop onto specific MIDI keys
-    if (files.length > 0 && state.multisampleFiles.length < 24) {
-      const file = files[0]; // Use first file
-      // Pass the target midiNote to the upload function
-      await handleMultisampleUpload(file, midiNote);
+    if (files.length > 0) {
+      if(audioImport)audioImport.beginFiles(files,{instrument:'multisample',multisampleRoot:midiNote});
+      else await handleMultisampleUpload(files[0], midiNote);
     }
-  }, [state.multisampleFiles.length, handleMultisampleUpload]);
+  }, [audioImport, handleMultisampleUpload]);
 
   const hasLoadedSamples = state.multisampleFiles.length > 0;
-  const hasPresetName = state.multisampleSettings.presetName.trim().length > 0;
-  const canGeneratePatch = hasLoadedSamples && hasPresetName;
-  
-  // Check if any settings have been changed from defaults
-  const hasChangesFromDefaults = (
-    hasLoadedSamples || // Any samples loaded
-    hasPresetName || // Preset name entered
-    state.multisampleSettings.sampleRate !== 0 || // Audio format changed
-    state.multisampleSettings.bitDepth !== 0 ||
-    state.multisampleSettings.channels !== 0 ||
-    state.multisampleSettings.normalize !== false || // Normalize settings changed
-    state.multisampleSettings.normalizeLevel !== AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL ||
-    state.multisampleSettings.renameFiles !== false || // File renaming settings changed
-    state.multisampleSettings.filenameSeparator !== ' ' ||
-    state.multisampleSettings.cutAtLoopEnd !== false // Trim to loop end changed
-    // Note: Multisample preset settings are handled in MultisamplePresetSettings component
-  );
-
   return (
-    <div style={{ 
-      fontFamily: '"Montserrat", "Arial", sans-serif',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%'
-    }}>
+    <div className="studio-editor-root">
       {/* Header Section */}
 
 
@@ -500,18 +380,19 @@ export function MultisampleTool() {
       <input
         ref={audioFileInputRef}
         type="file"
-        accept="audio/*,.wav"
+        accept={AUDIO_FILE_ACCEPT}
         onChange={handleAudioFileImport}
         style={{ display: 'none' }}
       />
+      <input ref={input=>{directoryInputRef.current=input;input?.setAttribute('webkitdirectory','')}} aria-label="choose multisample folder" type="file" multiple accept={AUDIO_FILE_ACCEPT} onChange={event=>{void handleFilesSelected(Array.from(event.target.files??[]));event.target.value='';}} style={{display:'none'}}/>
+      <input ref={browseInputRef} aria-label="choose multisample audio files" type="file" multiple accept={AUDIO_FILE_ACCEPT} onChange={event=>{void handleFilesSelected(Array.from(event.target.files??[]));event.target.value='';}} style={{display:'none'}}/>
 
-      {/* Virtual MIDI Keyboard Section */}
-      <div style={{
-        padding: isMobile ? '1rem 0.5rem' : '2rem 2rem',
-      }}>
+      <div className="studio-instrument-grid studio-editor-stage studio-editor-stage--multisample">
+      <div className="studio-performance-column studio-performance-column--multisample">
+      <div className="studio-performance-body">
         <ErrorDisplay message={state.error || ''} />
 
-        <div style={{ position: 'relative' }}>
+        <div className="studio-keyboard-positioner">
           <VirtualMidiKeyboard
             assignedNotes={Array.from(zoneMap.keys())}
             onKeyClick={handleKeyClick} // Pass the handler directly so source is respected
@@ -526,48 +407,30 @@ export function MultisampleTool() {
               setSelectedMidiChannel(channel);
               localStorage.setItem('midi-channel', channel.toString());
             }}
-            isActive={state.currentTab === 'multisample'}
+            isActive={state.currentTab === 'multisample'&&!recordingModal.isOpen}
           />
         </div>
+        <div className="studio-creative-actions studio-editor-command-bar">
+          <button type="button" className="studio-button-primary" onClick={()=>targetMidiNote===null?browseInputRef.current?.click():audioFileInputRef.current?.click()}>
+            Add sounds{targetMidiNote===null?'':` to MIDI ${targetMidiNote}`}
+          </button>
+          <button type="button" className="studio-button-primary" data-studio-open-recording="multisample" onClick={()=>handleOpenRecording()}>
+            Record takes
+          </button>
+        </div>
+      </div>
       </div>
 
-      {/* Tabbed Content Area */}
-      <div style={{ 
-        flex: 1,
-        padding: isMobile ? '0 0.5rem' : '0 2rem',
-        marginBottom: '1rem'
-      }}>
+      <div className="studio-editor-column studio-editor-column--multisample">
         {/* Sample Management Section */}
-        <div style={{
-          background: 'var(--color-bg-primary)',
-          borderRadius: '15px',
-          boxShadow: '0 2px 8px var(--color-shadow-primary)',
-          border: '1px solid var(--color-border-subtle)',
-          overflow: 'hidden',
-          marginBottom: '1rem',
-        }}>
+        <div className="studio-management-panel">
           {/* Header */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: isMobile ? '0.5rem 1rem 0.5rem 1rem' : '0.7rem 1rem 0.5rem 1rem',
-            borderBottom: '1px solid var(--color-border-medium)',
-            backgroundColor: 'var(--color-bg-secondary)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-              <h3 style={{
-                margin: 0,
-                color: '#222',
-                fontSize: '1.25rem',
-                fontWeight: 300,
-                textTransform: 'lowercase',
-                letterSpacing: 0,
-              }}>
-                sample management
-              </h3>
+          <div className="studio-section-heading">
+            <div className="studio-section-heading-title">
+              <h3>Sample management</h3>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div className="studio-section-heading-actions">
+              <div className="studio-view-switch" aria-label="Multisample workspace view"><button type="button" aria-pressed={workspaceView==='focus'} onClick={()=>setWorkspaceView('focus')}>Focus</button><button type="button" aria-pressed={workspaceView==='table'} onClick={()=>setWorkspaceView('table')}>Table</button></div>
               <ToggleSwitch
                 leftLabel="c3=60"
                 rightLabel="c4=60"
@@ -583,158 +446,42 @@ export function MultisampleTool() {
           </div>
 
           {/* Content */}
-          <div style={{ 
-            padding: 0,
-          }}>
-            <MultisampleSampleTable 
+          <div className="studio-management-body">
+            {workspaceView==='focus'?<MultisampleFocusWorkspace selectedIndex={Math.min(selectedIndex,Math.max(0,state.multisampleFiles.length-1))} onSelect={selectZone} onBrowse={()=>browseInputRef.current?.click()} onReplace={handleFileUpload} onClear={handleClearSample} onRecord={handleOpenRecording}/>:<MultisampleSampleTable
               onFileUpload={handleFileUpload}
               onClearSample={handleClearSample}
               onRecordSample={handleOpenRecording}
               onFilesSelected={handleFilesSelected}
               onBrowseFilesRef={browseFilesRef}
-            />
-            {/* Footer Button Group - Drum Tool Style */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                background: 'var(--color-bg-primary)',
-                borderTop: '1px solid var(--color-border-light)',
-                padding: '1.75rem',
-                margin: 0,
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
-            >
+            />}
+            <div className="studio-utility-actions" aria-label="Multisample instrument actions">
+              <button type="button" className="studio-utility-action studio-utility-action--danger" onClick={handleResetAll}>reset instrument</button>
               <button
+                type="button"
+                className="studio-utility-action studio-utility-action--danger"
                 onClick={handleClearAll}
                 disabled={!hasLoadedSamples}
-                style={{
-                  minHeight: '44px',
-                  minWidth: '44px',
-                  padding: '0.75rem 1.5rem',
-                  border: '1px solid var(--color-interactive-focus-ring)',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--color-bg-primary)',
-                  color: hasLoadedSamples ? 'var(--color-interactive-secondary)' : 'var(--color-border-medium)',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  cursor: hasLoadedSamples ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  opacity: hasLoadedSamples ? 1 : 0.6,
-                  marginRight: '1rem',
-                }}
-                onMouseEnter={(e) => {
-                  if (hasLoadedSamples) {
-                    e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--color-border-medium)';
-                    e.currentTarget.style.color = 'var(--color-interactive-dark)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (hasLoadedSamples) {
-                    e.currentTarget.style.backgroundColor = 'var(--color-bg-primary)';
-                    e.currentTarget.style.borderColor = 'var(--color-interactive-focus-ring)';
-                    e.currentTarget.style.color = 'var(--color-interactive-secondary)';
-                  }
-                }}
               >
-                <i className="fas fa-trash" style={{ fontSize: '1rem' }}></i>
+                <i className="fas fa-trash" aria-hidden="true" style={{ fontSize: '1rem' }}></i>
                 clear all
               </button>
-              <button
-                onClick={() => setRecordingModal({ isOpen: true, targetIndex: null })}
-                style={{
-                  minHeight: '44px',
-                  minWidth: '44px',
-                  padding: '0.75rem 1.5rem',
-                  border: '1px solid var(--color-interactive-focus-ring)',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--color-bg-primary)',
-                  color: 'var(--color-interactive-secondary)',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  marginRight: '1rem',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
-                  e.currentTarget.style.borderColor = 'var(--color-border-medium)';
-                  e.currentTarget.style.color = 'var(--color-interactive-dark)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-primary)';
-                  e.currentTarget.style.borderColor = 'var(--color-interactive-focus-ring)';
-                  e.currentTarget.style.color = 'var(--color-interactive-secondary)';
-                }}
-              >
-                <i className="fas fa-microphone" style={{ fontSize: '1rem', color: 'var(--color-accent-primary)' }}></i>
-                record
-              </button>
-              <button
-                onClick={() => {
-                  if (browseFilesRef.current) {
-                    browseFilesRef.current();
-                  }
-                }}
-                style={{
-                  minHeight: '44px',
-                  minWidth: '44px',
-                  padding: '0.75rem 1.5rem',
-                  border: 'none',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--color-interactive-focus)',
-                  color: 'var(--color-white)',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-interactive-dark)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-interactive-focus)';
-                }}
-              >
-                <i className="fas fa-folder-open" style={{ fontSize: '1rem' }}></i>
-                browse
-              </button>
+              <button type="button" className="studio-utility-action" onClick={()=>directoryInputRef.current?.click()}>browse folder</button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Preset Settings Panel - Always Visible */}
-      <div style={{
-        padding: isMobile ? '0 0.5rem' : '0 2rem',
-        marginTop: '0.25rem',
-      }}>
-        <MultisamplePresetSettings />
       </div>
 
-      {/* Audio Processing */}
-      <div style={{
-        padding: isMobile ? '0 0.5rem' : '0 2rem',
-        marginTop: '0.25rem',
-      }}>
+      <details className="studio-advanced-disclosure">
+        <summary>Preset and performance settings <span>{state.multisampleSettings.playmode} · transpose {state.multisampleSettings.transpose} · volume {state.multisampleSettings.volume}%</span></summary>
+        <div>
+        <MultisamplePresetSettings />
+        </div>
+      </details>
+
+      <details className="studio-advanced-disclosure">
+        <summary>Audio output and processing <span>{state.multisampleSettings.audioFormat.toUpperCase()} · {state.multisampleSettings.sampleRate/1000} kHz · {state.multisampleSettings.bitDepth}-bit · {state.multisampleSettings.channels===1?'mono':state.multisampleSettings.channels===2?'stereo':'original channels'}</span></summary>
+        <div>
         <AudioProcessingSection
           type="multisample"
           sampleRate={state.multisampleSettings.sampleRate}
@@ -758,36 +505,8 @@ export function MultisampleTool() {
           onCutAtLoopEndChange={handleCutAtLoopEndChange}
           onResetAudioSettingsConfirm={handleResetAudioSettingsConfirm}
         />
-      </div>
-
-      {/* Footer - Generate Preset */}
-      <div style={{
-        padding: isMobile ? '0 0.5rem' : '0 2rem',
-        marginTop: '0.25rem',
-      }}>
-        <GeneratePresetSection
-          type="multisample"
-          hasLoadedSamples={hasLoadedSamples}
-          hasPresetName={hasPresetName}
-          canGeneratePatch={canGeneratePatch}
-          loadedSamplesCount={state.multisampleFiles.length}
-          editedSamplesCount={0} // Multisample doesn't have individual sample editing yet
-          presetName={state.multisampleSettings.presetName}
-          onPresetNameChange={handlePresetNameChange}
-          hasChangesFromDefaults={hasChangesFromDefaults}
-          onResetAll={handleResetAll}
-          onSaveToLibrary={handleSaveToLibrary}
-          onDownloadPreset={handleDownloadPreset}
-          onSaveSettingsAsDefault={handleSaveSettingsAsDefault}
-          inputId="preset-name-multi"
-          renameFiles={state.multisampleSettings.renameFiles}
-          onRenameFilesChange={(enabled) => dispatch({ type: 'SET_MULTISAMPLE_RENAME_FILES', payload: enabled })}
-          filenameSeparator={state.multisampleSettings.filenameSeparator}
-          onFilenameSeparatorChange={(separator) => dispatch({ type: 'SET_MULTISAMPLE_FILENAME_SEPARATOR', payload: separator })}
-          audioFormat={state.multisampleSettings.audioFormat}
-          onAudioFormatChange={(format) => dispatch({ type: 'SET_MULTISAMPLE_AUDIO_FORMAT', payload: format })}
-        />
-      </div>
+        </div>
+      </details>
 
       {/* Confirmation Modal */}
       <ConfirmationModal
@@ -801,7 +520,9 @@ export function MultisampleTool() {
       <RecordingModal
         isOpen={recordingModal.isOpen}
         onClose={handleCloseRecording}
-        onSave={handleSaveRecording}
+        instrument="multisample"
+        target={recordingModal.target}
+        guidedIntent={recordingModal.guidedIntent}
         maxDuration={20}
       />
 

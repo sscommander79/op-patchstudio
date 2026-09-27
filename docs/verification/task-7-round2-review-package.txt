@@ -1,0 +1,210 @@
+Task7 round2 scoped diff. Source/e2e frozen.
+Changed files:
+src/components/common/AudioImportProvider.tsx
+src/test/components/AudioImportProvider.test.tsx
+src/test/context/presetImportApplication.test.tsx
+src/test/utils/projectArchive.test.ts
+src/utils/projectArchive.ts
+
+--- before/src/components/common/AudioImportProvider.tsx
++++ after/src/components/common/AudioImportProvider.tsx
+@@ -30,7 +30,7 @@
+       const requestedPads=new Map<string,number>();resolved.files.forEach((record,index)=>{const pad=intent.drumPads?.[record.sourceOrdinal??index];if(pad!==undefined)requestedPads.set(record.id,pad);});
+       const explicitPads=new Map<string,number>(),reservedPads=new Set<number>();
+       if(intent.instrument==='drum')for(const asset of prepared.assets){const pad=requestedPads.get(asset.id);if(pad!==undefined&&Number.isInteger(pad)&&pad>=0&&pad<24&&!occupiedDrums[pad]?.isLoaded&&!reservedPads.has(pad)){explicitPads.set(asset.id,pad);reservedPads.add(pad);}}
+-      const suggestedAssets=prepared.assets.filter(asset=>!explicitPads.has(asset.id));const suggested=proposeDrumDestinations(suggestedAssets,occupiedDrums,reservedPads);const proposals=new Map(suggested.map(item=>[item.id,item]));
++      const suggestedAssets=prepared.assets.filter(asset=>!requestedPads.has(asset.id));const suggested=proposeDrumDestinations(suggestedAssets,occupiedDrums,reservedPads);const proposals=new Map(suggested.map(item=>[item.id,item]));
+       const usedRoots=new Set(stateRef.current.multisampleFiles.map(file=>file.rootNote));const reservedRoots=new Set<number>();
+       const rows=prepared.assets.map((asset,index):ReviewRow=>{if(intent.instrument==='drum'){const requested=requestedPads.get(asset.id),explicit=explicitPads.get(asset.id),proposal=proposals.get(asset.id);const proposed=explicit??proposal?.destination??null;const available=proposed!==null&&!occupiedDrums[proposed]?.isLoaded;
+           return {asset,reason:requested!==undefined?(explicit!==undefined?'chosen drop pad':'chosen drop pad is occupied or already reserved; kept unassigned'):(proposal?.reason??'no confident filename match'),destination:available?`pad:${proposed}`:'unassigned',rootNote:60,include:true};}
+--- before/src/test/components/AudioImportProvider.test.tsx
++++ after/src/test/components/AudioImportProvider.test.tsx
+@@ -2,7 +2,7 @@
+ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+ import {render,screen,waitFor} from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+-import {AppContextProvider,useAppContext} from '../../context/AppContext';
++import {AppContextProvider,useAppContext,useProjectHistory} from '../../context/AppContext';
+ import {useAudioImport} from '../../components/common/AudioImportContext';
+ import {AudioImportProvider} from '../../components/common/AudioImportProvider';
+ 
+@@ -14,13 +14,15 @@
+ 
+ function buffer(value=.2){const result=new AudioContext().createBuffer(1,8,8_000);result.getChannelData(0).fill(value);return result;}
+ function metadata(audioBuffer:AudioBuffer){return {format:'wav' as const,sampleRate:8_000,sourceSampleRate:8_000,bitDepth:16,channels:1,sourceChannels:1,duration:audioBuffer.duration,audioBuffer,fileSize:1,midiNote:-1,loopStart:0,loopEnd:audioBuffer.duration,hasLoopData:false};}
+-function Harness({occupied=false}:{occupied?:boolean}){const intake=useAudioImport();const {dispatch}=useAppContext();
++function Harness({occupied=false}:{occupied?:boolean}){const intake=useAudioImport();const {state,dispatch}=useAppContext();const {canUndo}=useProjectHistory();
+   return <><button onClick={()=>intake?.beginFiles([new File(['new'],'kick.wav')],{instrument:'drum',drumPads:[0]})}>Start import</button>
+     <button onClick={()=>intake?.beginFiles([new File(['texture'],'texture.wav'),new File(['kick'],'kick.wav')],{instrument:'drum',drumPads:[0]})}>Start explicit batch</button>
+     <button onClick={()=>intake?.beginFiles([new File(['texture'],'texture.wav'),new File([], 'empty.wav'),new File(['kick'],'kick.wav')],{instrument:'drum',drumPads:[0,1,2]})}>Start batch with rejection</button>
+     <button onClick={()=>dispatch({type:'BUMP_PROJECT_GENERATION'})}>Replace project</button>
+     {occupied&&<><button onClick={()=>{const audioBuffer=buffer(.7);dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:0,file:new File(['old'],'old.wav'),audioBuffer,metadata:metadata(audioBuffer)}})}}>Load occupied</button>
+       <button onClick={()=>{const audioBuffer=buffer(.9);dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:0,updates:{file:new File(['changed'],'changed.wav'),audioBuffer}}})}}>Change target</button></>}
++    <button onClick={()=>dispatch({type:'UNDO'})}>Undo</button>
++    <output aria-label="drum state">{JSON.stringify({pad0:state.drumSamples[0]?.file?.name,loaded:state.drumSamples.filter(sample=>sample?.isLoaded).map(sample=>sample.file?.name),canUndo})}</output>
+   </>}
+ function MultiHarness(){const intake=useAudioImport();const {state,dispatch}=useAppContext();const load=(rootNote:number,name:string)=>{const audioBuffer=buffer(.4);return {type:'LOAD_MULTISAMPLE_FILE' as const,payload:{file:new File([name],name),audioBuffer,metadata:{...metadata(audioBuffer),midiNote:rootNote},rootNoteOverride:rootNote}}};
+   return <><button onClick={()=>dispatch({type:'BATCH_EDIT',payload:Array.from({length:23},(_,note)=>load(note,`old-${note}.wav`))})}>Load 23</button>
+@@ -61,6 +63,20 @@
+     await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Import audio'})).not.toBeInTheDocument());
+   });
+ 
++  it('keeps an occupied explicit pad request unassigned through Apply and Undo',async()=>{
++    mocked.prepare.mockImplementation(async(records:Array<{id:string;path:string;file:File}>)=>{const record=records[0],audioBuffer=buffer();return {instrument:'drum',expectedProjectGeneration:0,assets:[{...record,sourceIdentity:'source-new',audioBuffer,metadata:metadata(audioBuffer)}],rejected:[],excess:[]};});
++    const user=userEvent.setup();setup(true);await user.click(screen.getByRole('button',{name:'Load occupied'}));await user.click(screen.getByRole('button',{name:'Start import'}));
++    expect(await screen.findByRole('combobox',{name:'Destination for kick.wav'})).toHaveValue('unassigned');
++    expect(screen.getByRole('dialog',{name:'Import audio'})).toHaveTextContent(/chosen drop pad is occupied or already reserved; kept unassigned/i);
++    await user.click(screen.getByRole('button',{name:'Apply import'}));
++    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Import audio'})).not.toBeInTheDocument());
++    expect(screen.getByLabelText('drum state')).toHaveTextContent('"pad0":"old.wav"');
++    expect(screen.getByLabelText('drum state')).toHaveTextContent('"loaded":["old.wav","kick.wav"]');
++    await user.click(screen.getByRole('button',{name:'Undo'}));
++    await waitFor(()=>expect(screen.getByLabelText('drum state')).toHaveTextContent('"loaded":["old.wav"]'));
++    expect(screen.getByLabelText('drum state')).toHaveTextContent('"pad0":"old.wav"');
++  });
++
+   it('keeps explicit file-to-pad intent aligned across rejected batch entries',async()=>{
+     mocked.prepare.mockImplementation(async(records:Array<{id:string;path:string;file:File}>)=>{
+       const assets=records.map((record,index)=>{const audioBuffer=buffer();return {...record,sourceIdentity:`source-${index}`,audioBuffer,metadata:metadata(audioBuffer)}});
+--- before/src/test/context/presetImportApplication.test.tsx
++++ after/src/test/context/presetImportApplication.test.tsx
+@@ -1,6 +1,6 @@
+ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+-import { AppContextProvider, appReducer, initialState, useAppContext } from '../../context/AppContext';
++import { AppContextProvider, appReducer, initialState, useAppContext, useProjectHistory } from '../../context/AppContext';
+ import type { ImportResult } from '../../utils/presetImport';
+ 
+ const mocks=vi.hoisted(()=>({importPresetFromFile:vi.fn()}));
+@@ -12,15 +12,17 @@
+ function deferred<T>() {let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done});return {promise,resolve};}
+ function Harness() {
+   const {state,dispatch,importPresetFile}=useAppContext();
++  const {canUndo}=useProjectHistory();
+   return <>
+     <button onClick={()=>void importPresetFile!(new File(['{}'],'drum.json'),'drum')}>drum import</button>
+     <button onClick={()=>void importPresetFile!(new File(['{}'],'multi.json'),'multisample')}>multi import</button>
+     <button onClick={()=>dispatch({type:'BUMP_PROJECT_GENERATION'})}>replace project</button>
++    <button onClick={()=>{const audioBuffer=new AudioContext().createBuffer(1,8,8_000);dispatch({type:'LOAD_MULTISAMPLE_FILE',payload:{file:new File(['match'],'match.wav'),audioBuffer,metadata:{format:'wav',sampleRate:8_000,sourceSampleRate:8_000,bitDepth:16,channels:1,sourceChannels:1,duration:audioBuffer.duration,audioBuffer,fileSize:5,midiNote:60,loopStart:0,loopEnd:audioBuffer.duration,hasLoopData:false},rootNoteOverride:60}})}}>load match</button>
+     <button onClick={()=>dispatch({type:'UNDO'})}>undo</button>
+-    <output data-testid="state">{JSON.stringify({generation:state.projectGeneration,drum:state.importedDrumPreset,multi:state.importedMultisamplePreset,playmode:state.drumSettings.presetSettings.playmode})}</output>
++    <output data-testid="state">{JSON.stringify({generation:state.projectGeneration,drum:state.importedDrumPreset,multi:state.importedMultisamplePreset,playmode:state.drumSettings.presetSettings.playmode,multiCount:state.multisampleFiles.length,crossfade:state.multisampleFiles[0]?.loopCrossfade,canUndo,notification:state.notifications.at(-1)})}</output>
+   </>;
+ }
+-const read=()=>JSON.parse(screen.getByTestId('state').textContent||'{}') as {generation:number;drum:unknown;multi:unknown;playmode:string};
++const read=()=>JSON.parse(screen.getByTestId('state').textContent||'{}') as {generation:number;drum:unknown;multi:unknown;playmode:string;multiCount:number;crossfade:unknown;canUndo:boolean;notification?:{type:string;message:string}};
+ 
+ describe('guarded preset settings import',()=>{
+   beforeEach(()=>mocks.importPresetFromFile.mockReset());
+@@ -70,4 +72,19 @@
+     expect(result.importedMultisamplePreset).toBe(retained);
+     expect(result.notifications.at(-1)).toMatchObject({type:'error',title:'import failed'});
+   });
++
++  it('rejects invalid derived crossfade provenance without adding an undo step',async()=>{
++    mocks.importPresetFromFile.mockResolvedValue({success:true,data:{type:'multisampler',regions:[{sample:'match.wav',framecount:8,'loop.crossfade':0.5}]}});
++    render(<AppContextProvider><Harness/></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'load match'}));
++    await waitFor(()=>expect(read().multiCount).toBe(1));
++    expect(read().canUndo).toBe(true);
++    fireEvent.click(screen.getByRole('button',{name:'multi import'}));
++    await waitFor(()=>expect(read().notification).toMatchObject({type:'error',message:expect.stringMatching(/crossfade/i)}));
++    expect(read().multi).toBeNull();
++    expect(read().crossfade).toBeUndefined();
++    fireEvent.click(screen.getByRole('button',{name:'undo'}));
++    await waitFor(()=>expect(read().multiCount).toBe(0));
++    expect(read().canUndo).toBe(false);
++  });
+ });
+--- before/src/test/utils/projectArchive.test.ts
++++ after/src/test/utils/projectArchive.test.ts
+@@ -80,6 +80,34 @@
+     expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(state))).not.toThrow();
+     const restored=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(state)));
+     expect((restored.importedDrumPreset as {payload:string}).payload).toHaveLength(1_040_000);
++  });
++
++  it('rejects invalid imported crossfade provenance before commit while the current project remains portable',async()=>{
++    const state=projectState(),buffer=audio([new Array(8).fill(0)],8_000);
++    state.multisampleFiles=[{...loadedMulti('match.wav',buffer,[1,2,3]),loopCrossfade:undefined}];
++    state.importedMultisamplePreset=null;
++    const pending=appReducer(state,{type:'BEGIN_PRESET_IMPORT',payload:{operationId:'fractional-crossfade'}});
++    const result=appReducer(pending,{type:'COMMIT_PRESET_IMPORT',payload:{operationId:'fractional-crossfade',instrument:'multisample',result:{success:true,data:{type:'multisampler',regions:[{sample:'match.wav',framecount:8,'loop.crossfade':0.5}]}}}});
++    expect(result.importedMultisamplePreset).toBeNull();
++    expect(result.multisampleFiles).toBe(state.multisampleFiles);
++    expect(result.multisampleFiles[0].loopCrossfade).toBeUndefined();
++    expect(result.notifications.at(-1)).toMatchObject({type:'error',title:'import failed',message:expect.stringMatching(/crossfade/i)});
++    const restored=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(result)));
++    expect(restored.multisampleFiles[0].loopCrossfade).toBeUndefined();
++  });
++
++  it('admits and round trips valid integer imported crossfade provenance',async()=>{
++    const state=projectState(),buffer=audio([new Array(8).fill(0)],8_000);
++    state.multisampleFiles=[{...loadedMulti('match.wav',buffer,[1,2,3]),loopCrossfade:undefined}];
++    state.importedMultisamplePreset=null;
++    const readPcm=vi.spyOn(buffer,'getChannelData');
++    const pending=appReducer(state,{type:'BEGIN_PRESET_IMPORT',payload:{operationId:'integer-crossfade'}});
++    const result=appReducer(pending,{type:'COMMIT_PRESET_IMPORT',payload:{operationId:'integer-crossfade',instrument:'multisample',result:{success:true,data:{type:'multisampler',regions:[{sample:'match.wav',framecount:8,'loop.crossfade':4}]}}}});
++    expect(result.notifications.at(-1)).toMatchObject({type:'success',title:'settings imported'});
++    expect(result.multisampleFiles[0].loopCrossfade).toEqual({fraction:.5,importedRaw:4,importedFramecount:8,sourceIdentity:'match.wav'});
++    expect(readPcm).not.toHaveBeenCalled();
++    const restored=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(result)));
++    expect(restored.multisampleFiles[0].loopCrossfade).toEqual({fraction:.5,importedRaw:4,importedFramecount:8,sourceIdentity:'match.wav'});
+   });
+ 
+   it('rejects complete-manifest byte, key, and wrapped-depth overflow before export',()=>{
+--- before/src/utils/projectArchive.ts
++++ after/src/utils/projectArchive.ts
+@@ -213,7 +213,13 @@
+   }
+ }
+ 
+-function validateManifest(raw:unknown,entries:Map<string,ZipEntryInfo>):ArchiveManifestV1 {
++interface ManifestMetadataValidation {
++  manifest:ArchiveManifestV1;
++  expected:Set<string>;
++}
++
++/** Validate every manifest rule that does not require reading ZIP entry bytes. */
++function validateManifestMetadata(raw:unknown):ManifestMetadataValidation {
+   if(!isRecord(raw) || raw.format!=='op-patchstudio-project') throw new Error('This is not an OP-PatchStudio project');
+   if(raw.version!==PROJECT_ARCHIVE_VERSION) throw new Error(`Unsupported project archive version: ${String(raw.version)}`);
+   if(!isRecord(raw.project) || !Array.isArray(raw.samples) || raw.samples.length>PROJECT_ARCHIVE_LIMITS.samples) throw new Error('Invalid project archive manifest');
+@@ -245,15 +251,22 @@
+   const referenced=new Map<string,number>();
+   for(const ref of [...raw.project.drumSamples,...raw.project.multisampleFiles]) referenced.set(ref.sampleId,(referenced.get(ref.sampleId)??0)+1);
+   for(const id of sampleIds) if(!referenced.has(id)) throw new Error(`Unreferenced sample entry: ${id}`);
++  let decodedAudioBytes=0;
++  for(const sample of raw.samples as unknown as ArchiveSample[]) {
++    decodedAudioBytes+=sample.audio.bytes*(referenced.get(sample.id)??0);
++    if(!Number.isSafeInteger(decodedAudioBytes) || decodedAudioBytes>PROJECT_ARCHIVE_LIMITS.decodedAudioBytes) throw new Error('Project decoded audio is too large');
++  }
++  return {manifest:raw as unknown as ArchiveManifestV1,expected};
++}
++
++function validateManifest(raw:unknown,entries:Map<string,ZipEntryInfo>):ArchiveManifestV1 {
++  const {manifest,expected}=validateManifestMetadata(raw);
+   for(const name of entries.keys()) if(!entries.get(name)!.directory && !expected.has(name)) throw new Error(`Unexpected archive entry: ${name}`);
+   for(const path of expected) if(!entries.has(path) || entries.get(path)!.directory) throw new Error(`Missing archive entry: ${path}`);
+-  let decodedAudioBytes=0;
+-  for(const sample of raw.samples as unknown as ArchiveSample[]) {
++  for(const sample of manifest.samples) {
+     if(entries.get(sample.audioPath)!.uncompressedSize!==sample.audio.bytes) throw new Error(`Audio entry size mismatch: ${sample.name}`);
+-    decodedAudioBytes+=sample.audio.bytes*(referenced.get(sample.id)??0);
+-    if(!Number.isSafeInteger(decodedAudioBytes) || decodedAudioBytes>PROJECT_ARCHIVE_LIMITS.decodedAudioBytes) throw new Error('Project decoded audio is too large');
+-  }
+-  return raw as unknown as ArchiveManifestV1;
++  }
++  return manifest;
+ }
+ 
+ async function blobBytes(blob:Blob):Promise<Uint8Array> {
+@@ -274,7 +287,7 @@
+       audio:{bytes:24+4*audio.numberOfChannels*audio.length,channels:audio.numberOfChannels,frames:audio.length,sampleRate:audio.sampleRate}};});
+   const manifest:ArchiveManifestV1={format:'op-patchstudio-project',version:1,project:archiveProject(session),samples:manifestSamples};
+   encodeManifest(manifest);
+-  validateSettings(manifest.project as unknown as JsonRecord);
++  validateManifestMetadata(manifest);
+ }
+ 
+ export async function exportProjectArchive(snapshot:ProjectSnapshot):Promise<Blob> {

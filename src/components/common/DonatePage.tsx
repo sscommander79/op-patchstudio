@@ -11,7 +11,7 @@ export function DonatePage() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -27,8 +27,7 @@ export function DonatePage() {
           setPatreonPosts(posts);
           setIsLoadingPosts(false);
         })
-        .catch(error => {
-          console.error('Failed to load Patreon posts:', error);
+        .catch(() => {
           setIsLoadingPosts(false);
           setHasError(true);
         });
@@ -58,7 +57,7 @@ export function DonatePage() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
             <h3 style={{
               margin: 0,
-              color: '#222',
+              color: 'var(--color-text-primary)',
               fontSize: '1.25rem',
               fontWeight: 300,
             }}>
@@ -68,7 +67,7 @@ export function DonatePage() {
         </div>
 
         {/* Content */}
-        <div style={{ 
+        <div style={{
           padding: isMobile ? '1rem' : '2rem',
         }}>
           <div style={{
@@ -82,18 +81,18 @@ export function DonatePage() {
               lineHeight: 1.6,
               marginBottom: '2rem'
             }}>
-              OP-PatchStudio is a 100% free and <a href="https://github.com/joseph-holland/op-patchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>open-source</a> tool for creating and editing drum and multisample presets for the OP-XY (more devices coming soon).<br/><br/>
-              most features have come from community ideas and requests. by joining the <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>project patreon</a>, you'll get behind-the-scenes updates, voting rights on roadmap features, priority support, exclusive content, tutorials and early access to preview features.<br/><br/>
-              your support helps cover the cost of coding tools and services that make rapid development of new features and support possible.
+              OP-PatchStudio is a 100% free and <a href="https://github.com/sscommander79/op-patchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>open-source</a> tool for creating and editing drum and multisample presets for the OP-XY.<br/><br/>
+              most features have come from community ideas and requests. Joseph Holland's <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>project Patreon</a> shares behind-the-scenes updates, roadmap voting, priority support, exclusive content, tutorials and early access to preview features.<br/><br/>
+              these support links benefit the original project's creator, Joseph Holland, and help fund his continued project work.
             </p>
-            
+
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
               alignItems: 'center'
             }}>
-              <a 
+              <a
                 href="https://www.patreon.com/c/oppatchstudio"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -122,8 +121,8 @@ export function DonatePage() {
                 <i className="fab fa-patreon" style={{ fontSize: '1.2rem' }}></i>
                 support on patreon
               </a>
-              
-              <a 
+
+              <a
                 href="https://buymeacoffee.com/jxavierh"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -151,13 +150,13 @@ export function DonatePage() {
                 }}
               >
                 <i className="fas fa-coffee" style={{ fontSize: '1.2rem' }}></i>
-                buy me a coffee
+                buy Joseph a coffee
               </a>
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Latest Posts Section */}
       <div style={{
         background: 'var(--color-bg-primary)',
@@ -179,7 +178,7 @@ export function DonatePage() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
             <h3 style={{
               margin: 0,
-              color: '#222',
+              color: 'var(--color-text-primary)',
               fontSize: '1.25rem',
               fontWeight: 300,
             }}>
@@ -189,7 +188,7 @@ export function DonatePage() {
         </div>
 
         {/* Content */}
-        <div style={{ 
+        <div style={{
           padding: isMobile ? '1rem' : '2rem',
         }}>
           {isLoadingPosts ? (
@@ -206,7 +205,10 @@ export function DonatePage() {
               color: 'var(--color-text-secondary)',
               fontSize: '1rem'
             }}>
-              failed to load posts
+              Live Patreon posts are unavailable.{' '}
+              <a href="https://www.patreon.com/c/oppatchstudio/posts" target="_blank" rel="noopener noreferrer">
+                View posts directly on Patreon.
+              </a>
             </div>
           ) : patreonPosts.length > 0 ? (
             <div style={{
@@ -229,15 +231,16 @@ export function DonatePage() {
                   }}>
                     {post.title}
                   </h4>
-                  <div 
+                  <p
                     style={{
                       margin: '0 0 1rem 0',
                       color: 'var(--color-text-secondary)',
                       fontSize: '0.9rem',
                       lineHeight: 1.5
                     }}
-                    dangerouslySetInnerHTML={{ __html: post.excerpt }}
-                  />
+                  >
+                    {post.excerpt}
+                  </p>
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -249,7 +252,7 @@ export function DonatePage() {
                     }}>
                       {post.date}
                     </span>
-                    <a 
+                    <a
                       href={post.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -271,12 +274,12 @@ export function DonatePage() {
                   </div>
                 </div>
               ))}
-              
+
               <div style={{
                 textAlign: 'center',
                 marginTop: '1rem'
               }}>
-                <a 
+                <a
                   href="https://www.patreon.com/c/oppatchstudio/posts"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -319,4 +322,4 @@ export function DonatePage() {
       </div>
     </>
   );
-} 
+}

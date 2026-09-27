@@ -1,0 +1,276 @@
+Task6 round2, uncommitted bounded diff.
+--- before/src/audio/recording/captureSession.ts
++++ after/src/audio/recording/captureSession.ts
+@@ -176,21 +176,21 @@
+       });
+       if(generation!==this.generation||this.disposed)return;
+       ++this.generation;await this.releaseGraph(false);
+       if(!this.disposed)this.setStatus({state:this.flushTimedOut||this.terminalError?'error':'stopped'});
+     })();
+     this.stopOperation=operation;
+     void operation.finally(()=>{if(this.stopOperation===operation)this.stopOperation=undefined;});
+     return operation;
+   }
+ 
+-  async dispose() {if(this.disposed)return;this.disposed=true;++this.generation;this.forceStopResolver?.();await this.releaseGraph(true);this.setStatus({state:'closed'});}
++  async dispose() {if(this.disposed)return;this.disposed=true;const generation=++this.generation;this.forceStopResolver?.();await this.releaseGraph(true);if(generation===this.generation&&this.disposed)this.setStatus({state:'closed'});}
+ 
+   private async handleMessage(data:ProcessorMessage,generation:number) {
+     if(generation!==this.generation||this.disposed)return;
+     if(data?.type==='stopped'){this.processorStopped=true;if(this.status.state==='capacity-full'){++this.generation;await this.releaseGraph(false);}this.stopResolver?.();return;}
+     if(data?.type==='error'){await this.fail(data.message||'Capture processor failed');return;}
+     if(data?.type==='format'){
+       if(data.channels<1||data.channels>2||data.sampleRate!==this.context?.sampleRate){await this.fail('The input changed to an unsupported capture format.');return;}
+       this.setStatus({...this.status,sampleRate:data.sampleRate,channels:data.channels});return;
+     }
+     if(data?.type==='meter'){
+@@ -231,26 +231,27 @@
+     }
+   }
+ 
+   private reject(message:string){this.setStatus({state:'error'});this.deps.onError?.(message);return false;}
+   private async fail(message:string){this.terminalError=true;this.deps.onError?.(message);++this.generation;this.processorStopped=true;this.setStatus({state:'error'});this.forceStopResolver?.();await this.releaseGraph(true);}
+   private setStatus(status:CaptureStatus){this.status=status;this.deps.onStatus?.(status);}
+   private reservationBytes(rate:number,channels:number){const maxFrames=Math.floor((this.deps.capture?.maxSeconds??20)*rate),ringFrames=Math.round((this.deps.capture?.preRollSeconds??.25)*rate);
+     const maxPcm=maxFrames*channels*4,ring=ringFrames*channels*4;return ring+5*maxPcm+48;}
+   private async releaseGraph(closePort:boolean) {
+     const clear=this.deps.clearTimer??clearTimeout;if(this.stopTimer){clear(this.stopTimer);this.stopTimer=undefined;}
+-    const attempt=this.setupAttempt;if(attempt)await this.releaseSetupAttempt(attempt);
+-    const node=this.node,source=this.source,track=this.track,context=this.context,stream=this.stream;
++    const attempt=this.setupAttempt,node=this.node,source=this.source,track=this.track,context=this.context,stream=this.stream;
+     this.node=this.source=this.track=this.context=this.stream=undefined;
++    const setupClosing=attempt?this.releaseSetupAttempt(attempt):undefined;
+     if(track)track.removeEventListener('ended',this.trackEnded);if(node)node.removeEventListener('processorerror',this.processorError);if(context)context.removeEventListener('statechange',this.contextState);
+     if(node){node.port.onmessage=null;if(closePort){try{node.port.postMessage({type:'close'});}catch{ /* already closed */ }}node.port.close();node.disconnect();}
+-    source?.disconnect();stopTracks(stream);if(context)await context.close().catch(()=>undefined);
++    source?.disconnect();stopTracks(stream);const contextClosing=context?context.close().catch(()=>undefined):undefined;
++    if(setupClosing&&contextClosing)await Promise.all([setupClosing,contextClosing]);else if(setupClosing)await setupClosing;else if(contextClosing)await contextClosing;
+   }
+   private async releaseSetupAttempt(attempt:SetupAttempt) {
+     if(attempt.released)return;
+     attempt.released=true;
+     if(this.setupAttempt===attempt)this.setupAttempt=undefined;
+     const stream=attempt.stream,context=attempt.context;attempt.stream=undefined;attempt.context=undefined;
+     stopTracks(stream);
+     if(context)await context.close().catch(()=>undefined);
+   }
+ }
+--- before/src/components/common/RecordingModal.tsx
++++ after/src/components/common/RecordingModal.tsx
+@@ -19,51 +19,54 @@
+   const [takes,setTakes]=useState<ReviewTake[]>([]),takesRef=useRef<ReviewTake[]>([]);
+   const [resolution,setResolution]=useState<Resolution>(''),[applying,setApplying]=useState(false),[previewActive,setPreviewActive]=useState(false);
+   const sessionRef=useRef<CaptureSession|undefined>(undefined),previewRef=useRef<{context:AudioContext;source:AudioBufferSourceNode;id:string}|undefined>(undefined),operationRef=useRef<string|undefined>(undefined),generationRef=useRef(0),applyGenerationRef=useRef(0),applyAbortRef=useRef<AbortController|undefined>(undefined),previewGenerationRef=useRef(0),pendingPreviewContextsRef=useRef(new Set<AudioContext>()),stateRef=useRef(state);
+   stateRef.current=state;
+   const updateTakes=useCallback((update:(current:ReviewTake[])=>ReviewTake[])=>{
+     const next=update(takesRef.current);takesRef.current=next;setTakes(next);
+   },[]);
+   const occupied=useMemo(()=>target.kind==='drum'&&target.padIndex!==undefined?state.drumSamples[target.padIndex]?.isLoaded:
+     target.kind==='multisample'&&target.rootNote!==undefined?state.multisampleFiles.some(file=>file.rootNote===target.rootNote):false,[state.drumSamples,state.multisampleFiles,target]);
+   const supported=!!navigator.mediaDevices?.getUserMedia&&typeof AudioContext!=='undefined'&&typeof AudioWorkletNode!=='undefined'&&window.isSecureContext!==false;
+-  const stopPreview=useCallback(async()=>{previewGenerationRef.current+=1;const owned=previewRef.current;previewRef.current=undefined;const pending=[...pendingPreviewContextsRef.current];pendingPreviewContextsRef.current.clear();setPreviewActive(false);
++  const releasePreview=useCallback(async(clearActive:boolean)=>{const owned=previewRef.current;previewRef.current=undefined;const pending=[...pendingPreviewContextsRef.current];pendingPreviewContextsRef.current.clear();if(clearActive)setPreviewActive(false);
+     if(owned){owned.source.onended=null;try{owned.source.stop();}catch{/* ended */}owned.source.disconnect();}
+     const closing=pending.map(context=>context.close().catch(()=>undefined));if(owned)closing.push(owned.context.close().catch(()=>undefined));await Promise.all(closing);},[]);
++  const stopPreview=useCallback(async()=>{previewGenerationRef.current+=1;await releasePreview(true);},[releasePreview]);
+   const dispose=useCallback(async()=>{const owned=sessionRef.current;sessionRef.current=undefined;await owned?.dispose();},[]);
+   const close=useCallback(()=>{generationRef.current+=1;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;setApplying(false);void stopPreview();void dispose();onClose();},[dispose,onClose,stopPreview]);
+   useEffect(()=>{if(!isOpen){applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;setApplying(false);void dispose();void stopPreview();return;}const generation=++generationRef.current;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;takesRef.current=[];setTakes([]);setStatus({state:'idle'});setError('');setFeedback('');setResolution('');setApplying(false);
+     const refresh=()=>{void navigator.mediaDevices?.enumerateDevices?.().then(items=>{if(generation===generationRef.current)setDevices(items.filter(item=>item.kind==='audioinput').map((item,index)=>({deviceId:item.deviceId,label:item.label||'Input '+(index+1)})));}).catch(()=>{if(generation===generationRef.current)setDevices([]);});};
+     refresh();navigator.mediaDevices?.addEventListener?.('devicechange',refresh);
+     return()=>{generationRef.current+=1;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;navigator.mediaDevices?.removeEventListener?.('devicechange',refresh);void dispose();void stopPreview();};},[dispose,isOpen,stopPreview]);
+   useEffect(()=>{const receipt=state.recordingCommitResult;if(!operationRef.current||receipt?.operationId!==operationRef.current)return;operationRef.current=undefined;setApplying(false);
+     if(receipt.status==='rejected'){setError(receipt.error||'The project changed. No takes were added.');return;}
+     const appliedIds=new Set(receipt.appliedIds||[]);updateTakes(current=>current.filter(take=>!appliedIds.has(take.id)));
+     const appliedCount=receipt.appliedIds?.length||0,overflow=receipt.overflowCount||0,retained=receipt.retainedIds?.length||0;
+     setFeedback(`${appliedCount} take${appliedCount===1?'':'s'} added${instrument==='drum'&&overflow?`; ${overflow} kept unassigned`:''}${retained?`; ${retained} retained in review`:''}.`);
+   },[instrument,state.recordingCommitResult,updateTakes]);
+   const usage=useCallback(()=>({count:takesRef.current.length,bytes:takesRef.current.reduce((sum,take)=>{const pcm=take.frames*take.channels*4;return sum+pcm+24+pcm;},0)}),[]);
+   const makeSession=(generation:number)=>new CaptureSession({mediaDevices:navigator.mediaDevices,workletUrl:captureWorkletUrl,
+     createContext:rate=>new AudioContext(rate?{sampleRate:rate}:undefined),createWorkletNode:(context,options)=>new AudioWorkletNode(context,'op-patchstudio-capture',options),
+     capture:{mode,thresholdDb,hysteresisDb,preRollSeconds:preRoll,silenceSeconds:silenceStop,rearmSeconds:.25,maxSeconds:durationLimit},getRetainedUsage:usage,
+     onStatus:value=>{if(generation===generationRef.current)setStatus(value);},onError:value=>{if(generation===generationRef.current)setError(value);},onTake:async take=>{if(generation!==generationRef.current)throw new DOMException('Recording closed','AbortError');const existing=takesRef.current;if(existing.length>=32)throw new Error('The review tray is full.');
+-      const explicitRoot=target.kind==='multisample'&&target.rootNote!==undefined&&existing.length===0?target.rootNote:undefined;
+-      const start=target.kind==='multisample'?(target.rootNote??60):60;
+-      const rootNote=explicitRoot??proposeUnusedRootNotes(stateRef.current.multisampleFiles,1,start,existing.map(item=>item.rootNote))[0];
+-      if(rootNote===undefined)throw new Error('All MIDI root notes are already reserved. Remove or apply a reviewed take before recording another.');
++      let rootNote=60;
++      if(instrument==='multisample'){
++        const explicitRoot=target.kind==='multisample'&&target.rootNote!==undefined&&existing.length===0?target.rootNote:undefined,start=target.kind==='multisample'?(target.rootNote??60):60;
++        const proposed=explicitRoot??proposeUnusedRootNotes(stateRef.current.multisampleFiles,1,start,existing.map(item=>item.rootNote))[0];
++        if(proposed===undefined)throw new Error('All MIDI root notes are already reserved. Remove or apply a reviewed take before recording another.');rootNote=proposed;
++      }
+       if(generation===generationRef.current)updateTakes(current=>[...current,{...take,name:'Take '+(current.length+1),selected:true,rootNote}]);}});
+   const enable=async()=>{if(!supported){setError('Recording requires a supported browser on HTTPS; import an audio file instead.');return;}const generation=generationRef.current;setError('');await stopPreview();if(generation!==generationRef.current)return;await dispose();if(generation!==generationRef.current)return;
+     const session=makeSession(generation);sessionRef.current=session;const enabled=await session.enableInput(deviceId);if(generation!==generationRef.current){await session.dispose();if(sessionRef.current===session)sessionRef.current=undefined;return;}if(enabled){const found=await session.enumerateInputs();if(generation===generationRef.current&&found.length)setDevices(found);}};
+   const start=async(kind:'start'|'arm')=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(!sessionRef.current)await enable();if(generation!==generationRef.current)return;try{if(kind==='arm')sessionRef.current?.arm();else sessionRef.current?.start();}catch(reason){setError(reason instanceof Error?reason.message:'Recording could not start.');}};
+   const stop=async()=>{const owned=sessionRef.current;if(!owned)return;await owned.stop();if(sessionRef.current===owned)sessionRef.current=undefined;};
+-  const audition=async(take:ReviewTake)=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(sessionRef.current&&['armed','recording','waiting-for-quiet'].includes(sessionRef.current.status.state))await stop();if(generation!==generationRef.current)return;
+-    const previewGeneration=previewGenerationRef.current,context=new AudioContext();pendingPreviewContextsRef.current.add(context);setPreviewActive(true);
++  const audition=async(take:ReviewTake)=>{const generation=generationRef.current,previewGeneration=++previewGenerationRef.current;setPreviewActive(true);await releasePreview(false);if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;if(sessionRef.current&&['armed','recording','waiting-for-quiet'].includes(sessionRef.current.status.state))await stop();if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;
++    const context=new AudioContext();pendingPreviewContextsRef.current.add(context);
+     try{await context.resume();pendingPreviewContextsRef.current.delete(context);if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current){await context.close().catch(()=>undefined);return;}const source=context.createBufferSource();source.buffer=take.audioBuffer;source.connect(context.destination);const owned={context,source,id:take.id};previewRef.current=owned;source.onended=()=>{if(previewRef.current!==owned)return;previewRef.current=undefined;source.onended=null;source.disconnect();setPreviewActive(false);void context.close().catch(()=>undefined);};source.start();}catch(reason){pendingPreviewContextsRef.current.delete(context);await context.close().catch(()=>undefined);if(generation===generationRef.current&&previewGeneration===previewGenerationRef.current)setError(reason instanceof Error?reason.message:'Preview could not start.');setPreviewActive(!!previewRef.current||pendingPreviewContextsRef.current.size>0);}};
+   const apply=async()=>{if(occupied&&!resolution){setError('Choose how to resolve the occupied recording target.');return;}if(resolution==='cancel')return;const generation=generationRef.current,applyGeneration=++applyGenerationRef.current;applyAbortRef.current?.abort();const controller=new AbortController();applyAbortRef.current=controller;setApplying(true);await stopPreview();if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;await stop();if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;const selected=takesRef.current.filter(take=>take.selected);if(!selected.length){if(applyGeneration===applyGenerationRef.current){applyAbortRef.current=undefined;setApplying(false);}return;}
+     const effective:RecordingTarget=target.kind==='drum'?(resolution==='choose-empty'?{kind:'drum',decision:'choose-empty'}:{...target,decision:resolution==='replace'?'replace':target.decision}):{...target,decision:resolution==='replace'?'replace':resolution==='choose-free'?'choose-free':target.decision};
+     setError('');try{const prepared=await prepareRecordingApplication({instrument,takes:selected.map((take,index)=>({id:take.id,name:take.name,audioBuffer:take.audioBuffer,rootNote:effective.kind==='multisample'&&effective.decision==='replace'&&index===0&&effective.rootNote!==undefined?effective.rootNote:take.rootNote})),state:stateRef.current,target:effective,signal:controller.signal});
+       if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;applyAbortRef.current=undefined;const operationId=crypto.randomUUID();operationRef.current=operationId;dispatch({type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId,prepared}});
+     }catch(reason){if(generation===generationRef.current&&applyGeneration===applyGenerationRef.current){applyAbortRef.current=undefined;setApplying(false);setError(reason instanceof Error?reason.message:'Takes could not be prepared.');}}};
+   if(!isOpen)return null;
+   const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current,used=usage();
+   return <div onMouseDown={event=>{if(event.target===event.currentTarget)close();}} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',display:'grid',placeItems:'center',padding:16}}>
+     <section role="dialog" aria-modal="true" aria-labelledby="record-takes-title" style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',overflow:'auto',padding:20,borderRadius:8}}>
+--- before/src/test/audio/recording/captureSession.test.ts
++++ after/src/test/audio/recording/captureSession.test.ts
+@@ -161,20 +161,29 @@
+ 
+   it('never lets a released setup continuation adopt or close a newer graph',async()=>{
+     const firstTrack=fakeTrack(),secondTrack=fakeTrack(),first=graph(firstTrack),second=graph(secondTrack),module=deferred<void>();first.context.audioWorklet.addModule=vi.fn(()=>module.promise);let mediaCall=0,contextCall=0;
+     const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>++mediaCall===1?first.stream:second.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+       createContext:()=>++contextCall===1?first.context as unknown as AudioContext:second.context as unknown as AudioContext,
+       createWorkletNode:()=>contextCall===1?first.node as unknown as AudioWorkletNode:second.node as unknown as AudioWorkletNode,workletUrl:'/capture.js'});
+     const stale=session.enableInput('');await vi.waitFor(()=>expect(first.context.audioWorklet.addModule).toHaveBeenCalled());const replacement=session.enableInput('');await expect(replacement).resolves.toBe(true);module.resolve();await expect(stale).resolves.toBe(false);
+     expect(firstTrack.stop).toHaveBeenCalledOnce();expect(first.context.close).toHaveBeenCalledOnce();expect(secondTrack.stop).not.toHaveBeenCalled();expect(second.context.close).not.toHaveBeenCalled();expect(session.status.state).toBe('monitoring');await session.dispose();
+   });
+ 
++  it('does not let a held stale setup cleanup close a replacement graph on the same session',async()=>{
++    const firstTrack=fakeTrack(),secondTrack=fakeTrack(),first=graph(firstTrack),second=graph(secondTrack),module=deferred<void>(),oldClose=deferred<void>();first.context.audioWorklet.addModule=vi.fn(()=>module.promise);first.context.close=vi.fn(()=>oldClose.promise);let mediaCall=0,contextCall=0;
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>++mediaCall===1?first.stream:second.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>++contextCall===1?first.context as unknown as AudioContext:second.context as unknown as AudioContext,
++      createWorkletNode:()=>contextCall===1?first.node as unknown as AudioWorkletNode:second.node as unknown as AudioWorkletNode,workletUrl:'/capture.js'});
++    const stale=session.enableInput('');await vi.waitFor(()=>expect(first.context.audioWorklet.addModule).toHaveBeenCalled());const disposing=session.dispose();await vi.waitFor(()=>expect(first.context.close).toHaveBeenCalledOnce());const replacement=session.enableInput('');await expect(replacement).resolves.toBe(true);expect(session.status.state).toBe('monitoring');
++    module.resolve();await expect(stale).resolves.toBe(false);oldClose.resolve();await disposing;expect(secondTrack.stop).not.toHaveBeenCalled();expect(second.context.close).not.toHaveBeenCalled();expect(session.status.state).toBe('monitoring');await session.dispose();
++  });
++
+   it('turns materialization failure into actionable cleanup and never acknowledges the take',async()=>{
+     const track=fakeTrack(),g=graph(track),onError=vi.fn();
+     const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+       createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,
+       workletUrl:'/capture.js',onError,onTake:async()=>{throw new Error('encoding broke')}});
+     await session.enableInput('');
+     g.port.onmessage?.({data:{type:'take',take:{frames:1,startFrame:0,endFrame:1,preRollFrames:0,reason:'manual',sampleRate:48_000,channels:[Float32Array.from([.5])]}}} as MessageEvent);
+     await Promise.resolve();await Promise.resolve();await Promise.resolve();
+     expect(onError).toHaveBeenCalledWith(expect.stringMatching(/encoding broke/i));expect(track.stop).toHaveBeenCalledOnce();
+     expect(g.port.postMessage).not.toHaveBeenCalledWith({type:'ack-take'});
+--- before/src/test/components/RecordingModal.test.tsx
++++ after/src/test/components/RecordingModal.test.tsx
+@@ -1,49 +1,51 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+-import { render, screen, waitFor } from '@testing-library/react';
++import { act, render, screen, waitFor } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { useEffect, useState } from 'react';
+-import { AppContextProvider, useAppContext } from '../../context/AppContext';
++import { AppContextProvider, initialState, useAppContext, type MultisampleFile } from '../../context/AppContext';
+ import { RecordingModal, type RecordingTarget } from '../../components/common/RecordingModal';
+ import type { SessionTake } from '../../audio/recording/captureSession';
+ 
+ vi.mock('../../audio/recording/captureProcessor.ts?worker&url',()=>({default:'/assets/capture-test.js'}));
+-let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined;
+-interface FakeDeps {onStatus:(status:{state:string})=>void;onTake:(take:SessionTake)=>void|Promise<void>}
++let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined,captureOnStart=true;
++interface FakeDeps {onStatus:(status:{state:string})=>void;onTake:(take:SessionTake)=>void|Promise<void>;onError?:(message:string)=>void}
+ const sessions:Array<{disposed:boolean;deps:FakeDeps}>=[];
+ vi.mock('../../audio/recording/captureSession',()=>({
+   RECORDING_LIMITS:{takes:32,ownedBytes:256*1024*1024,flushMs:500},
+   CaptureSession:class {
+     status={state:'idle'}; deps:FakeDeps;disposed=false;
+     constructor(deps:FakeDeps){this.deps=deps;sessions.push(this)}
+     async enableInput(){await enableGate;this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
+     async enumerateInputs(){return [{deviceId:'synthetic',label:'Synthetic input'}]}
+-    start(){this.status={state:'recording'};this.deps.onStatus(this.status);const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
+-      void this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'});this.status={state:'monitoring'};this.deps.onStatus(this.status);}
++    start(){this.status={state:'recording'};this.deps.onStatus(this.status);if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
++      void Promise.resolve(this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'})).catch(reason=>this.deps.onError?.(reason instanceof Error?reason.message:String(reason)));this.status={state:'monitoring'};this.deps.onStatus(this.status);}
+     arm(){this.start()} async stop(){await stopGate;this.status={state:'stopped'};this.deps.onStatus(this.status)} async dispose(){this.disposed=true;this.status={state:'closed'}}
+   }
+ }));
+ 
+ const OriginalAudioContext=globalThis.AudioContext;
+ function ProjectCount(){const {state}=useAppContext();return <><output aria-label="Loaded drum count">{state.drumSamples.filter(sample=>sample.isLoaded).length}</output><output aria-label="Loaded multisample count">{state.multisampleFiles.length}</output></>}
+ function Harness({instrument='drum',target=instrument==='drum'?{kind:'drum' as const}:{kind:'multisample' as const,rootNote:64}}:{instrument?:'drum'|'multisample';target?:RecordingTarget}) {
+   return <AppContextProvider><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={target}/></AppContextProvider>;
+ }
+ function ClosingHarness(){const [open,setOpen]=useState(true);return <AppContextProvider><ProjectCount/><RecordingModal isOpen={open} onClose={()=>setOpen(false)} instrument="drum" target={{kind:'drum'}}/></AppContextProvider>}
+ function ReopeningHarness(){const [open,setOpen]=useState(true);return <AppContextProvider><ProjectCount/><button onClick={()=>setOpen(true)}>Open recorder</button><RecordingModal isOpen={open} onClose={()=>setOpen(false)} instrument="drum" target={{kind:'drum'}}/></AppContextProvider>}
+ function SeedMultisample({rootNote}:{rootNote:number}){const {dispatch}=useAppContext();useEffect(()=>{const buffer=new OriginalAudioContext().createBuffer(1,2,8_000),file=new File(['seed'],`seed-${rootNote}.wav`);dispatch({type:'LOAD_MULTISAMPLE_FILE',payload:{file,audioBuffer:buffer,rootNoteOverride:rootNote,metadata:{format:'wav',sampleRate:8_000,bitDepth:16,channels:1,duration:buffer.duration,audioBuffer:buffer,fileSize:file.size,midiNote:rootNote,loopStart:0,loopEnd:0,hasLoopData:false}}});},[dispatch,rootNote]);return null}
+ function SeedFullDrums(){const {dispatch}=useAppContext();useEffect(()=>{for(let index=0;index<24;index+=1){const buffer=new OriginalAudioContext().createBuffer(1,2,8_000),file=new File(['seed'],`seed-${index}.wav`);dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index,updates:{file,audioBuffer:buffer,name:file.name,isLoaded:true,inPoint:0,outPoint:buffer.duration,fileSize:file.size,duration:buffer.duration}}});}},[dispatch]);return null}
+ function OccupiedMultisampleHarness(){return <AppContextProvider><SeedMultisample rootNote={64}/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument="multisample" target={{kind:'multisample',rootNote:64}}/></AppContextProvider>}
+ function FullDrumHarness(){return <AppContextProvider><SeedFullDrums/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument="drum" target={{kind:'drum'}}/></AppContextProvider>}
++function SeedLegacyRoots(){const {dispatch}=useAppContext();useEffect(()=>{const multisampleFiles:Array<MultisampleFile>=Array.from({length:128},(_,rootNote)=>{const audioBuffer=new OriginalAudioContext().createBuffer(1,1,8_000),file=new File([String(rootNote)],`legacy-${rootNote}.wav`);return {file,audioBuffer,name:file.name,isLoaded:true,rootNote,note:String(rootNote),inPoint:0,outPoint:audioBuffer.duration,loopStart:0,loopEnd:audioBuffer.duration,fileSize:file.size,duration:audioBuffer.duration};});dispatch({type:'RESTORE_SESSION',payload:{drumSettings:initialState.drumSettings,multisampleSettings:initialState.multisampleSettings,drumSamples:initialState.drumSamples.map((sample,originalIndex)=>({...sample,originalIndex})),multisampleFiles,selectedMultisample:null,isDrumKeyboardPinned:false,isMultisampleKeyboardPinned:false,importedDrumPreset:null,importedMultisamplePreset:null,midiNoteMapping:initialState.midiNoteMapping}});},[dispatch]);return null}
++function LegacyRootsHarness({instrument}:{instrument:'drum'|'multisample'}){return <AppContextProvider><SeedLegacyRoots/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={{kind:instrument}}/></AppContextProvider>}
+ 
+ describe('RecordingModal review workflow',()=>{
+-  beforeEach(()=>{sequence=0;enableGate=stopGate=undefined;sessions.length=0;Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true});Object.defineProperty(globalThis,'AudioWorkletNode',{value:class{},configurable:true});Object.defineProperty(window,'isSecureContext',{value:true,configurable:true});
++  beforeEach(()=>{sequence=0;enableGate=stopGate=undefined;captureOnStart=true;sessions.length=0;Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true});Object.defineProperty(globalThis,'AudioWorkletNode',{value:class{},configurable:true});Object.defineProperty(window,'isSecureContext',{value:true,configurable:true});
+     Object.assign(navigator.mediaDevices,{getUserMedia:vi.fn(),enumerateDevices:vi.fn().mockResolvedValue([]),addEventListener:vi.fn(),removeEventListener:vi.fn()});});
+   afterEach(()=>Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true}));
+ 
+   it('keeps distinct take IDs through rename/remove and applies the selected tray atomically',async()=>{
+     const user=userEvent.setup();render(<Harness/>);expect(screen.getByRole('dialog',{name:'Record takes'})).toBeInTheDocument();
+     await user.click(screen.getByRole('button',{name:'Enable input'}));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));
+     const names=await screen.findAllByLabelText(/Name for take/);expect(names).toHaveLength(2);
+     await user.clear(names[0]);await user.type(names[0],'Kick');const remove=screen.getAllByRole('button',{name:/Remove take/});await user.click(remove[1]);
+     expect(screen.getByRole('group',{name:/Take Kick take-1/})).toBeInTheDocument();
+     await user.click(screen.getByRole('button',{name:'Add selected takes'}));
+@@ -79,20 +81,34 @@
+     const user=userEvent.setup();render(<Harness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
+     const attempts:Array<{resolve:()=>void;close:ReturnType<typeof vi.fn>;source:{buffer:AudioBuffer|null;connect:ReturnType<typeof vi.fn>;disconnect:ReturnType<typeof vi.fn>;start:ReturnType<typeof vi.fn>;stop:ReturnType<typeof vi.fn>;onended:(()=>void)|null}}>=[];
+     class PreviewContext {destination={};close=vi.fn().mockResolvedValue(undefined);source={buffer:null as AudioBuffer|null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null as (()=>void)|null};resolve!:()=>void;resume=()=>new Promise<void>(resolve=>{this.resolve=resolve});createBufferSource=()=>this.source;constructor(){attempts.push(this)}}
+     Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});
+     await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(1));
+     await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(2));expect(attempts[0].close).toHaveBeenCalledOnce();
+     attempts[0].resolve();await Promise.resolve();expect(attempts[0].source.start).not.toHaveBeenCalled();attempts[1].resolve();await waitFor(()=>expect(attempts[1].source.start).toHaveBeenCalledOnce());
+     await user.click(screen.getByRole('button',{name:'Stop preview'}));expect(attempts[1].source.stop).toHaveBeenCalledOnce();expect(attempts[1].close).toHaveBeenCalledOnce();
+   });
+ 
++  it.each(['same take','different takes'])('gives only the latest %s audition a ticket while capture Stop is pending',async(kind)=>{
++    const user=userEvent.setup();render(<ClosingHarness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));captureOnStart=false;await user.click(screen.getByRole('button',{name:'Start recording'}));
++    let releaseStop!:()=>void;stopGate=new Promise<void>(resolve=>{releaseStop=resolve});const attempts:Array<{resolve:()=>void;close:ReturnType<typeof vi.fn>;source:{buffer:AudioBuffer|null;connect:ReturnType<typeof vi.fn>;disconnect:ReturnType<typeof vi.fn>;start:ReturnType<typeof vi.fn>;stop:ReturnType<typeof vi.fn>;onended:(()=>void)|null}}>=[];
++    class PreviewContext {destination={};close=vi.fn().mockResolvedValue(undefined);source={buffer:null as AudioBuffer|null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null as (()=>void)|null};resolve!:()=>void;resume=()=>new Promise<void>(resolve=>{this.resolve=resolve});createBufferSource=()=>this.source;constructor(){attempts.push(this)}}
++    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});const first=screen.getByRole('button',{name:'Audition take take-1'}),second=kind==='same take'?first:screen.getByRole('button',{name:'Audition take take-2'});await user.click(first);await user.click(second);expect(attempts).toHaveLength(0);releaseStop();
++    await waitFor(()=>expect(attempts.length).toBeGreaterThan(0));for(const attempt of [...attempts].reverse())attempt.resolve();await waitFor(()=>expect(attempts.reduce((count,attempt)=>count+attempt.source.start.mock.calls.length,0)).toBe(1));await user.click(screen.getByRole('button',{name:'Close'}));expect(attempts.every(attempt=>attempt.close.mock.calls.length>=1)).toBe(true);
++  });
++
++  it('cancels an audition waiting before context allocation with Stop preview',async()=>{
++    const user=userEvent.setup();render(<Harness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));captureOnStart=false;await user.click(screen.getByRole('button',{name:'Start recording'}));let releaseStop!:()=>void;stopGate=new Promise<void>(resolve=>{releaseStop=resolve});
++    const contexts=vi.fn(),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};class PreviewContext {constructor(){contexts()}destination={};resume=vi.fn().mockResolvedValue(undefined);close=vi.fn().mockResolvedValue(undefined);createBufferSource=vi.fn(()=>source)}
++    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await user.click(screen.getByRole('button',{name:'Stop preview'}));await act(async()=>{releaseStop();await Promise.resolve();await Promise.resolve();});expect(contexts).not.toHaveBeenCalled();
++  });
++
+   it('cancels a pending preview before starting capture',async()=>{
+     const user=userEvent.setup();render(<Harness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
+     let resolve!:()=>void;const close=vi.fn().mockResolvedValue(undefined),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
+     class PreviewContext {destination={};resume=()=>new Promise<void>(done=>{resolve=done});close=close;createBufferSource=()=>source}
+     Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Stop preview'})).toBeEnabled());
+     await user.click(screen.getByRole('button',{name:'Start recording'}));expect(close).toHaveBeenCalledOnce();resolve();await Promise.resolve();expect(source.start).not.toHaveBeenCalled();await screen.findByLabelText('Name for take take-2');
+   });
+ 
+   it('does not apply after Close wins a pending capture stop',async()=>{
+     let release!:()=>void;const user=userEvent.setup();render(<ClosingHarness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
+@@ -125,18 +141,26 @@
+     const user=userEvent.setup();render(<OccupiedMultisampleHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));
+     await user.click(screen.getByLabelText('Select take take-1'));await user.click(screen.getByRole('radio',{name:/Choose free note/}));expect(screen.getByLabelText('Root note for take take-2')).toHaveValue(65);
+     await user.click(screen.getByRole('radio',{name:'Replace'}));expect(screen.getByLabelText('Root note for take take-2')).toHaveValue(64);
+   });
+ 
+   it('reports full-kit recorded takes as added and kept unassigned',async()=>{
+     const user=userEvent.setup();render(<FullDrumHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('24'));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Add selected takes'}));
+     await waitFor(()=>expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('26'));expect(screen.getByText('2 takes added; 2 kept unassigned.')).toBeInTheDocument();
+   });
+ 
++  it('accepts a drum take when every MIDI root is occupied and preserves all legacy multisamples',async()=>{
++    const user=userEvent.setup();render(<LegacyRootsHarness instrument="drum"/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('128'));await user.click(screen.getByRole('button',{name:'Start recording'}));expect(await screen.findAllByLabelText(/Name for take/)).toHaveLength(1);await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('1'));expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('128');
++  });
++
++  it('keeps MIDI-root exhaustion visible for multisample capture',async()=>{
++    const user=userEvent.setup();render(<LegacyRootsHarness instrument="multisample"/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('128'));await user.click(screen.getByRole('button',{name:'Start recording'}));expect(await screen.findByRole('alert')).toHaveTextContent(/All MIDI root notes are already reserved/);expect(screen.queryAllByLabelText(/Name for take/)).toHaveLength(0);
++  });
++
+   it('shows the bounded file-import fallback when worklet capture is unavailable',async()=>{
+     Object.defineProperty(globalThis,'AudioWorkletNode',{value:undefined,configurable:true});const rendered=render(<Harness/>);
+     expect(await screen.findByRole('alert')).toHaveTextContent('Recording requires a supported browser on HTTPS; import an audio file instead.');
+     await waitFor(()=>expect(navigator.mediaDevices.enumerateDevices).toHaveBeenCalled());
+     expect(screen.getByRole('button',{name:'Stop recording'})).toBeInTheDocument();
+     expect(navigator.mediaDevices.addEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));rendered.unmount();expect(navigator.mediaDevices.removeEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));
+   });
+ });

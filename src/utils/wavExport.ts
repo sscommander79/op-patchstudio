@@ -1,43 +1,10 @@
 // WAV export utilities
 // Handles WAV file generation with SMPL chunk support for loop points and root notes
 
+import { normalizeFrameRange } from './loopEditing';
+import { convertAudioBufferChannels, resampleAudioBuffer } from './audioBufferConversion';
+
 const MAX_AMPLITUDE = 0x7fff;
-
-/**
- * Resample audio buffer to target sample rate
- */
-async function resampleAudioBuffer(audioBuffer: AudioBuffer, targetSampleRate: number): Promise<AudioBuffer> {
-  const audioContext = new OfflineAudioContext(
-    audioBuffer.numberOfChannels,
-    Math.ceil(audioBuffer.length * targetSampleRate / audioBuffer.sampleRate),
-    targetSampleRate
-  );
-  
-  const source = audioContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(audioContext.destination);
-  source.start();
-  
-  return await audioContext.startRendering();
-}
-
-/**
- * Convert audio buffer to target channel count
- */
-async function convertChannels(audioBuffer: AudioBuffer, targetChannels: number): Promise<AudioBuffer> {
-  const audioContext = new OfflineAudioContext(
-    targetChannels,
-    audioBuffer.length,
-    audioBuffer.sampleRate
-  );
-  
-  const source = audioContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(audioContext.destination);
-  source.start();
-  
-  return await audioContext.startRendering();
-}
 
 export interface WavExportOptions {
   rootNote?: number;
@@ -89,21 +56,30 @@ export async function audioBufferToWav(
   
   // Handle channel conversion
   if (options.channels && options.channels !== audioBuffer.numberOfChannels) {
-    processedBuffer = await convertChannels(processedBuffer, options.channels);
+    processedBuffer = convertAudioBufferChannels(processedBuffer, options.channels);
   }
 
   const nChannels = processedBuffer.numberOfChannels;
   const bufferLength = processedBuffer.length;
-  const bytesPerSample = bitDepth / 8;
+  // Standard PCM WAV has no packed 12-bit sample representation. The 12-bit
+  // option intentionally quantizes the signal to 12 bits inside a 16-bit PCM
+  // container, so all container sizes and fmt fields must describe 16-bit PCM.
+  const containerBitDepth = bitDepth === 12 ? 16 : bitDepth;
+  const bytesPerSample = containerBitDepth / 8;
   
   // Calculate sizes
   const audioDataSize = bufferLength * nChannels * bytesPerSample;
+  const audioDataPadding = audioDataSize & 1;
   const fmtChunkSize = 16;
-  const smplChunkSize = 60; // Fixed size for SMPL chunk with one loop
+  const hasLoop = options.loopStart !== undefined && options.loopEnd !== undefined;
+  const loop = hasLoop
+    ? normalizeFrameRange(bufferLength, { start: options.loopStart, end: options.loopEnd })
+    : undefined;
+  const smplChunkSize = 36 + (loop ? 24 : 0);
   
   // Calculate total size - SMPL chunk goes before data chunk
-  const hasSmplChunk = options.rootNote !== undefined || options.loopStart !== undefined || options.loopEnd !== undefined;
-  const totalSize = 4 + (8 + fmtChunkSize) + (hasSmplChunk ? (8 + smplChunkSize) : 0) + (8 + audioDataSize);
+  const hasSmplChunk = options.rootNote !== undefined || loop !== undefined;
+  const totalSize = 4 + (8 + fmtChunkSize) + (hasSmplChunk ? (8 + smplChunkSize) : 0) + (8 + audioDataSize + audioDataPadding);
   
   // Create buffer
   const arrayBuffer = new ArrayBuffer(8 + totalSize);
@@ -125,7 +101,7 @@ export async function audioBufferToWav(
   dataView.setUint32(offset, processedBuffer.sampleRate, true); offset += 4;
   dataView.setUint32(offset, processedBuffer.sampleRate * nChannels * bytesPerSample, true); offset += 4; // byte rate
   dataView.setUint16(offset, nChannels * bytesPerSample, true); offset += 2; // block align
-  dataView.setUint16(offset, bitDepth, true); offset += 2;
+  dataView.setUint16(offset, containerBitDepth, true); offset += 2;
   
   // Write SMPL chunk BEFORE data chunk if we have metadata
   if (hasSmplChunk) {
@@ -140,16 +116,18 @@ export async function audioBufferToWav(
     dataView.setUint32(offset, 0, true); offset += 4; // MIDI pitch fraction
     dataView.setUint32(offset, 0, true); offset += 4; // SMPTE format
     dataView.setUint32(offset, 0, true); offset += 4; // SMPTE offset
-    dataView.setUint32(offset, 1, true); offset += 4; // number of loops
+    dataView.setUint32(offset, loop ? 1 : 0, true); offset += 4; // number of loops
     dataView.setUint32(offset, 0, true); offset += 4; // sampler data
-    
-    // Loop data (24 bytes)
-    dataView.setUint32(offset, 0, true); offset += 4; // cue point ID
-    dataView.setUint32(offset, 0, true); offset += 4; // type (0 = forward loop)
-    dataView.setUint32(offset, (options.loopStart ?? 0) - 1, true); offset += 4; // start (subtract 1 to match reference)
-    dataView.setUint32(offset, (options.loopEnd ?? (bufferLength - 1)) - 1, true); offset += 4; // end (subtract 1 frame)
-    dataView.setUint32(offset, 0, true); offset += 4; // fraction
-    dataView.setUint32(offset, 0, true); offset += 4; // play count
+
+    if (loop) {
+      // RIFF smpl uses an inclusive end. The app uses [start,end).
+      dataView.setUint32(offset, 0, true); offset += 4; // cue point ID
+      dataView.setUint32(offset, 0, true); offset += 4; // type (0 = forward loop)
+      dataView.setUint32(offset, loop.start, true); offset += 4;
+      dataView.setUint32(offset, loop.end - 1, true); offset += 4;
+      dataView.setUint32(offset, 0, true); offset += 4; // fraction
+      dataView.setUint32(offset, 0, true); offset += 4; // play count
+    }
   }
   
   // Write data chunk
@@ -283,4 +261,4 @@ function writeAudioData24(uint8: Uint8Array, audioBuffer: AudioBuffer, offset: n
       uint8[byteIndex++] = (intSample >> 16) & 0xff;
     }
   }
-} 
+}

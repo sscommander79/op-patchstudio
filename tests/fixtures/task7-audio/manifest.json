@@ -1,0 +1,52 @@
+{
+  "provenance": "Original deterministic test signal:9600 PCM16 mono frames at48000Hz, value=((frame%96)-48)*256. No external samples. Ogg sample usesOpus, sample-vorbis usesnativeVorbis stereo. Testfixtures, notmusicaldemo.",
+  "encoder": "ffmpeg version 8.1.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "files": [
+    {
+      "name": "original.wav",
+      "bytes": 19244,
+      "sha256": "54fc5de656954affde3891a5618de78811c30f47470020319a74eddd4189afae"
+    },
+    {
+      "name": "sample-vorbis.ogg",
+      "bytes": 8082,
+      "sha256": "97cb038c2d9ac76a8b4edd59d801a5eaa5f3fc7b8994e2b4027568ea779cab96"
+    },
+    {
+      "name": "sample.aiff",
+      "bytes": 19254,
+      "sha256": "047c66f2001f03bb193ba01458221fedf59c393a544a3f7d85df40b2dd363f1d"
+    },
+    {
+      "name": "sample.flac",
+      "bytes": 12924,
+      "sha256": "ce4532b292be3e24eb3fccc96121a146ff0a5d9def9b86f1fca42322e8c7dbd8"
+    },
+    {
+      "name": "sample.m4a",
+      "bytes": 3619,
+      "sha256": "6f2eca02ddd5fe4b5a83481865e8f3d8e3687e30d8149cdfc995d23eb3e69e24"
+    },
+    {
+      "name": "sample.mp3",
+      "bytes": 4269,
+      "sha256": "b2f0d04931c442442f6d4c8dfff185bc394354fda9671bd15ac61f5aa7325060"
+    },
+    {
+      "name": "sample.ogg",
+      "bytes": 4068,
+      "sha256": "4d1db42cfdd3c0834577bc34d3677d5e7668c6a0c76f08122054cea7e5a0ea7f"
+    },
+    {
+      "name": "original-44100.wav",
+      "bytes": 17684,
+      "sha256": "e51fd361e06aaba147d39835e72c51a6e14b109852b229376144a060a78d8aa9"
+    },
+    {
+      "name": "sample-44100.mp3",
+      "bytes": 4223,
+      "sha256": "687b0eb3df62839ea9396c111dd0a85e25c53ba7ae8052a8582cc4e0ffbdceff"
+    }
+  ],
+  "rateFixture": "original-44100.wav is8820PCM16mono frames at44100Hz, sameintegerformula; sample-44100.mp3 encodedfromit. Tests must distinguish source44100Hz frombrowsercontextdecode rate."
+}

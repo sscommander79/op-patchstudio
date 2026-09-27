@@ -1,497 +1,143 @@
 import type { AppState } from '../context/AppContext';
-import { indexedDB, type SessionData, type SampleData } from './indexedDB';
-
-// Constants
+import { indexedDB, SessionRevisionConflictError, type SessionData } from './indexedDB';
+import { createProjectSnapshot, serializeProject, deserializeProject, decodeSampleData } from './projectSerialization';
+const SINGLE_SESSION_ID = 'current-session';
 const CURRENT_SESSION_KEY = 'op-patchstudio-current-session';
-const SINGLE_SESSION_ID = 'current-session'; // Fixed session ID for single session approach
+const SESSION_CHANGE_KEY = 'op-patchstudio-session-change';
 
 export class SessionStorageManagerIndexedDB {
   private static instance: SessionStorageManagerIndexedDB;
-
-  private constructor() {}
-
-  static getInstance(): SessionStorageManagerIndexedDB {
-    if (!SessionStorageManagerIndexedDB.instance) {
-      SessionStorageManagerIndexedDB.instance = new SessionStorageManagerIndexedDB();
+  private queue: Promise<unknown> = Promise.resolve();
+  private expectedRevision: string | null | undefined;
+  private readonly sourceId = crypto.randomUUID();
+  private readonly listeners = new Set<() => void>();
+  private channel: BroadcastChannel | null = null;
+  private externalChangeVersion = 0;
+  private readonly storageHandler = (event: StorageEvent) => {
+    if (event.key !== SESSION_CHANGE_KEY || !event.newValue) return;
+    try {
+      const change = JSON.parse(event.newValue) as {sourceId?:string;revisionToken?:string|null};
+      if (change.sourceId !== this.sourceId) this.externalChanged(change.revisionToken);
+    } catch { this.externalChanged(); }
+  };
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.BroadcastChannel !== 'undefined') {
+      try {
+        this.channel = new window.BroadcastChannel('op-patchstudio-session');
+        this.channel.addEventListener('message', event => {
+          if (event.data?.sourceId !== this.sourceId) this.externalChanged(event.data?.revisionToken);
+        });
+      } catch { this.channel = null; }
     }
-    return SessionStorageManagerIndexedDB.instance;
+    if (typeof window !== 'undefined') window.addEventListener('storage',this.storageHandler);
   }
-
-  // Save current session data (always overwrites previous session)
-  async saveSession(state: AppState): Promise<string> {
-    const timestamp = Date.now();
-
-    // First, clear all existing samples to avoid accumulation
-    await this.clearAllSamples();
-
-    // Save all samples to the samples store
-    const drumSampleIds: string[] = []; // Track drum sample IDs by index
-    const multisampleSampleIds: string[] = []; // Track multisample sample IDs by index
-    
-    // Save drum samples
-    for (let i = 0; i < state.drumSamples.length; i++) {
-      const sample = state.drumSamples[i];
-      
-      if (sample && sample.isLoaded && sample.file && sample.audioBuffer) {
-        const sampleId = `drum-${i}-${timestamp}`;
-        drumSampleIds[i] = sampleId;
-        
-        // Convert File to Blob to avoid detached ArrayBuffer issues
-        const arrayBuffer = await sample.file.arrayBuffer();
-        const blob = new Blob([arrayBuffer], { type: sample.file.type });
-        
-        const sampleData: SampleData = {
-          id: sampleId,
-          name: sample.file.name,
-          type: sample.file.type,
-          size: sample.file.size,
-          data: blob,
-          metadata: {
-            sampleRate: sample.audioBuffer.sampleRate,
-            bitDepth: sample.originalBitDepth || 16,
-            channels: sample.audioBuffer.numberOfChannels,
-            duration: sample.audioBuffer.duration,
-            midiNote: undefined, // Drum samples don't have MIDI notes
-          },
-          createdAt: timestamp,
-        };
-        
-        await indexedDB.saveSample(sampleData);
-      }
-    }
-
-    // Save multisample files
-    for (let i = 0; i < state.multisampleFiles.length; i++) {
-      const file = state.multisampleFiles[i];
-      if (file.file && file.audioBuffer) {
-        const sampleId = `multisample-${i}-${timestamp}`;
-        multisampleSampleIds[i] = sampleId;
-        
-        // Store the AudioBuffer data directly instead of the raw file
-        // This avoids corruption issues with AIF files
-        const audioBuffer = file.audioBuffer;
-        const channelData: Float32Array[] = [];
-        
-        // Extract channel data from AudioBuffer
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-          const channelBuffer = audioBuffer.getChannelData(channel);
-          channelData.push(new Float32Array(channelBuffer));
-        }
-        
-        const sampleData: SampleData = {
-          id: sampleId,
-          name: file.file.name,
-          type: file.file.type,
-          size: file.file.size,
-          data: new Blob([JSON.stringify({
-            sampleRate: audioBuffer.sampleRate,
-            numberOfChannels: audioBuffer.numberOfChannels,
-            length: audioBuffer.length,
-            duration: audioBuffer.duration,
-            channelData: channelData.map(channel => Array.from(channel)) // Convert to regular array for JSON serialization
-          })], { type: 'application/json' }),
-          metadata: {
-            sampleRate: audioBuffer.sampleRate,
-            bitDepth: file.originalBitDepth || 16,
-            channels: audioBuffer.numberOfChannels,
-            duration: audioBuffer.duration,
-            midiNote: file.rootNote,
-            note: file.note,
-          },
-          createdAt: timestamp,
-        };
-        
-        await indexedDB.saveSample(sampleData);
-      }
-    }
-
-    // Create session data with references to samples
-    const drumSamplesForSession = state.drumSamples
-      .map((sample, index) => {
-        if (sample && sample.isLoaded && sample.file) {
-          const sampleId = drumSampleIds[index];
-          if (sampleId) {
-            return {
-              originalIndex: index,
-              sampleId,
-              isAssigned: sample.isAssigned,
-              assignedKey: sample.assignedKey,
-              settings: {
-                inPoint: sample.inPoint,
-                outPoint: sample.outPoint,
-                playmode: sample.playmode,
-                reverse: sample.reverse,
-                transpose: sample.transpose,
-                pan: sample.pan,
-                gain: sample.gain,
-                hasBeenEdited: sample.hasBeenEdited,
-              }
-            };
-          }
-        }
-        return null;
-      })
-      .filter(Boolean) as SessionData['drumSamples'];
-
-    const multisampleFilesForSession = state.multisampleFiles
-      .map((file, index) => {
-        if (file.file) {
-          const sampleId = multisampleSampleIds[index];
-          if (sampleId) {
-            return {
-              sampleId,
-              fileName: file.file.name,
-              rootNote: file.rootNote,
-              note: file.note,
-              inPoint: file.inPoint,
-              outPoint: file.outPoint,
-              loopStart: file.loopStart,
-              loopEnd: file.loopEnd,
-            };
-          }
-        }
-        return null;
-      })
-      .filter(Boolean) as SessionData['multisampleFiles'];
-
-    const sessionData: SessionData = {
-      id: SINGLE_SESSION_ID,
-      timestamp,
-      version: 1, // Add version for future schema compatibility
-      drumSettings: state.drumSettings,
-      multisampleSettings: state.multisampleSettings,
-      drumSamples: drumSamplesForSession,
-      multisampleFiles: multisampleFilesForSession,
-      selectedMultisample: state.selectedMultisample,
-      isDrumKeyboardPinned: state.isDrumKeyboardPinned,
-      isMultisampleKeyboardPinned: state.isMultisampleKeyboardPinned,
-      savedToLibrary: false, // Track if this session has been saved to library
-    };
-
-    // Save session data (this will overwrite any existing session)
-    await indexedDB.saveSession(sessionData);
-    
-    // Update current session reference (keep this in localStorage for quick access)
-    localStorage.setItem(CURRENT_SESSION_KEY, SINGLE_SESSION_ID);
-
-    return SINGLE_SESSION_ID;
+  static getInstance() { return this.instance ??= new SessionStorageManagerIndexedDB(); }
+  static createForTesting() { return new SessionStorageManagerIndexedDB(); }
+  subscribeExternalChange(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  dispose() { this.channel?.close(); this.channel=null; if(typeof window!=='undefined')window.removeEventListener('storage',this.storageHandler);this.listeners.clear(); }
+  /** Test isolation for a replaced fake IndexedDB factory. */
+  resetForTesting() { this.expectedRevision = undefined; this.queue = Promise.resolve(); }
+  private externalChanged(revisionToken?: string | null) {
+    if (revisionToken !== undefined && this.expectedRevision !== undefined && revisionToken === this.expectedRevision) return;
+    this.externalChangeVersion += 1; this.listeners.forEach(listener => listener());
   }
-
-  // Load session data
+  private notifyChanged(revisionToken: string | null) {
+    const change={sourceId:this.sourceId,nonce:crypto.randomUUID(),revisionToken};
+    this.channel?.postMessage(change);
+    try { localStorage.setItem(SESSION_CHANGE_KEY,JSON.stringify(change)); } catch { /* storage can be disabled */ }
+  }
+  private async initializeExpectedRevision() {
+    if (this.expectedRevision !== undefined) return;
+    const current = await indexedDB.getSession(SINGLE_SESSION_ID);
+    this.expectedRevision = current?.revisionToken ?? null;
+  }
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(operation);
+    this.queue = result.catch(() => {});
+    return result;
+  }
+  saveSession(state: AppState): Promise<string> {
+    const snapshot = createProjectSnapshot(state);
+    return this.enqueue(async () => {
+      await this.initializeExpectedRevision();
+      const {session,samples} = serializeProject(snapshot);
+      const revisionToken = crypto.randomUUID();
+      await indexedDB.replaceSessionWithSamples({...session,revisionToken},samples,this.expectedRevision);
+      this.expectedRevision = revisionToken;
+      // This optional legacy pointer is not authoritative; IndexedDB is the source of truth.
+      try { localStorage.setItem(CURRENT_SESSION_KEY,SINGLE_SESSION_ID); } catch { /* storage can be disabled */ }
+      this.notifyChanged(revisionToken);
+      return SINGLE_SESSION_ID;
+    });
+  }
   async loadSession(): Promise<SessionData | null> {
-    try {
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (!sessionData) {
-        return null;
-      }
-
-      // Handle version migration if needed
-      const migratedSessionData = this.migrateSessionData(sessionData);
-
-      return migratedSessionData;
-    } catch (error) {
-      console.error('Failed to load session from IndexedDB:', error);
-      return null;
+    await this.queue;
+    const session = await indexedDB.getSession(SINGLE_SESSION_ID);
+    // A first startup read establishes the base. Later inspection must never
+    // silently authorize a stale manager to overwrite a newer revision.
+    if (this.expectedRevision === undefined) this.expectedRevision = session?.revisionToken ?? null;
+    return session;
+  }
+  async restoreSession() {
+    await this.queue;
+    const changeVersion = this.externalChangeVersion;
+    const bundle = await indexedDB.getSessionWithSamples(SINGLE_SESSION_ID);
+    if (!bundle) throw new Error('Saved session is no longer available');
+    const capturedRevision = bundle.session.revisionToken ?? null;
+    const project = await deserializeProject(bundle.session,id => Promise.resolve(bundle.samples.get(id) ?? null));
+    const current = await indexedDB.getSession(SINGLE_SESSION_ID);
+    if (!current || this.externalChangeVersion !== changeVersion || (current.revisionToken ?? null) !== capturedRevision) {
+      throw new SessionRevisionConflictError();
     }
+    // Explicit restore adopts this exact snapshot as the manager's new base revision.
+    this.expectedRevision = capturedRevision;
+    return project;
   }
-
-  // Migrate session data to current version
-  private migrateSessionData(sessionData: SessionData): SessionData {
-    const currentVersion = 1;
-    const sessionVersion = sessionData.version || 0;
-
-    if (sessionVersion === currentVersion) {
-      return sessionData;
-    }
-
-    console.log(`Migrating session from version ${sessionVersion} to ${currentVersion}`);
-
-    // Add migration logic here when needed
-    const migratedData = {
-      ...sessionData,
-      version: currentVersion,
-    };
-
-    return migratedData;
+  async hasExternalRevisionChange() {
+    await this.queue;
+    await this.initializeExpectedRevision();
+    const current = await indexedDB.getSession(SINGLE_SESSION_ID);
+    return (current?.revisionToken ?? null) !== this.expectedRevision;
   }
-
-  // Get current session ID (always returns the single session ID)
-  getCurrentSessionId(): string {
-    return SINGLE_SESSION_ID;
+  getCurrentSessionId() { return SINGLE_SESSION_ID; }
+  async hasPreviousSession() { return !!(await this.getCurrentSession()); }
+  async getCurrentSession() {
+    // A committed edit is recoverable even before audio is added or after the last sample is removed.
+    return this.loadSession();
   }
-
-  // Check if there's a previous session
-  async hasPreviousSession(): Promise<boolean> {
-    try {
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (!sessionData) {
-        return false;
-      }
-
-      // Check if session has any samples
-      const hasDrumSamples = sessionData.drumSamples && sessionData.drumSamples.length > 0;
-      const hasMultisampleFiles = sessionData.multisampleFiles && sessionData.multisampleFiles.length > 0;
-
-      return hasDrumSamples || hasMultisampleFiles;
-    } catch (error) {
-      console.error('Error checking for previous session:', error);
-      return false;
-    }
+  clearCurrentSession(): Promise<void> {
+    return this.enqueue(async () => {
+      await this.initializeExpectedRevision();
+      await indexedDB.deleteSessionWithSamples(SINGLE_SESSION_ID,this.expectedRevision);
+      this.expectedRevision = null;
+      try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch { /* optional legacy pointer */ }
+      this.notifyChanged(null);
+    });
   }
-
-  // Get the current session (simplified from getMostRecentSessionWithSamples)
-  async getCurrentSession(): Promise<SessionData | null> {
-    try {
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (!sessionData) {
-        return null;
-      }
-
-      // Check if session has any samples
-      const hasDrumSamples = sessionData.drumSamples && sessionData.drumSamples.length > 0;
-      const hasMultisampleFiles = sessionData.multisampleFiles && sessionData.multisampleFiles.length > 0;
-
-      if (!hasDrumSamples && !hasMultisampleFiles) {
-        return null;
-      }
-
-      return sessionData;
-    } catch (error) {
-      console.error('Error getting current session:', error);
-      return null;
-    }
+  clearAllSessionData() { return this.clearCurrentSession(); }
+  private setLibraryFlag(savedToLibrary: boolean) {
+    return this.enqueue(async () => {
+      await this.initializeExpectedRevision();
+      const revision = await indexedDB.updateSessionWithRevision(SINGLE_SESSION_ID,this.expectedRevision!,session => ({...session,savedToLibrary}));
+      this.expectedRevision = revision;
+      if (revision !== null) this.notifyChanged(revision);
+    });
   }
-
-  // Clear current session
-  async clearCurrentSession(): Promise<void> {
-    try {
-      // Clear all samples
-      await this.clearAllSamples();
-      
-      // Delete the session
-      await indexedDB.deleteSession(SINGLE_SESSION_ID);
-      
-      // Remove from localStorage
-      localStorage.removeItem(CURRENT_SESSION_KEY);
-      
-    } catch (error) {
-      console.error('Failed to clear current session:', error);
-    }
+  markSessionAsSavedToLibrary() { return this.setLibraryFlag(true); }
+  resetSavedToLibraryFlag() { return this.setLibraryFlag(false); }
+  /** Diagnostic only: never mutate a damaged recovery snapshot. */
+  async clearCorruptedData() { const session = await this.loadSession(); if (session) await deserializeProject(session,id => indexedDB.getSample(id)); }
+  async arrayBufferToFile(bytes: ArrayBuffer, name: string, type: string) { return new File([bytes],name,{type}); }
+  async arrayBufferToAudioBuffer(bytes: ArrayBuffer) {
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is not available');
+    const context = new AudioContextClass();
+    try { return await context.decodeAudioData(bytes); } finally { await context.close(); }
   }
-
-  // Clear all session data (for migration to new format)
-  async clearAllSessionData(): Promise<void> {
-    try {
-      // Clear all samples
-      await this.clearAllSamples();
-      
-      // Delete the session
-      await indexedDB.deleteSession(SINGLE_SESSION_ID);
-      
-      // Remove from localStorage
-      localStorage.removeItem(CURRENT_SESSION_KEY);
-      
-    } catch (error) {
-      console.error('Failed to clear all session data:', error);
-    }
-  }
-
-  // Mark session as saved to library
-  async markSessionAsSavedToLibrary(): Promise<void> {
-    try {
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (sessionData) {
-        sessionData.savedToLibrary = true;
-        await indexedDB.saveSession(sessionData);
-      }
-    } catch (error) {
-      console.error('Failed to mark session as saved to library:', error);
-    }
-  }
-
-  // Reset saved to library flag
-  async resetSavedToLibraryFlag(): Promise<void> {
-    try {
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (sessionData) {
-        sessionData.savedToLibrary = false;
-        await indexedDB.saveSession(sessionData);
-      }
-    } catch (error) {
-      console.error('Failed to reset saved to library flag:', error);
-    }
-  }
-
-  // Clear all samples (helper method)
-  private async clearAllSamples(): Promise<void> {
-    try {
-      const allSamples = await indexedDB.getAllSamples();
-      for (const sample of allSamples) {
-        await indexedDB.deleteSample(sample.id);
-      }
-    } catch (error) {
-      console.error('Failed to clear samples:', error);
-    }
-  }
-
-  // Clear corrupted data (simplified for single session)
-  async clearCorruptedData(): Promise<void> {
-    try {
-      // Check if current session exists and is valid
-      const sessionData = await indexedDB.getSession(SINGLE_SESSION_ID);
-      if (!sessionData) {
-        return;
-      }
-
-      // Check for corrupted samples
-      const corruptedSampleIds: string[] = [];
-      
-      // Check drum samples
-      for (const storedSample of sessionData.drumSamples || []) {
-        try {
-          const sampleData = await indexedDB.getSample(storedSample.sampleId);
-          if (!sampleData) {
-            corruptedSampleIds.push(storedSample.sampleId);
-          } else {
-            // Try to create a File from the Blob to test if it's corrupted
-            try {
-              const file = new File([sampleData.data], sampleData.name, { type: sampleData.type });
-              await file.arrayBuffer(); // This will throw if the data is corrupted
-            } catch (error) {
-              corruptedSampleIds.push(storedSample.sampleId);
-            }
-          }
-        } catch (error) {
-          corruptedSampleIds.push(storedSample.sampleId);
-        }
-      }
-
-      // Check multisample files
-      for (const storedFile of sessionData.multisampleFiles || []) {
-        try {
-          const sampleData = await indexedDB.getSample(storedFile.sampleId);
-          if (!sampleData) {
-            corruptedSampleIds.push(storedFile.sampleId);
-          } else {
-            // Try to create a File from the Blob to test if it's corrupted
-            try {
-              const file = new File([sampleData.data], sampleData.name, { type: sampleData.type });
-              await file.arrayBuffer(); // This will throw if the data is corrupted
-            } catch (error) {
-              corruptedSampleIds.push(storedFile.sampleId);
-            }
-          }
-        } catch (error) {
-          corruptedSampleIds.push(storedFile.sampleId);
-        }
-      }
-
-      // Remove corrupted samples from session data
-      if (corruptedSampleIds.length > 0) {
-        
-        // Remove corrupted samples from session data
-        if (sessionData.drumSamples) {
-          sessionData.drumSamples = sessionData.drumSamples.filter(
-            sample => !corruptedSampleIds.includes(sample.sampleId)
-          );
-        }
-        
-        if (sessionData.multisampleFiles) {
-          sessionData.multisampleFiles = sessionData.multisampleFiles.filter(
-            file => !corruptedSampleIds.includes(file.sampleId)
-          );
-        }
-
-        // Update session data
-        await indexedDB.saveSession(sessionData);
-      }
-
-      // Delete corrupted samples from samples store
-      for (const sampleId of corruptedSampleIds) {
-        try {
-          await indexedDB.deleteSample(sampleId);
-        } catch (error) {
-          console.error(`Failed to delete corrupted sample ${sampleId}:`, error);
-        }
-      }
-
-    } catch (error) {
-      console.error('Failed to clear corrupted data:', error);
-    }
-  }
-
-  // Convert ArrayBuffer to File
-  async arrayBufferToFile(arrayBuffer: ArrayBuffer, filename: string, type: string): Promise<File> {
-    return new File([arrayBuffer], filename, { type });
-  }
-
-  // Convert ArrayBuffer to AudioBuffer
-  async arrayBufferToAudioBuffer(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    return await audioContext.decodeAudioData(arrayBuffer);
-  }
-
-  // Load sample from session
-  async loadSampleFromSession(sampleId: string): Promise<{ file: File; audioBuffer: AudioBuffer; metadata: any } | null> {
-    try {
-      const sampleData = await indexedDB.getSample(sampleId);
-      if (!sampleData) {
-        return null;
-      }
-
-      let audioBuffer: AudioBuffer;
-      let file: File;
-
-      if (sampleData.data.type === 'application/json') {
-        // Load from stored AudioBuffer data
-        const arrayBuffer = await sampleData.data.arrayBuffer();
-        const text = new TextDecoder().decode(arrayBuffer);
-        const audioData = JSON.parse(text);
-        
-        // Reconstruct AudioBuffer
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioBuffer = audioContext.createBuffer(
-          audioData.numberOfChannels,
-          audioData.length,
-          audioData.sampleRate
-        );
-        
-        // Copy channel data back to AudioBuffer
-        for (let channel = 0; channel < audioData.numberOfChannels; channel++) {
-          const channelData = audioBuffer.getChannelData(channel);
-          const storedChannelData = audioData.channelData[channel];
-          channelData.set(storedChannelData);
-        }
-        
-        // Create a dummy file for compatibility
-        file = new File([], sampleData.name, { type: sampleData.type });
-        
-      } else {
-        // Legacy: try to load from raw file data (for backward compatibility)
-        const arrayBuffer = await sampleData.data.arrayBuffer();
-        file = await this.arrayBufferToFile(arrayBuffer, sampleData.name, sampleData.type);
-        audioBuffer = await this.arrayBufferToAudioBuffer(arrayBuffer);
-      }
-
-      return {
-        file,
-        audioBuffer,
-        metadata: {
-          ...sampleData.metadata,
-          fileSize: sampleData.size
-        }
-      };
-    } catch (error) {
-      console.error('Failed to load sample from session:', error);
-      console.error('Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      return null;
-    }
+  async loadSampleFromSession(id: string) {
+    const data = await indexedDB.getSample(id);
+    if (!data) throw new Error(`Missing saved sample: ${id}`);
+    return decodeSampleData(data);
   }
 }
-
-// Export singleton instance
-export const sessionStorageIndexedDB = SessionStorageManagerIndexedDB.getInstance(); 
+export const sessionStorageIndexedDB = SessionStorageManagerIndexedDB.getInstance();

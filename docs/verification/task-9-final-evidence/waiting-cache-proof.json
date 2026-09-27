@@ -1,0 +1,24 @@
+{
+  "browser": "153.0.8010.12",
+  "generations": [
+    {
+      "waiting": "b",
+      "activeBuild": "A",
+      "caches": [
+        "op-patchstudio-v0.16.0-mtoifvbt-c9615001-94fe-494e-9bbd-189940435e3a-precache-v2-http://127.0.0.1:5188/",
+        "op-patchstudio-lifecycle-metadata-v1",
+        "op-patchstudio-v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea-precache-v2-http://127.0.0.1:5188/"
+      ]
+    },
+    {
+      "waiting": "c",
+      "activeBuild": "A",
+      "caches": [
+        "op-patchstudio-v0.16.0-mtoifvbt-c9615001-94fe-494e-9bbd-189940435e3a-precache-v2-http://127.0.0.1:5188/",
+        "op-patchstudio-lifecycle-metadata-v1",
+        "op-patchstudio-v0.16.0-mtoifvbt-e9ae78b2-f735-42c7-b6d7-26b0f4d17a63-precache-v2-http://127.0.0.1:5188/"
+      ]
+    }
+  ],
+  "status": "BOUNDED"
+}

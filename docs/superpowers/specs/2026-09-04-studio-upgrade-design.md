@@ -1,0 +1,25 @@
+# OP-PatchStudio: dependable instrument creation
+
+## Intent and authorization
+The user owns sscommander79/op-patchstudio and explicitly requested implementation of every recommendation in the September 4 review. Build an excellent browser-based OP-XY instrument creation studio. Quality is measured by reliable musical workflows, clarity, responsiveness, accessibility, and independently verified behavior. Acquisition by teenage engineering is an aspiration, not a testable promise.
+
+## Product direction
+Evolve the existing application rather than replace its working instrument model. Retain local audio processing, MIDI, drum and multisample editing, existing preset/library import, and OP-XY export. Default to a focused instrument workspace: an expressive pad/keyboard, a selected sample editor, and a persistent project/export toolbar. Offer the detailed sample table as an alternate view. Use restrained industrial typography, tactile controls, warm neutral surfaces, and a single vivid accent; support dark mode, keyboard navigation, reduced motion, and mobile.
+
+## Requirements and acceptance evidence
+1. Export correctness: sparse drum assignments keep their exact MIDI mapping; distinct samples never overwrite one another; conversion/export failures abort the download; imported settings survive; sample frames/markers reference actual exported data. Verify real archives, WAV/AIFF headers, boundary fixtures, and injected failures.
+2. Durable work: saves must be atomic, serialized, and observable; a failed save retains the prior complete state. Preserve audio precision and full editable settings. Save/reload identity tests, failure tests, and real IndexedDB browser tests prove this.
+3. Creative safety: undo/redo for musical edits with bounded memory, keyboard shortcuts excluding text entry, and lossless portable project backups with format validation and versioning. Verify edit/undo/redo and backup/import round trips including audio and settings.
+4. Better loops: crossfade control, playhead, clear loop-on-release explanation, stable marker dragging outside the waveform, numeric precision controls, and preview/export consistency. Verify boundaries and real browser interactions. Device behavior requires hardware evidence, with uncertain parameters explicitly described.
+5. Faster kits: auto transient slicing with sensitivity and preview, manual live chop with editable slice markers, non-destructive original retention, and assignment to available pads with overflow feedback. Verify silence, transient fixtures, cancel, empty slots, and undo.
+6. Recording: batch capture, input selection, sound-triggered start with pre-roll, silence/length stop, recorded take review, and safe cleanup of device streams. Verify with deterministic audio input and browser media fixtures.
+7. Import: robust Finder/folder/Splice-style drag payload handling, filename-based drum suggestions with user control, existing multisample note detection, clear rejected-file feedback. Inspect upstream PR #113 before adapting; retain attribution.
+8. Onboarding and workflow: useful empty state, a generated/licensable demo kit, guided first-preset workflow, selected-pad editing, persistent save/export status, keyboard help, readable mobile layout, and export preflight with transfer instructions.
+9. Engineering: replace placeholder tests, add real browser workflow/offline tests, establish unit/build/lint gates, resolve existing lint failures without hiding errors, reduce oversized startup assets, and extract clear domain units as touched. Public project documentation must describe actual capabilities and limitations.
+10. Delivery: independent scoped and final review, reproducible checks, local runnable build, reviewable branch with retained source/license attribution. Do not commit, push, merge, publish, or alter account settings unless separately authorized. Hardware checks stay incomplete until performed.
+
+## Architecture
+Keep React/TypeScript and the current reducer while extracting pure export planning, sample identity, serialization and editing commands. Centralize domain types. Storage owns transactions and immutable sample blobs; session metadata references committed sample identities. UI presents explicit saving/saved/error state. History stores edit snapshots with shared immutable AudioBuffers and a memory limit. Project archives include versioned JSON plus lossless audio payloads, validated before replacing current work. Creative processing returns new buffers and metadata rather than mutating originals. Preview uses the same frame/loop definitions as export. Browsers receive progress and cancellation where processing can be long.
+
+## Scope interpretation
+Cloud sync, a native companion, and additional hardware formats were explicitly deferred in the review. Keep them as future directions; do not add half-working integrations. OP-XY verification, offline usability, portability and the five recommended creative features are included. No claim of official affiliation or exact hardware emulation without evidence.

@@ -28,11 +28,10 @@ class AudioContextManager {
   }
 
   public async closeAudioContext(): Promise<void> {
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      await this.audioContext.close();
-      this.audioContext = null;
-      this.isInitialized = false;
-    }
+    const context = this.audioContext;
+    this.audioContext = null;
+    this.isInitialized = false;
+    if (context && context.state !== 'closed') await context.close();
   }
 
   public getState(): AudioContextState | null {
@@ -41,6 +40,10 @@ class AudioContextManager {
 
   public getSampleRate(): number {
     return this.audioContext?.sampleRate || 44100;
+  }
+
+  public getCurrentTime(): number | null {
+    return this.audioContext?.currentTime ?? null;
   }
 
   public isReady(): boolean {

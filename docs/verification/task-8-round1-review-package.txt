@@ -1,0 +1,1122 @@
+Changed:
+src/components/common/AudioImportContext.ts
+src/components/common/AudioImportProvider.tsx
+src/components/drum/DrumKeyboard.tsx
+src/components/drum/DrumTool.tsx
+src/components/multisample/MultisampleFocusWorkspace.tsx
+src/components/multisample/MultisampleTool.tsx
+src/components/multisample/VirtualMidiKeyboard.tsx
+src/hooks/useAudioPlayer.ts
+src/styles/studio.css
+src/test/components/DrumKeyboard.test.tsx
+src/test/components/DrumTool.test.tsx
+src/test/components/MultisampleFocusWorkspace.test.tsx
+src/test/components/MultisampleTool.test.tsx
+src/test/context/audioImportApplication.test.ts
+src/test/hooks/useAudioPlayer.test.ts
+src/test/utils/audio.test.ts
+src/test/utils/deviceExportPreflight.test.ts
+src/utils/audio.ts
+src/utils/audioImport.ts
+src/utils/deviceExportPreflight.ts
+src/utils/exportPlanning.ts
+src/utils/patchGeneration.ts
+tests/e2e/audio-import.spec.ts
+tests/e2e/export-workflow.spec.ts
+tests/e2e/loop-editor.spec.ts
+tests/e2e/recording.spec.ts
+tests/e2e/workspace-actions.ts
+
+--- before-round1/src/components/common/AudioImportContext.ts
++++ src/components/common/AudioImportContext.ts
+@@ -1,8 +1,10 @@
+ import { createContext, useContext } from 'react';
++import type { ExpectedAssetIdentity } from '../../utils/recordingApplication';
+ 
+ export interface AudioImportIntent {
+   instrument: 'drum' | 'multisample';
+   drumPads?: number[];
++  drumReplacement?: ExpectedAssetIdentity;
+   multisampleRoot?: number;
+ }
+ 
+--- before-round1/src/components/common/AudioImportProvider.tsx
++++ src/components/common/AudioImportProvider.tsx
+@@ -6,7 +6,7 @@
+ import { AudioImportContext, type AudioImportIntent } from './AudioImportContext';
+ import { useOwnedDialog } from '../../hooks/useOwnedDialog';
+ 
+-type ReviewRow={asset:PreparedImportAsset;reason:string;destination:string;rootNote:number;include:boolean;expected?:ExpectedAssetIdentity};
++type ReviewRow={asset:PreparedImportAsset;reason:string;destination:string;rootNote:number;include:boolean;expected?:ExpectedAssetIdentity;replacementTarget?:ExpectedAssetIdentity};
+ type Review={operationId:string;instrument:'drum'|'multisample';expectedProjectGeneration:number;rows:ReviewRow[];issues:IntakeIssue[]};
+ 
+ function intentFromElement(target:EventTarget|null):AudioImportIntent|null {
+@@ -27,7 +27,10 @@
+     returnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+     const expectedProjectGeneration=stateRef.current.projectGeneration??0;ownedProjectGeneration.current=expectedProjectGeneration;pendingCommit.current=null;setReview(null);setError(null);setPhase('resolving');
+     void (async()=>{try{const resolved=await resolveCapturedTransfer(captured,controller.signal);if(owned!==generation.current||(stateRef.current.projectGeneration??0)!==expectedProjectGeneration)return;setPhase('preparing');
+-      const currentAssets=[...stateRef.current.drumSamples,...stateRef.current.multisampleFiles];const existingDecodedBytes=currentAssets.reduce((sum,item)=>sum+(item.audioBuffer?24+4*item.audioBuffer.numberOfChannels*item.audioBuffer.length:0),0);
++      const currentAssets=[...stateRef.current.drumSamples,...stateRef.current.multisampleFiles];const replacement=intent.drumReplacement;
++      const replacementIsCurrent=replacement&&currentAssets.some(item=>item.file===replacement.file&&item.audioBuffer===replacement.audioBuffer);
++      const existingDecodedBytes=currentAssets.reduce((sum,item)=>sum+(item.audioBuffer?24+4*item.audioBuffer.numberOfChannels*item.audioBuffer.length:0),0)
++        -(replacementIsCurrent&&replacement.audioBuffer?24+4*replacement.audioBuffer.numberOfChannels*replacement.audioBuffer.length:0);
+       const prepared=await prepareAudioImportFiles(resolved.files,intent.instrument,expectedProjectGeneration,stateRef.current.midiNoteMapping,controller.signal,value=>{if(owned===generation.current)setProgress({discovered:value.discovered,prepared:value.prepared,rejected:value.rejected,capacityExcess:value.capacityExcess});},undefined,{existingDecodedBytes});
+       if(owned!==generation.current||(stateRef.current.projectGeneration??0)!==expectedProjectGeneration)return;const occupiedDrums=stateRef.current.drumSamples;
+       const requestedPads=new Map<string,number>();resolved.files.forEach((record,index)=>{const pad=intent.drumPads?.[record.sourceOrdinal??index];if(pad!==undefined)requestedPads.set(record.id,pad);});
+@@ -35,7 +38,7 @@
+       if(intent.instrument==='drum')for(const asset of prepared.assets){const pad=requestedPads.get(asset.id);if(pad!==undefined&&Number.isInteger(pad)&&pad>=0&&pad<24&&!occupiedDrums[pad]?.isLoaded&&!reservedPads.has(pad)){explicitPads.set(asset.id,pad);reservedPads.add(pad);}}
+       const suggestedAssets=prepared.assets.filter(asset=>!requestedPads.has(asset.id));const suggested=proposeDrumDestinations(suggestedAssets,occupiedDrums,reservedPads);const proposals=new Map(suggested.map(item=>[item.id,item]));
+       const usedRoots=new Set(stateRef.current.multisampleFiles.map(file=>file.rootNote));const reservedRoots=new Set<number>();
+-      const rows=prepared.assets.map((asset,index):ReviewRow=>{if(intent.instrument==='drum'){const requested=requestedPads.get(asset.id),explicit=explicitPads.get(asset.id),proposal=proposals.get(asset.id);const proposed=explicit??proposal?.destination??null;const available=proposed!==null&&!occupiedDrums[proposed]?.isLoaded;
++      const rows=prepared.assets.map((asset,index):ReviewRow=>{if(intent.instrument==='drum'){if(index===0&&replacement)return {asset,reason:'replace the selected unassigned sound after review',destination:'replace-selected',rootNote:60,include:true,expected:replacement,replacementTarget:replacement};const requested=requestedPads.get(asset.id),explicit=explicitPads.get(asset.id),proposal=proposals.get(asset.id);const proposed=explicit??proposal?.destination??null;const available=proposed!==null&&!occupiedDrums[proposed]?.isLoaded;
+           return {asset,reason:requested!==undefined?(explicit!==undefined?'chosen drop pad':'chosen drop pad is occupied or already reserved; kept unassigned'):(proposal?.reason??'no confident filename match'),destination:available?`pad:${proposed}`:'unassigned',rootNote:60,include:true};}
+         const suggested=index===0&&intent.multisampleRoot!==undefined?intent.multisampleRoot:asset.metadata.midiNote;const usable=Number.isInteger(suggested)&&suggested>=0&&suggested<=127&&!usedRoots.has(suggested)&&!reservedRoots.has(suggested);if(usable)reservedRoots.add(suggested);
+         return {asset,reason:usable?'note detected from destination or filename':'choose an unused root note',destination:usable?'root':'unassigned',rootNote:usable?suggested:60,include:usable};});
+@@ -49,7 +52,7 @@
+   useEffect(()=>()=>{generation.current++;abort.current?.abort()},[]);
+   useEffect(()=>{const receipt=state.importCommitResult;if(!review||!receipt||receipt.operationId!==pendingCommit.current)return;pendingCommit.current=null;if(receipt.status==='rejected'){setError(receipt.error??'Import was rejected');return;}const applied=new Set(receipt.appliedIds??[]);setReview(current=>{if(!current)return current;const remaining=current.rows.filter(row=>!applied.has(row.asset.id));if(remaining.length)return {...current,rows:remaining};queueMicrotask(cancel);return current;});},[cancel,review,state.importCommitResult]);
+   const apply=()=>{if(!review)return;const selections=review.rows.filter(row=>row.include).map(row=>{let destination:ImportDestination;if(review.instrument==='drum'){
+-      if(row.destination==='unassigned')destination={kind:'drum-unassigned'};else {const [decisionText,indexText]=row.destination.split(':');const padIndex=Number(indexText);destination=decisionText==='replace'?{kind:'drum-pad',padIndex,decision:'replace',expected:row.expected}:{kind:'drum-pad',padIndex,decision:'choose-empty'};}}
++      if(row.destination==='unassigned')destination={kind:'drum-unassigned'};else if(row.destination==='replace-selected'&&row.replacementTarget)destination={kind:'drum-asset',decision:'replace',expected:row.replacementTarget};else {const [decisionText,indexText]=row.destination.split(':');const padIndex=Number(indexText);destination=decisionText==='replace'?{kind:'drum-pad',padIndex,decision:'replace',expected:row.expected}:{kind:'drum-pad',padIndex,decision:'choose-empty'};}}
+     else {if(row.destination==='unassigned')return null;destination=row.destination==='replace'?{kind:'multisample-root',rootNote:row.rootNote,decision:'replace',expected:row.expected}:{kind:'multisample-root',rootNote:row.rootNote,decision:'choose-free'};}
+     return {id:row.asset.id,destination};}).filter((item):item is NonNullable<typeof item>=>Boolean(item));if(!selections.length){setError('Select at least one file to apply');return;}const commitId=`${review.operationId}-apply-${++applySerial.current}`;pendingCommit.current=commitId;dispatch({type:'COMMIT_PREPARED_IMPORTS',payload:{operationId:commitId,prepared:{instrument:review.instrument,expectedProjectGeneration:review.expectedProjectGeneration,assets:review.rows.map(row=>row.asset),selections}}});};
+   const update=(id:string,patch:Partial<ReviewRow>)=>setReview(current=>current?{...current,rows:current.rows.map(row=>row.asset.id===id?{...row,...patch}:row)}:current);
+@@ -62,8 +65,8 @@
+       <ul style={{padding:0,listStyle:'none'}}>{review.rows.map(row=><li key={row.asset.id} style={{padding:'12px 0',borderBottom:'1px solid var(--color-border-subtle)'}}>
+         <label><input aria-label={`Include ${row.asset.file.name}`} type="checkbox" checked={row.include} onChange={event=>update(row.asset.id,{include:event.target.checked})}/> {row.asset.file.name}</label>
+         <div>{row.asset.metadata.format.toUpperCase()} source · source bit depth {row.asset.metadata.bitDepth===undefined?'unknown':`${row.asset.metadata.bitDepth}-bit`} · source rate {row.asset.metadata.sourceSampleRate===undefined?'unknown':`${row.asset.metadata.sourceSampleRate} Hz`} · source channels {row.asset.metadata.sourceChannels===undefined?'unknown':row.asset.metadata.sourceChannels} · decoded {row.asset.audioBuffer.sampleRate} Hz / {row.asset.audioBuffer.numberOfChannels} ch</div><div>{row.reason}</div>
+-        {review.instrument==='drum'?<select aria-label={`Destination for ${row.asset.file.name}`} value={row.destination} onChange={event=>{const destination=event.target.value;if(destination.startsWith('replace:')){const current=stateRef.current.drumSamples[Number(destination.split(':')[1])];update(row.asset.id,{destination,expected:{file:current?.file??null,audioBuffer:current?.audioBuffer??null}});}else update(row.asset.id,{destination,expected:undefined});}}>
+-          <option value="unassigned">Keep unassigned</option>{state.drumSamples.slice(0,24).map((sample,index)=><option key={index} value={sample?.isLoaded?`replace:${index}`:`pad:${index}`}>{sample?.isLoaded?`Replace pad ${index+1}`:`Pad ${index+1}`}</option>)}</select>
++        {review.instrument==='drum'?<select aria-label={`Destination for ${row.asset.file.name}`} value={row.destination} onChange={event=>{const destination=event.target.value;if(destination==='replace-selected')update(row.asset.id,{destination,expected:row.replacementTarget});else if(destination.startsWith('replace:')){const current=stateRef.current.drumSamples[Number(destination.split(':')[1])];update(row.asset.id,{destination,expected:{file:current?.file??null,audioBuffer:current?.audioBuffer??null}});}else update(row.asset.id,{destination,expected:undefined});}}>
++          <option value="unassigned">Keep unassigned</option>{row.replacementTarget&&<option value="replace-selected">Replace selected unassigned sound</option>}{state.drumSamples.slice(0,24).map((sample,index)=><option key={index} value={sample?.isLoaded?`replace:${index}`:`pad:${index}`}>{sample?.isLoaded?`Replace pad ${index+1}`:`Pad ${index+1}`}</option>)}</select>
+         :<><label> Root note <input aria-label={`Root note for ${row.asset.file.name}`} type="number" min={0} max={127} value={row.rootNote} onChange={event=>{const rootNote=Number(event.target.value),occupied=stateRef.current.multisampleFiles.some(file=>file.rootNote===rootNote);update(row.asset.id,{rootNote,destination:occupied?'unassigned':'root',expected:undefined});}}/></label><select aria-label={`Assignment for ${row.asset.file.name}`} value={row.destination} onChange={event=>{const destination=event.target.value;if(destination==='replace'){const current=stateRef.current.multisampleFiles.find(file=>file.rootNote===row.rootNote);update(row.asset.id,{destination,include:true,expected:{file:current?.file??null,audioBuffer:current?.audioBuffer??null}});}else update(row.asset.id,{destination,expected:undefined});}}><option value="unassigned">Keep for review</option>{!state.multisampleFiles.some(file=>file.rootNote===row.rootNote)&&<option value="root">Use empty root note</option>}{state.multisampleFiles.some(file=>file.rootNote===row.rootNote)&&<option value="replace">Replace current root note</option>}</select></>}
+       </li>)}</ul><button onClick={apply}>Apply import</button> </>}
+     <button onClick={cancel}>Cancel import</button>
+--- before-round1/src/components/drum/DrumKeyboard.tsx
++++ src/components/drum/DrumKeyboard.tsx
+@@ -102,6 +102,8 @@
+   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set()); // Format: "keyChar:octave" e.g., "A:0", "W:1"
+ 
+   const fileInputRef = useRef<HTMLInputElement>(null);
++  const keyboardRef = useRef<HTMLDivElement>(null);
++  const pendingArrowFocus = useRef<number | null>(null);
+   const [pendingUploadIndex, setPendingUploadIndex] = useState<number | null>(null);
+   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+   const { play } = useAudioPlayer();
+@@ -141,6 +143,19 @@
+       console.error('Error playing sample:', error);
+     }
+   };
++
++  const moveSelectionWithArrow = (index:number,key:string) => {
++    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key))return false;
++    const direction=key==='ArrowLeft'||key==='ArrowUp'?-1:1;
++    const target=Math.max(0,Math.min(23,index+direction));
++    onSelectSample?.(target);
++    pendingArrowFocus.current=target;
++    if(isMobile)setCurrentOctave(target>=12?1:0);
++    queueMicrotask(()=>{const button=keyboardRef.current?.querySelector<HTMLButtonElement>(`[data-drum-pad="${target}"]`);if(button){button.focus();pendingArrowFocus.current=null;}});
++    return true;
++  };
++
++  useEffect(()=>{const target=pendingArrowFocus.current;if(target===null)return;queueMicrotask(()=>{const button=keyboardRef.current?.querySelector<HTMLButtonElement>(`[data-drum-pad="${target}"]`);if(button){button.focus();pendingArrowFocus.current=null;}});},[currentOctave,isMobile]);
+ 
+   const getDrumIdxForKey = (key: string) => {
+     const mapping = drumKeyMap[currentOctave][key as keyof typeof drumKeyMap[0]];
+@@ -514,6 +529,7 @@
+ 
+           // --- KEYBOARD EVENTS ---
+           onKeyDown={(e) => {
++            if(mapping&&moveSelectionWithArrow(mapping.idx,e.key)){e.preventDefault();return;}
+             if (e.key === 'Enter' || e.key === ' ') {
+               e.preventDefault();
+               handleActivate();
+@@ -675,6 +691,7 @@
+ 
+   return (
+     <div
++      ref={keyboardRef}
+       role="group"
+       aria-label="Drum keyboard"
+       style={{
+@@ -704,6 +721,7 @@
+               return <button key={mapping.idx} type="button" data-keychar={keyChar} data-octave={currentOctave} data-audio-import="drum" data-drum-pad={mapping.idx}
+                 aria-current={selectedSampleIndex===mapping.idx?'true':undefined}
+                 aria-label={`Pad ${mapping.idx+1}, ${mapping.label}${loaded?`, ${sample?.name||'loaded'}`:', empty'}`}
++                onKeyDown={event=>{if(moveSelectionWithArrow(mapping.idx,event.key))event.preventDefault();}}
+                 onClick={()=>{onSelectSample?.(mapping.idx);if(loaded)void playSample(mapping.idx);}}
+                 onDragOver={event=>{event.preventDefault();event.currentTarget.dataset.dragOver='true';}}
+                 onDragLeave={event=>{delete event.currentTarget.dataset.dragOver;}}
+--- before-round1/src/components/drum/DrumTool.tsx
++++ src/components/drum/DrumTool.tsx
+@@ -19,7 +19,6 @@
+ import { useAudioImport } from '../common/AudioImportContext';
+ import { DrumFocusWorkspace } from './DrumFocusWorkspace';
+ import { FirstPresetGuide, StudioDemoLoader } from './StudioDemoLoader';
+-import { planProjectAudioCapacity } from '../../utils/audioSlicing';
+ import type { DrumSample } from '../../context/AppContext';
+ 
+ export function DrumTool() {
+@@ -135,14 +134,9 @@
+ 
+   const handleFocusedFileUpload=async(index:number,file:File)=>{
+     if(index<24){await handleFileUpload(index,file);return;}
+-    try{
+-      const metadata=await readAudioMetadata(file,state.midiNoteMapping);
+-      const replacement:DrumSample={...state.drumSamples[index],file,audioBuffer:metadata.audioBuffer,name:file.name,isLoaded:true,inPoint:0,outPoint:metadata.audioBuffer.duration,
+-        originalBitDepth:metadata.bitDepth,originalSampleRate:metadata.sampleRate,originalChannels:metadata.channels,fileSize:file.size,duration:metadata.audioBuffer.duration,isFloat:metadata.isFloat,
+-        hasBeenEdited:false,isAssigned:false,assignedKey:undefined};
+-      const drums=[...state.drumSamples];drums[index]=replacement;planProjectAudioCapacity([...drums,...state.multisampleFiles],[]);
+-      dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index,updates:replacement}});selectSample(index,replacement);
+-    }catch(error){dispatch({type:'ADD_NOTIFICATION',payload:{id:crypto.randomUUID(),type:'error',title:'replacement not applied',message:error instanceof Error?error.message:'The selected tray sound could not be replaced.'}});}
++    const target=state.drumSamples[index];
++    if(audioImport&&target?.file&&target.audioBuffer){audioImport.beginFiles([file],{instrument:'drum',drumReplacement:{file:target.file,audioBuffer:target.audioBuffer}});return;}
++    dispatch({type:'ADD_NOTIFICATION',payload:{id:crypto.randomUUID(),type:'error',title:'replacement not applied',message:'The selected tray sound is no longer available. Select it again.'}});
+   };
+ 
+   const handleFilesUpload = async (startIndex:number,files:File[]) => {
+--- before-round1/src/components/multisample/MultisampleFocusWorkspace.tsx
++++ src/components/multisample/MultisampleFocusWorkspace.tsx
+@@ -3,6 +3,7 @@
+ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+ import { SmallWaveform } from '../common/SmallWaveform';
+ import { WaveformZoomModal } from '../common/WaveformZoomModal';
++import { framesToSeconds, normalizeSecondRanges } from '../../utils/loopEditing';
+ 
+ interface Props {
+   selectedIndex:number;
+@@ -15,25 +16,49 @@
+ 
+ export function MultisampleFocusWorkspace({selectedIndex,onSelect,onBrowse,onReplace,onClear,onRecord}:Props){
+   const {state,dispatch}=useAppContext();
+-  const {play}=useAudioPlayer();
++  const {playWithADSR,releaseNote}=useAudioPlayer();
+   const input=useRef<HTMLInputElement>(null);
++  const playingNote=useRef<string|null>(null);
++  const previewAbort=useRef<AbortController|null>(null);
+   const sample=state.multisampleFiles[selectedIndex];
+   const [draft,setDraft]=useState({inPoint:0,outPoint:0,loopStart:0,loopEnd:0,rootNote:60});
++  const [validationError,setValidationError]=useState<string|null>(null);
++  const [isPreviewing,setIsPreviewing]=useState(false);
+   const [zoomOpen,setZoomOpen]=useState(false);
+-  useEffect(()=>setDraft({inPoint:sample?.inPoint??0,outPoint:sample?.outPoint??0,loopStart:sample?.loopStart??0,loopEnd:sample?.loopEnd??0,rootNote:sample?.rootNote??60}),[sample]);
++  useEffect(()=>{setDraft({inPoint:sample?.inPoint??0,outPoint:sample?.outPoint??0,loopStart:sample?.loopStart??0,loopEnd:sample?.loopEnd??0,rootNote:sample?.rootNote??60});setValidationError(null);},[sample]);
++  useEffect(()=>{previewAbort.current?.abort();previewAbort.current=null;if(playingNote.current)releaseNote(playingNote.current,true);playingNote.current=null;setIsPreviewing(false);
++    return()=>{previewAbort.current?.abort();previewAbort.current=null;if(playingNote.current)releaseNote(playingNote.current,true);playingNote.current=null;};
++  },[sample?.file,sample?.audioBuffer,releaseNote]);
+   const update=(updates:Partial<MultisampleFile>)=>dispatch({type:'UPDATE_MULTISAMPLE_FILE',payload:{index:selectedIndex,updates}});
++  const restoreDraft=()=>sample&&setDraft({inPoint:sample.inPoint,outPoint:sample.outPoint,loopStart:sample.loopStart,loopEnd:sample.loopEnd,rootNote:sample.rootNote});
++  const commitDraft=(key:keyof typeof draft)=>{if(!sample?.audioBuffer)return;
++    if(key==='rootNote'){if(!Number.isInteger(draft.rootNote)||draft.rootNote<0||draft.rootNote>127){restoreDraft();setValidationError('Root note must be a whole MIDI value from 0 to 127.');return;}setValidationError(null);update({rootNote:draft.rootNote});return;}
++    const markerValues=[draft.inPoint,draft.outPoint,draft.loopStart,draft.loopEnd];
++    if(markerValues.some(value=>!Number.isFinite(value)||value<0||value>sample.audioBuffer!.duration)){restoreDraft();setValidationError('Sample and loop points must be within the selected audio.');return;}
++    const normalized=normalizeSecondRanges(sample.audioBuffer.length,sample.audioBuffer.sampleRate,{start:draft.inPoint,end:draft.outPoint},{start:draft.loopStart,end:draft.loopEnd});
++    const updates={inPoint:framesToSeconds(normalized.sample.start,sample.audioBuffer.sampleRate),outPoint:framesToSeconds(normalized.sample.end,sample.audioBuffer.sampleRate),loopStart:framesToSeconds(normalized.loop.start,sample.audioBuffer.sampleRate),loopEnd:framesToSeconds(normalized.loop.end,sample.audioBuffer.sampleRate)};
++    setDraft(current=>({...current,...updates}));setValidationError(null);update(updates);
++  };
++  const stopPreview=()=>{previewAbort.current?.abort();previewAbort.current=null;if(playingNote.current)releaseNote(playingNote.current,true);playingNote.current=null;setIsPreviewing(false);};
++  const playPreview=async()=>{if(!sample.audioBuffer)return;stopPreview();const noteId=`multisample-focus-${crypto.randomUUID()}`,controller=new AbortController();previewAbort.current=controller;playingNote.current=noteId;setIsPreviewing(true);
++    const result=await playWithADSR(sample.audioBuffer,noteId,{playbackRate:1,gain:state.multisampleSettings.gain,pan:0,adsr:state.multisampleSettings.ampEnvelope,playMode:state.multisampleSettings.playmode,velocity:127,
++      loopEnabled:state.multisampleSettings.loopEnabled,loopOnRelease:state.multisampleSettings.loopOnRelease,loopStart:sample.loopStart,loopEnd:sample.loopEnd,inFrame:Math.round(sample.inPoint*sample.audioBuffer.sampleRate),outFrame:Math.round(sample.outPoint*sample.audioBuffer.sampleRate),
++      signal:controller.signal,onEnded:()=>{if(playingNote.current===noteId){previewAbort.current=null;playingNote.current=null;setIsPreviewing(false);}}});
++    if(result===null&&!controller.signal.aborted&&playingNote.current===noteId){previewAbort.current=null;playingNote.current=null;setIsPreviewing(false);}
++  };
+   if(!sample)return <section className="studio-focus" aria-label="Focused multisample editor"><div className="studio-empty-pad"><h3>Add multisample zones</h3><p>Load one or more sounds, then set root notes, sample bounds, loop points, envelopes, and engine settings.</p><button type="button" className="studio-button-primary" onClick={onBrowse}>Add samples</button></div></section>;
+   return <section className="studio-focus" aria-label="Focused multisample editor">
+     <div className="studio-focus-heading"><div><p className="studio-eyebrow">SELECTED ZONE</p><h3>{sample.name}</h3></div><label>Zone<select aria-label="Selected multisample zone" value={selectedIndex} onChange={event=>onSelect(Number(event.target.value))}>{state.multisampleFiles.map((item,index)=><option key={`${item.name}-${index}`} value={index}>{item.name} · root {item.rootNote}</option>)}</select></label></div>
+     <div className="studio-focus-main">
+     {sample.audioBuffer&&<SmallWaveform audioBuffer={sample.audioBuffer} height={116} inPoint={Math.round(sample.inPoint*sample.audioBuffer.sampleRate)} outPoint={Math.round(sample.outPoint*sample.audioBuffer.sampleRate)} loopStart={Math.round(sample.loopStart*sample.audioBuffer.sampleRate)} loopEnd={Math.round(sample.loopEnd*sample.audioBuffer.sampleRate)} onZoomEdit={()=>setZoomOpen(true)}/>}
+     <div className="studio-sample-controls">
+-      {(['rootNote','inPoint','outPoint','loopStart','loopEnd'] as const).map(key=><label key={key}>{key==='rootNote'?'Root note':key.replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase())}{key!=='rootNote'&&' (seconds)'}<input type="number" min={0} max={key==='rootNote'?127:sample.audioBuffer?.duration} step={key==='rootNote'?1:.00001} value={draft[key]} onChange={event=>setDraft(current=>({...current,[key]:Number(event.target.value)}))} onBlur={()=>update({[key]:draft[key]})}/></label>)}
++      {(['rootNote','inPoint','outPoint','loopStart','loopEnd'] as const).map(key=><label key={key}>{key==='rootNote'?'Root note':key.replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase())}{key!=='rootNote'&&' (seconds)'}<input type="number" min={0} max={key==='rootNote'?127:sample.audioBuffer?.duration} step={key==='rootNote'?1:.00001} value={draft[key]} onChange={event=>setDraft(current=>({...current,[key]:Number(event.target.value)}))} onBlur={()=>commitDraft(key)}/></label>)}
+     </div>
+     </div>
++    {validationError&&<p className="studio-message studio-message-error" role="alert">{validationError}</p>}
+     <p>Amplitude and filter envelopes, loop behavior, tuning root, zone engine, gain, and portamento remain in the instrument settings below.</p>
+     <input ref={input} type="file" hidden accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.ogg,.flac" aria-label="Choose replacement multisample" onChange={event=>{const file=event.target.files?.[0];if(file)onReplace(selectedIndex,file);event.target.value='';}}/>
+-    <div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={()=>void play(sample.audioBuffer!,{inFrame:Math.round(sample.inPoint*sample.audioBuffer!.sampleRate),outFrame:Math.round(sample.outPoint*sample.audioBuffer!.sampleRate),loopEnabled:state.multisampleSettings.loopEnabled,loopStart:sample.loopStart,loopEnd:sample.loopEnd,gain:state.multisampleSettings.gain})}>Play selected</button><button type="button" className="studio-button-secondary" onClick={()=>input.current?.click()}>Replace zone</button><button type="button" className="studio-button-secondary" onClick={()=>onRecord(selectedIndex)}>Record at root</button><button type="button" className="studio-button-secondary" onClick={()=>onClear(selectedIndex)}>Clear zone</button></div>
++    <div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={isPreviewing?stopPreview:()=>void playPreview()}>{isPreviewing?'Stop preview':'Play selected'}</button><button type="button" className="studio-button-secondary" onClick={()=>input.current?.click()}>Replace zone</button><button type="button" className="studio-button-secondary" onClick={()=>onRecord(selectedIndex)}>Record at root</button><button type="button" className="studio-button-secondary" onClick={()=>onClear(selectedIndex)}>Clear zone</button></div>
+     <WaveformZoomModal isOpen={zoomOpen} onClose={()=>setZoomOpen(false)} audioBuffer={sample.audioBuffer} initialInPoint={sample.inPoint} initialOutPoint={sample.outPoint} initialLoopStart={sample.loopStart} initialLoopEnd={sample.loopEnd} initialCrossfade={sample.loopCrossfade} loopEnabled={state.multisampleSettings.loopEnabled} loopOnRelease={state.multisampleSettings.loopOnRelease} gain={state.multisampleSettings.gain} ampEnvelope={state.multisampleSettings.ampEnvelope} onSave={(inPoint,outPoint,loopStart,loopEnd,loopCrossfade)=>{update({inPoint,outPoint,loopStart:loopStart??sample.loopStart,loopEnd:loopEnd??sample.loopEnd,loopCrossfade});setZoomOpen(false);}} onSaveForAll={updates=>dispatch({type:'UPDATE_ALL_MULTI_SAMPLES',payload:updates})}/>
+   </section>;
+ }
+--- before-round1/src/components/multisample/MultisampleTool.tsx
++++ src/components/multisample/MultisampleTool.tsx
+@@ -29,7 +29,7 @@
+   const browseFilesRef = useRef<(() => void) | null>(null);
+   const [workspaceView,setWorkspaceView]=useState<'focus'|'table'>('focus');
+   const [selectedIndex,setSelectedIndex]=useState(state.selectedMultisample??0);
+-  const selectedAssetRef=useRef(state.multisampleFiles[selectedIndex]);
++  const selectedAssetRef=useRef<(typeof state.multisampleFiles)[number]|undefined>(state.multisampleFiles[selectedIndex]);
+   const [isMobile, setIsMobile] = useState(false);
+   const [confirmDialog, setConfirmDialog] = useState<{
+     isOpen: boolean;
+@@ -47,7 +47,11 @@
+     return saved ? parseInt(saved, 10) : 1;
+   });
+   const selectZone=useCallback((index:number)=>{setSelectedIndex(index);selectedAssetRef.current=state.multisampleFiles[index];dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:index});},[dispatch,state.multisampleFiles]);
+-  useEffect(()=>{const selected=selectedAssetRef.current;if(!selected)return;const moved=state.multisampleFiles.findIndex(file=>file===selected||(file.file===selected.file&&file.audioBuffer===selected.audioBuffer));if(moved>=0&&moved!==selectedIndex)setSelectedIndex(moved);},[state.multisampleFiles,selectedIndex]);
++  useEffect(()=>{const files=state.multisampleFiles;if(!files.length){selectedAssetRef.current=undefined;if(selectedIndex!==0)setSelectedIndex(0);if(state.selectedMultisample!=null)dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:null});return;}
++    const selected=selectedAssetRef.current;let resolved=selected?files.findIndex(file=>file===selected||(file.file===selected.file&&file.audioBuffer===selected.audioBuffer)):-1;
++    if(resolved<0)resolved=state.selectedMultisample!==null&&state.selectedMultisample!==undefined&&state.selectedMultisample>=0&&state.selectedMultisample<files.length?state.selectedMultisample:Math.min(selectedIndex,files.length-1);
++    selectedAssetRef.current=files[resolved];if(resolved!==selectedIndex)setSelectedIndex(resolved);if(state.selectedMultisample!==resolved)dispatch({type:'SET_SELECTED_MULTISAMPLE',payload:resolved});
++  },[dispatch,state.multisampleFiles,state.selectedMultisample,selectedIndex]);
+ 
+   // Get pin state from context
+   const { isMultisampleKeyboardPinned } = state;
+--- before-round1/src/components/multisample/VirtualMidiKeyboard.tsx
++++ src/components/multisample/VirtualMidiKeyboard.tsx
+@@ -749,6 +749,8 @@
+       />
+       <div
+         ref={containerRef}
++        role="region"
++        aria-label={`Multisample instrument, ${loadedSamplesCount} of 24 loaded`}
+         className={`virtual-midi-keyboard ${isPinned ? 'pinned' : ''} ${className}`}
+         style={combinedStyles}
+       >
+--- before-round1/src/hooks/useAudioPlayer.ts
++++ src/hooks/useAudioPlayer.ts
+@@ -96,6 +96,7 @@
+   inFrame?: number;
+   outFrame?: number;
+   onEnded?: () => void;
++  signal?: AbortSignal;
+ }
+ 
+ // Note envelope state tracking
+@@ -721,12 +722,15 @@
+     options: ADSRPlaybackOptions = {}
+   ) => {
+     try {
++      if (options.signal?.aborted) return null;
+       const audioContext = await audioContextManager.getAudioContext();
++      if (options.signal?.aborted) return null;
+       
+       // Ensure audio context is fully ready before proceeding
+       if (audioContext.state !== 'running' && typeof audioContext.resume === 'function') {
+         console.warn('Audio context not running, attempting to resume...');
+         await audioContext.resume();
++        if (options.signal?.aborted) return null;
+         
+         // Wait for the audio context to be fully running with proper error handling
+         let attempts = 0;
+@@ -749,6 +753,7 @@
+             const resolveTimer = setTimeout(resolve, checkInterval);
+             addTimer(resolveTimer);
+           });
++          if (options.signal?.aborted) return null;
+           removeTimer(resumeTimer);
+           attempts++;
+         }
+@@ -768,6 +773,7 @@
+           const resolveTimer = setTimeout(resolve, 50);
+           addTimer(resolveTimer);
+         });
++        if (options.signal?.aborted) return null;
+         removeTimer(stabilityTimer);
+       }
+       
+@@ -794,6 +800,7 @@
+       }
+ 
+       // Create new audio nodes for this note
++      if (options.signal?.aborted) return null;
+       const source = audioContext.createBufferSource();
+       const gainNode = audioContext.createGain();
+       const panNode = audioContext.createStereoPanner();
+--- before-round1/src/styles/studio.css
++++ src/styles/studio.css
+@@ -22,6 +22,9 @@
+   --color-interactive-primary: var(--studio-text);
+   --color-interactive-dark: var(--studio-text);
+   --color-interactive-focus: var(--studio-accent);
++  --color-bg-notification: var(--studio-panel);
++  --color-border-notification: var(--studio-border);
++  --color-shadow-elevated: var(--studio-shadow);
+ }
+ 
+ :root[data-studio-theme="dark"] {
+@@ -47,6 +50,9 @@
+   --color-interactive-primary: var(--studio-text);
+   --color-interactive-dark: var(--studio-text);
+   --color-interactive-focus: var(--studio-accent);
++  --color-bg-notification: var(--studio-panel);
++  --color-border-notification: var(--studio-border);
++  --color-shadow-elevated: var(--studio-shadow);
+ }
+ 
+ html, body, #root { min-height: 100%; background: var(--studio-page); color: var(--studio-text); }
+@@ -61,6 +67,7 @@
+   --color-border-light: var(--studio-border); --color-border-subtle: var(--studio-border); --color-border-medium: var(--studio-border); --color-border-primary: var(--studio-border);
+   --color-interactive-primary: var(--studio-text); --color-interactive-secondary: var(--studio-text); --color-interactive-dark: var(--studio-text); --color-interactive-focus: var(--studio-accent); --color-interactive-focus-ring: var(--studio-border); --color-shadow-primary: var(--studio-shadow);
+   --color-accent-primary: var(--studio-accent); --color-accent-dark: var(--studio-text);
++  --color-bg-notification: var(--studio-panel); --color-border-notification: var(--studio-border); --color-shadow-elevated: var(--studio-shadow);
+   --cds-background: var(--studio-page); --cds-layer: var(--studio-panel); --cds-layer-01: var(--studio-panel); --cds-layer-02: var(--studio-recess); --cds-field: var(--studio-recess); --cds-field-01: var(--studio-recess);
+   --cds-text-primary: var(--studio-text); --cds-text-secondary: var(--studio-muted); --cds-text-helper: var(--studio-muted); --cds-border-subtle: var(--studio-border); --cds-border-subtle-01: var(--studio-border); --cds-focus: var(--studio-text); --cds-interactive: var(--studio-accent);
+ }
+--- before-round1/src/test/components/DrumKeyboard.test.tsx
++++ src/test/components/DrumKeyboard.test.tsx
+@@ -193,6 +193,25 @@
+     inputClick.mockRestore();
+   });
+ 
++  it('uses arrow keys to select adjacent physical pads without playback',async()=>{
++    play.mockClear();const onSelectSample=vi.fn();
++    const {container}=render(<AppContextProvider><DrumKeyboard selectedSampleIndex={0} onSelectSample={onSelectSample}/></AppContextProvider>);
++    const first=container.querySelector<HTMLButtonElement>('[data-drum-pad="0"]')!;first.focus();
++    fireEvent.keyDown(first,{key:'ArrowRight'});
++    expect(onSelectSample).toHaveBeenCalledWith(1);
++    expect(play).not.toHaveBeenCalled();
++    await waitFor(()=>expect(document.activeElement).toBe(container.querySelector('[data-drum-pad="1"]')));
++  });
++
++  it('moves silent arrow selection across mobile bank boundaries',async()=>{
++    const previous=window.innerWidth;Object.defineProperty(window,'innerWidth',{configurable:true,value:320});
++    play.mockClear();const onSelectSample=vi.fn();const {container,unmount}=render(<AppContextProvider><DrumKeyboard selectedSampleIndex={11} onSelectSample={onSelectSample}/></AppContextProvider>);
++    const last=container.querySelector<HTMLButtonElement>('[data-drum-pad="11"]')!;last.focus();fireEvent.keyDown(last,{key:'ArrowRight'});
++    await waitFor(()=>expect(container.querySelector('[data-drum-pad="12"]')).toBe(document.activeElement));
++    expect(onSelectSample).toHaveBeenCalledWith(12);expect(play).not.toHaveBeenCalled();
++    unmount();Object.defineProperty(window,'innerWidth',{configurable:true,value:previous});
++  });
++
+   it('shows twelve ordered 44px-plus destinations per explicit mobile bank', () => {
+     const previous=window.innerWidth;
+     Object.defineProperty(window,'innerWidth',{configurable:true,value:320});
+--- before-round1/src/test/components/DrumTool.test.tsx
++++ src/test/components/DrumTool.test.tsx
+@@ -260,6 +260,16 @@
+     expect(intent).toEqual({instrument:'drum',drumPads:[0,1,2]});
+   });
+ 
++  it('routes an unassigned Focus replacement through identity-bound shared intake',async()=>{
++    const audioBuffer=new AudioContext().createBuffer(1,8,8_000),file=new File(['tray'],'tray.wav');
++    const tray={...defaultState.drumSamples[0],file,audioBuffer,name:file.name,isLoaded:true,isAssigned:false,assignedKey:undefined,outPoint:audioBuffer.duration,duration:audioBuffer.duration,sourceIdentity:'old-source',sliceProvenance:{sourceIdentity:'old-source',sourceName:'break.wav',startFrame:0,endFrame:8,sourceFrameCount:8,sourceSampleRate:8_000,sourceChannels:1}};
++    (useAppContext as any).mockReturnValue({state:{...defaultState,drumSamples:[...defaultState.drumSamples,tray]},dispatch:mockDispatch});
++    render(<DrumTool/>);await userEvent.click(screen.getByRole('button',{name:'tray.wav'}));
++    const replacement=new File(['replacement'],'replacement.wav',{type:'audio/wav'});
++    fireEvent.change(screen.getByLabelText('Choose audio for selected unassigned sound'),{target:{files:[replacement]}});
++    expect(audioImportMocks.beginFiles).toHaveBeenCalledWith([replacement],{instrument:'drum',drumReplacement:{file,audioBuffer}});
++  });
++
+   it('opens the shared slicer for an existing sample and dispatches its one prepared batch', async () => {
+     const source=new AudioContext().createBuffer(1,100,48000);
+     const loaded={...defaultState.drumSamples[0],file:new File(['x'],'break.wav',{type:'audio/wav'}),audioBuffer:source,name:'break.wav',isLoaded:true,duration:source.duration,fileSize:1};
+--- before-round1/src/test/components/MultisampleFocusWorkspace.test.tsx
++++ src/test/components/MultisampleFocusWorkspace.test.tsx
+@@ -0,0 +1,67 @@
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { MultisampleFocusWorkspace } from '../../components/multisample/MultisampleFocusWorkspace';
++import { initialState, useAppContext, type AppState, type MultisampleFile } from '../../context/AppContext';
++import { useAudioPlayer } from '../../hooks/useAudioPlayer';
++
++vi.mock('../../context/AppContext', async importOriginal => {
++  const actual = await importOriginal<typeof import('../../context/AppContext')>();
++  return {...actual, useAppContext: vi.fn()};
++});
++vi.mock('../../hooks/useAudioPlayer');
++vi.mock('../../components/common/SmallWaveform', () => ({SmallWaveform: () => <div>waveform</div>}));
++vi.mock('../../components/common/WaveformZoomModal', () => ({WaveformZoomModal: () => null}));
++
++const dispatch=vi.fn(),playWithADSR=vi.fn().mockResolvedValue(undefined),releaseNote=vi.fn();
++function makeSample(name='zone.wav',frames=8):MultisampleFile {
++  const audioBuffer=new AudioContext().createBuffer(1,frames,8_000);
++  return {file:new File([name],name),audioBuffer,name,isLoaded:true,rootNote:60,note:'C3',inPoint:0,outPoint:frames/8_000,
++    loopStart:Math.min(2,frames-1)/8_000,loopEnd:Math.min(6,frames)/8_000,originalBitDepth:16,originalSampleRate:8_000,originalChannels:1,fileSize:4,duration:frames/8_000,isFloat:false};
++}
++function renderFocus(files=[makeSample()],selectedIndex=0) {
++  const state={...initialState,multisampleFiles:files,multisampleSettings:{...initialState.multisampleSettings,loopEnabled:true,loopOnRelease:true,gain:3,
++    playmode:'mono' as const,ampEnvelope:{attack:100,decay:200,sustain:20_000,release:400}}} as AppState;
++  vi.mocked(useAppContext).mockReturnValue({state,dispatch} as ReturnType<typeof useAppContext>);
++  return render(<MultisampleFocusWorkspace selectedIndex={selectedIndex} onSelect={vi.fn()} onBrowse={vi.fn()} onReplace={vi.fn()} onClear={vi.fn()} onRecord={vi.fn()}/>);
++}
++
++describe('MultisampleFocusWorkspace',()=>{
++  beforeEach(()=>{dispatch.mockClear();playWithADSR.mockClear();releaseNote.mockClear();vi.mocked(useAudioPlayer).mockReturnValue({playWithADSR,releaseNote} as unknown as ReturnType<typeof useAudioPlayer>);});
++
++  it('restores invalid root and marker values without creating history',()=>{
++    renderFocus();
++    const root=screen.getByRole('spinbutton',{name:'Root note'});
++    fireEvent.change(root,{target:{value:'128'}});fireEvent.blur(root);
++    expect(root).toHaveValue(60);
++    expect(screen.getByRole('alert')).toHaveTextContent(/whole MIDI value from 0 to 127/i);
++    expect(dispatch).not.toHaveBeenCalled();
++
++    const loopEnd=screen.getByRole('spinbutton',{name:/Loop End \(seconds\)/i});
++    fireEvent.change(loopEnd,{target:{value:'-1'}});fireEvent.blur(loopEnd);
++    expect(loopEnd).toHaveValue(6/8_000);
++    expect(screen.getByRole('alert')).toHaveTextContent(/within the selected audio/i);
++    expect(dispatch).not.toHaveBeenCalled();
++  });
++
++  it('normalizes one-frame marker edits before one atomic update',()=>{
++    renderFocus([makeSample('one.wav',1)]);
++    const loopStart=screen.getByRole('spinbutton',{name:/Loop Start \(seconds\)/i});
++    fireEvent.change(loopStart,{target:{value:'0'}});fireEvent.blur(loopStart);
++    expect(dispatch).toHaveBeenCalledTimes(1);
++    expect(dispatch.mock.calls[0][0]).toMatchObject({type:'UPDATE_MULTISAMPLE_FILE',payload:{index:0,updates:{inPoint:0,outPoint:1/8_000,loopStart:0,loopEnd:1/8_000}}});
++  });
++
++  it('auditions the selected zone with ADSR and loop settings, then stops explicitly',async()=>{
++    const view=renderFocus();
++    fireEvent.click(screen.getByRole('button',{name:'Play selected'}));
++    await waitFor(()=>expect(playWithADSR).toHaveBeenCalledWith(expect.anything(),expect.stringMatching(/^multisample-focus-/),expect.objectContaining({
++      gain:3,pan:0,playMode:'mono',adsr:{attack:100,decay:200,sustain:20_000,release:400},loopEnabled:true,loopOnRelease:true,
++      loopStart:2/8_000,loopEnd:6/8_000,inFrame:0,outFrame:8,
++    })));
++    fireEvent.click(screen.getByRole('button',{name:'Stop preview'}));
++    expect(releaseNote).toHaveBeenCalledWith(expect.stringMatching(/^multisample-focus-/),true);
++    releaseNote.mockClear();fireEvent.click(screen.getByRole('button',{name:'Play selected'}));
++    await waitFor(()=>expect(playWithADSR).toHaveBeenCalledTimes(2));view.unmount();
++    expect(releaseNote).toHaveBeenCalledWith(expect.stringMatching(/^multisample-focus-/),true);
++  });
++});
+--- before-round1/src/test/components/MultisampleTool.test.tsx
++++ src/test/components/MultisampleTool.test.tsx
+@@ -247,6 +247,24 @@
+     expect(screen.getByTestId('virtual-midi-keyboard')).toBeInTheDocument();
+     expect(screen.getByTestId('assigned-key-60')).toBeInTheDocument();
+     expect(screen.getByTestId('unassigned-key-61')).toBeInTheDocument();
++  });
++
++  it('keeps the automatically selected asset after a root-note sort', async () => {
++    const dispatch=vi.fn();
++    const high={...defaultState.multisampleFiles[0],name:'high.wav',file:new File(['high'],'high.wav'),rootNote:72,note:'C5'};
++    const low={...defaultState.multisampleFiles[0],name:'low.wav',file:new File(['low'],'low.wav'),rootNote:60,note:'C4'};
++    let liveState={...defaultState,multisampleFiles:[],selectedMultisample:null};
++    (useAppContext as any).mockImplementation(()=>({state:liveState,dispatch}));
++    const view=render(<MultisampleTool/>);
++
++    liveState={...liveState,multisampleFiles:[high,low] as any};
++    view.rerender(<MultisampleTool/>);
++    await waitFor(()=>expect(screen.getByRole('combobox',{name:'Selected multisample zone'})).toHaveValue('0'));
++
++    liveState={...liveState,multisampleFiles:[low,{...high,rootNote:48,note:'C3'}] as any};
++    view.rerender(<MultisampleTool/>);
++    await waitFor(()=>expect(screen.getByRole('combobox',{name:'Selected multisample zone'})).toHaveValue('1'));
++    expect(dispatch).toHaveBeenCalledWith({type:'SET_SELECTED_MULTISAMPLE',payload:1});
+   });
+ 
+   it('should play assigned key with ADSR envelope', async () => {
+@@ -670,4 +688,4 @@
+   });
+ 
+ 
+-}); 
++});
+--- before-round1/src/test/context/audioImportApplication.test.ts
++++ src/test/context/audioImportApplication.test.ts
+@@ -3,6 +3,8 @@
+ import { appReducer, initialState, type AppState, type DrumSample, type MultisampleFile } from '../../context/AppContext';
+ import { createHistory, reduceHistory } from '../../utils/projectHistory';
+ import { finalizeAudioImport, prepareAudioImportFiles, proposeDrumDestinations, type PreparedAudioImport } from '../../utils/audioImport';
++import { exportProjectArchive, importProjectArchive } from '../../utils/projectArchive';
++import { createProjectSnapshot } from '../../utils/projectSerialization';
+ 
+ function audio(value=.2){const result=new AudioContext().createBuffer(1,8,8_000);result.getChannelData(0).fill(value);return result;}
+ function imported(id:string,name:string):PreparedAudioImport['assets'][number] {const buffer=audio();const file=new File([name],name,{type:'audio/wav'});return {id,sourceIdentity:`source-${id}`,path:name,file,audioBuffer:buffer,metadata:{format:'wav',sampleRate:8_000,bitDepth:16,channels:1,duration:buffer.duration,audioBuffer:buffer,fileSize:file.size,midiNote:-1,loopStart:0,loopEnd:buffer.duration,hasLoopData:false,isFloat:false}};}
+@@ -81,6 +83,29 @@
+     expect(()=>finalizeAudioImport({...prepared,selections:[{id:'new',destination:{kind:'drum-pad',padIndex:2,decision:'choose-empty'}}]},before)).toThrow(/occupied/i);
+   });
+ 
++  it('replaces the identity-bound unassigned asset after tray movement with fresh provenance as one undo',async()=>{
++    const source={...occupied(0),isAssigned:false,assignedKey:undefined,sourceIdentity:'old-source'};
++    const target={...occupied(0),isAssigned:false,assignedKey:undefined,sourceIdentity:'old-source',sliceProvenance:{sourceIdentity:'old-source',sourceName:'break.wav',startFrame:2,endFrame:6,sourceFrameCount:8,sourceSampleRate:8_000,sourceChannels:1}};
++    const inserted={...occupied(0),file:new File(['other'],'other.wav'),isAssigned:false,assignedKey:undefined};
++    const before=state({drumSamples:[...initialState.drumSamples,source,target]});
++    const moved=state({drumSamples:[...initialState.drumSamples,source,inserted,target]});
++    const asset=imported('replacement','replacement.wav');
++    const prepared:PreparedAudioImport={instrument:'drum',expectedProjectGeneration:moved.projectGeneration??0,assets:[asset],selections:[{id:asset.id,destination:{kind:'drum-asset',decision:'replace',expected:{file:target.file,audioBuffer:target.audioBuffer}}}]};
++
++    let history=createHistory(moved);
++    history=reduceHistory(history,{type:'COMMIT_PREPARED_IMPORTS',payload:{operationId:'tray-replace',prepared}},appReducer);
++
++    expect(history.present.importCommitResult).toMatchObject({status:'committed',appliedIds:['replacement']});
++    expect(history.present.drumSamples[26]).toMatchObject({name:'replacement.wav',sourceIdentity:'source-replacement',isAssigned:false});
++    expect(history.present.drumSamples[26].sliceProvenance).toBeUndefined();
++    expect(history.present.drumSamples[25].file?.name).toBe('other.wav');
++    const reopened=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(history.present)));
++    expect(reopened.drumSamples.find(sample=>sample.originalIndex===26)).toMatchObject({name:'replacement.wav',sourceIdentity:'source-replacement',sliceProvenance:undefined});
++    history=reduceHistory(history,{type:'UNDO'},appReducer);
++    expect(history.present.drumSamples).toEqual(moved.drumSamples);
++    expect(before.drumSamples[25]).toBe(target);
++  });
++
+   it('retains multisample capacity excess and refuses occupied notes without explicit identity-bound replace',()=>{
+     const existing=Array.from({length:23},(_,rootNote)=>{const asset=imported('old-'+rootNote,rootNote+'.wav');return {file:asset.file,audioBuffer:asset.audioBuffer,name:asset.file.name,isLoaded:true,rootNote,note:String(rootNote),inPoint:0,outPoint:asset.audioBuffer.duration,loopStart:0,loopEnd:asset.audioBuffer.duration,originalBitDepth:16,originalSampleRate:8_000,originalChannels:1,fileSize:asset.file.size,duration:asset.audioBuffer.duration,isFloat:false} satisfies MultisampleFile});
+     const prepared:PreparedAudioImport={instrument:'multisample',expectedProjectGeneration:initialState.projectGeneration??0,assets:[imported('a','C4.wav'),imported('b','D4.wav')],selections:[
+--- before-round1/src/test/hooks/useAudioPlayer.test.ts
++++ src/test/hooks/useAudioPlayer.test.ts
+@@ -637,6 +637,19 @@
+       expect(mockSource.loopEnd).toBe(oneFrame);
+     });
+ 
++    it('does not start an ADSR source when its owner aborts during context acquisition',async()=>{
++      const {audioContextManager}=await import('../../utils/audioContext');
++      let resolveContext:(context:typeof mockAudioContext)=>void=()=>{};
++      vi.mocked(audioContextManager.getAudioContext).mockReturnValueOnce(new Promise(resolve=>{resolveContext=resolve;}));
++      const controller=new AbortController();const {result}=renderHook(()=>useAudioPlayer());
++      let playback:Promise<string|null>;
++      act(()=>{playback=result.current.playWithADSR(mockBuffer,'owned-preview',{signal:controller.signal});});
++      controller.abort();resolveContext(mockAudioContext);
++      await act(async()=>{expect(await playback!).toBeNull();});
++      expect(mockAudioContext.createBufferSource).not.toHaveBeenCalled();
++      expect(mockSource.start).not.toHaveBeenCalled();
++    });
++
+     it('reverses a copied buffer and reports natural completion without mutating source', async () => {
+       const { result } = renderHook(() => useAudioPlayer());
+       const original = new Float32Array([1, 2, 3, 4]);
+--- before-round1/src/test/utils/audio.test.ts
++++ src/test/utils/audio.test.ts
+@@ -734,6 +734,15 @@
+   })
+ 
+   describe('convertAudioFormat with normalization and gain', () => {
++    it('preserves the exact frame count for same-rate precision conversion', async () => {
++      currentTestContext = '';
++      const source = createMockAudioBuffer(6174, 44100);
++
++      const result = await convertAudioFormat(source, { sampleRate: 44100 });
++
++      expect(result.length).toBe(6174);
++    });
++
+     it('should apply gain correctly', async () => {
+       currentTestContext = 'gain';
+       const mockBuffer = createMockAudioBuffer(1000, 44100);
+@@ -1051,4 +1060,4 @@
+       expect(result.loopEnd).toBeLessThanOrEqual(result.outPoint + 0.001); // Allow small epsilon
+     }
+   });
+-})+})
+--- before-round1/src/test/utils/deviceExportPreflight.test.ts
++++ src/test/utils/deviceExportPreflight.test.ts
+@@ -1,6 +1,9 @@
+-import { describe, expect, it } from 'vitest';
++import { describe, expect, it, vi } from 'vitest';
+ import { initialState, type DrumSample } from '../../context/AppContext';
+ import { buildDeviceExportPreflight } from '../../utils/deviceExportPreflight';
++import { generateDrumPatch } from '../../utils/patchGeneration';
++import { audioContextManager } from '../../utils/audioContext';
++import JSZip from 'jszip';
+ 
+ function audio(frames:number, sampleRate=44100) {
+   return new AudioBuffer({numberOfChannels:1,length:frames,sampleRate});
+@@ -76,11 +79,48 @@
+     compressed.originalBitDepth=undefined;
+     const state={...initialState,drumSettings:{...initialState.drumSettings,presetName:'Fallback',sampleRate:48000,bitDepth:0,channels:0},drumSamples:[compressed,...initialState.drumSamples.slice(1)]};
+     const plan=buildDeviceExportPreflight(state,'drum');
+-    expect(plan.formatSummary).toBe('WAV · 48 kHz · source depth where known; 16-bit fallback · decoded channels per sample');
++    expect(plan.formatSummary).toBe('WAV · 48 kHz · source depth where known; 16-bit fallback · stereo');
+     expect(plan.warnings.join(' ')).toMatch(/unknown source bit depth.*16-bit export fallback/i);
+     expect(plan.estimatedBytes).toBe(44+4800*2*2);
+ 
+     const preserve=buildDeviceExportPreflight({...state,drumSettings:{...state.drumSettings,sampleRate:0}},'drum');
+-    expect(preserve.formatSummary).toBe('WAV · decoded rate per sample · source depth where known; 16-bit fallback · decoded channels per sample');
++    expect(preserve.formatSummary).toBe('WAV · 48 kHz · source depth where known; 16-bit fallback · stereo');
++  });
++
++  it('matches preserve-rate conversion fallback and keep-channel writer semantics',()=>{
++    const converted=loaded('stereo-source',48_000,0);
++    converted.audioBuffer=new AudioBuffer({numberOfChannels:2,length:48_000,sampleRate:48_000});
++    converted.originalSampleRate=44_100;converted.originalChannels=2;
++    const drumState={...initialState,drumSettings:{...initialState.drumSettings,presetName:'Fallback',sampleRate:0,bitDepth:16,channels:1},drumSamples:[converted,...initialState.drumSamples.slice(1)]};
++    const drum=buildDeviceExportPreflight(drumState,'drum');
++    expect(drum.formatSummary).toBe('WAV · 44.1 kHz · 16-bit · mono');
++    expect(drum.estimatedBytes).toBe(44+44_100*2);
++
++    const mono={...converted,audioBuffer:new AudioBuffer({numberOfChannels:1,length:48_000,sampleRate:48_000}),originalChannels:1};
++    const keep=buildDeviceExportPreflight({...drumState,drumSettings:{...drumState.drumSettings,channels:2},drumSamples:[mono,...initialState.drumSamples.slice(1)]},'drum');
++    expect(keep.formatSummary).toBe('WAV · 48 kHz · 16-bit · mono');
++    expect(keep.estimatedBytes).toBe(44+48_000*2);
++  });
++
++  it('matches the actual preserve-rate mono export bytes used by preflight',async()=>{
++    const converted=loaded('stereo-source',48_000,0);
++    converted.audioBuffer=new AudioBuffer({numberOfChannels:2,length:48_000,sampleRate:48_000});converted.originalSampleRate=44_100;converted.originalChannels=2;
++    const state={...initialState,drumSettings:{...initialState.drumSettings,presetName:'Fallback',sampleRate:0,bitDepth:16,channels:1},drumSamples:[converted,...initialState.drumSamples.slice(1)]};
++    const plan=buildDeviceExportPreflight(state,'drum');
++    vi.spyOn(audioContextManager,'createOfflineContext').mockImplementationOnce((channels,length,sampleRate)=>({
++      destination:{},
++      createBufferSource:()=>({buffer:null,connect:vi.fn(),start:vi.fn()}),
++      createGain:()=>({gain:{value:1},connect:vi.fn()}),
++      createChannelSplitter:()=>({connect:vi.fn()}),
++      createChannelMerger:()=>({connect:vi.fn()}),
++      startRendering:async()=>new AudioBuffer({numberOfChannels:channels,length,sampleRate}),
++    }) as unknown as OfflineAudioContext);
++    const zip=await JSZip.loadAsync(await generateDrumPatch(state,'Fallback',undefined,16,'mono','wav'));
++    const patch=JSON.parse(await zip.file('patch.json')!.async('string')) as {regions:Array<{sample:string}>};
++    const bytes=await zip.file(patch.regions[0].sample)!.async('uint8array'),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
++    let dataOffset=12;
++    while (String.fromCharCode(...bytes.slice(dataOffset,dataOffset+4))!=='data') dataOffset+=8+view.getUint32(dataOffset+4,true);
++    expect(view.getUint16(22,true)).toBe(1);expect(view.getUint32(24,true)).toBe(44_100);
++    expect(view.getUint32(dataOffset+4,true)).toBe(plan.estimatedBytes-44);
+   });
+ });
+--- before-round1/src/utils/audio.ts
++++ src/utils/audio.ts
+@@ -5,14 +5,15 @@
+ import { AUDIO_CONSTANTS } from './constants';
+ import type { FilenameSeparator } from './constants';
+ import { audioBufferToWav } from './wavExport';
++import { convertedFrameCount } from './exportPlanning';
++
++export { convertedFrameCount } from './exportPlanning';
+ 
+ // Constants preserved from legacy for compatibility
+ const HEADER_LENGTH = 44;
+ const PATCH_SIZE_LIMIT = 8 * 1024 * 1024; // 8mb limit for OP-XY
+ 
+ // Audio processing constants
+-export const LOOP_END_PADDING = 5; // Additional samples to add when cutting at loop end
+-
+ // WAV format structures
+ interface WavHeader {
+   format: string;
+@@ -360,7 +361,7 @@
+   }
+ 
+   // Trim point is loopEnd + LOOP_END_PADDING samples (buffer for the loop end)
+-  const cutPoint = loopEnd + LOOP_END_PADDING;
++  const cutPoint = loopEnd + AUDIO_CONSTANTS.LOOP_END_PADDING;
+   
+   if (cutPoint >= audioBuffer.length) {
+     return audioBuffer;
+@@ -407,7 +408,7 @@
+   // Create offline context for conversion with correct duration
+   const offlineContext = audioContextManager.createOfflineContext(
+     targetChannels,
+-    Math.ceil(processedBuffer.duration * targetSampleRate),
++    convertedFrameCount(processedBuffer.length, processedBuffer.sampleRate, targetSampleRate),
+     targetSampleRate
+   );
+ 
+@@ -508,7 +509,7 @@
+     const targetBitDepth = options.bitDepth || 16;
+     
+     // Calculate samples after conversion
+-    const samples = Math.ceil(buffer.duration * targetSampleRate);
++    const samples = convertedFrameCount(buffer.length, buffer.sampleRate, targetSampleRate);
+     const bytesPerSample = targetBitDepth / 8;
+     
+     // WAV file size = header + (samples * channels * bytes per sample)
+--- before-round1/src/utils/audioImport.ts
++++ src/utils/audioImport.ts
+@@ -6,10 +6,12 @@
+ import type { ExpectedAssetIdentity } from './recordingApplication';
+ import { applyZeroCrossingToMarkers } from './audio';
+ import { associateImportedCrossfades } from './importedCrossfade';
++import { validateProjectArchiveMetadata } from './projectArchive';
+ 
+ export interface PreparedImportAsset {id:string;sourceIdentity:string;path:string;file:File;audioBuffer:AudioBuffer;metadata:AudioMetadata}
+ export type ImportDestination =
+   | {kind:'drum-pad';padIndex:number;decision:'choose-empty'|'replace';expected?:ExpectedAssetIdentity}
++  | {kind:'drum-asset';decision:'replace';expected:ExpectedAssetIdentity}
+   | {kind:'drum-unassigned'}
+   | {kind:'multisample-root';rootNote:number;decision:'choose-free'|'replace';expected?:ExpectedAssetIdentity};
+ export interface PreparedAudioImport {instrument:'drum'|'multisample';expectedProjectGeneration:number;assets:PreparedImportAsset[];selections:Array<{id:string;destination:ImportDestination}>}
+@@ -54,15 +56,19 @@
+   for(const selection of prepared.selections){const asset=byId.get(selection.id)!;const destination=selection.destination;if(prepared.instrument==='drum'){
+       if(destination.kind==='multisample-root')throw new Error('Import destination does not match drum mode');const trial=[...drums];
+       if(destination.kind==='drum-unassigned'){trial.push(drumSample(asset,false));}
++      else if(destination.kind==='drum-asset') {const index=trial.findIndex(sample=>sample?.file===destination.expected.file&&sample?.audioBuffer===destination.expected.audioBuffer);
++        identity(trial[index],destination.expected,'The unassigned replacement target');
++        if(index<24||trial[index].isAssigned)throw new Error('The unassigned replacement target is no longer in the review tray.');
++        trial[index]=drumSample(asset,false);}
+       else {if(!Number.isInteger(destination.padIndex)||destination.padIndex<0||destination.padIndex>=24)throw new Error('Drum pad destination is invalid');const current=trial[destination.padIndex];
+         if(destination.decision==='replace'){identity(current,destination.expected,'The drum replacement target');if(current.isLoaded)trial.push({...current,isAssigned:false,assignedKey:undefined});}
+         else if(current?.isLoaded)throw new Error('The target pad is occupied. Choose Replace, another empty pad, or Unassigned.');
+         trial[destination.padIndex]=drumSample(asset,true,destination.padIndex);}
+-      try{planProjectAudioCapacity([...trial,...multis],[]);drums=trial;appliedIds.push(asset.id);if(destination.kind==='drum-pad')assignedCount++;else overflowCount++;}catch{retainedIds.push(asset.id);}
++      try{planProjectAudioCapacity([...trial,...multis],[]);validateProjectArchiveMetadata({...state,drumSamples:trial,multisampleFiles:multis});drums=trial;appliedIds.push(asset.id);if(destination.kind==='drum-pad')assignedCount++;else if(destination.kind==='drum-unassigned')overflowCount++;}catch{retainedIds.push(asset.id);}
+     } else {if(destination.kind!=='multisample-root')throw new Error('Import destination does not match multisample mode');if(!Number.isInteger(destination.rootNote)||destination.rootNote<0||destination.rootNote>127)throw new Error('Root note must be a whole MIDI value from 0 to 127');const trial=[...multis];const index=trial.findIndex(file=>file.rootNote===destination.rootNote);
+       if(destination.decision==='replace'){identity(trial[index],destination.expected,'The multisample replacement target');trial.splice(index,1);}else if(index>=0){retainedIds.push(asset.id);continue;}
+       const capacity=destination.decision==='replace'?Math.max(1,24-multis.length):Math.max(0,24-multis.length);if(capacity<1){retainedIds.push(asset.id);continue;}let added=multisample(asset,destination.rootNote,state.midiNoteMapping);if(state.multisampleSettings.autoZeroCrossing){const adjusted=applyZeroCrossingToMarkers(asset.audioBuffer,added.inPoint,added.outPoint,added.loopStart,added.loopEnd);added={...added,inPoint:adjusted.inPoint,outPoint:adjusted.outPoint,loopStart:adjusted.loopStart??added.loopStart,loopEnd:adjusted.loopEnd??added.loopEnd};}trial.push(added);trial.sort((a,b)=>b.rootNote-a.rootNote);
+-      try{planProjectAudioCapacity([...drums,...trial],[]);multis=trial;appliedIds.push(asset.id);assignedCount++;}catch{retainedIds.push(asset.id);}
++      try{planProjectAudioCapacity([...drums,...trial],[]);validateProjectArchiveMetadata({...state,drumSamples:drums,multisampleFiles:trial});multis=trial;appliedIds.push(asset.id);assignedCount++;}catch{retainedIds.push(asset.id);}
+     }}
+   if(prepared.instrument==='multisample')multis=associateImportedCrossfades(multis,state.importedMultisamplePreset).files;
+   return {drumSamples:drums,multisampleFiles:multis,appliedIds,retainedIds,assignedCount,overflowCount};}
+--- before-round1/src/utils/deviceExportPreflight.ts
++++ src/utils/deviceExportPreflight.ts
+@@ -1,5 +1,6 @@
+ import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
+ import { normalizeSecondRanges } from './loopEditing';
++import { planAudioConversion } from './exportPlanning';
+ 
+ export interface DeviceExportPreflight {
+   name:string;mappedCount:number;unassignedCount:number;includedCount:number;omittedCount:number;
+@@ -8,6 +9,22 @@
+ 
+ const rateLabel=(rate:number)=>rate>0?`${Number((rate/1000).toFixed(3))} kHz`:'decoded rate per sample';
+ const channelLabel=(channels:number)=>channels===1?'mono':channels===2?'stereo':'decoded channels per sample';
++
++function effectiveFormat(sample:(DrumSample|MultisampleFile)&{audioBuffer:AudioBuffer;file:File},state:AppState,instrument:'drum'|'multisample') {
++  const settings=instrument==='drum'?state.drumSettings:state.multisampleSettings;
++  const targetRate=settings.sampleRate||0,targetDepth=settings.bitDepth||0,targetChannels=settings.channels||0;
++  const cutAtLoopEnd=instrument==='multisample'&&state.multisampleSettings.cutAtLoopEnd;
++  const ranges=normalizeSecondRanges(sample.audioBuffer.length,sample.audioBuffer.sampleRate,{start:sample.inPoint,end:sample.outPoint},'loopStart' in sample?{start:sample.loopStart,end:sample.loopEnd}:undefined);
++  const plan=planAudioConversion({sourceBuffer:sample.audioBuffer,originalSampleRate:sample.originalSampleRate,originalBitDepth:sample.originalBitDepth,targetSampleRate:targetRate,targetBitDepth:targetDepth,targetChannels:targetChannels===1?'mono':'keep',normalize:settings.normalize,cutAtLoopEnd,loopEndFrame:ranges.loop.end});
++  return {rate:plan.sampleRate,channels:plan.channels,frames:plan.outputFrames,depth:plan.bitDepth,needsConversion:plan.needsConversion};
++}
++
++function describeValues(values:number[],fallback:string,label:(value:number)=>string) {
++  const unique=[...new Set(values)];
++  if(!unique.length)return fallback;
++  if(unique.length===1)return label(unique[0]);
++  return `${unique.map(label).join(' / ')} per sample`;
++}
+ 
+ function validSample(sample:DrumSample|MultisampleFile):sample is (DrumSample|MultisampleFile)&{audioBuffer:AudioBuffer;file:File} {
+   return Boolean(sample.file&&sample.audioBuffer&&sample.audioBuffer.length>0&&sample.audioBuffer.numberOfChannels>0&&Number.isFinite(sample.audioBuffer.sampleRate));
+@@ -39,18 +56,18 @@
+   const targetRate=settings.sampleRate||0,targetDepth=settings.bitDepth||0,targetChannels=settings.channels||0;
+   const unknownDepth=included.filter(sample=>validSample(sample)&&sample.originalBitDepth===undefined).length;
+   if(!targetDepth&&unknownDepth)warnings.push(`${unknownDepth} included ${unknownDepth===1?'sample has':'samples have'} unknown source bit depth and will use the 16-bit export fallback.`);
++  const fallbackRate=included.filter(sample=>validSample(sample)&&!targetRate&&effectiveFormat(sample,state,instrument).needsConversion&&sample.originalSampleRate===undefined).length;
++  if(fallbackRate)warnings.push(`${fallbackRate} included ${fallbackRate===1?'sample has':'samples have'} unknown source sample rate and will use the decoded-rate export fallback.`);
++  const formats=included.filter(validSample).map(sample=>effectiveFormat(sample,state,instrument));
+   const estimatedBytes=included.reduce((total,sample)=>{
+     if(!validSample(sample))return total;
+-    const ranges=normalizeSecondRanges(sample.audioBuffer.length,sample.audioBuffer.sampleRate,{start:sample.inPoint,end:sample.outPoint},'loopStart' in sample?{start:sample.loopStart,end:sample.loopEnd}:undefined);
+-    const sourceFrames=instrument==='multisample'&&state.multisampleSettings.cutAtLoopEnd?ranges.loop.end:sample.audioBuffer.length;
+-    const frames=targetRate?Math.ceil(sourceFrames*targetRate/sample.audioBuffer.sampleRate):sourceFrames;
+-    const channels=targetChannels||sample.audioBuffer.numberOfChannels;
+-    const bytesPerSample=Math.ceil((targetDepth||sample.originalBitDepth||16)/8);
+-    return total+44+frames*channels*bytesPerSample;
++    const format=effectiveFormat(sample,state,instrument);
++    const bytesPerSample=Math.ceil(format.depth/8);
++    return total+44+format.frames*format.channels*bytesPerSample;
+   },0);
+   const sizeBasis=instrument==='multisample'&&state.multisampleSettings.cutAtLoopEnd
+     ? 'Estimated from audio cut at each loop end. Playable duration uses the selected trim range.'
+     : 'Estimated from each complete exported audio file. Playable duration uses the selected trim range.';
+   return {name,mappedCount:mapped.length,unassignedCount:unassigned.length,includedCount:included.length,omittedCount:includeUnassigned?0:unassigned.length,
+-    estimatedBytes,sizeBasis,formatSummary:`${settings.audioFormat.toUpperCase()} · ${rateLabel(targetRate)} · ${targetDepth?`${targetDepth}-bit`:'source depth where known; 16-bit fallback'} · ${channelLabel(targetChannels)}`,errors,warnings};
++    estimatedBytes,sizeBasis,formatSummary:`${settings.audioFormat.toUpperCase()} · ${describeValues(formats.map(format=>format.rate),rateLabel(targetRate),rateLabel)} · ${targetDepth?`${targetDepth}-bit`:'source depth where known; 16-bit fallback'} · ${describeValues(formats.map(format=>format.channels),channelLabel(targetChannels),channelLabel)}`,errors,warnings};
+ }
+--- before-round1/src/utils/exportPlanning.ts
++++ src/utils/exportPlanning.ts
+@@ -1,5 +1,66 @@
++import { AUDIO_CONSTANTS } from './constants';
++
+ export interface SampleReference {
+   sample: string;
++}
++
++export interface AudioConversionPlan {
++  needsConversion: boolean;
++  sampleRate: number;
++  bitDepth: number;
++  channels: number;
++  sourceFrames: number;
++  outputFrames: number;
++}
++
++export function convertedFrameCount(sourceFrames: number, sourceSampleRate: number, targetSampleRate: number): number {
++  return sourceSampleRate === targetSampleRate
++    ? sourceFrames
++    : Math.ceil(sourceFrames * targetSampleRate / sourceSampleRate);
++}
++
++export function planAudioConversion(options: {
++  sourceBuffer: AudioBuffer;
++  originalSampleRate?: number;
++  originalBitDepth?: number;
++  targetSampleRate?: number;
++  targetBitDepth?: number;
++  targetChannels?: string;
++  normalize: boolean;
++  cutAtLoopEnd?: boolean;
++  loopEndFrame?: number;
++}): AudioConversionPlan {
++  const {
++    sourceBuffer,
++    originalSampleRate,
++    originalBitDepth,
++    targetSampleRate,
++    targetBitDepth,
++    targetChannels,
++    normalize,
++    cutAtLoopEnd = false,
++    loopEndFrame,
++  } = options;
++  const needsConversion =
++    Boolean(targetSampleRate && sourceBuffer.sampleRate !== targetSampleRate) ||
++    Boolean(targetBitDepth && targetBitDepth !== originalBitDepth) ||
++    (targetChannels === 'mono' && sourceBuffer.numberOfChannels > 1) ||
++    normalize ||
++    cutAtLoopEnd;
++  const sampleRate = targetSampleRate || (needsConversion ? originalSampleRate || sourceBuffer.sampleRate : sourceBuffer.sampleRate);
++  const channels = targetChannels === 'mono' ? 1 : sourceBuffer.numberOfChannels;
++  const bitDepth = targetBitDepth || originalBitDepth || 16;
++  const sourceFrames = cutAtLoopEnd && loopEndFrame && loopEndFrame > 0 && loopEndFrame < sourceBuffer.length && loopEndFrame + AUDIO_CONSTANTS.LOOP_END_PADDING < sourceBuffer.length
++    ? loopEndFrame + AUDIO_CONSTANTS.LOOP_END_PADDING
++    : sourceBuffer.length;
++  return {
++    needsConversion,
++    sampleRate,
++    bitDepth,
++    channels,
++    sourceFrames,
++    outputFrames: convertedFrameCount(sourceFrames, sourceBuffer.sampleRate, sampleRate),
++  };
+ }
+ 
+ function splitExtension(filename: string): { stem: string; extension: string } {
+--- before-round1/src/utils/patchGeneration.ts
++++ src/utils/patchGeneration.ts
+@@ -6,7 +6,7 @@
+ import { baseMultisampleJson } from '../components/multisample/baseMultisampleJson';
+ import { internalToPercent, percentToInternal } from './valueConversions';
+ import { mergeImportedDrumSettings, mergeImportedMultisampleSettings } from './jsonImport';
+-import { allocateUniqueExportNames, validateArchiveReferences } from './exportPlanning';
++import { allocateUniqueExportNames, planAudioConversion, validateArchiveReferences } from './exportPlanning';
+ import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
+ import { normalizeSecondRanges } from './loopEditing';
+ 
+@@ -231,18 +231,21 @@
+ ): Promise<ExportedAudio<PlannedDrumSample>> {
+   const { sample } = plan;
+   const sourceBuffer = sample.audioBuffer!;
+-  const originalSampleRate = sample.originalSampleRate || sourceBuffer.sampleRate;
+-  const needsConversion =
+-    Boolean(targetSampleRate && sourceBuffer.sampleRate !== targetSampleRate) ||
+-    Boolean(targetBitDepth && targetBitDepth !== sample.originalBitDepth) ||
+-    (targetChannels === 'mono' && sourceBuffer.numberOfChannels > 1) ||
+-    state.drumSettings.normalize;
++  const conversion = planAudioConversion({
++    sourceBuffer,
++    originalSampleRate: sample.originalSampleRate,
++    originalBitDepth: sample.originalBitDepth,
++    targetSampleRate,
++    targetBitDepth,
++    targetChannels,
++    normalize: state.drumSettings.normalize,
++  });
+   try {
+-    const buffer = needsConversion
++    const buffer = conversion.needsConversion
+       ? await convertAudioFormat(sourceBuffer, {
+-          sampleRate: targetSampleRate || originalSampleRate,
+-          bitDepth: targetBitDepth || sample.originalBitDepth || 16,
+-          channels: targetChannels === 'mono' ? 1 : sourceBuffer.numberOfChannels,
++          sampleRate: conversion.sampleRate,
++          bitDepth: conversion.bitDepth,
++          channels: conversion.channels,
+           normalize: state.drumSettings.normalize,
+           normalizeLevel: state.drumSettings.normalizeLevel,
+           sampleName: sample.name,
+@@ -251,7 +254,7 @@
+     requireUsableBuffer(sample.name, buffer);
+     const blob = await exportAudioBuffer(buffer, {
+       format: audioFormat,
+-      bitDepth: targetBitDepth || sample.originalBitDepth || 16,
++      bitDepth: conversion.bitDepth,
+       isFloat: audioFormat === 'aiff' && (targetBitDepth === 32 || (!targetBitDepth && sample.originalBitDepth === 32)),
+       rootNote: 60,
+     });
+@@ -271,25 +274,29 @@
+ ): Promise<ExportedAudio<PlannedMultisampleSample>> {
+   const { sample, sampleNote } = plan;
+   const sourceBuffer = sample.audioBuffer!;
+-  const originalSampleRate = sample.originalSampleRate || sourceBuffer.sampleRate;
+   const sourceRanges = normalizeSecondRanges(
+     sourceBuffer.length,
+     sourceBuffer.sampleRate,
+     { start: sample.inPoint, end: sample.outPoint },
+     { start: sample.loopStart, end: sample.loopEnd },
+   );
+-  const needsConversion =
+-    Boolean(targetSampleRate && sourceBuffer.sampleRate !== targetSampleRate) ||
+-    Boolean(targetBitDepth && targetBitDepth !== sample.originalBitDepth) ||
+-    (targetChannels === 'mono' && sourceBuffer.numberOfChannels > 1) ||
+-    state.multisampleSettings.normalize ||
+-    state.multisampleSettings.cutAtLoopEnd;
++  const conversion = planAudioConversion({
++    sourceBuffer,
++    originalSampleRate: sample.originalSampleRate,
++    originalBitDepth: sample.originalBitDepth,
++    targetSampleRate,
++    targetBitDepth,
++    targetChannels,
++    normalize: state.multisampleSettings.normalize,
++    cutAtLoopEnd: state.multisampleSettings.cutAtLoopEnd,
++    loopEndFrame: sourceRanges.loop.end,
++  });
+   try {
+-    const buffer = needsConversion
++    const buffer = conversion.needsConversion
+       ? await convertAudioFormat(sourceBuffer, {
+-          sampleRate: targetSampleRate || originalSampleRate,
+-          bitDepth: targetBitDepth || sample.originalBitDepth || 16,
+-          channels: targetChannels === 'mono' ? 1 : sourceBuffer.numberOfChannels,
++          sampleRate: conversion.sampleRate,
++          bitDepth: conversion.bitDepth,
++          channels: conversion.channels,
+           normalize: state.multisampleSettings.normalize,
+           normalizeLevel: state.multisampleSettings.normalizeLevel,
+           cutAtLoopEnd: state.multisampleSettings.cutAtLoopEnd,
+@@ -306,7 +313,7 @@
+     );
+     const blob = await exportAudioBuffer(buffer, {
+       format: audioFormat,
+-      bitDepth: targetBitDepth || sample.originalBitDepth || 16,
++      bitDepth: conversion.bitDepth,
+       isFloat: audioFormat === 'aiff' && (targetBitDepth === 32 || (!targetBitDepth && sample.originalBitDepth === 32)),
+       rootNote: sampleNote,
+       loopStart: state.multisampleSettings.loopEnabled ? outputRanges.loop.start : undefined,
+--- before-round1/tests/e2e/audio-import.spec.ts
++++ tests/e2e/audio-import.spec.ts
+@@ -2,7 +2,7 @@
+ import path from 'node:path';
+ import {readFile} from 'node:fs/promises';
+ import JSZip from 'jszip';
+-import {expectDrumLoaded, projectAction} from './workspace-actions';
++import {expectDrumLoaded, expectMultisampleLoaded, projectAction} from './workspace-actions';
+ 
+ const fixture=(name:string)=>path.join(process.cwd(),'tests/fixtures/task7-audio',name);
+ async function downloadedBytes(download:Download){expect(await download.failure()).toBeNull();const saved=await download.path();if(!saved)throw new Error('Project download produced no file');return readFile(saved);}
+@@ -18,7 +18,7 @@
+   const compressed=dialog.getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li');
+   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(/decoded 48000 Hz/);
+   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
+-  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expect(page.getByText(`${expectedPrepared} samples loaded`,{exact:true})).toBeVisible();
++  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,expectedPrepared);
+ 
+   const backupEvent=page.waitForEvent('download');await projectAction(page,'Download project');const backup=await backupEvent,backupBytes=await downloadedBytes(backup);
+   const saved=await inspectProject(backupBytes),mp3=saved.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
+@@ -27,14 +27,14 @@
+   expect(Buffer.from(await saved.zip.file(mp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
+   await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);
+   const chooser=page.waitForEvent('filechooser');await projectAction(page,'Open project');await (await chooser).setFiles({name:backup.suggestedFilename(),mimeType:'application/zip',buffer:backupBytes});
+-  await expect(page.getByText(`${expectedPrepared} samples loaded`,{exact:true})).toBeVisible();
++  await expectDrumLoaded(page,expectedPrepared);
+   const restoredEvent=page.waitForEvent('download');await projectAction(page,'Download project');const restored=await inspectProject(await downloadedBytes(await restoredEvent));const restoredMp3=restored.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
+   expect(restoredMp3?.metadata).not.toHaveProperty('sampleRate');expect(Buffer.from(await restored.zip.file(restoredMp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
+ });
+ 
+ test('desktop row multi-chooser is one reviewed batch with collision-free explicit pads',async({page},testInfo)=>{
+   test.skip(testInfo.project.name.startsWith('Mobile'),'desktop row chooser acceptance');
+-  await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByLabel('choose drum row 1 audio files').setInputFiles([
++  await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Table',exact:true}).click();await page.getByLabel('choose drum row 1 audio files').setInputFiles([
+     {name:'texture.wav',mimeType:'audio/wav',buffer:await readFile(fixture('original.wav'))},
+     {name:'kick.wav',mimeType:'audio/wav',buffer:await readFile(fixture('original.wav'))},
+   ]);
+@@ -51,7 +51,7 @@
+     {name:'unsupported.txt',mimeType:'text/plain',buffer:Buffer.from('plain text')},
+   ]);
+   const dialog=page.getByRole('dialog',{name:'Import audio'});await expect(dialog.getByLabel('Include C4.weird')).toBeVisible();await expect(dialog).toContainText(/empty\.wav:.*empty/i);await expect(dialog).toContainText(/unsupported\.txt:.*(unsupported|signature|audio)/i);
+-  await dialog.getByRole('button',{name:'Cancel import'}).click();await expectDrumLoaded(page,0);
++  await dialog.getByRole('button',{name:'Cancel import'}).click();await expectMultisampleLoaded(page,0);
+ });
+ 
+ test('malformed patch settings are rejected in both modes without changing settings',async({page})=>{
+--- before-round1/tests/e2e/export-workflow.spec.ts
++++ tests/e2e/export-workflow.spec.ts
+@@ -197,7 +197,7 @@
+ test('portable project restores sparse audio and its import can be undone', async ({ page }) => {
+   await page.goto('/');
+   await loadPad(page, 'CLP drum key R', wavFixture('project-clap.wav'));
+-  await expect(page.getByText('1 sample loaded', { exact: true })).toBeVisible();
++  await expectDrumLoaded(page,1);
+   await page.getByRole('textbox', { name: 'Instrument name', exact: true }).fill('Portable project');
+   const backupEvent = page.waitForEvent('download');
+   await projectAction(page,'Download project');
+@@ -210,7 +210,7 @@
+   const chooserEvent = page.waitForEvent('filechooser');
+   await projectAction(page,'Open project');
+   await (await chooserEvent).setFiles({ name: backup.suggestedFilename(), mimeType: 'application/zip', buffer: await readFile(backupPath) });
+-  await expect(page.getByText('1 sample loaded', { exact: true })).toBeVisible();
++  await expectDrumLoaded(page,1);
+   let exported = await downloadPatch(page, false);
+   expect(exported.patch.regions.map(region => region.lokey)).toEqual([58]);
+   await page.getByRole('button', { name: 'Undo', exact: true }).click();
+@@ -218,7 +218,7 @@
+   exported = await downloadPatch(page, false);
+   expect(exported.patch.regions.map(region => region.lokey)).toEqual([53, 58]);
+   await page.getByRole('button', { name: 'Redo', exact: true }).click();
+-  await expect(page.getByText('1 sample loaded', { exact: true })).toBeVisible();
++  await expectDrumLoaded(page,1);
+   exported = await downloadPatch(page, false);
+   expect(exported.patch.regions.map(region => region.lokey)).toEqual([58]);
+ });
+@@ -245,7 +245,7 @@
+   await loadPad(page, 'KD1 drum key A', wavFixture('undo-kick.wav'));
+   await expectDrumLoaded(page,2);
+   await page.keyboard.press('Control+z');
+-  await expect(page.getByText('1 sample loaded', { exact: true })).toBeVisible();
++  await expectDrumLoaded(page,1);
+   await expect(page.getByRole('button', { name: 'CLP drum key R', exact: true })).toBeVisible();
+   await page.keyboard.press('Control+Shift+z');
+   await expectDrumLoaded(page,2);
+@@ -304,7 +304,7 @@
+   const backupError = page.getByRole('region', { name: 'Instrument project controls' }).getByRole('alert');
+   await expect(backupError).toContainText('Could not open project');
+   await expect(backupError).toContainText('current project was kept');
+-  await expect(page.getByText('1 sample loaded', { exact: true })).toBeVisible();
++  await expectDrumLoaded(page,1);
+   await expect(page.getByRole('textbox', { name: 'Instrument name', exact: true })).toHaveValue('Keep current work');
+   const { patch } = await downloadPatch(page);
+   expect(patch.regions.map(region => region.lokey)).toEqual([58]);
+--- before-round1/tests/e2e/loop-editor.spec.ts
++++ tests/e2e/loop-editor.spec.ts
+@@ -2,7 +2,7 @@
+ import { readFile } from 'node:fs/promises';
+ import JSZip from 'jszip';
+ import {applyAudioImport} from './import-helpers';
+-import {chooseDrumPadFile, downloadDevicePreset, openAdvanced} from './workspace-actions';
++import {chooseDrumPadFile, downloadDevicePreset, expectMultisampleLoaded, openAdvanced} from './workspace-actions';
+ 
+ function wavFixture48k(name = 'loop-C4.wav') {
+   const frames = 4800;
+@@ -33,8 +33,7 @@
+   const tab = page.getByRole('tab', { name: 'multisample tab', exact: true });
+   await expect(tab).toBeVisible();
+   await tab.click();
+-  const mobileUserAgent = await page.evaluate(() => /Mobi|Android/i.test(navigator.userAgent));
+-  if (mobileUserAgent) await expect(page.getByText('no samples loaded', { exact: true })).toBeVisible();
++  await expectMultisampleLoaded(page,0);
+   const input = page.getByLabel('choose multisample audio files');
+   await expect(input).toBeAttached();
+   await input.setInputFiles(wavFixture48k());
+@@ -50,7 +49,7 @@
+   const chooser = await chooseDrumPadFile(page,'KD1 drum key A');
+   await (await chooser).setFiles(wavFixture48k('drum.wav'));
+   await applyAudioImport(page);
+-  await expect(page.getByText('drum.wav', { exact: true }).first()).toBeVisible();
++  await expect(page.getByRole('region',{name:'Focused drum sample editor'})).toContainText('drum.wav');
+ }
+ 
+ async function openEditor(page: Page) {
+--- before-round1/tests/e2e/recording.spec.ts
++++ tests/e2e/recording.spec.ts
+@@ -70,7 +70,7 @@
+   await names.first().fill('Browser burst');await selections.nth(1).uncheck();
+   await dialog.getByRole('button',{name:'Add selected takes'}).click();await expect(dialog.getByRole('status')).toContainText('1 take added');
+   await expect(rows).toHaveCount(1);await expect(names.first()).toHaveValue('Take 2');
+-  await dialog.getByRole('button',{name:'Close'}).click();await expect(dialog).toBeHidden();await expect(page.getByText(/1 samples? loaded/,{exact:true})).toBeVisible();
++  await dialog.getByRole('button',{name:'Close'}).click();await expect(dialog).toBeHidden();await expectDrumLoaded(page,1);
+ 
+   const backupEvent=page.waitForEvent('download');await projectAction(page,'Download project');
+   const {zip,manifest}=await readRecordingProject(await downloadedBytes(await backupEvent));
+@@ -83,7 +83,7 @@
+   const header=new DataView(audio.buffer,audio.byteOffset,audio.byteLength);expect(header.getUint32(0,true)).toBe(0x5341504f);expect(header.getUint32(12,true)).toBe(asset!.audio.frames);
+ 
+   await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);await expect(page.getByRole('textbox',{name:'Instrument name',exact:true})).toHaveValue('Recording contract');
+-  await page.getByRole('button',{name:'Redo',exact:true}).click();await expect(page.getByText(/1 samples? loaded/,{exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Instrument name',exact:true})).toHaveValue('Recording contract');
++  await page.getByRole('button',{name:'Redo',exact:true}).click();await expectDrumLoaded(page,1);await expect(page.getByRole('textbox',{name:'Instrument name',exact:true})).toHaveValue('Recording contract');
+   expect(await page.evaluate(()=>window.__opRecordingSynthetic.constraints)).toEqual([expect.objectContaining({audio:expect.objectContaining({echoCancellation:false,autoGainControl:false,noiseSuppression:false})})]);
+   await expect.poll(()=>page.evaluate(()=>window.__opRecordingSynthetic.tracks.every(track=>track.readyState==='ended'))).toBe(true);
+ });
+--- before-round1/tests/e2e/workspace-actions.ts
++++ tests/e2e/workspace-actions.ts
+@@ -39,3 +39,7 @@
+ export async function expectDrumLoaded(page:Page,count:number) {
+   await expect(page.getByRole('region',{name:`Drum pad instrument, ${count} of 24 loaded`})).toBeVisible();
+ }
++
++export async function expectMultisampleLoaded(page:Page,count:number) {
++  await expect(page.getByRole('region',{name:`Multisample instrument, ${count} of 24 loaded`})).toBeVisible();
++}

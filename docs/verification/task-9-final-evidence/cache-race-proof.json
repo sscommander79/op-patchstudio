@@ -1,0 +1,13 @@
+{
+  "browser": "153.0.8010.12",
+  "staleClaimReply": {
+    "type": "OPSTUDIO_WAITING_CLAIMED",
+    "buildId": "v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea",
+    "pruned": false
+  },
+  "installingCachePreserved": true,
+  "naturalActivationNotificationControl": "Page scripts paused until C installed, then both pages closed before any C waiting claim",
+  "naturalActivationOwnsCurrent": true,
+  "activeCAndOfflineLazyPreservedWithWaitingD": true,
+  "status": "PASS"
+}

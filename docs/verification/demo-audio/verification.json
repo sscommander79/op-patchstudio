@@ -1,0 +1,32 @@
+[
+  {
+    "browser": "chromium",
+    "version": "153.0.8010.12",
+    "voices": 10,
+    "archiveBytes": 1087530,
+    "sameEngineRepeatedBytes": true,
+    "sourceBackupReopenExact": true,
+    "maxFloat32DifferenceFromChromium": 0,
+    "quantizedSamplesChecked": 134505
+  },
+  {
+    "browser": "firefox",
+    "version": "155.0",
+    "voices": 10,
+    "archiveBytes": 1087530,
+    "sameEngineRepeatedBytes": true,
+    "sourceBackupReopenExact": true,
+    "maxFloat32DifferenceFromChromium": 0,
+    "quantizedSamplesChecked": 134505
+  },
+  {
+    "browser": "webkit",
+    "version": "26.6",
+    "voices": 10,
+    "archiveBytes": 1087530,
+    "sameEngineRepeatedBytes": true,
+    "sourceBackupReopenExact": true,
+    "maxFloat32DifferenceFromChromium": 0,
+    "quantizedSamplesChecked": 134505
+  }
+]

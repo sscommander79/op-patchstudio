@@ -45,9 +45,9 @@ const CURRENT_SESSION_KEY = 'op-patchstudio-current-session';
 
 export class SessionStorageManager {
   private static instance: SessionStorageManager;
-  
+
   private constructor() {}
-  
+
   static getInstance(): SessionStorageManager {
     if (!SessionStorageManager.instance) {
       SessionStorageManager.instance = new SessionStorageManager();
@@ -85,10 +85,10 @@ export class SessionStorageManager {
 
     // Save session data
     localStorage.setItem(`${SESSION_STORAGE_KEY}/${sessionId}`, JSON.stringify(sessionData));
-    
+
     // Update current session reference
     localStorage.setItem(CURRENT_SESSION_KEY, sessionId);
-    
+
     // Update sessions list
     this.updateSessionsList(sessionId, timestamp);
 
@@ -104,7 +104,7 @@ export class SessionStorageManager {
       if (!sessionData) return null;
 
       const parsedData = JSON.parse(sessionData) as SessionData;
-      
+
 
 
       return parsedData;
@@ -153,7 +153,7 @@ export class SessionStorageManager {
   deleteSession(sessionId: string): void {
     localStorage.removeItem(`${SESSION_STORAGE_KEY}/${sessionId}`);
     this.removeFromSessionsList(sessionId);
-    
+
     // If this was the current session, clear the current session reference
     if (this.getCurrentSessionId() === sessionId) {
       localStorage.removeItem(CURRENT_SESSION_KEY);
@@ -163,15 +163,15 @@ export class SessionStorageManager {
   // Convert drum samples to storable format
   private async convertDrumSamplesToStorable(samples: AppState['drumSamples']): Promise<SessionData['drumSamples']> {
     const storableSamples: SessionData['drumSamples'] = [];
-    
+
     for (let i = 0; i < samples.length; i++) {
       const sample = samples[i];
-      
+
       // Only store samples that have been explicitly loaded
       if (sample.isLoaded && sample.file && sample.audioBuffer) {
         // Convert File to base64
         const base64Data = await this.fileToBase64(sample.file);
-        
+
         storableSamples.push({
           originalIndex: i,
           name: sample.file.name,
@@ -198,7 +198,7 @@ export class SessionStorageManager {
   // Convert multisample files to storable format
   private async convertMultisampleFilesToStorable(files: AppState['multisampleFiles']): Promise<SessionData['multisampleFiles']> {
     const storableFiles: SessionData['multisampleFiles'] = [];
-    
+
     for (const file of files) {
       if (!file.file || !file.audioBuffer) {
         continue;
@@ -206,7 +206,7 @@ export class SessionStorageManager {
 
       // Convert File to base64
       const base64Data = await this.fileToBase64(file.file);
-      
+
       storableFiles.push({
         name: file.file.name,
         data: base64Data,
@@ -254,7 +254,7 @@ export class SessionStorageManager {
         });
         throw new Error('Invalid base64 data: not a string or empty');
       }
-      
+
       // Check if it's a valid base64 string
       if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
         console.error('Base64 format validation failed:', {
@@ -263,17 +263,17 @@ export class SessionStorageManager {
         });
         throw new Error('Invalid base64 data: contains invalid characters');
       }
-      
+
       const byteCharacters = atob(base64);
       const byteNumbers = new Array(byteCharacters.length);
-      
+
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-      
+
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type });
-      
+
       return new File([blob], filename, { type });
     } catch (error) {
       console.error('Failed to convert base64 to File:', error);
@@ -287,15 +287,17 @@ export class SessionStorageManager {
   async base64ToAudioBuffer(base64: string): Promise<AudioBuffer> {
     const byteCharacters = atob(base64);
     const byteNumbers = new Array(byteCharacters.length);
-    
+
     for (let i = 0; i < byteCharacters.length; i++) {
       byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
-    
+
     const byteArray = new Uint8Array(byteNumbers);
     const arrayBuffer = byteArray.buffer;
-    
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is not available');
+    const audioContext = new AudioContextClass();
     return await audioContext.decodeAudioData(arrayBuffer);
   }
 
@@ -303,19 +305,19 @@ export class SessionStorageManager {
   private updateSessionsList(sessionId: string, timestamp: number): void {
     const sessions = this.getSessionsList();
     const sessionName = `session ${new Date(timestamp).toLocaleString()}`;
-    
+
     // Remove existing entry if it exists
     const filteredSessions = sessions.filter(s => s.sessionId !== sessionId);
-    
+
     // Add new entry at the beginning
     const updatedSessions = [
       { sessionId, timestamp, name: sessionName },
       ...filteredSessions
     ];
-    
+
     // Keep only the last 10 sessions
     const limitedSessions = updatedSessions.slice(0, 10);
-    
+
     localStorage.setItem(`${SESSION_STORAGE_KEY}/list`, JSON.stringify(limitedSessions));
   }
 
@@ -327,4 +329,4 @@ export class SessionStorageManager {
   }
 }
 
-export const sessionStorage = SessionStorageManager.getInstance(); 
+export const sessionStorage = SessionStorageManager.getInstance();

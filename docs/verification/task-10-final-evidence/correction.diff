@@ -1,0 +1,330 @@
+--- before/README.md
++++ after/README.md
+@@ -85,10 +85,11 @@
+ npm run test:e2e                          # configured browser matrix against dev
+ npm run test:e2e:production               # configured browser matrix against dist
+ npm run test:e2e:production -- --project=chromium
++npm run test:e2e:storage-integration       # real IndexedDB/source integration against dev
+ npm run test:e2e:recording                 # deterministic Chromium fake-input gate
+ ```
+ 
+-The recording command generates and uses an explicit synthetic WAV fixture. It does not access real recording hardware. CI runs clean install, typecheck, lint, unit tests, production build, Chromium E2E and the deterministic recording gate for changes. Manual and scheduled CI runs add the configured Chromium, Firefox, WebKit and mobile-emulation matrix.
++The production browser suite uses only interfaces available from `dist`; its UI-created recovery records are inspected through the browser's native IndexedDB API. The separately named storage-integration suite runs two direct source-module checks against the development server: atomic session rollback after an injected transaction fault, and exact library-audio restoration. CI runs both suites in Chromium for changes. Manual and scheduled CI runs exercise both suites across Chromium, Firefox, WebKit and the configured mobile emulations. The recording command generates and uses an explicit synthetic WAV fixture. It does not access real recording hardware.
+ 
+ ## Verification and release evidence
+ 
+--- before/package.json
++++ after/package.json
+@@ -30,6 +30,7 @@
+     "test:coverage": "vitest --coverage",
+     "test:e2e": "playwright test",
+     "test:e2e:production": "PLAYWRIGHT_PRODUCTION=1 playwright test",
++    "test:e2e:storage-integration": "playwright test --config=playwright.storage-integration.config.ts",
+     "test:e2e:recording": "PLAYWRIGHT_PRODUCTION=1 PLAYWRIGHT_FAKE_AUDIO_FILE=/tmp/opstudio-ci-fake-audio.wav playwright test --config=playwright.recording-device.config.ts",
+     "test:e2e:ui": "playwright test --ui",
+     "check": "npm run typecheck && npm run lint && npm test && npm run build",
+--- before/playwright.config.ts
++++ after/playwright.config.ts
+@@ -4,7 +4,7 @@
+ 
+ export default defineConfig({
+   testDir: './tests/e2e',
+-  testIgnore: '**/recording-fake-device.spec.ts',
++  testIgnore: ['**/recording-fake-device.spec.ts','**/recovery-integrity.spec.ts'],
+   fullyParallel: true,
+   forbidOnly: !!process.env.CI,
+   retries: process.env.CI ? 2 : 0,
+--- before/src/context/AppContext.tsx
++++ after/src/context/AppContext.tsx
+@@ -997,6 +997,7 @@
+         if(action.payload.prepared.source.existingIndex!==null&&next.drumSamples[action.payload.prepared.source.existingIndex]?.sourceIdentity!==committed.sourceIdentity) {
+           throw new Error('The slice source identity could not be committed. No slices were added; retry.');
+         }
++        validateProjectArchiveMetadata(next);
+         return {...next,sliceCommitResult:{operationId:action.payload.operationId,status:'committed',assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},notifications:[...next.notifications,{id:crypto.randomUUID(),type:'success',title:'slices applied',
+           message:`${committed.assignedCount} assigned to empty pads${committed.overflowCount?`; ${committed.overflowCount} kept unassigned`:''}`}]};
+       } catch(reason) {
+@@ -1009,7 +1010,9 @@
+       try {
+         const committed=finalizeRecordingApplication(action.payload.prepared,state);
+         if(!committed.appliedIds.length)throw new Error('No recording takes could be added; the review tray is unchanged.');
+-        return {...state,drumSamples:committed.drumSamples,multisampleFiles:committed.multisampleFiles,
++        const candidate={...state,drumSamples:committed.drumSamples,multisampleFiles:committed.multisampleFiles};
++        validateProjectArchiveMetadata(candidate);
++        return {...candidate,
+           recordingCommitResult:{operationId:action.payload.operationId,status:'committed',appliedIds:committed.appliedIds,
+             retainedIds:committed.retainedIds,assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},
+           notifications:[...state.notifications,{id:crypto.randomUUID(),type:'success',title:'recorded takes added',
+--- before/src/utils/audioImport.ts
++++ after/src/utils/audioImport.ts
+@@ -71,4 +71,5 @@
+       try{planProjectAudioCapacity([...drums,...trial],[]);validateProjectArchiveMetadata({...state,drumSamples:drums,multisampleFiles:trial});multis=trial;appliedIds.push(asset.id);assignedCount++;}catch{retainedIds.push(asset.id);}
+     }}
+   if(prepared.instrument==='multisample')multis=associateImportedCrossfades(multis,state.importedMultisamplePreset).files;
++  validateProjectArchiveMetadata({...state,drumSamples:drums,multisampleFiles:multis});
+   return {drumSamples:drums,multisampleFiles:multis,appliedIds,retainedIds,assignedCount,overflowCount};}
+--- before/.github/workflows/quality.yml
++++ after/.github/workflows/quality.yml
+@@ -27,6 +27,7 @@
+       - run: npm run build
+       - run: npx playwright install --with-deps chromium
+       - run: npm run test:e2e:production -- --project=chromium
++      - run: npm run test:e2e:storage-integration -- --project=chromium
+       - run: npm run test:e2e:recording
+ 
+   scheduled-browser-matrix:
+@@ -43,3 +44,4 @@
+       - run: npm run build
+       - run: npx playwright install --with-deps chromium firefox webkit
+       - run: npm run test:e2e:production
++      - run: npm run test:e2e:storage-integration
+--- before/tests/e2e/export-workflow.spec.ts
++++ after/tests/e2e/export-workflow.spec.ts
+@@ -2,6 +2,7 @@
+ import { readFile } from 'node:fs/promises';
+ import JSZip from 'jszip';
+ import {applyAudioImport} from './import-helpers';
++import {readCurrentSession,setCurrentSessionTimestamp} from './indexeddb-helpers';
+ import {chooseDrumPadFile, downloadDevicePreset, expectDrumLoaded, openAdvanced, projectAction} from './workspace-actions';
+ 
+ // Hand-built PCM fixtures avoid exercising the application's encoder to
+@@ -99,20 +100,10 @@
+   await page.goto('/');
+   await loadPad(page, 'CLP drum key R', wavFixture('recover-me.wav'));
+   await page.getByRole('textbox', { name: 'Instrument name', exact: true }).fill('Keep this session');
+-  await expect.poll(() => page.evaluate(async () => {
+-    const dbUrl = '/src/utils/indexedDB.ts';
+-    const { indexedDB: db } = await import(dbUrl);
+-    const session = await db.getSession('current-session');
+-    return session?.drumSettings?.presetName;
+-  })).toBe('Keep this session');
++  await expect.poll(async () => (await readCurrentSession(page))?.drumSettings?.presetName).toBe('Keep this session');
+   // Simulate returning two days later without a real clock delay. The saved
+   // audio and musical state came from the actual file chooser and autosave.
+-  await page.evaluate(async () => {
+-    const dbUrl = '/src/utils/indexedDB.ts';
+-    const { indexedDB: db } = await import(dbUrl);
+-    const session = await db.getSession('current-session');
+-    await db.saveSession({ ...session, timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000 });
+-  });
++  await setCurrentSessionTimestamp(page,Date.now()-2*24*60*60*1000);
+   await page.reload();
+   const dialog = page.getByRole('dialog', { name: 'restore session' });
+   await expect(dialog).toBeVisible();
+@@ -144,11 +135,7 @@
+   const retry = page.getByRole('button', { name: /retry.*save|save.*retry/i });
+   await expect(retry).toBeVisible();
+   await retry.click();
+-  await expect.poll(() => page.evaluate(async () => {
+-    const dbUrl = '/src/utils/indexedDB.ts';
+-    const { indexedDB: db } = await import(dbUrl);
+-    return (await db.getSession('current-session'))?.drumSettings?.presetName;
+-  })).toBe('Retry this save');
++  await expect.poll(async () => (await readCurrentSession(page))?.drumSettings?.presetName).toBe('Retry this save');
+   await expect(retry).not.toBeVisible();
+ });
+ 
+@@ -226,11 +213,7 @@
+ test('settings-only work is offered for recovery after reload', async ({ page }) => {
+   await page.goto('/');
+   await page.getByRole('textbox', { name: 'Instrument name', exact: true }).fill('Settings before samples');
+-  await expect.poll(() => page.evaluate(async () => {
+-    const dbUrl = '/src/utils/indexedDB.ts';
+-    const { indexedDB: db } = await import(dbUrl);
+-    return (await db.getSession('current-session'))?.drumSettings?.presetName;
+-  })).toBe('Settings before samples');
++  await expect.poll(async () => (await readCurrentSession(page))?.drumSettings?.presetName).toBe('Settings before samples');
+   await page.reload();
+   const dialog = page.getByRole('dialog', { name: 'restore session' });
+   await expect(dialog).toBeVisible();
+--- before/tests/e2e/recovery-integrity.spec.ts
++++ after/tests/e2e/recovery-integrity.spec.ts
+@@ -1,14 +1,14 @@
+ import { test, expect } from '@playwright/test';
+ 
+ test.beforeEach(async ({ page }) => {
+-  // Exercise production storage in a real browser without mounting the app's
++  // Exercise source storage integration in a real browser without mounting the app's
+   // autosave lifecycle, which is covered separately by the UI workflow tests.
+   await page.route('http://127.0.0.1:5187/', route => route.fulfill({
+     contentType: 'text/html', body: '<!doctype html><title>Storage integrity</title>',
+   }));
+ });
+ 
+-// These use the app's real storage functions and the browser's real IndexedDB.
++// These use the app's real source storage functions and the browser's real IndexedDB.
+ // A transaction fault is injected at the browser boundary, not a fake database.
+ test('failed session replacement retains the previous complete recovery snapshot', async ({ page }) => {
+   await page.goto('/');
+--- /dev/null
++++ after/src/test/context/finalCandidateAdmission.test.ts
+@@ -0,0 +1,98 @@
++import JSZip from 'jszip';
++import { Blob as NodeBlob, File as NodeFile } from 'node:buffer';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { appReducer, initialState, type AppState } from '../../context/AppContext';
++import { prepareRecordingApplication } from '../../utils/recordingApplication';
++import { prepareSliceApplication } from '../../utils/audioSlicing';
++import { createHistory, reduceHistory } from '../../utils/projectHistory';
++import { createProjectSnapshot } from '../../utils/projectSerialization';
++import { PROJECT_ARCHIVE_LIMITS, PROJECT_ARCHIVE_MANIFEST, exportProjectArchive, validateProjectArchiveMetadata } from '../../utils/projectArchive';
++
++const PositionalAudioBuffer = globalThis.AudioBuffer as unknown as new(channels:number,length:number,sampleRate:number)=>AudioBuffer;
++
++beforeEach(() => {
++  vi.stubGlobal('Blob', NodeBlob);
++  vi.stubGlobal('File', NodeFile);
++  vi.stubGlobal('AudioBuffer', class extends PositionalAudioBuffer {
++    constructor(options:AudioBufferOptions) { super(options.numberOfChannels ?? 1, options.length, options.sampleRate); }
++  });
++});
++afterEach(() => vi.unstubAllGlobals());
++
++function audio(frames=8) {
++  const buffer=new AudioContext().createBuffer(1,frames,8_000);
++  buffer.getChannelData(0).fill(Math.fround(0.125));
++  return buffer;
++}
++
++function stateAtExactManifestLimit():AppState {
++  return {
++    ...initialState,
++    drumSamples:initialState.drumSamples.map(sample=>({...sample})),
++    importedDrumPreset:{type:'drum',admissionProbe:'x'.repeat(2_095_959)},
++  };
++}
++
++async function exactManifestBytes(state:AppState) {
++  const archive=await exportProjectArchive(createProjectSnapshot(state));
++  const zip=await JSZip.loadAsync(new Uint8Array(await archive.arrayBuffer()));
++  return (await zip.file(PROJECT_ARCHIVE_MANIFEST)!.async('uint8array')).byteLength;
++}
++
++describe('final portable-project admission', () => {
++  it('rejects a recording that pushes an exactly admitted manifest over the limit without changing project, history, or review assets', async () => {
++    const before=stateAtExactManifestLimit();
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(before))).not.toThrow();
++    expect(await exactManifestBytes(before)).toBe(PROJECT_ARCHIVE_LIMITS.manifestBytes);
++    const prepared=await prepareRecordingApplication({
++      instrument:'drum',takes:[{id:'take-1',name:'Boundary take',audioBuffer:audio(),rootNote:60}],state:before,target:{kind:'drum'},
++    });
++    const retainedAsset=prepared.assets[0];
++    const history=reduceHistory(createHistory(before),{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'manifest-recording',prepared}},appReducer);
++
++    expect(history.present.recordingCommitResult).toMatchObject({operationId:'manifest-recording',status:'rejected',error:expect.stringMatching(/manifest.*large/i)});
++    expect(history.present.drumSamples).toBe(before.drumSamples);
++    expect(history.present.multisampleFiles).toBe(before.multisampleFiles);
++    expect(history.past).toHaveLength(0);
++    expect(prepared.assets).toEqual([retainedAsset]);
++    await expect(exportProjectArchive(createProjectSnapshot(history.present))).resolves.toBeInstanceOf(Blob);
++
++    const valid={...initialState,drumSamples:initialState.drumSamples.map(sample=>({...sample}))};
++    const validPrepared=await prepareRecordingApplication({
++      instrument:'drum',takes:[{id:'valid-take',name:'Valid take',audioBuffer:audio(),rootNote:60}],state:valid,target:{kind:'drum'},
++    });
++    const accepted=appReducer(valid,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'valid-recording',prepared:validPrepared}});
++    expect(accepted.recordingCommitResult).toMatchObject({status:'committed',appliedIds:['valid-take']});
++    await expect(exportProjectArchive(createProjectSnapshot(accepted))).resolves.toBeInstanceOf(Blob);
++  });
++
++  it('rejects slices that push an exactly admitted manifest over the limit without changing project, history, or prepared assets', async () => {
++    const before=stateAtExactManifestLimit(),source=audio();
++    expect(()=>validateProjectArchiveMetadata(createProjectSnapshot(before))).not.toThrow();
++    expect(await exactManifestBytes(before)).toBe(PROJECT_ARCHIVE_LIMITS.manifestBytes);
++    const file=new File([new Uint8Array([1,2,3,4])],'boundary.wav',{type:'audio/wav'});
++    const metadata={format:'wav' as const,sampleRate:8_000,sourceSampleRate:8_000,bitDepth:16,channels:1,sourceChannels:1,duration:source.duration,fileSize:file.size,isFloat:false,audioBuffer:source,midiNote:60,loopStart:0,loopEnd:source.duration,hasLoopData:false};
++    const prepared=await prepareSliceApplication({
++      source:{audioBuffer:source,file,metadata,existingIndex:null},ranges:[{start:0,end:4}],existingSamples:before.drumSamples,
++      projectAssets:[...before.drumSamples,...before.multisampleFiles],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate),
++    });
++    const retainedActions=prepared.actions;
++    const history=reduceHistory(createHistory(before),{type:'COMMIT_PREPARED_SLICES',payload:{operationId:'manifest-slice',prepared}},appReducer);
++
++    expect(history.present.sliceCommitResult).toMatchObject({operationId:'manifest-slice',status:'rejected',error:expect.stringMatching(/manifest.*large/i)});
++    expect(history.present.drumSamples).toBe(before.drumSamples);
++    expect(history.present.multisampleFiles).toBe(before.multisampleFiles);
++    expect(history.past).toHaveLength(0);
++    expect(prepared.actions).toBe(retainedActions);
++    await expect(exportProjectArchive(createProjectSnapshot(history.present))).resolves.toBeInstanceOf(Blob);
++
++    const valid={...initialState,drumSamples:initialState.drumSamples.map(sample=>({...sample}))};
++    const validPrepared=await prepareSliceApplication({
++      source:{audioBuffer:source,file,metadata,existingIndex:null},ranges:[{start:0,end:4}],existingSamples:valid.drumSamples,
++      projectAssets:[...valid.drumSamples,...valid.multisampleFiles],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate),
++    });
++    const accepted=appReducer(valid,{type:'COMMIT_PREPARED_SLICES',payload:{operationId:'valid-slice',prepared:validPrepared}});
++    expect(accepted.sliceCommitResult).toMatchObject({status:'committed',assignedCount:1,overflowCount:0});
++    await expect(exportProjectArchive(createProjectSnapshot(accepted))).resolves.toBeInstanceOf(Blob);
++  });
++});
+--- /dev/null
++++ after/tests/e2e/indexeddb-helpers.ts
+@@ -0,0 +1,45 @@
++import type { Page } from '@playwright/test';
++
++interface StoredSession {
++  id:string;
++  timestamp:number;
++  drumSettings?:{presetName?:string};
++  [key:string]:unknown;
++}
++
++const databaseName='op-patchstudio-db';
++const sessionsStore='sessions';
++
++export async function readCurrentSession(page:Page):Promise<StoredSession|null> {
++  return page.evaluate(async ({databaseName,sessionsStore}) => new Promise<StoredSession|null>((resolve,reject) => {
++    const request=indexedDB.open(databaseName);
++    request.onupgradeneeded=()=>request.transaction?.abort();
++    request.onerror=()=>reject(request.error??new Error('Could not open the application database'));
++    request.onsuccess=()=>{
++      const db=request.result,transaction=db.transaction(sessionsStore,'readonly'),get=transaction.objectStore(sessionsStore).get('current-session');
++      let value:StoredSession|null=null;
++      get.onsuccess=()=>{value=(get.result as StoredSession|undefined)??null;};
++      get.onerror=()=>reject(get.error??new Error('Could not read the current session'));
++      transaction.oncomplete=()=>{db.close();resolve(value);};
++      transaction.onabort=transaction.onerror=()=>{const error=transaction.error??new Error('Current-session read aborted');db.close();reject(error);};
++    };
++  }),{databaseName,sessionsStore});
++}
++
++export async function setCurrentSessionTimestamp(page:Page,timestamp:number):Promise<void> {
++  await page.evaluate(async ({databaseName,sessionsStore,timestamp}) => new Promise<void>((resolve,reject) => {
++    const request=indexedDB.open(databaseName);
++    request.onupgradeneeded=()=>request.transaction?.abort();
++    request.onerror=()=>reject(request.error??new Error('Could not open the application database'));
++    request.onsuccess=()=>{
++      const db=request.result,transaction=db.transaction(sessionsStore,'readwrite'),store=transaction.objectStore(sessionsStore),get=store.get('current-session');
++      get.onsuccess=()=>{
++        if(!get.result){transaction.abort();return;}
++        store.put({...get.result,timestamp});
++      };
++      get.onerror=()=>transaction.abort();
++      transaction.oncomplete=()=>{db.close();resolve();};
++      transaction.onabort=transaction.onerror=()=>{const error=transaction.error??get.error??new Error('Current-session update aborted');db.close();reject(error);};
++    };
++  }),{databaseName,sessionsStore,timestamp});
++}
+--- /dev/null
++++ after/playwright.storage-integration.config.ts
+@@ -0,0 +1,20 @@
++import { defineConfig, devices } from '@playwright/test';
++
++export default defineConfig({
++  testDir:'./tests/e2e',
++  testMatch:'recovery-integrity.spec.ts',
++  fullyParallel:true,
++  forbidOnly:!!process.env.CI,
++  retries:process.env.CI?2:0,
++  workers:process.env.CI?1:undefined,
++  reporter:[['list'],['html',{open:'never'}]],
++  use:{baseURL:'http://127.0.0.1:5187',trace:'on-first-retry'},
++  projects:[
++    {name:'chromium',use:{...devices['Desktop Chrome']}},
++    {name:'firefox',use:{...devices['Desktop Firefox']}},
++    {name:'webkit',use:{...devices['Desktop Safari']}},
++    {name:'Mobile Chrome',use:{...devices['Pixel 5']}},
++    {name:'Mobile Safari',use:{...devices['iPhone 12']}},
++  ],
++  webServer:{command:'npm run dev -- --host 127.0.0.1 --port 5187 --strictPort',url:'http://127.0.0.1:5187',reuseExistingServer:false},
++});

@@ -1,0 +1,4 @@
+# Numbered sound audition
+Genspark gpt-5.6-sol implemented numbered-button select-and-play and retrigger using the clicked range directly. Existing request-token cancellation handles stale pending previews. Previous/Next remain selection-only; loading remains silent. Added placement guidance: empty pads fill in order; the existing Move or swap with pad control chooses the destination after adding.
+
+Fresh verification: 18 component tests passed, including exact clicked range, repeated click, pending rapid-click cancellation, and no autoplay. Production build and scoped lint passed. Chromium production slicing/export/undo/backup round-trip passed. Current source refresh used 285 files and no fallbacks. Updated local previews; cached open tabs may need Update now after preserving their edits. No new pre-apply mapping selector was added. No commit/push.

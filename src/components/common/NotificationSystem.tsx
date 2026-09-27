@@ -18,18 +18,18 @@ interface NotificationSystemProps {
 export function NotificationSystem({ notifications, onDismiss }: NotificationSystemProps) {
   // Auto-dismiss notifications after their duration
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    
+    const timers: number[] = [];
+
     notifications.forEach(notification => {
       const duration = notification.duration || 5000;
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         onDismiss(notification.id);
       }, duration);
       timers.push(timer);
     });
-    
+
     return () => {
-      timers.forEach(timer => clearTimeout(timer));
+      timers.forEach(timer => window.clearTimeout(timer));
     };
   }, [notifications, onDismiss]);
 
@@ -59,7 +59,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
     }}>
       {notifications.map(notification => {
         const icon = getIcon(notification.type);
-        
+
         return (
           <div
             key={notification.id}
@@ -79,10 +79,10 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
               alignItems: 'flex-start',
               gap: '12px'
             }}>
-              <i 
-                className={`fas ${icon}`} 
-                style={{ 
-                  color: 'var(--color-text-secondary)', 
+              <i
+                className={`fas ${icon}`}
+                style={{
+                  color: 'var(--color-text-secondary)',
                   fontSize: '16px',
                   marginTop: '2px',
                   flexShrink: 0
@@ -132,7 +132,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
           </div>
         );
       })}
-      
+
       <style>{`
         @keyframes slideInRight {
           from {
@@ -147,4 +147,4 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
       `}</style>
     </div>
   );
-} 
+}

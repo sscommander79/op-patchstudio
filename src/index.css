@@ -1,8 +1,12 @@
 /* Global styles for OPXY Tools React app */
 /* Preserving the OP-XY monochrome aesthetic */
 
-/* Import Font Awesome */
-@import '@fortawesome/fontawesome-free/css/all.css';
+/* Load only the icon families used by the interface. */
+@import '@fortawesome/fontawesome-free/css/fontawesome.css';
+@import '@fortawesome/fontawesome-free/css/solid.css';
+@import '@fortawesome/fontawesome-free/css/regular.css';
+@import '@fortawesome/fontawesome-free/css/brands.css';
+@import '@fortawesome/fontawesome-free/css/v4-shims.css';
 
 /* Embed Nimbus Sans L font (Helvetica alternative) */
 @font-face {
@@ -14,7 +18,7 @@
 }
 
 :root {
-  font-family: "Montserrat", "Arial", sans-serif;
+  font-family: "NimbusSansL", "Arial", sans-serif;
   line-height: 1.7;
   font-weight: 400;
   
@@ -175,16 +179,6 @@ a:hover {
   padding: 0 1rem;
   width: 100%;
   box-sizing: border-box;
-}
-
-/* Ensure main content doesn't become too wide on desktop screens */
-@media (min-width: 1200px) {
-  .cds--content {
-    max-width: 1000px !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
 }
 
 /* Ensure tables and data displays don't become too wide on desktop screens */

@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 coverage/*
+# Local browser verification artifacts
+.playwright-cli/
+playwright-report/
+test-results/
+.superpowers/

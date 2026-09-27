@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   readAudioMetadata,
   readAudioMetadataFromArrayBuffer,
@@ -62,7 +63,7 @@ vi.mock('../../utils/audio', () => ({
 describe('audioFormats', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Setup default mock behavior
     mockAudioContext.decodeAudioData.mockResolvedValue({
       length: 44100,
@@ -78,55 +79,50 @@ describe('audioFormats', () => {
   describe('detectAudioFormat', () => {
     it('should detect WAV format from header', () => {
       const wavHeader = new ArrayBuffer(44)
-      
+
       // Write RIFF header
       const textEncoder = new TextEncoder()
       const riffBytes = textEncoder.encode('RIFF')
       new Uint8Array(wavHeader, 0, 4).set(riffBytes)
-      
+      new Uint8Array(wavHeader, 8, 4).set(textEncoder.encode('WAVE'))
+
       const format = detectAudioFormat(wavHeader, 'test.wav')
       expect(format).toBe('wav')
     })
 
     it('should detect AIFF format from header', () => {
       const aiffHeader = new ArrayBuffer(44)
-      
+
       // Write FORM header
       const textEncoder = new TextEncoder()
       const formBytes = textEncoder.encode('FORM')
       new Uint8Array(aiffHeader, 0, 4).set(formBytes)
-      
+      new Uint8Array(aiffHeader, 8, 4).set(textEncoder.encode('AIFF'))
+
       const format = detectAudioFormat(aiffHeader, 'test.aiff')
       expect(format).toBe('aiff')
     })
 
     it('should detect MP3 format from header', () => {
       const mp3Header = new ArrayBuffer(44)
-      
+
       // Write ID3 header
       const textEncoder = new TextEncoder()
       const id3Bytes = textEncoder.encode('ID3')
       new Uint8Array(mp3Header, 0, 4).set(id3Bytes)
-      
+
       const format = detectAudioFormat(mp3Header, 'test.mp3')
       expect(format).toBe('mp3')
     })
 
-    it('should detect format from file extension when header is not recognized', () => {
+    it('rejects an advertised extension when the file signature does not match', () => {
       const unknownHeader = new ArrayBuffer(44)
-      
-      expect(detectAudioFormat(unknownHeader, 'test.wav')).toBe('wav')
-      expect(detectAudioFormat(unknownHeader, 'test.aif')).toBe('aiff')
-      expect(detectAudioFormat(unknownHeader, 'test.aiff')).toBe('aiff')
-      expect(detectAudioFormat(unknownHeader, 'test.mp3')).toBe('mp3')
-      expect(detectAudioFormat(unknownHeader, 'test.m4a')).toBe('m4a')
-      expect(detectAudioFormat(unknownHeader, 'test.ogg')).toBe('ogg')
-      expect(detectAudioFormat(unknownHeader, 'test.flac')).toBe('flac')
+      expect(() => detectAudioFormat(unknownHeader, 'test.wav')).toThrow(/signature/i)
     })
 
     it('should throw error for unsupported format', () => {
       const unknownHeader = new ArrayBuffer(44)
-      
+
       expect(() => detectAudioFormat(unknownHeader, 'test.xyz')).toThrow('Unsupported audio format: xyz')
     })
   })
@@ -177,6 +173,52 @@ describe('audioFormats', () => {
   })
 
   describe('readAudioMetadata', () => {
+    it.each([
+      ['flac','fLaC'],['ogg','OggS'],['m4a','\u0000\u0000\u0000\u0018ftyp'],
+    ] as const)('accepts browser-decodable %s by signature and keeps source depth unknown',async(format,header)=>{
+      const bytes=new Uint8Array(64)
+      for(let index=0;index<header.length;index++)bytes[index]=header.charCodeAt(index)
+      const metadata=await readAudioMetadataFromArrayBuffer(bytes.buffer,`sample.${format}`,bytes.length,'C3')
+      expect(metadata).toMatchObject({format,bitDepth:undefined,sampleRate:44100,channels:1})
+      expect(metadata.sourceSampleRate).toBeUndefined()
+      expect(metadata.sourceChannels).toBeUndefined()
+      expect(metadata.audioBuffer.length).toBe(44100)
+    })
+
+    it('does not invent PCM source depth for decoded MP3',async()=>{
+      const bytes=new Uint8Array(64);bytes.set(new TextEncoder().encode('ID3'))
+      const metadata=await readAudioMetadataFromArrayBuffer(bytes.buffer,'sample.mp3',bytes.length,'C3')
+      expect(metadata.bitDepth).toBeUndefined()
+      expect(metadata.isFloat).toBeUndefined()
+    })
+    it('rejects impossible known AIFF dimensions before invoking a decoder or allocator',async()=>{
+      const source=readFileSync('tests/fixtures/task7-audio/sample.aiff')
+      const bytes=new Uint8Array(source),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength)
+      view.setUint32(22,1_000_000_000,false)
+      await expect(readAudioMetadataFromArrayBuffer(bytes.buffer,'declared-billion.aiff',bytes.length,'C3')).rejects.toThrow(/dimension|extent|truncated|budget/i)
+      expect(mockAudioContext.decodeAudioData).not.toHaveBeenCalled()
+      expect(mockAudioContext.createBuffer).not.toHaveBeenCalled()
+    })
+    it('rejects AIFF when neither browser nor manual decoding yields audio frames',async()=>{
+      mockAudioContext.decodeAudioData.mockRejectedValueOnce(new DOMException('unsupported','EncodingError'))
+      const bytes=new Uint8Array(38),view=new DataView(bytes.buffer),encoder=new TextEncoder();bytes.set(encoder.encode('FORM'),0);view.setUint32(4,30,false);bytes.set(encoder.encode('AIFF'),8);bytes.set(encoder.encode('COMM'),12);view.setUint32(16,18,false);view.setUint16(20,1,false);view.setUint32(22,8,false);view.setUint16(26,16,false);view.setUint16(28,0x400e,false);view.setUint32(30,0xbb800000,false);
+      await expect(readAudioMetadataFromArrayBuffer(bytes.buffer,'broken.aiff',bytes.length,'C3')).rejects.toThrow(/decode|sample rate/i)
+    })
+    it('manually decodes AIFF fallback without allocating a live AudioContext',async()=>{
+      mockAudioContext.decodeAudioData.mockRejectedValueOnce(new DOMException('unsupported','EncodingError'))
+      const liveContext=vi.fn(()=>{throw new Error('manual fallback must not create a live context')})
+      vi.stubGlobal('AudioContext',liveContext)
+      try {
+        const source=readFileSync('tests/fixtures/task7-audio/sample.aiff')
+        const bytes=new Uint8Array(source)
+        const metadata=await readAudioMetadataFromArrayBuffer(bytes.buffer,'fallback.aiff',bytes.length,'C3')
+        expect(metadata.audioBuffer).toBeInstanceOf(AudioBuffer)
+        expect(metadata.audioBuffer.length).toBeGreaterThan(0)
+        expect(liveContext).not.toHaveBeenCalled()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
     it('should read WAV metadata', async () => {
       const { readWavMetadataFromArrayBuffer } = await import('../../utils/audio')
       const mockWavMetadata = {
@@ -193,13 +235,16 @@ describe('audioFormats', () => {
         loopEnd: 0.9,
         hasLoopData: true
       }
-      
+
       vi.mocked(readWavMetadataFromArrayBuffer).mockResolvedValue(mockWavMetadata)
 
       const file = new File(['mock wav data'], 'test.wav', { type: 'audio/wav' })
       // Mock the arrayBuffer method
-      file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(44))
-      
+      const wavBytes=new ArrayBuffer(44)
+      new Uint8Array(wavBytes,0,4).set(new TextEncoder().encode('RIFF'))
+      new Uint8Array(wavBytes,8,4).set(new TextEncoder().encode('WAVE'))
+      file.arrayBuffer = vi.fn().mockResolvedValue(wavBytes)
+
       const metadata = await readAudioMetadata(file, 'C3')
 
       expect(metadata.format).toBe('wav')
@@ -212,22 +257,22 @@ describe('audioFormats', () => {
       // Create a mock AIF file with proper structure
       const aiffBuffer = new ArrayBuffer(300)
       const dataView = new DataView(aiffBuffer)
-      
+
       // Write FORM header
       const textEncoder = new TextEncoder()
       new Uint8Array(aiffBuffer, 0, 4).set(textEncoder.encode('FORM'))
       dataView.setUint32(4, 296, false) // Big-endian chunk size
       new Uint8Array(aiffBuffer, 8, 4).set(textEncoder.encode('AIFF'))
-      
+
       // Write COMM chunk at offset 12
       new Uint8Array(aiffBuffer, 12, 4).set(textEncoder.encode('COMM'))
       dataView.setUint32(16, 18, false) // COMM chunk size
       dataView.setUint16(20, 1, false) // channels
       dataView.setUint32(22, 44100, false) // numSampleFrames
       dataView.setUint16(26, 16, false) // bitDepth
-      dataView.setUint16(28, 0x4000, false) // exponent
+      dataView.setUint16(28, 0x400e, false) // exponent
       dataView.setUint32(30, 0xAC440000, false) // mantissa (44100)
-      
+
       // Write MARK chunk at offset 38
       new Uint8Array(aiffBuffer, 38, 4).set(textEncoder.encode('MARK'))
       dataView.setUint32(42, 28, false) // MARK chunk size (2 markers, 14 bytes each)
@@ -281,12 +326,14 @@ describe('audioFormats', () => {
 
       const file = new File(['mock mp3 data'], 'test.mp3', { type: 'audio/mpeg' })
       // Mock the arrayBuffer method
-      file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(44))
-      
+      const mp3Bytes=new ArrayBuffer(44)
+      new Uint8Array(mp3Bytes,0,3).set(new TextEncoder().encode('ID3'))
+      file.arrayBuffer = vi.fn().mockResolvedValue(mp3Bytes)
+
       const metadata = await readAudioMetadata(file, 'C3')
 
       expect(metadata.format).toBe('mp3')
-      expect(metadata.bitDepth).toBe(16)
+      expect(metadata.bitDepth).toBeUndefined()
       expect(metadata.midiNote).toBe(60)
       expect(metadata.hasLoopData).toBe(false)
     })
@@ -295,7 +342,7 @@ describe('audioFormats', () => {
       const file = new File(['mock data'], 'test.xyz', { type: 'application/octet-stream' })
       // Mock the arrayBuffer method
       file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(44))
-      
+
       await expect(readAudioMetadata(file, 'C3')).rejects.toThrow('Unsupported audio format: xyz')
     })
   })
@@ -317,10 +364,12 @@ describe('audioFormats', () => {
         loopEnd: 0.9,
         hasLoopData: true
       }
-      
+
       vi.mocked(readWavMetadataFromArrayBuffer).mockResolvedValue(mockWavMetadata)
 
       const buffer = new ArrayBuffer(44)
+      new Uint8Array(buffer,0,4).set(new TextEncoder().encode('RIFF'))
+      new Uint8Array(buffer,8,4).set(new TextEncoder().encode('WAVE'))
       const metadata = await readAudioMetadataFromArrayBuffer(buffer, 'test.wav', 44144, 'C3')
 
       expect(metadata.format).toBe('wav')
@@ -355,7 +404,7 @@ describe('audioFormats', () => {
       }
 
       const blob = await audioBufferToWavWithMetadata(audioBuffer, metadata, 16)
-      
+
       expect(blob).toBeInstanceOf(Blob)
       expect(blob.type).toBe('audio/wav')
     })
@@ -365,20 +414,20 @@ describe('audioFormats', () => {
     it('should handle AIF files without INST chunk', async () => {
       const aiffBuffer = new ArrayBuffer(100)
       const dataView = new DataView(aiffBuffer)
-      
+
       // Write FORM header
       const textEncoder = new TextEncoder()
       new Uint8Array(aiffBuffer, 0, 4).set(textEncoder.encode('FORM'))
       dataView.setUint32(4, 96, false)
       new Uint8Array(aiffBuffer, 8, 4).set(textEncoder.encode('AIFF'))
-      
+
       // Write COMM chunk only
       new Uint8Array(aiffBuffer, 12, 4).set(textEncoder.encode('COMM'))
       dataView.setUint32(16, 18, false)
       dataView.setUint16(20, 1, false)
       dataView.setUint32(22, 44100, false)
       dataView.setUint16(26, 16, false)
-      dataView.setUint16(28, 0x4000, false)
+      dataView.setUint16(28, 0x400e, false)
       dataView.setUint32(30, 0xAC440000, false)
 
       const { parseFilename } = await import('../../utils/audio')
@@ -387,7 +436,7 @@ describe('audioFormats', () => {
       const file = new File([aiffBuffer], 'test.aiff', { type: 'audio/aiff' })
       // Mock the arrayBuffer method
       file.arrayBuffer = vi.fn().mockResolvedValue(aiffBuffer)
-      
+
       const metadata = await readAudioMetadata(file, 'C3')
 
       expect(metadata.format).toBe('aiff')
@@ -398,33 +447,33 @@ describe('audioFormats', () => {
     it('should handle AIF files with MARK chunk', async () => {
       const aiffBuffer = new ArrayBuffer(200)
       const dataView = new DataView(aiffBuffer)
-      
+
       // Write FORM header
       const textEncoder = new TextEncoder()
       new Uint8Array(aiffBuffer, 0, 4).set(textEncoder.encode('FORM'))
       dataView.setUint32(4, 196, false)
       new Uint8Array(aiffBuffer, 8, 4).set(textEncoder.encode('AIFF'))
-      
+
       // Write COMM chunk
       new Uint8Array(aiffBuffer, 12, 4).set(textEncoder.encode('COMM'))
       dataView.setUint32(16, 18, false)
       dataView.setUint16(20, 1, false)
       dataView.setUint32(22, 44100, false)
       dataView.setUint16(26, 16, false)
-      dataView.setUint16(28, 0x4000, false)
+      dataView.setUint16(28, 0x400e, false)
       dataView.setUint32(30, 0xAC440000, false)
-      
+
       // Write MARK chunk
       new Uint8Array(aiffBuffer, 38, 4).set(textEncoder.encode('MARK'))
       dataView.setUint32(42, 20, false) // MARK chunk size
       dataView.setUint16(46, 2, false) // numMarkers
-      
+
       // First marker: loop start
       dataView.setUint16(48, 1, false) // id
       dataView.setUint32(50, 4410, false) // position (0.1s)
       dataView.setUint8(54, 10) // name length
       new Uint8Array(aiffBuffer, 55, 10).set(textEncoder.encode('loop start'))
-      
+
       // Second marker: loop end
       dataView.setUint16(65, 2, false) // id
       dataView.setUint32(67, 39690, false) // position (0.9s)
@@ -434,7 +483,7 @@ describe('audioFormats', () => {
       const file = new File([aiffBuffer], 'test.aiff', { type: 'audio/aiff' })
       // Mock the arrayBuffer method
       file.arrayBuffer = vi.fn().mockResolvedValue(aiffBuffer)
-      
+
       const metadata = await readAudioMetadata(file, 'C3')
 
       expect(metadata.format).toBe('aiff')
@@ -443,4 +492,4 @@ describe('audioFormats', () => {
       expect(metadata.loopEnd).toBeCloseTo(0.9, 0)
     })
   })
-}) 
+})

@@ -1,0 +1,18 @@
+{
+  "origin": "http://127.0.0.1:5188",
+  "buildA": "/tmp/opstudio-task9-build-a",
+  "buildB": "/tmp/opstudio-task9-build-b",
+  "transitions": [
+    "updatefound",
+    "installed"
+  ],
+  "errors": [],
+  "browser": "153.0.8010.12",
+  "waitingPreservesDraft": true,
+  "deferredTab": {
+    "build": "B",
+    "draftVisible": false
+  },
+  "status": "FAIL",
+  "failure": "AssertionError [ERR_ASSERTION]: Other tab lost deferred unsaved draft\n+ actual - expected\n\n+ undefined\n- 'keep-draft'\n"
+}

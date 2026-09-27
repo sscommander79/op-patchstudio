@@ -43,8 +43,8 @@ export function LibraryTable({
   return (
     <div style={{
       backgroundColor: c.bg,
-      borderRadius: '15px',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+      borderRadius: '9px',
+      boxShadow: '0 2px 10px var(--studio-shadow)',
       border: `1px solid ${c.border}`,
       overflow: 'hidden',
       fontFamily: '"Montserrat", "Arial", sans-serif',
@@ -69,9 +69,9 @@ export function LibraryTable({
         }}>
           <h2 style={{
             margin: 0,
-            color: '#222',
-            fontSize: '1.25rem',
-            fontWeight: 300,
+            color: 'var(--studio-text)',
+            fontSize: '.83rem',
+            fontWeight: 700,
           }}>
             {title}
           </h2>
@@ -107,7 +107,7 @@ export function LibraryTable({
         </div>
         
         {headerContent && (
-          <div style={{ justifySelf: 'end' }}>
+          <div style={{ justifySelf: 'stretch', minWidth: 0 }}>
             {headerContent}
           </div>
         )}

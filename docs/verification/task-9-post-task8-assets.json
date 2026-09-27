@@ -1,0 +1,115 @@
+{
+  "note": "Frozen Task8 production output before Task9. All generated assets; initial request set requires browser or import graph assessment.",
+  "assets": [
+    {
+      "path": "assets/NimbusSanL-Reg-webfont 2.woff",
+      "bytes": 30896,
+      "gzipBytes": 30842
+    },
+    {
+      "path": "assets/NimbusSanL-Reg-webfont.woff",
+      "bytes": 30896,
+      "gzipBytes": 30842
+    },
+    {
+      "path": "assets/captureProcessor-C_h0dtKF 2.js",
+      "bytes": 9354,
+      "gzipBytes": 2821
+    },
+    {
+      "path": "assets/captureProcessor-C_h0dtKF.js",
+      "bytes": 9354,
+      "gzipBytes": 2821
+    },
+    {
+      "path": "assets/fa-brands-400-D_cYUPeE 2.woff2",
+      "bytes": 118684,
+      "gzipBytes": 118730
+    },
+    {
+      "path": "assets/fa-brands-400-D_cYUPeE.woff2",
+      "bytes": 118684,
+      "gzipBytes": 118730
+    },
+    {
+      "path": "assets/fa-regular-400-BjRzuEpd 2.woff2",
+      "bytes": 25472,
+      "gzipBytes": 25500
+    },
+    {
+      "path": "assets/fa-regular-400-BjRzuEpd.woff2",
+      "bytes": 25472,
+      "gzipBytes": 25500
+    },
+    {
+      "path": "assets/fa-solid-900-CTAAxXor 2.woff2",
+      "bytes": 158220,
+      "gzipBytes": 158288
+    },
+    {
+      "path": "assets/fa-solid-900-CTAAxXor.woff2",
+      "bytes": 158220,
+      "gzipBytes": 158288
+    },
+    {
+      "path": "assets/fa-v4compatibility-C9RhG_FT 2.woff2",
+      "bytes": 4796,
+      "gzipBytes": 4819
+    },
+    {
+      "path": "assets/fa-v4compatibility-C9RhG_FT.woff2",
+      "bytes": 4796,
+      "gzipBytes": 4819
+    },
+    {
+      "path": "assets/index-Z_hx4bWj.css",
+      "bytes": 872861,
+      "gzipBytes": 105963
+    },
+    {
+      "path": "assets/index-klgKXhik.js",
+      "bytes": 1064407,
+      "gzipBytes": 300865
+    },
+    {
+      "path": "index 2.html",
+      "bytes": 4027,
+      "gzipBytes": 1266
+    },
+    {
+      "path": "index.html",
+      "bytes": 4027,
+      "gzipBytes": 1264
+    },
+    {
+      "path": "registerSW 2.js",
+      "bytes": 134,
+      "gzipBytes": 126
+    },
+    {
+      "path": "registerSW.js",
+      "bytes": 134,
+      "gzipBytes": 126
+    },
+    {
+      "path": "sw 2.js",
+      "bytes": 2996,
+      "gzipBytes": 1261
+    },
+    {
+      "path": "sw.js",
+      "bytes": 2996,
+      "gzipBytes": 1258
+    },
+    {
+      "path": "workbox-74f2ef77 2.js",
+      "bytes": 21352,
+      "gzipBytes": 7285
+    },
+    {
+      "path": "workbox-74f2ef77.js",
+      "bytes": 21352,
+      "gzipBytes": 7285
+    }
+  ]
+}

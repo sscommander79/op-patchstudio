@@ -1,0 +1,93 @@
+{
+  "width": 358,
+  "scrollWidth": 358,
+  "scrollHeight": 1937,
+  "height": 793,
+  "scrollTop": 1144,
+  "buttons": [
+    {
+      "text": "Close",
+      "disabled": false,
+      "x": 287.90625,
+      "right": 354,
+      "width": 66.09375
+    },
+    {
+      "text": "Enable input",
+      "disabled": false,
+      "x": 36,
+      "right": 149.1875,
+      "width": 113.1875
+    },
+    {
+      "text": "Start recording",
+      "disabled": false,
+      "x": 157.1875,
+      "right": 286.03125,
+      "width": 128.84375
+    },
+    {
+      "text": "Arm sound trigger",
+      "disabled": true,
+      "x": 36,
+      "right": 186.625,
+      "width": 150.625
+    },
+    {
+      "text": "Stop recording",
+      "disabled": true,
+      "x": 194.625,
+      "right": 322.609375,
+      "width": 127.984375
+    },
+    {
+      "text": "Stop preview",
+      "disabled": true,
+      "x": 36,
+      "right": 152.65625,
+      "width": 116.65625
+    },
+    {
+      "text": "Enable MIDI",
+      "disabled": false,
+      "x": 47,
+      "right": 159.28125,
+      "width": 112.28125
+    },
+    {
+      "text": "Test one note",
+      "disabled": false,
+      "x": 167.28125,
+      "right": 287.4375,
+      "width": 120.15625
+    },
+    {
+      "text": "Start automatic capture",
+      "disabled": false,
+      "x": 47,
+      "right": 235.109375,
+      "width": 188.109375
+    },
+    {
+      "text": "Stop automatic capture",
+      "disabled": true,
+      "x": 47,
+      "right": 234.25,
+      "width": 187.25
+    },
+    {
+      "text": "Cancel",
+      "disabled": false,
+      "x": 112.6875,
+      "right": 187.5,
+      "width": 74.8125
+    },
+    {
+      "text": "Add selected takes",
+      "disabled": true,
+      "x": 195.5,
+      "right": 354,
+      "width": 158.5
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "browser": "chromium",
+    "version": "153.0.8010.12",
+    "silentArrowSelection": true,
+    "automaticSelectedAsset": "high-C5.wav",
+    "rootSortRetainedAsset": true,
+    "invalidRootBackupRetains": 48,
+    "previewLoop": {
+      "loop": true,
+      "loopStart": 0.02,
+      "loopEnd": 0.06,
+      "stopped": false
+    },
+    "stopAndViewCleanup": true
+  },
+  {
+    "browser": "firefox",
+    "version": "155.0",
+    "silentArrowSelection": true,
+    "automaticSelectedAsset": "high-C5.wav",
+    "rootSortRetainedAsset": true,
+    "invalidRootBackupRetains": 48,
+    "previewLoop": {
+      "loop": true,
+      "loopStart": 0.02,
+      "loopEnd": 0.06,
+      "stopped": false
+    },
+    "stopAndViewCleanup": true
+  },
+  {
+    "browser": "webkit",
+    "version": "26.6",
+    "silentArrowSelection": true,
+    "automaticSelectedAsset": "high-C5.wav",
+    "rootSortRetainedAsset": true,
+    "invalidRootBackupRetains": 48,
+    "previewLoop": {
+      "loop": true,
+      "loopStart": 0.02,
+      "loopEnd": 0.06,
+      "stopped": false
+    },
+    "stopAndViewCleanup": true
+  }
+]

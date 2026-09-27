@@ -5,14 +5,17 @@ import { audioContextManager } from './audioContext';
 import { AUDIO_CONSTANTS } from './constants';
 import type { FilenameSeparator } from './constants';
 import { audioBufferToWav } from './wavExport';
+import { convertedFrameCount } from './exportPlanning';
+import { downmixStereoToMono } from './audioBufferConversion';
+
+export { convertedFrameCount } from './exportPlanning';
+export { downmixStereoToMono } from './audioBufferConversion';
 
 // Constants preserved from legacy for compatibility
 const HEADER_LENGTH = 44;
 const PATCH_SIZE_LIMIT = 8 * 1024 * 1024; // 8mb limit for OP-XY
 
 // Audio processing constants
-export const LOOP_END_PADDING = 5; // Additional samples to add when cutting at loop end
-
 // WAV format structures
 interface WavHeader {
   format: string;
@@ -41,7 +44,7 @@ export async function readWavMetadata(file: File, mapping: 'C3' | 'C4' = 'C3'): 
     const arrayBuffer = await file.arrayBuffer();
     return await readWavMetadataFromArrayBuffer(arrayBuffer, file.name, file.size, mapping);
   } catch (error) {
-    throw new Error(`Failed to read WAV metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to read WAV metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -53,24 +56,19 @@ export async function readWavMetadataFromArrayBuffer(
   mapping: 'C3' | 'C4' = 'C3'
 ): Promise<WavMetadata> {
   try {
-    // Create separate copies for parsing and decoding to avoid detached buffer issues
-    const parseBuffer = arrayBuffer.slice(0);
-    const decodeBuffer = arrayBuffer.slice(0);
-    
-    const dataView = new DataView(parseBuffer);
+    // Parse all metadata before decodeAudioData, which may detach its input.
+    const dataView = new DataView(arrayBuffer);
     
     // Parse WAV header
     const header = parseWavHeader(dataView);
     
-    // Decode audio data using separate buffer
+    const smplData = parseSmplChunk(dataView, header.sampleRate, header.dataLength / Math.max(1, header.channels * header.sampleRate * (header.bitDepth / 8)), filename, mapping);
+
     const audioContext = await audioContextManager.getAudioContext();
-    const audioBuffer = await audioContext.decodeAudioData(decodeBuffer);
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     
     // Calculate duration from decoded audio buffer
     const duration = audioBuffer.duration;
-    
-    // Parse SMPL chunk for loop points and MIDI note using the parse buffer
-    const smplData = parseSmplChunk(dataView, header.sampleRate, duration, filename, mapping);
     
     return {
       format: header.format,
@@ -87,7 +85,7 @@ export async function readWavMetadataFromArrayBuffer(
       fileSize
     };
   } catch (error) {
-    throw new Error(`Failed to read WAV metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to read WAV metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -121,7 +119,7 @@ function parseWavHeader(dataView: DataView): WavHeader {
       break;
     }
     
-    offset += 8 + chunkSize;
+    offset += 8 + chunkSize + (chunkSize % 2);
   }
 
   if (fmtOffset === -1) {
@@ -197,7 +195,8 @@ function parseSmplChunk(dataView: DataView, sampleRate: number, duration: number
           
           // Convert frames to seconds
           loopStart = loopStartFrames / sampleRate;
-          loopEnd = loopEndFrames / sampleRate;
+          // RIFF smpl stores the final frame inclusively; app ranges are [start,end).
+          loopEnd = (loopEndFrames + 1) / sampleRate;
           hasLoopData = true;
         }
       }
@@ -214,7 +213,7 @@ function parseSmplChunk(dataView: DataView, sampleRate: number, duration: number
       if (parsed && parsed.length > 1) {
         midiNote = parsed[1];
       }
-    } catch (_) {
+    } catch {
       // ignore filename parsing errors
     }
   }
@@ -359,7 +358,7 @@ export async function cutAudioAtLoopEnd(audioBuffer: AudioBuffer, loopEnd: numbe
   }
 
   // Trim point is loopEnd + LOOP_END_PADDING samples (buffer for the loop end)
-  const cutPoint = loopEnd + LOOP_END_PADDING;
+  const cutPoint = loopEnd + AUDIO_CONSTANTS.LOOP_END_PADDING;
   
   if (cutPoint >= audioBuffer.length) {
     return audioBuffer;
@@ -403,10 +402,17 @@ export async function convertAudioFormat(
     processedBuffer = await cutAudioAtLoopEnd(audioBuffer, options.loopEnd);
   }
 
+  // Web Audio sums multiple connections into one input. Downmix explicitly so
+  // equal stereo channels retain their amplitude instead of doubling it, and
+  // so normalization measures the signal that will actually be exported.
+  if (targetChannels === 1 && processedBuffer.numberOfChannels === 2) {
+    processedBuffer = downmixStereoToMono(processedBuffer);
+  }
+
   // Create offline context for conversion with correct duration
   const offlineContext = audioContextManager.createOfflineContext(
     targetChannels,
-    Math.ceil(processedBuffer.duration * targetSampleRate),
+    convertedFrameCount(processedBuffer.length, processedBuffer.sampleRate, targetSampleRate),
     targetSampleRate
   );
 
@@ -424,10 +430,8 @@ export async function convertAudioFormat(
   }
 
   // Apply normalization if enabled
-  let normalizeGain = 1;
   if (normalize) {
-    normalizeGain = calculatePeakNormalizationGain(processedBuffer, normalizeLevel);
-    gainValue *= normalizeGain;
+    gainValue *= calculatePeakNormalizationGain(processedBuffer, normalizeLevel);
   }
 
 
@@ -443,12 +447,7 @@ export async function convertAudioFormat(
     source.connect(splitter);
     
     // Connect channels based on conversion type
-    if (targetChannels === 1 && processedBuffer.numberOfChannels === 2) {
-      // Stereo to mono: mix L+R channels through gain node
-      splitter.connect(gainNode, 0, 0);
-      splitter.connect(gainNode, 1, 0);
-      gainNode.connect(merger, 0, 0);
-    } else if (targetChannels === 2 && processedBuffer.numberOfChannels === 1) {
+    if (targetChannels === 2 && processedBuffer.numberOfChannels === 1) {
       // Mono to stereo: duplicate mono channel through gain node
       splitter.connect(gainNode, 0, 0);
       gainNode.connect(merger, 0, 0);
@@ -507,8 +506,8 @@ export async function calculatePatchSize(
     const targetBitDepth = options.bitDepth || 16;
     
     // Calculate samples after conversion
-    const samples = Math.ceil(buffer.duration * targetSampleRate);
-    const bytesPerSample = targetBitDepth / 8;
+    const samples = convertedFrameCount(buffer.length, buffer.sampleRate, targetSampleRate);
+    const bytesPerSample = targetBitDepth === 12 ? 2 : Math.ceil(targetBitDepth / 8);
     
     // WAV file size = header + (samples * channels * bytes per sample)
     const fileSize = HEADER_LENGTH + (samples * targetChannels * bytesPerSample);
@@ -871,7 +870,7 @@ export function generateFilename(
       'KD1', 'KD2', 'SD1', 'SD2', 'RIM', 'CLP', 'TB', 'SH', 'CH', 'CL1', 'OH', 'CAB',
       'LT1', 'RC', 'MT', 'CC', 'HT', 'COW', 'TRI', 'LT2', 'LC', 'WS', 'HC', 'GUI'
     ];
-    let drumLabel = drumShortLabels[index] || `DRUM${index + 1}`;
+    const drumLabel = drumShortLabels[index] || `DRUM${index + 1}`;
     
     return `${cleanPresetName}${separator}${drumLabel}.${extension}`;
   } else {

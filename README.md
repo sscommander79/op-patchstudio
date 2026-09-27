@@ -1,212 +1,129 @@
 # OP-PatchStudio
 
-**free & open source preset creator for OP synthesizers. upload samples, edit waveforms, adjust settings and generate patches instantly.**
+OP-PatchStudio is a free, open-source browser studio for building drum and multisample presets for the Teenage Engineering OP-XY. This repository is the [`sscommander79/op-patchstudio`](https://github.com/sscommander79/op-patchstudio) fork of [Joseph Holland's original project](https://github.com/joseph-holland/op-patchstudio).
 
-![op-patchstudio preview](public/assets/preview-image.png)
+![OP-PatchStudio drum workspace](public/assets/preview-image.png)
 
-![OP-PatchStudio preview](public/assets/preview-image-2.png)
+![OP-PatchStudio multisample workspace](public/assets/preview-image-2.png)
 
-- **live demo:** [OP-PatchStudio](https://op-patch.studio/)
-- **github:** [github.com/joseph-holland/op-patchstudio](https://github.com/joseph-holland/op-patchstudio)
+The project is unofficial and is not affiliated with, endorsed by, or hardware-certified by Teenage Engineering.
 
-## features
+## What the studio does
 
-### core functionality
-- **comprehensive preset generation** for OP synthesizers (currently OP-XY, more devices coming soon)
-- **modern, responsive ui** built with react, typescript, and carbon design system  
-- **drag-and-drop sample assignment** for drum and multisample presets
-- **real-time audio processing** with sample rate conversion (44/22/11khz) and format optimization
-- **accessibility-compliant interface** with wcag aa touch targets and keyboard navigation
-- **live patch size monitoring** with optimization recommendations
+- Builds OP-XY drum kits with 24 mapped pads plus an unassigned-sample tray.
+- Builds multisample instruments with filename note detection, editable root notes and zone mapping.
+- Imports WAV, AIFF, MP3, M4A, OGG and FLAC audio when the browser can decode the format. WAV and uncompressed AIFF have built-in metadata readers; compressed-format support depends on the browser.
+- Imports compatible `patch.json` settings and OP-1 drum presets.
+- Edits exact in/out and loop frames, supports zero-crossing adjustment, non-destructive slicing, gain, normalization, channel/rate conversion and WAV or AIFF output.
+- Records from a browser audio input after permission is granted, with manual or sound-triggered capture, pre-roll and take review.
+- Saves editable presets in a browser-local library and keeps a recoverable working session.
+- Provides bounded undo/redo, keyboard controls, light/dark/device themes and responsive Focus and Table views.
+- Exports a device preset ZIP and a separate, versioned `.opstudio` project backup.
 
-### drum tool (24 slots)
-- **virtual drum keyboard** with OP-XY key mapping (w, e, r, y, u, a, s, d, f, g, h, j)
-- **bulk operations** for editing and clearing multiple samples at once
-- **individual sample settings** including playmode, reverse, tune, pan, and gain
-- **waveform editing** with in/out point markers and snap-to-zero-crossing
-- **sample recording** with device selection and real-time waveform visualization
-- **OP-1 preset import** support for loading existing drum presets
-- **unassigned sample management** for samples beyond the 24 drum keys
+The waveform, envelope, pitch, loop-crossfade and processed-audio previews are browser approximations. Exported frame ranges and stored settings are authoritative; preview timing and sound are not calibrated against OP-XY hardware.
 
-### multisample tool (up to 24 zones)
-- **virtual midi keyboard** with note assignment and zone mapping
-- **automatic note detection** from filename parsing (c4, f#3, etc.)
-- **loop point editing** with start/end markers and loop visualization
-- **midi note mapping toggle** between c3=60 and c4=60 conventions
-- **adsr envelope presets** with randomization and custom settings
-- **advanced preset settings** including envelopes, tuning, velocity sensitivity, and modulation
-- **real-time sample playback** with pitch shifting and adsr envelopes
+## Device preset export and project backup
 
-### audio processing
-- **advanced waveform editing** with interactive zoom modal and marker adjustment
-- **snap-to-zero-crossing** functionality for clean sample trimming
-- **audio normalization** with peak detection and configurable levels
-- **transparent limiter** to prevent clipping and ensure consistent levels
-- **format conversion** between wav and aiff with metadata preservation
-- **sample rate conversion** with quality preservation
-- **bit depth conversion** (8-bit, 12-bit, 16-bit, 24-bit, 32-bit)
-- **channel conversion** (mono/stereo)
-- **gain adjustment** with precise dbfs control
-- **cut at loop end** functionality for multisample presets
+These downloads have different purposes:
 
-### library system
-- **preset management** with save, load, and organize capabilities
-- **indexeddb storage** for local preset persistence
-- **search and filtering** by type, favorites, and keywords
-- **bulk operations** for deleting multiple presets
-- **preset favorites** with star rating system
-- **pagination** for large preset collections
-- **preset metadata** including sample counts and descriptions
-- **export capabilities** for sharing presets
+- **Device preset export** downloads `<name>.preset.zip`, containing `patch.json` and the exported audio files. This is the package intended for transfer to an OP-XY.
+- **Project backup** downloads `<name>.opstudio`. Version 1 preserves editable settings, exact Float32 working audio, source bytes when available, assignments and imported metadata so the project can be reopened in this studio. It is not a device preset.
 
-### session management
-- **automatic session saving** with 12-hour persistence
-- **session restoration** with confirmation dialogs
-- **cross-browser persistence** using indexeddb
-- **session state recovery** for samples, settings, and metadata
+The local library and recovery session use IndexedDB in the current browser profile. They do not sync across browsers, profiles or devices. Private-browsing policies, site-data clearing, storage eviction and quota limits can remove or prevent local saves. Keep `.opstudio` backups for work you need to retain. A failed save is reported in the app and can be retried; it does not make cloud or account backups.
 
-### recording capabilities
-- **built-in audio recording** with microphone access
-- **device selection** for multiple audio inputs
-- **real-time waveform visualization** during recording
-- **recording time limits** with auto-stop functionality
-- **playback preview** of recorded samples
-- **automatic metadata embedding** (root note, loop points)
-- **filename customization** with timestamp generation
+The current archive reader accepts `.opstudio` format version 1. It validates the complete manifest and referenced audio before replacing the open project. Future archive versions may require a newer build.
 
-### midi integration
-- **webmidi api support** for midi keyboard and controller input
-- **midi device detection** and connection management
-- **midi channel selection** for multi-device setups
-- **real-time midi note mapping** to drum and multisample keys
-- **visual feedback** for midi-triggered keys
-- **velocity sensitivity** support for expressive playing
+## Transfer to OP-XY
 
-### file management
-- **drag-and-drop upload** with visual feedback
-- **batch file processing** for multiple samples
-- **file renaming options** with preset name integration
-- **filename separators** (space or hyphen)
-- **audio format detection** and metadata extraction
-- **wav metadata parsing** including smpl chunks and loop points
-- **file size optimization** with compression recommendations
+1. Generate and download the device preset ZIP.
+2. Extract it without changing the contents. Keep `patch.json` and its audio files together in the extracted `<name>.preset` folder.
+3. Connect the OP-XY to the computer. On the device, press **COM**, then **M4** to enter MTP mode. Teenage Engineering directs Mac users to its Fieldkit transfer app.
+4. Copy the extracted `.preset` folder into the OP-XY's root `presets` folder.
+5. Eject with **M4**, then load and verify the preset on the device.
 
-### preset settings
-- **engine-level settings** including playmode, transpose, velocity, volume, width
-- **envelope controls** for amplitude and filter with visual graphs
-- **modulation settings** for aftertouch, modwheel, pitchbend, velocity
-- **tuning controls** with root note and scale options
-- **portamento settings** with type and amount controls
-- **highpass filter** with frequency control
-- **preset import/export** for engine settings
+See Teenage Engineering's current [OP-XY COM guide](https://teenage.engineering/guides/op-xy/com) and [OP-XY how-to guide](https://teenage.engineering/guides/op-xy/how-to). Firmware behavior can change. Automated browser checks verify the downloaded archive, but physical-device import, playback and timing remain an unperformed release check.
 
-### mobile & accessibility
-- **progressive web app (pwa)** with offline functionality
-- **mobile rotation handling** with landscape orientation prompts
-- **touch-friendly interface** with proper touch targets
-- **keyboard navigation** with arrow key support
-- **screen reader compatibility** with proper aria labels
-- **high contrast mode** support
-- **responsive design** for all screen sizes
+## Offline use and updates
 
-### advanced features
-- **waveform zoom** for detailed sample editing
-- **bulk edit** for batch sample operations
-- **confirmation dialogs** for destructive operations
-- **notification system** for user feedback
-- **error handling** with graceful fallbacks
-- **performance optimization** with efficient audio processing
-- **memory management** with automatic cleanup
+The production build is an installable progressive web app. After a successful online visit has populated its cache, the core studio, local import/edit flows, recording code, project backups and preset export are designed to work offline. A first-ever visit cannot work offline. Live Patreon posts, support links, the hosted feedback form and other external pages need a network connection; the app shows an offline fallback instead of an empty hosted form.
 
-## development setup
+When a new build is ready, the app presents **Update now** and **Later**. Choosing Later leaves the current editor running so an active recording or unsaved draft is not silently reloaded. Save or back up important work and close other OP-PatchStudio tabs before choosing Update now. If another Studio tab is still open, the update stays waiting and the app asks you to close it before retrying. While an update waits, the active build, its previous activated build and the newest waiting build may be retained; superseded waiting builds are retired. After activation, the current and previous builds remain as bounded update/reload protection. If cache ownership cannot be proved during an upgrade or race, cleanup is deferred rather than deleting a possibly live build. Unrelated origin caches are left alone.
 
-this project has been migrated to react with typescript for improved maintainability and modularity.
+## Browser permissions and limits
 
-### requirements
+- Recording requires a secure context and microphone/audio-input permission. Available inputs, labels, sample rates and channel counts come from the browser and operating system.
+- MIDI control requires Web MIDI support and permission. Unsupported browsers can still use pointer and computer-keyboard controls.
+- Audio decoding varies by browser and operating system, especially for compressed formats. Rejected files remain listed with a reason during import review.
+- A project can contain at most 256 audio assets. Individual source, decoded-audio, archive and manifest limits are enforced before commit; the UI reports the applicable limit.
+- The studio does not upload library or project audio to an application server. Opening external feedback, donation, documentation or issue links leaves the app.
 
-- node.js 18+ 
-- npm or yarn
+## Local development
 
-### installation
+Use Node.js 22 or a newer supported LTS release and npm.
 
 ```bash
-# clone the repository
-git clone https://github.com/joseph-holland/op-patchstudio.git
+git clone https://github.com/sscommander79/op-patchstudio.git
 cd op-patchstudio
-
-# install dependencies
-npm install
-
-# start development server
+npm ci
 npm run dev
-
-# build for production
-npm run build
-
-# run tests
-npm run test
 ```
 
-### project structure
+Build and verification commands:
 
-```
-/src
-  /components         # react ui components (carbon-based, OP-XY themed)
-    /common          # shared components
-    /drum           # drum-specific components
-    /multisample    # multisample-specific components
-    /library        # library management components
-  /hooks              # custom hooks for state, file i/o, audio, etc.
-  /utils              # pure js/ts logic: audio, patch, file mgmt
-  /theme              # custom carbon theme and style overrides
-  /context            # app/global context providers
-  app.tsx
-  main.tsx
+```bash
+npm run typecheck          # TypeScript project check
+npm run lint               # ESLint for source, tests and configuration
+npm test                   # Unit/component suite once
+npm run build              # Typecheck, production build and PWA precache integrity
+npm run check              # All four checks above
 ```
 
-## usage
+Browser checks require matching Playwright browsers:
 
-1. **open** the [OP-PatchStudio web app](https://op-patch.studio/) in your browser
-2. select either the **drum** or **multisample** tab.
-3. drag and drop your samples, or use the browse button to select files.
-4. assign notes (for multisample), adjust settings and use the advanced dialog for detailed control.
-5. optionally, use **import patch.json** to load engine-level settings from existing preset files.
-6. click **generate patch** to download your preset as a zip file.
-7. unzip and copy the folder to your OP-XY's `presets` directory via usb.
+```bash
+npx playwright install chromium firefox webkit
+npm run test:e2e                          # configured browser matrix against dev
+npm run test:e2e:production               # configured browser matrix against dist
+npm run test:e2e:production -- --project=chromium
+npm run test:e2e:storage-integration       # real IndexedDB/source integration against dev
+npm run test:e2e:recording                 # deterministic Chromium fake-input gate
+```
 
-## progressive web app (pwa)
+The production browser suite uses only interfaces available from `dist`; its UI-created recovery records are inspected through the browser's native IndexedDB API. The separately named storage-integration suite runs two direct source-module checks against the development server: atomic session rollback after an injected transaction fault, and exact library-audio restoration. CI runs both suites in Chromium for changes. Manual and scheduled CI runs exercise both suites across Chromium, Firefox, WebKit and the configured mobile emulations. The recording command generates and uses an explicit synthetic WAV fixture. It does not access real recording hardware.
 
-OP-PatchStudio is available as a progressive web app for offline use and quick access.
+## Verification and release evidence
 
-### install for offline use
+- [Final upgrade review](docs/verification/task-10-final-review.md)
+- [Upgrade acceptance matrix](docs/verification/acceptance-matrix.md)
+- [Task 9 quality and offline report](docs/verification/task-9-report.md)
+- [Offline production checklist](docs/verification/task-9-offline-browser-checklist.md)
+- [Device validation checklist](docs/verification/device-validation-checklist.md)
+- [Release notes](CHANGELOG.md)
 
-- **desktop**: look for the install icon in your browser's address bar or menu
-- **mobile**: use your browser's "add to home screen" option
-- **automatic prompt**: the app will show an install prompt when available
+Automated results demonstrate the specific fixtures and browsers named in those records. They are not claims of human listening quality, assistive-technology validation or physical OP-XY acceptance.
 
-### pwa features
+## Attribution and license
 
-- **offline functionality**: core features work without internet connection
-- **home screen access**: launch directly from your device's home screen
-- **app shortcuts**: quick access to drum and multisample tools
-- **automatic updates**: app updates automatically when online
-- **native app experience**: runs like a native app with full-screen mode
+OP-PatchStudio was created by [Joseph Holland](https://github.com/joseph-holland). This fork retains the original project's authorship and support links while maintaining its changes at [`sscommander79/op-patchstudio`](https://github.com/sscommander79/op-patchstudio). The project was inspired by Brandon Withrow's [opxy-drum-tool](https://buba447.github.io/opxy-drum-tool/).
 
-### offline capabilities
+The source is licensed under the [MIT License](LICENSE), which retains the Joseph Holland and Brandon Withrow copyright notices. OP-XY, OP-1 and OP-Z are trademarks of Teenage Engineering.
 
-- ✅ create and edit drum presets
-- ✅ create and edit multisample presets  
-- ✅ waveform editing and sample processing
-- ✅ generate and download patch files
-- ✅ library management and preset storage
-- ✅ audio recording and processing
+## Guided sampling and refinement
 
-## credits
+In **Multisample → Record takes**, choose NINA/Digitakt, Ableton, or Custom and open **Set up and check this route**. **Check sound on one note** measures the return without adding a take; **Test one note** retains a recording. In **Focus**, use **Analyze sound** for separate, reversible trim and loop suggestions. **Export OP-XY** includes a listening/storage checklist and instructions for extracting and copying the preset folder. Direct USB upload is not implemented.
 
-- joseph holland
-- inspired by the awesome [opxy-drum-tool](https://buba447.github.io/opxy-drum-tool/) by brandon withrow (zeitgeese)
+See the [implementation and verification report](docs/verification/sampling-workflow-improvements-2026-09-18.md) for current test evidence, source-availability limits, and hardware checks.
 
-OP-PatchStudio is an unofficial tool not affiliated with or endorsed by teenage engineering.
-this software is provided "as is" without warranty of any kind. use at your own risk. for educational and personal use only.
-OP-XY, OP-1 and OP-Z are registered trademarks of teenage engineering.
+### Library organization and quick previews
 
+Open **Library → Details** on a saved preset to edit its description and comma-separated tags. Search matches names, descriptions and tags; favorites remain available. Metadata saves preserve the saved audio and reject updates to presets that have been deleted.
+
+**Preview** plays up to three seconds of the first raw saved sample, within its saved trim markers, at reduced volume. It does not reproduce the complete instrument, load the preset, or change the current project. Use **Stop** to end playback; leaving the library or hiding the page also stops it.
+
+### Collections and batch export
+
+In **Library**, use **New collection** to group saved presets. Choose **All presets**, select sounds, and choose **Add to collection**. A collection can mix drums and multisamples. Its Move up/down controls set a saved order; Remove only removes membership. Deleting a collection leaves its presets in the Library. Deleting an actual preset also removes its collection references.
+
+Use **Export selected** for checked presets or **Export collection** for every member, even when search hides some. The browser creates one ZIP with a separate, safely named `.preset` folder for each sound and `collection-order.txt` for reference. Extract the ZIP before transferring the preset folders using the supported OP-XY workflow. This does not set device track order or upload to hardware. Export reports progress, supports cancellation, and does not download a partial collection if a preset fails.
+
+The Library has a collections sidebar on wide screens and a collapsible collection list with preset cards in narrower windows. Metadata and collection membership are saved in this browser profile; a device export ZIP is not a complete editable-library backup.

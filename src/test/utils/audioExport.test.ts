@@ -2,26 +2,35 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { exportAudioBuffer, getAudioFileExtension, supportsFloatingPoint, type AudioFormat } from '../../utils/audioExport';
 
 // Mock audio context and buffer
-class MockAudioBuffer {
+class MockAudioBuffer implements AudioBuffer {
   numberOfChannels: number;
   length: number;
   sampleRate: number;
   duration: number;
+  private readonly channels: Float32Array[];
 
   constructor(channels = 2, length = 1024, sampleRate = 44100) {
     this.numberOfChannels = channels;
     this.length = length;
     this.sampleRate = sampleRate;
     this.duration = length / sampleRate;
+    this.channels = Array.from({length:channels}, () => {
+      const data = new Float32Array(length);
+      for (let i = 0; i < length; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.5;
+      return data;
+    });
   }
 
   getChannelData(_channel: number): Float32Array {
-    const data = new Float32Array(this.length);
-    // Create a simple sine wave for testing
-    for (let i = 0; i < this.length; i++) {
-      data[i] = Math.sin(2 * Math.PI * 440 * i / this.sampleRate) * 0.5;
-    }
-    return data;
+    return this.channels[_channel];
+  }
+
+  copyFromChannel(destination: Float32Array, channelNumber: number, bufferOffset = 0): void {
+    destination.set(this.channels[channelNumber].subarray(bufferOffset, bufferOffset + destination.length));
+  }
+
+  copyToChannel(source: Float32Array, channelNumber: number, bufferOffset = 0): void {
+    this.channels[channelNumber].set(source.subarray(0, this.length - bufferOffset), bufferOffset);
   }
 }
 
@@ -34,7 +43,7 @@ describe('audioExport', () => {
 
   describe('exportAudioBuffer', () => {
     it('should export WAV format by default', async () => {
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'wav',
         bitDepth: 16
       });
@@ -44,7 +53,7 @@ describe('audioExport', () => {
     });
 
     it('should export AIFF format', async () => {
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 16
       });
@@ -54,7 +63,7 @@ describe('audioExport', () => {
     });
 
     it('should export AIFF with 32-bit float', async () => {
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 32,
         isFloat: true
@@ -67,7 +76,7 @@ describe('audioExport', () => {
     });
 
     it('should include metadata in exported files', async () => {
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 24,
         rootNote: 60,
@@ -80,18 +89,18 @@ describe('audioExport', () => {
     });
 
     it('should throw error for unsupported format', async () => {
-      await expect(exportAudioBuffer(mockAudioBuffer as any, {
+      await expect(exportAudioBuffer(mockAudioBuffer, {
         format: 'unsupported' as AudioFormat
       })).rejects.toThrow('Unsupported audio format: unsupported');
     });
 
     it('should handle different bit depths for WAV', async () => {
-      const result16 = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result16 = await exportAudioBuffer(mockAudioBuffer, {
         format: 'wav',
         bitDepth: 16
       });
 
-      const result24 = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result24 = await exportAudioBuffer(mockAudioBuffer, {
         format: 'wav',
         bitDepth: 24
       });
@@ -103,17 +112,17 @@ describe('audioExport', () => {
     });
 
     it('should handle different bit depths for AIFF', async () => {
-      const result16 = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result16 = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 16
       });
 
-      const result24 = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result24 = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 24
       });
 
-      const result32 = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result32 = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 32,
         isFloat: true
@@ -122,7 +131,7 @@ describe('audioExport', () => {
       expect(result16).toBeInstanceOf(Blob);
       expect(result24).toBeInstanceOf(Blob);
       expect(result32).toBeInstanceOf(Blob);
-      
+
       // Higher bit depths should generally result in larger files
       expect(result24.size).toBeGreaterThan(result16.size);
       expect(result32.size).toBeGreaterThan(result16.size);
@@ -130,8 +139,8 @@ describe('audioExport', () => {
 
     it('should handle mono audio', async () => {
       const monoBuffer = new MockAudioBuffer(1, 1024, 44100);
-      
-      const result = await exportAudioBuffer(monoBuffer as any, {
+
+      const result = await exportAudioBuffer(monoBuffer, {
         format: 'aiff',
         bitDepth: 16
       });
@@ -174,14 +183,14 @@ describe('audioExport', () => {
   describe('format-specific tests', () => {
     it('should create valid AIFF files with different compression types', async () => {
       // Test uncompressed AIFF
-      const aiffPCM = await exportAudioBuffer(mockAudioBuffer as any, {
+      const aiffPCM = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 16,
         isFloat: false
       });
 
       // Test 32-bit float AIFF
-      const aiffFloat = await exportAudioBuffer(mockAudioBuffer as any, {
+      const aiffFloat = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 32,
         isFloat: true
@@ -189,14 +198,14 @@ describe('audioExport', () => {
 
       expect(aiffPCM).toBeInstanceOf(Blob);
       expect(aiffFloat).toBeInstanceOf(Blob);
-      
+
       // Float version should be larger due to higher precision
       expect(aiffFloat.size).toBeGreaterThan(aiffPCM.size);
     });
 
     it('should handle edge cases for metadata', async () => {
       // Test with boundary loop points
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 24,
         rootNote: 0, // Lowest MIDI note
@@ -209,7 +218,7 @@ describe('audioExport', () => {
     });
 
     it('should handle high MIDI note values', async () => {
-      const result = await exportAudioBuffer(mockAudioBuffer as any, {
+      const result = await exportAudioBuffer(mockAudioBuffer, {
         format: 'aiff',
         bitDepth: 16,
         rootNote: 127 // Highest MIDI note
@@ -219,4 +228,4 @@ describe('audioExport', () => {
       expect(result.size).toBeGreaterThan(0);
     });
   });
-}); 
+});

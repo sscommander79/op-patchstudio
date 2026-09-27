@@ -1,0 +1,3704 @@
+--- before/src/components/common/ADSREnvelope.tsx
++++ src/components/common/ADSREnvelope.tsx
+@@ -91,18 +91,7 @@
+ 
+ 
+ 
+-/**
+- * ADSREnvelope Component - OP-XY Device Faithful Recreation
+- * 
+- * This component replicates the exact dimensions and ratios of the OP-XY hardware
+- * envelope editor. All measurements are based on physical device specs:
+- * 
+- * CRITICAL: These ratios must be maintained across ALL functions:
+- * - getPhasePositions() for envelope curve positioning  
+- * - handleMouseDown() dragging area boundaries
+- * - SVG element positioning and sizing
+- * - Any future layout modifications
+- */
++/** Visual editor for raw OP-XY ADSR values. Its curve and timing are browser approximations. */
+ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
+   ampEnvelope,
+   filterEnvelope,
+@@ -174,19 +163,7 @@
+ 
+   // Calculate fixed positions based on OP-XY exact device constraints
+   const getPhasePositions = useCallback((envelope: ADSRValues) => {
+-    // ═══════════════════════════════════════════════════════════════════════════════
+-    // OP-XY DEVICE EXACT RATIOS - DO NOT MODIFY WITHOUT UPDATING ALL REFERENCES
+-    // ═══════════════════════════════════════════════════════════════════════════════
+-    // Physical device measurements:
+-    // • Outer border: 62mm × 31mm (6px rounded corners) → 2:1 ratio
+-    // • Inner border: 55mm × 25mm (square corners) → 2.2:1 ratio  
+-    // • Envelope area: 46mm × 20mm (drawing area) → 2.3:1 ratio
+-    //
+-    // Digital implementation at 7.74x scale factor:
+-    // • Container: 480px × 240px (62mm × 31mm × 7.74)
+-    // • Inner: 426px × 194px (55mm × 25mm × 7.74)
+-    // • Envelope: 356px × 155px (46mm × 20mm × 7.74)
+-    // ═══════════════════════════════════════════════════════════════════════════════
++    // These proportions are only the browser drawing layout. They are not a measured device-time curve.
+     const innerWidth = Math.round(55 * 7.74);   // 426px
+     const innerHeight = Math.round(25 * 7.74);  // 194px
+     const envelopeWidth = Math.round(46 * 7.74); // 356px
+@@ -753,13 +730,13 @@
+       {/* ADSR Control Knobs */}
+       <FourKnobControl
+         knobs={[
+-          { label: 'attack', value: valueToPercent(currentEnvelope.attack), color: 'black' },
+-          { label: 'decay', value: valueToPercent(currentEnvelope.decay), color: 'dark' },
+-          { label: 'sustain', value: valueToPercent(currentEnvelope.sustain), color: 'light' },
+-          { label: 'release', value: valueToPercent(currentEnvelope.release), color: 'white' }
++          { label: 'attack', value: valueToPercent(currentEnvelope.attack), rawValue: currentEnvelope.attack, color: 'black' },
++          { label: 'decay', value: valueToPercent(currentEnvelope.decay), rawValue: currentEnvelope.decay, color: 'dark' },
++          { label: 'sustain', value: valueToPercent(currentEnvelope.sustain), rawValue: currentEnvelope.sustain, color: 'light' },
++          { label: 'release', value: valueToPercent(currentEnvelope.release), rawValue: currentEnvelope.release, color: 'white' }
+         ]}
+         onValueChange={handleKnobValueChange}
+       />
+     </div>
+   );
+-}; +};
+--- before/src/components/common/FourKnobControl.tsx
++++ src/components/common/FourKnobControl.tsx
+@@ -3,6 +3,7 @@
+ interface KnobConfig {
+   label: string;
+   value: number; // 0-100
++  rawValue?: number;
+   color: 'black' | 'dark' | 'light' | 'white'; // knob color semantic names
+ }
+ 
+@@ -132,7 +133,7 @@
+           {knob.label}
+         </span>
+         <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', userSelect: 'none' }}>
+-          {Math.round(knob.value)}%
++          {Math.round(knob.value)}%{knob.rawValue === undefined ? '' : ` (raw ${knob.rawValue})`}
+         </span>
+       </div>
+     );
+@@ -163,4 +164,4 @@
+       </div>
+     </div>
+   );
+-}; +};
+--- before/src/components/common/SmallWaveform.tsx
++++ src/components/common/SmallWaveform.tsx
+@@ -1,6 +1,4 @@
+ import { useRef, useEffect, useState, useCallback } from 'react';
+-import { isMobile, isTablet } from 'react-device-detect';
+-import { triggerRotateOverlay } from '../../App';
+ 
+ interface SmallWaveformProps {
+   audioBuffer: AudioBuffer | null;
+@@ -29,18 +27,10 @@
+     startX: number;
+   }>({ type: null, startX: 0 });
+ 
+-  const finalOutPoint = outPoint ?? (audioBuffer ? audioBuffer.length - 1 : 0);
++  const finalOutPoint = outPoint ?? (audioBuffer ? audioBuffer.length : 0);
+   
+   // Check if this is a multisample (has loop points)
+   const hasLoopPoints = loopStart !== undefined && loopEnd !== undefined;
+-
+-  // Check if device is mobile/tablet in portrait mode
+-  const isMobilePortrait = () => {
+-    const mobileOrTablet = isMobile || isTablet;
+-    const isPortraitMode = window.innerHeight > window.innerWidth;
+-    const isSmallScreen = window.innerWidth < 768; // Additional check for small screens
+-    return (mobileOrTablet || isSmallScreen) && isPortraitMode;
+-  };
+ 
+   // Theme colors
+   const c = {
+@@ -298,22 +288,7 @@
+ 
+   const handleZoomClick = () => {
+     if (!onZoomEdit) return;
+-
+-    try {
+-      // Check if we're on mobile in portrait mode
+-      if (isMobilePortrait()) {
+-        // Show rotate overlay instead of zoom modal
+-        triggerRotateOverlay(onZoomEdit);
+-        return;
+-      }
+-      
+-      // Otherwise, proceed with normal zoom functionality
+-      onZoomEdit();
+-    } catch (error) {
+-      console.error('Error in handleZoomClick:', error);
+-      // Fallback to direct zoom modal if overlay fails
+-      onZoomEdit();
+-    }
++    onZoomEdit();
+   };
+ 
+   const handleCanvasClick = (e: React.MouseEvent) => {
+@@ -431,4 +406,4 @@
+       />
+     </div>
+   );
+-} +}
+--- before/src/components/common/WaveformZoomModal.tsx
++++ src/components/common/WaveformZoomModal.tsx
+@@ -1,10 +1,19 @@
+-import { useRef, useEffect, useState, useCallback, useLayoutEffect } from 'react';
+-import { EnhancedTooltip } from './EnhancedTooltip';
+-import { isMobile, isTablet } from 'react-device-detect';
+-import { triggerRotateOverlay } from '../../App';
++import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+-import { type DrumSample, type MultisampleFile } from '../../context/AppContext';
++import { audioContextManager } from '../../utils/audioContext';
++import {
++  crossfadeLoopChannels,
++  framesToSeconds,
++  normalizeSampleAndLoop,
++  previewFrameAtTime,
++  secondsToFrames,
++  type FrameRange,
++} from '../../utils/loopEditing';
+ import { shouldIgnoreKeyboardKeyDown } from '../../utils/keyboardOwnership';
++import type { DrumSample, LoopCrossfadeProvenance, MultisampleFile } from '../../context/AppContext';
++
++type Marker = 'in' | 'out' | 'loopStart' | 'loopEnd';
++interface DraftBounds { sample: FrameRange; loop: FrameRange }
+ 
+ interface WaveformZoomModalProps {
+   isOpen: boolean;
+@@ -14,1260 +23,383 @@
+   initialOutPoint: number;
+   initialLoopStart?: number;
+   initialLoopEnd?: number;
+-  onSave: (inPoint: number, outPoint: number, loopStart?: number, loopEnd?: number) => void;
+-  // Loop settings for preview playback
++  initialCrossfade?: LoopCrossfadeProvenance;
++  crossfadeNotice?: string;
++  onSave: (inPoint: number, outPoint: number, loopStart?: number, loopEnd?: number, loopCrossfade?: LoopCrossfadeProvenance) => void;
+   loopEnabled?: boolean;
+   loopOnRelease?: boolean;
+-  ampEnvelope?: {
+-    attack: number;
+-    decay: number;
+-    sustain: number;
+-    release: number;
+-  };
++  playbackRate?: number;
++  gain?: number;
++  reverse?: boolean;
++  ampEnvelope?: { attack: number; decay: number; sustain: number; release: number };
+   onSaveForAll: (payload: Partial<DrumSample | MultisampleFile>) => void;
+ }
+ 
++const c = {
++  bg: 'var(--color-bg-primary)', bgAlt: 'var(--color-bg-secondary)',
++  border: 'var(--color-border-light)', text: 'var(--color-text-primary)',
++  textSecondary: 'var(--color-text-secondary)', action: 'var(--color-interactive-focus)',
++};
++const inputStyle = {
++  width: '7.5rem', padding: '0.35rem 0.45rem', border: `1px solid ${c.border}`,
++  borderRadius: '3px', background: c.bg, color: c.text,
++} as const;
++
++function makePreviewCopy(source: AudioBuffer, loop: FrameRange, fadeFrames: number): AudioBuffer {
++  if (fadeFrames <= 0) return source;
++  const channels = Array.from({ length: source.numberOfChannels }, (_, channel) => source.getChannelData(channel));
++  const mixed = crossfadeLoopChannels(channels, loop, fadeFrames);
++  let copy: AudioBuffer;
++  try {
++    copy = new AudioBuffer({ length: source.length, numberOfChannels: source.numberOfChannels, sampleRate: source.sampleRate });
++  } catch {
++    copy = new (AudioBuffer as unknown as new (channels: number, length: number, sampleRate: number) => AudioBuffer)(source.numberOfChannels, source.length, source.sampleRate);
++  }
++  mixed.forEach((data, channel) => {
++    if (typeof copy.copyToChannel === 'function') copy.copyToChannel(data, channel);
++    else copy.getChannelData(channel).set(data);
++  });
++  return copy;
++}
++
+ export function WaveformZoomModal({
+-  isOpen,
+-  onClose,
+-  audioBuffer,
+-  initialInPoint,
+-  initialOutPoint,
+-  initialLoopStart,
+-  initialLoopEnd,
+-  onSave,
+-  loopEnabled = false,
+-  loopOnRelease = false,
+-  ampEnvelope,
+-  onSaveForAll,
++  isOpen, onClose, audioBuffer, initialInPoint, initialOutPoint, initialLoopStart, initialLoopEnd,
++  initialCrossfade, crossfadeNotice, onSave, loopEnabled = false, loopOnRelease = false,
++  playbackRate = 1, gain = 0, reverse = false, ampEnvelope, onSaveForAll,
+ }: WaveformZoomModalProps) {
+   const canvasRef = useRef<HTMLCanvasElement>(null);
+   const modalRef = useRef<HTMLDivElement>(null);
+   const firstButtonRef = useRef<HTMLButtonElement>(null);
+   const lastActiveElement = useRef<HTMLElement | null>(null);
+-  const [inFrame, setInFrame] = useState(0);
+-  const [outFrame, setOutFrame] = useState(0);
+-  const [loopStartFrame, setLoopStartFrame] = useState(0);
+-  const [loopEndFrame, setLoopEndFrame] = useState(0);
+-  const [snapToZero, setSnapToZero] = useState(true);
+-  const [dragging, setDragging] = useState<'in' | 'out' | 'loopStart' | 'loopEnd' | null>(null);
+-  const [showTooltip, setShowTooltip] = useState(false);
+-  const { playWithADSR, releaseNote } = useAudioPlayer();
+-  const [isPlaying, setIsPlaying] = useState(false);
++  const wasOpenRef = useRef(false);
++  const initializedBufferRef = useRef<AudioBuffer | null>(null);
++  const dragRef = useRef<{ marker: Marker; pointerId: number; baseline: DraftBounds } | null>(null);
++  const draftRef = useRef<DraftBounds | null>(null);
+   const currentNoteIdRef = useRef<string | null>(null);
+   const previewHeldRef = useRef(false);
+-
+-  // Check if device is mobile/tablet in portrait mode
+-  const isMobilePortrait = () => {
+-    const mobileOrTablet = isMobile || isTablet;
+-    const isPortraitMode = window.innerHeight > window.innerWidth;
+-    return mobileOrTablet && isPortraitMode;
+-  };
+-
+-  // Check if device is mobile/tablet (any orientation)
+-  const isMobileDevice = () => {
+-    return isMobile || isTablet;
+-  };
+-
+-  // Check if this is a multisample (has loop points)
++  const animationFrameRef = useRef<number | null>(null);
++  const playRequestRef = useRef(0);
++  const playPendingRef = useRef(false);
++  const previewStartedAtRef = useRef(0);
++  const previewStartFrameRef = useRef(0);
++
++  const [draft, setDraftState] = useState<DraftBounds>({ sample: { start: 0, end: 1 }, loop: { start: 0, end: 1 } });
++  const [selectedMarker, setSelectedMarker] = useState<Marker>('in');
++  const [snapToZero, setSnapToZero] = useState(true);
++  const [crossfade, setCrossfade] = useState<LoopCrossfadeProvenance>({ fraction: 0 });
++  const [crossfadeEdited, setCrossfadeEdited] = useState(false);
++  const [transport, setTransport] = useState<'stopped' | 'playing' | 'paused' | 'released'>('stopped');
++  const [playheadFrame, setPlayheadFrame] = useState(0);
++  const { playWithADSR, releaseNote } = useAudioPlayer();
++
+   const hasLoopPoints = initialLoopStart !== undefined && initialLoopEnd !== undefined;
+-
+-  // Check for mobile portrait mode when modal opens
+-  useEffect(() => {
+-    if (isOpen && isMobilePortrait()) {
+-      // Use the global overlay system instead of local state
+-      triggerRotateOverlay(() => {
+-        // The modal will open automatically when user rotates to landscape
+-        // No additional action needed as modal is already trying to open
+-      });
+-      // Close the modal since we're showing the rotate overlay
+-      onClose();
++  const frameCount = audioBuffer?.length ?? 1;
++  const sampleRate = audioBuffer?.sampleRate ?? 1;
++  const setDraft = useCallback((next: DraftBounds | ((current: DraftBounds) => DraftBounds)) => {
++    setDraftState((current) => {
++      const value = typeof next === 'function' ? next(current) : next;
++      draftRef.current = value;
++      return value;
++    });
++  }, []);
++
++  useEffect(() => {
++    const opening = isOpen && !wasOpenRef.current;
++    const changedBuffer = isOpen && audioBuffer !== initializedBufferRef.current;
++    if ((opening || changedBuffer) && audioBuffer) {
++      const normalized = normalizeSampleAndLoop(
++        audioBuffer.length,
++        { start: secondsToFrames(initialInPoint, audioBuffer.sampleRate, audioBuffer.length), end: secondsToFrames(initialOutPoint, audioBuffer.sampleRate, audioBuffer.length) },
++        hasLoopPoints ? { start: secondsToFrames(initialLoopStart, audioBuffer.sampleRate, audioBuffer.length), end: secondsToFrames(initialLoopEnd, audioBuffer.sampleRate, audioBuffer.length) } : undefined,
++      );
++      draftRef.current = normalized;
++      setDraftState(normalized);
++      setPlayheadFrame(reverse ? normalized.sample.end : normalized.sample.start);
++      setSelectedMarker('in');
++      setCrossfade(initialCrossfade ? { ...initialCrossfade } : { fraction: 0 });
++      setCrossfadeEdited(false);
++      setTransport('stopped');
++      initializedBufferRef.current = audioBuffer;
+     }
+-  }, [isOpen, onClose]);
+-
+-  // Helper functions for frame and time display
+-  const frameToTime = (frame: number): number => {
+-    if (!audioBuffer) return 0;
+-    return frame / audioBuffer.sampleRate;
+-  };
+-
+-  // Check if a frame is at or near zero crossing
+-  const isNearZeroCrossing = (frame: number, threshold: number = 0.01): boolean => {
+-    if (!audioBuffer) return false;
+-    const data = audioBuffer.getChannelData(0);
+-    return frame >= 0 && frame < data.length && Math.abs(data[frame]) < threshold;
+-  };
+-
+-  // Theme colors
+-  const c = {
+-    bg: 'var(--color-bg-primary)',
+-    bgAlt: 'var(--color-bg-secondary)',
+-    border: 'var(--color-border-light)',
+-    text: 'var(--color-text-primary)',
+-    textSecondary: 'var(--color-text-secondary)',
+-    action: 'var(--color-interactive-focus)',
+-  };
+-
+-  // Initialize frames when modal opens
+-  useEffect(() => {
+-    if (isOpen && audioBuffer) {
+-      const durationSec = audioBuffer.length / audioBuffer.sampleRate;
+-      setInFrame(Math.floor((initialInPoint / durationSec) * audioBuffer.length));
+-      setOutFrame(Math.floor((initialOutPoint / durationSec) * audioBuffer.length));
+-      if (hasLoopPoints) {
+-        setLoopStartFrame(Math.floor((initialLoopStart! / durationSec) * audioBuffer.length));
+-        setLoopEndFrame(Math.floor((initialLoopEnd! / durationSec) * audioBuffer.length));
+-      } else {
+-        setLoopStartFrame(0);
+-        setLoopEndFrame(0);
++    if (!isOpen) initializedBufferRef.current = null;
++    wasOpenRef.current = isOpen;
++  }, [audioBuffer, hasLoopPoints, initialCrossfade, initialInPoint, initialLoopEnd, initialLoopStart, initialOutPoint, isOpen, reverse]);
++
++  const cancelAnimation = useCallback(() => {
++    if (animationFrameRef.current !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(animationFrameRef.current);
++    animationFrameRef.current = null;
++  }, []);
++  const stopCurrentNote = useCallback((force: boolean) => {
++    playRequestRef.current += 1;
++    playPendingRef.current = false;
++    const noteId = currentNoteIdRef.current;
++    if (noteId) releaseNote(noteId, force);
++    currentNoteIdRef.current = null;
++    cancelAnimation();
++  }, [cancelAnimation, releaseNote]);
++
++  const draw = useCallback(() => {
++    const canvas = canvasRef.current;
++    if (!canvas || !audioBuffer) return;
++    const context = canvas.getContext('2d');
++    if (!context || canvas.width <= 0 || canvas.height <= 0) return;
++    const { width, height } = canvas;
++    const samples = audioBuffer.getChannelData(0);
++    context.clearRect(0, 0, width, height);
++    context.fillStyle = '#f0f0f0'; context.fillRect(0, 0, width, height);
++    context.fillStyle = '#fff'; context.fillRect((draft.sample.start / frameCount) * width, 0, ((draft.sample.end - draft.sample.start) / frameCount) * width, height);
++    context.fillStyle = '#333';
++    const step = Math.max(1, Math.ceil(samples.length / width));
++    for (let pixel = 0; pixel < width; pixel += 1) {
++      let minimum = 1; let maximum = -1;
++      for (let offset = 0; offset < step; offset += 1) {
++        const value = samples[pixel * step + offset];
++        if (value === undefined) break;
++        minimum = Math.min(minimum, value); maximum = Math.max(maximum, value);
++      }
++      context.fillRect(pixel, (1 + minimum) * height / 2, 1, Math.max(1, (maximum - minimum) * height / 2));
++    }
++    const markers: Array<[Marker, number, string]> = [['in', draft.sample.start, '#333'], ['out', draft.sample.end, '#333']];
++    if (hasLoopPoints) markers.push(['loopStart', draft.loop.start, '#666'], ['loopEnd', draft.loop.end, '#666']);
++    markers.forEach(([marker, frame, color]) => {
++      const x = (frame / frameCount) * width;
++      context.strokeStyle = color; context.lineWidth = marker === selectedMarker ? 3 : 1;
++      context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
++    });
++    context.strokeStyle = '#d97706'; context.lineWidth = 2;
++    const playheadX = (playheadFrame / frameCount) * width;
++    context.beginPath(); context.moveTo(playheadX, 0); context.lineTo(playheadX, height); context.stroke();
++  }, [audioBuffer, draft, frameCount, hasLoopPoints, playheadFrame, selectedMarker]);
++
++  useEffect(() => {
++    if (!isOpen || !audioBuffer) return;
++    const canvas = canvasRef.current;
++    if (!canvas) return;
++    const resize = () => {
++      const rect = canvas.getBoundingClientRect();
++      canvas.width = Math.max(1, Math.round(rect.width || canvas.parentElement?.clientWidth || 640));
++      canvas.height = Math.max(120, Math.round(rect.height || 200));
++      draw();
++    };
++    resize(); window.addEventListener('resize', resize);
++    return () => window.removeEventListener('resize', resize);
++  }, [audioBuffer, draw, isOpen]);
++  useEffect(draw, [draw]);
++
++  const snapFrame = useCallback((frame: number): number => {
++    if (!audioBuffer || !snapToZero) return frame;
++    const samples = audioBuffer.getChannelData(0);
++    const rounded = Math.round(frame);
++    if (rounded <= 0) return 0;
++    if (rounded >= samples.length) return samples.length;
++    const origin = rounded;
++    if (Math.abs(samples[origin]) < 0.01) return origin;
++    let best = origin; let bestMagnitude = Math.abs(samples[origin]);
++    for (let distance = 1; distance <= Math.min(500, samples.length - 1); distance += 1) {
++      for (const candidate of [origin - distance, origin + distance]) {
++        if (candidate < 0 || candidate >= samples.length) continue;
++        const magnitude = Math.abs(samples[candidate]);
++        if (magnitude < bestMagnitude) { best = candidate; bestMagnitude = magnitude; }
++        if (magnitude < 0.01) return candidate;
+       }
+     }
+-    // Reset marker state on close
++    return best;
++  }, [audioBuffer, snapToZero]);
++
++  const updateMarker = useCallback((marker: Marker, requestedFrame: number) => {
++    if (!audioBuffer) return;
++    const frame = Math.max(0, Math.min(audioBuffer.length, Math.round(requestedFrame)));
++    setDraft((current) => {
++      if (marker === 'in') return normalizeSampleAndLoop(audioBuffer.length, { ...current.sample, start: Math.min(frame, current.sample.end - 1) }, current.loop);
++      if (marker === 'out') return normalizeSampleAndLoop(audioBuffer.length, { ...current.sample, end: Math.max(frame, current.sample.start + 1) }, current.loop);
++      if (marker === 'loopStart') return normalizeSampleAndLoop(audioBuffer.length, current.sample, { ...current.loop, start: Math.min(frame, current.loop.end - 1) });
++      return normalizeSampleAndLoop(audioBuffer.length, current.sample, { ...current.loop, end: Math.max(frame, current.loop.start + 1) });
++    });
++  }, [audioBuffer, setDraft]);
++  const frameFromPointer = useCallback((clientX: number) => {
++    const canvas = canvasRef.current;
++    if (!canvas || !audioBuffer) return 0;
++    const rect = canvas.getBoundingClientRect();
++    return snapFrame(((clientX - rect.left) / (rect.width || canvas.width || 1)) * audioBuffer.length);
++  }, [audioBuffer, snapFrame]);
++  const markerAtPointer = useCallback((clientX: number, clientY: number): Marker => {
++    const canvas = canvasRef.current; const current = draftRef.current ?? draft;
++    if (!canvas || !audioBuffer) return 'in';
++    const rect = canvas.getBoundingClientRect(); const width = rect.width || canvas.width || 1; const height = rect.height || canvas.height || 1; const x = clientX - rect.left;
++    const markers: Marker[] = hasLoopPoints ? (clientY - rect.top <= height * 0.3 ? ['loopStart', 'loopEnd'] : clientY - rect.top >= height * 0.7 ? ['in', 'out'] : ['in', 'loopStart', 'loopEnd', 'out']) : ['in', 'out'];
++    const value = (marker: Marker) => marker === 'in' ? current.sample.start : marker === 'out' ? current.sample.end : marker === 'loopStart' ? current.loop.start : current.loop.end;
++    return markers.reduce((nearest, marker) => Math.abs(x - (value(marker) / audioBuffer.length) * width) < Math.abs(x - (value(nearest) / audioBuffer.length) * width) ? marker : nearest, markers[0]);
++  }, [audioBuffer, draft, hasLoopPoints]);
++  const onPointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
++    if (!audioBuffer) return;
++    const marker = markerAtPointer(event.clientX, event.clientY);
++    setSelectedMarker(marker);
++    dragRef.current = { marker, pointerId: event.pointerId, baseline: draftRef.current ?? draft };
++    event.currentTarget.setPointerCapture?.(event.pointerId);
++    updateMarker(marker, frameFromPointer(event.clientX)); event.preventDefault();
++  }, [audioBuffer, draft, frameFromPointer, markerAtPointer, updateMarker]);
++
++  useEffect(() => {
++    if (!isOpen) return;
++    const move = (event: PointerEvent) => { const active = dragRef.current; if (!active || event.pointerId !== active.pointerId) return; updateMarker(active.marker, frameFromPointer(event.clientX)); event.preventDefault(); };
++    const end = (event: PointerEvent) => { if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null; };
++    const cancel = (event: PointerEvent) => { const active = dragRef.current; if (!active || event.pointerId !== active.pointerId) return; setDraft(active.baseline); dragRef.current = null; };
++    document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', cancel);
++    return () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', cancel); dragRef.current = null; };
++  }, [frameFromPointer, isOpen, setDraft, updateMarker]);
++
++  const tickPlayhead = useCallback(() => {
++    if (!audioBuffer || (transport !== 'playing' && transport !== 'released')) return;
++    const currentTime = audioContextManager.getCurrentTime();
++    if (currentTime === null) return;
++    const current = draftRef.current ?? draft;
++    setPlayheadFrame(previewFrameAtTime({
++      startedAt: previewStartedAtRef.current,
++      startFrame: previewStartFrameRef.current,
++      sample: current.sample,
++      loop: current.loop,
++      loopEnabled: transport === 'released' ? loopEnabled && loopOnRelease : loopEnabled,
++      sampleRate: audioBuffer.sampleRate,
++      playbackRate,
++      reverse,
++    }, currentTime));
++    animationFrameRef.current = requestAnimationFrame(tickPlayhead);
++  }, [audioBuffer, draft, loopEnabled, loopOnRelease, playbackRate, reverse, transport]);
++  const play = useCallback(async () => {
++    if (!audioBuffer || currentNoteIdRef.current || playPendingRef.current) return;
++    const request = ++playRequestRef.current;
++    playPendingRef.current = true;
++    const current = draftRef.current ?? draft;
++    const startFrame = transport === 'paused' ? playheadFrame : reverse ? current.sample.end : current.sample.start;
++    try {
++      const requestedFrames = hasLoopPoints ? Math.round(crossfade.fraction * audioBuffer.length) : 0;
++      const previewBuffer = makePreviewCopy(audioBuffer, current.loop, requestedFrames);
++      const requestedId = `waveform-preview-${Date.now()}`;
++      const result = await playWithADSR(previewBuffer, requestedId, {
++        inFrame: reverse ? current.sample.start : startFrame, outFrame: reverse ? startFrame : current.sample.end,
++        loopEnabled, loopOnRelease, loopStart: framesToSeconds(current.loop.start, audioBuffer.sampleRate), loopEnd: framesToSeconds(current.loop.end, audioBuffer.sampleRate),
++        playbackRate, gain, reverse, adsr: ampEnvelope ?? { attack: 100, decay: 1000, sustain: 30000, release: 2000 }, velocity: 127,
++        onEnded: () => { currentNoteIdRef.current = null; cancelAnimation(); setTransport('stopped'); setPlayheadFrame(reverse ? current.sample.end : current.sample.start); },
++      });
++      const actualId = typeof result === 'string' ? result : requestedId;
++      if (request !== playRequestRef.current) {
++        releaseNote(actualId, true);
++        return;
++      }
++      currentNoteIdRef.current = actualId;
++      previewStartFrameRef.current = startFrame;
++      previewStartedAtRef.current = audioContextManager.getCurrentTime() ?? 0;
++      setTransport('playing');
++    } catch (error) {
++      console.error('Error playing waveform preview:', error);
++      if (request === playRequestRef.current) setTransport('stopped');
++    } finally {
++      if (request === playRequestRef.current) playPendingRef.current = false;
++    }
++  }, [ampEnvelope, audioBuffer, cancelAnimation, crossfade.fraction, draft, gain, hasLoopPoints, loopEnabled, loopOnRelease, playbackRate, playWithADSR, playheadFrame, releaseNote, reverse, transport]);
++  useEffect(() => { if ((transport === 'playing' || transport === 'released') && typeof requestAnimationFrame === 'function') animationFrameRef.current = requestAnimationFrame(tickPlayhead); return cancelAnimation; }, [cancelAnimation, tickPlayhead, transport]);
++  const pause = useCallback(() => { stopCurrentNote(true); setTransport('paused'); }, [stopCurrentNote]);
++  const stop = useCallback(() => { stopCurrentNote(true); const current = draftRef.current ?? draft; setPlayheadFrame(reverse ? current.sample.end : current.sample.start); setTransport('stopped'); }, [draft, reverse, stopCurrentNote]);
++  const release = useCallback(() => {
++    const noteId = currentNoteIdRef.current;
++    if (!noteId) return;
++    releaseNote(noteId, false);
++    previewStartFrameRef.current = playheadFrame;
++    previewStartedAtRef.current = audioContextManager.getCurrentTime() ?? previewStartedAtRef.current;
++    setTransport('released');
++  }, [playheadFrame, releaseNote]);
++
++  useEffect(() => {
++    if (!isOpen) return;
++    const keyDown = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && !previewHeldRef.current && !shouldIgnoreKeyboardKeyDown(event, { modalOwner: modalRef.current })) { event.preventDefault(); previewHeldRef.current = true; void play(); } };
++    const keyUp = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && previewHeldRef.current) { event.preventDefault(); previewHeldRef.current = false; stop(); } };
++    document.addEventListener('keydown', keyDown); document.addEventListener('keyup', keyUp);
++    return () => { document.removeEventListener('keydown', keyDown); document.removeEventListener('keyup', keyUp); previewHeldRef.current = false; };
++  }, [isOpen, play, stop]);
++  useEffect(() => () => stopCurrentNote(true), [stopCurrentNote]);
++  useEffect(() => {
+     if (!isOpen) {
+-      setInFrame(0);
+-      setOutFrame(0);
+-      setLoopStartFrame(0);
+-      setLoopEndFrame(0);
++      dragRef.current = null;
++      stopCurrentNote(true);
+     }
+-  }, [isOpen, audioBuffer, initialInPoint, initialOutPoint, initialLoopStart, initialLoopEnd, hasLoopPoints]);
+-
+-  const findNearestZeroCrossingLocal = useCallback((position: number, searchDirection: number, maxSearchDistance = 1000): number => {
+-    if (!audioBuffer) return position;
+-
+-    const data = audioBuffer.getChannelData(0);
+-    const searchStart = Math.max(0, Math.min(position, data.length - 1));
+-    let bestPosition = searchStart;
+-    let minAbsValue = Math.abs(data[searchStart]);
+-
+-    const searchLimit = Math.min(maxSearchDistance,
+-      searchDirection > 0 ? data.length - searchStart : searchStart);
+-
+-    for (let i = 1; i <= searchLimit; i++) {
+-      const checkPos = searchStart + (i * searchDirection);
+-      if (checkPos < 0 || checkPos >= data.length) break;
+-
+-      const absValue = Math.abs(data[checkPos]);
+-      if (absValue < minAbsValue) {
+-        minAbsValue = absValue;
+-        bestPosition = checkPos;
+-      }
+-
+-      if (absValue < 0.01) break;
+-    }
+-
+-    return bestPosition;
+-  }, [audioBuffer]);
+-
+-  const drawWaveform = useCallback(() => {
+-    const canvas = canvasRef.current;
+-    if (!canvas || !audioBuffer) return;
+-
+-    const ctx = canvas.getContext('2d');
+-    if (!ctx) return;
+-
+-    const width = canvas.width;
+-    const height = canvas.height;
+-    const data = audioBuffer.getChannelData(0);
+-
+-    // Clear entire canvas first
+-    ctx.clearRect(0, 0, width, height);
+-
+-    // Background drawing logic
+-    const sampleToPixel = (frame: number) => (audioBuffer.length > 1 ? (frame / audioBuffer.length) * width : 0);
+-    const inX = sampleToPixel(inFrame);
+-    const outX = sampleToPixel(outFrame);
+-
+-    // Out-of-bounds area (light grey)
+-    ctx.fillStyle = '#f0f0f0';
+-    ctx.fillRect(0, 0, width, height);
+-
+-    // In-bounds area (white)
+-    ctx.fillStyle = '#ffffff';
+-    ctx.fillRect(inX, 0, outX - inX, height);
+-
+-    // Waveform
+-    ctx.fillStyle = '#333333';
+-    const step = Math.ceil(data.length / width);
+-    const amp = height / 2;
+-
+-    for (let i = 0; i < width; i++) {
+-      let min = 1.0;
+-      let max = -1.0;
+-
+-      for (let j = 0; j < step; j++) {
+-        const datum = data[i * step + j];
+-        if (datum < min) min = datum;
+-        if (datum > max) max = datum;
+-      }
+-
+-      ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+-    }
+-
+-    // Draw center line
+-    ctx.strokeStyle = '#333333';
+-    ctx.lineWidth = 1;
+-    ctx.beginPath();
+-    ctx.moveTo(0, height / 2);
+-    ctx.lineTo(width, height / 2);
+-    ctx.stroke();
+-
+-
+-  }, [audioBuffer, inFrame, outFrame, snapToZero]);
+-
+-  const drawMarkers = useCallback(() => {
+-    const canvas = canvasRef.current;
+-    if (!canvas || !audioBuffer) return;
+-
+-    const ctx = canvas.getContext('2d');
+-    if (!ctx) return;
+-
+-    const width = canvas.width;
+-    const height = canvas.height;
+-    const data = audioBuffer.getChannelData(0);
+-
+-    const inPos = (inFrame / data.length) * width;
+-    const outPos = (outFrame / data.length) * width;
+-    const loopStartPos = hasLoopPoints ? (loopStartFrame / data.length) * width : 0;
+-    const loopEndPos = hasLoopPoints ? (loopEndFrame / data.length) * width : 0;
+-
+-    // In/Out markers (dark grey) - solid lines
+-    ctx.strokeStyle = '#333333';
+-    ctx.lineWidth = 2;
+-    ctx.beginPath();
+-    ctx.moveTo(inPos, 0);
+-    ctx.lineTo(inPos, height);
+-    ctx.moveTo(outPos, 0);
+-    ctx.lineTo(outPos, height);
+-    ctx.stroke();
+-
+-    // In/Out marker handles - triangles with connected squares
+-    ctx.fillStyle = '#333333';
+-    const sampleTriangleSize = 10;
+-    const squareSize = sampleTriangleSize; // Square width matches triangle base
+-
+-    // Sample start marker (triangle above square, triangle pointing up)
+-    const squareY = height - squareSize;
+-    const triBaseY = squareY;
+-    const triTipY = squareY - sampleTriangleSize;
+-    ctx.beginPath();
+-    ctx.moveTo(inPos - sampleTriangleSize / 2, triBaseY);
+-    ctx.lineTo(inPos + sampleTriangleSize / 2, triBaseY);
+-    ctx.lineTo(inPos, triTipY);
+-    ctx.closePath();
+-    ctx.fill();
+-    ctx.fillRect(inPos - squareSize / 2, squareY, squareSize, squareSize);
+-
+-    // Sample end marker (triangle above square, triangle pointing up)
+-    ctx.beginPath();
+-    ctx.moveTo(outPos - sampleTriangleSize / 2, triBaseY);
+-    ctx.lineTo(outPos + sampleTriangleSize / 2, triBaseY);
+-    ctx.lineTo(outPos, triTipY);
+-    ctx.closePath();
+-    ctx.fill();
+-    ctx.fillRect(outPos - squareSize / 2, squareY, squareSize, squareSize);
+-
+-    // Draw loop markers if this is a multisample
+-    if (hasLoopPoints) {
+-      // Loop markers (medium grey) - dashed lines
+-      const triangleSize = 10;
+-      const squareSize = triangleSize; // Square width matches triangle base
+-      ctx.fillStyle = '#555555';
+-      ctx.strokeStyle = '#555555';
+-      ctx.lineWidth = 1;
+-      ctx.setLineDash([6, 4]);
+-
+-      // Loop start - vertical line, square above triangle
+-      ctx.beginPath();
+-      ctx.moveTo(loopStartPos, 0);
+-      ctx.lineTo(loopStartPos, height);
+-      ctx.stroke();
+-
+-      ctx.setLineDash([]);
+-      // Square above triangle
+-      ctx.fillRect(loopStartPos - squareSize / 2, 0, squareSize, squareSize);
+-      // Triangle pointing down from square
+-      ctx.beginPath();
+-      ctx.moveTo(loopStartPos - triangleSize / 2, squareSize);
+-      ctx.lineTo(loopStartPos + triangleSize / 2, squareSize);
+-      ctx.lineTo(loopStartPos, squareSize + triangleSize);
+-      ctx.closePath();
+-      ctx.fill();
+-
+-      // Loop end - vertical line, square above triangle
+-      ctx.setLineDash([6, 4]);
+-      ctx.beginPath();
+-      ctx.moveTo(loopEndPos, 0);
+-      ctx.lineTo(loopEndPos, height);
+-      ctx.stroke();
+-
+-      ctx.setLineDash([]);
+-      // Square above triangle
+-      ctx.fillRect(loopEndPos - squareSize / 2, 0, squareSize, squareSize);
+-      // Triangle pointing down from square
+-      ctx.beginPath();
+-      ctx.moveTo(loopEndPos - triangleSize / 2, squareSize);
+-      ctx.lineTo(loopEndPos + triangleSize / 2, squareSize);
+-      ctx.lineTo(loopEndPos, squareSize + triangleSize);
+-      ctx.closePath();
+-      ctx.fill();
+-    }
+-  }, [audioBuffer, inFrame, outFrame, loopStartFrame, loopEndFrame, hasLoopPoints]);
+-
+-  // Combined effect for initialization and resizing
+-  useEffect(() => {
+-    if (!isOpen || !audioBuffer) return;
+-
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-
+-    const resizeAndDraw = () => {
+-      const parent = canvas.parentElement;
+-      if (parent) {
+-        canvas.width = parent.clientWidth;
+-        canvas.height = isMobileDevice() ? 120 : 200; // Responsive height
+-        drawWaveform();
+-        drawMarkers();
+-      }
++  }, [isOpen, stopCurrentNote]);
++
++  useLayoutEffect(() => {
++    if (isOpen) { lastActiveElement.current = document.activeElement as HTMLElement; const timer = window.setTimeout(() => firstButtonRef.current?.focus(), 0); return () => window.clearTimeout(timer); }
++    lastActiveElement.current?.focus();
++  }, [isOpen]);
++  useEffect(() => {
++    if (!isOpen) return;
++    const trap = (event: KeyboardEvent) => {
++      if (event.key !== 'Tab' || !modalRef.current) return;
++      const focusable = modalRef.current.querySelectorAll<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])'); if (!focusable.length) return;
++      const first = focusable[0]; const last = focusable[focusable.length - 1];
++      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+     };
+-
+-    resizeAndDraw(); // Initial setup
+-
+-    window.addEventListener('resize', resizeAndDraw);
+-    return () => window.removeEventListener('resize', resizeAndDraw);
+-  }, [isOpen, audioBuffer, drawWaveform, drawMarkers]);
+-
+-  // Effect for redrawing markers only, without resizing canvas
+-  useEffect(() => {
+-    if (isOpen && audioBuffer) {
+-      const canvas = canvasRef.current;
+-      if (canvas) {
+-        const ctx = canvas.getContext('2d');
+-        if (ctx) {
+-          drawWaveform();
+-          drawMarkers();
+-        }
+-      }
+-    }
+-  }, [inFrame, outFrame, loopStartFrame, loopEndFrame, isOpen, audioBuffer, drawWaveform, drawMarkers]);
+-
+-  interface PointerEvent {
+-    clientX: number;
+-    clientY: number;
+-    preventDefault: () => void;
+-    stopPropagation: () => void;
+-    nativeEvent: Event;
+-  }
+-
+-  const handleMouseDown = (e: React.MouseEvent | PointerEvent) => {
+-    if (!audioBuffer) return;
+-
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-
+-    const rect = canvas.getBoundingClientRect();
+-    const x = e.clientX - rect.left;
+-    const y = e.clientY - rect.top;
+-    const width = canvas.width;
+-    const height = canvas.height;
+-    const data = audioBuffer.getChannelData(0);
+-
+-    const inPos = (inFrame / data.length) * width;
+-    const outPos = (outFrame / data.length) * width;
+-    const loopStartPos = hasLoopPoints ? (loopStartFrame / data.length) * width : 0;
+-    const loopEndPos = hasLoopPoints ? (loopEndFrame / data.length) * width : 0;
+-
+-    // Define vertical zones for marker selection
+-    const topZone = height * 0.2;
+-    const bottomZone = height * 0.8;
+-    // Use larger hit area for touch devices (44x44px square)
+-    const tolerance = isMobileDevice() ? 44 / 2 : 40;
+-
+-    // Determine available markers based on vertical zone and sample type
+-    let availableMarkers: Array<'in' | 'out' | 'loopStart' | 'loopEnd'> = [];
+-
+-    if (hasLoopPoints) {
+-      if (y <= topZone) {
+-        availableMarkers = ['loopStart', 'loopEnd'];
+-      } else if (y >= bottomZone) {
+-        availableMarkers = ['in', 'out'];
+-      } else {
+-        availableMarkers = ['in', 'loopStart', 'loopEnd', 'out'];
+-      }
+-    } else {
+-      availableMarkers = ['in', 'out'];
+-    }
+-
+-    const markerPositions = {
+-      in: inPos,
+-      loopStart: loopStartPos,
+-      loopEnd: loopEndPos,
+-      out: outPos
+-    };
+-
+-    // Check for marker grabs
+-    let grabbed = false;
+-    for (const markerType of availableMarkers) {
+-      if (Math.abs(x - markerPositions[markerType]) < tolerance) {
+-        setDragging(markerType);
+-        grabbed = true;
+-        break;
+-      }
+-    }
+-
+-    if (!grabbed) {
+-      // Click to move nearest available marker
+-      const distances: Record<string, number> = {};
+-      availableMarkers.forEach(markerType => {
+-        distances[markerType] = Math.abs(x - markerPositions[markerType]);
+-      });
+-
+-      const closest = Object.keys(distances).reduce((a, b) => distances[a] < distances[b] ? a : b) as 'in' | 'out' | 'loopStart' | 'loopEnd';
+-
+-      let targetFrame = Math.round((x / width) * data.length);
+-      if (snapToZero) {
+-        targetFrame = findNearestZeroCrossingLocal(targetFrame, targetFrame > data.length / 2 ? -1 : 1, 500);
+-      }
+-
+-      // Apply constraints when moving markers
+-      switch (closest) {
+-        case 'in': {
+-          const newInFrame = Math.max(0, Math.min(targetFrame, data.length - 1));
+-          setInFrame(newInFrame);
+-          if (hasLoopPoints && newInFrame >= loopStartFrame) {
+-            setLoopStartFrame(Math.min(newInFrame + 1, loopEndFrame - 1));
+-          }
+-          break;
+-        }
+-        case 'loopStart': {
+-          if (hasLoopPoints) {
+-            setLoopStartFrame(Math.max(inFrame, Math.min(targetFrame, loopEndFrame - 1)));
+-          }
+-          break;
+-        }
+-        case 'loopEnd': {
+-          if (hasLoopPoints) {
+-            setLoopEndFrame(Math.max(loopStartFrame + 1, Math.min(targetFrame, outFrame)));
+-          }
+-          break;
+-        }
+-        case 'out': {
+-          const newOutFrame = Math.max(hasLoopPoints ? loopStartFrame + 2 : inFrame + 1, Math.min(targetFrame, data.length));
+-          setOutFrame(newOutFrame);
+-          if (hasLoopPoints && newOutFrame <= loopEndFrame) {
+-            setLoopEndFrame(Math.max(newOutFrame - 1, loopStartFrame + 1));
+-          }
+-          break;
+-        }
+-      }
+-    }
++    document.addEventListener('keydown', trap); return () => document.removeEventListener('keydown', trap);
++  }, [isOpen]);
++
++  const setFrameValue = (marker: Marker, value: string, unit: 'frames' | 'seconds') => { const numeric = Number(value); if (!Number.isFinite(numeric)) return; setSelectedMarker(marker); updateMarker(marker, unit === 'frames' ? numeric : secondsToFrames(numeric, sampleRate, frameCount)); };
++  const adjustSelected = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
++    let next: number | null = null; const current = draftRef.current ?? draft;
++    const present = selectedMarker === 'in' ? current.sample.start : selectedMarker === 'out' ? current.sample.end : selectedMarker === 'loopStart' ? current.loop.start : current.loop.end;
++    if (event.key === 'ArrowLeft') next = present - (event.shiftKey ? 10 : 1); if (event.key === 'ArrowRight') next = present + (event.shiftKey ? 10 : 1); if (event.key === 'Home') next = 0; if (event.key === 'End') next = frameCount;
++    if (next !== null) { event.preventDefault(); updateMarker(selectedMarker, next); }
+   };
+-
+-  const handleMouseMove = (e: React.MouseEvent | PointerEvent) => {
+-    if (!dragging || !audioBuffer) return;
+-
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-
+-    const rect = canvas.getBoundingClientRect();
+-    const x = e.clientX - rect.left;
+-    const width = canvas.width;
+-    const data = audioBuffer.getChannelData(0);
+-
+-    const frame = Math.round((x / width) * data.length);
+-    let targetFrame = frame;
+-    if (snapToZero) {
+-      targetFrame = findNearestZeroCrossingLocal(frame, frame > data.length / 2 ? -1 : 1, 500);
+-    }
+-
+-    switch (dragging) {
+-      case 'in': {
+-        const newInFrame = Math.max(0, Math.min(targetFrame, hasLoopPoints ? loopEndFrame - 2 : outFrame - 1, data.length - 1));
+-        setInFrame(newInFrame);
+-        if (hasLoopPoints && newInFrame >= loopStartFrame) {
+-          setLoopStartFrame(Math.min(newInFrame + 1, loopEndFrame - 1));
+-        }
+-        break;
+-      }
+-      case 'loopStart': {
+-        if (hasLoopPoints) {
+-          if (targetFrame < inFrame) {
+-            setInFrame(Math.max(0, targetFrame));
+-            setLoopStartFrame(Math.max(Math.max(0, targetFrame), Math.min(targetFrame, loopEndFrame - 1)));
+-          } else {
+-            setLoopStartFrame(Math.max(inFrame, Math.min(targetFrame, loopEndFrame - 1)));
+-          }
+-        }
+-        break;
+-      }
+-      case 'loopEnd': {
+-        if (hasLoopPoints) {
+-          setLoopEndFrame(Math.max(loopStartFrame + 1, Math.min(targetFrame, outFrame)));
+-        }
+-        break;
+-      }
+-      case 'out': {
+-        const newOutFrame = Math.max(hasLoopPoints ? loopStartFrame + 2 : inFrame + 1, Math.min(targetFrame, data.length));
+-        setOutFrame(newOutFrame);
+-        if (hasLoopPoints && newOutFrame <= loopEndFrame) {
+-          setLoopEndFrame(Math.max(newOutFrame - 1, loopStartFrame + 1));
+-        }
+-        break;
+-      }
+-    }
+-  };
+-
+-  const handleMouseUp = () => {
+-    setDragging(null);
+-  };
+-
+-  const handleSave = () => {
+-    if (!audioBuffer) return;
+-    const durationSec = audioBuffer.length / audioBuffer.sampleRate;
+-    const inPointSec = (inFrame / audioBuffer.length) * durationSec;
+-    const outPointSec = (outFrame / audioBuffer.length) * durationSec;
+-
+-    if (hasLoopPoints) {
+-      const loopStartSec = (loopStartFrame / audioBuffer.length) * durationSec;
+-      const loopEndSec = (loopEndFrame / audioBuffer.length) * durationSec;
+-      onSave(inPointSec, outPointSec, loopStartSec, loopEndSec);
+-    } else {
+-      onSave(inPointSec, outPointSec);
+-    }
+-    onClose();
+-  };
+-
+-  const playSelection = useCallback(async () => {
+-    if (!audioBuffer) return;
+-
+-    try {
+-      const noteId = `waveform-preview-${Date.now()}`;
+-      currentNoteIdRef.current = noteId;
+-      setIsPlaying(true);
+-
+-      // Calculate loop points in seconds for the selection
+-      const selectionStart = inFrame / audioBuffer.sampleRate;
+-      const selectionEnd = outFrame / audioBuffer.sampleRate;
+-
+-
+-
+-      await playWithADSR(audioBuffer, noteId, {
+-        inFrame,
+-        outFrame,
+-        // Use loop settings if enabled
+-        loopEnabled,
+-        loopOnRelease,
+-        loopStart: hasLoopPoints ? (loopStartFrame / audioBuffer.sampleRate) : selectionStart,
+-        loopEnd: hasLoopPoints ? (loopEndFrame / audioBuffer.sampleRate) : selectionEnd,
+-        // Use ADSR envelope if provided, with safe defaults for preview
+-        adsr: ampEnvelope || { attack: 100, decay: 1000, sustain: 30000, release: 2000 },
+-        velocity: 127,
+-      });
+-    } catch (error) {
+-      console.error('Error playing selection:', error);
+-      currentNoteIdRef.current = null;
+-      setIsPlaying(false);
+-    }
+-  }, [audioBuffer, inFrame, outFrame, playWithADSR, loopEnabled, loopOnRelease, hasLoopPoints, loopStartFrame, loopEndFrame, ampEnvelope]);
+-
+-  const stopPlayback = useCallback(() => {
+-    const noteId = currentNoteIdRef.current;
+-    if (noteId) {
+-      if (loopOnRelease) {
+-        // For loop on release, trigger release phase
+-        releaseNote(noteId);
+-      } else {
+-        // For normal playback, stop immediately
+-        releaseNote(noteId, true); // Force stop
+-      }
+-      currentNoteIdRef.current = null;
+-      setIsPlaying(false);
+-    }
+-  }, [releaseNote, loopOnRelease]);
+-
+-  // Clean up playback when modal closes
+-  useEffect(() => {
+-    if (!isOpen) {
+-      previewHeldRef.current = false;
+-      stopPlayback();
+-      return;
+-    }
+-
+-    const handleKeyDown = (e: KeyboardEvent) => {
+-      if (e.key === 'p' || e.key === 'P') {
+-        if (shouldIgnoreKeyboardKeyDown(e,{modalOwner:modalRef.current}) || previewHeldRef.current) return;
+-        e.preventDefault();
+-        previewHeldRef.current = true;
+-        if (!isPlaying) {
+-          playSelection().catch(error => {
+-            console.error('Error playing selection:', error);
+-          });
+-        }
+-      }
+-    };
+-
+-    const handleKeyUp = (e: KeyboardEvent) => {
+-      if ((e.key === 'p' || e.key === 'P') && previewHeldRef.current) {
+-        e.preventDefault();
+-        previewHeldRef.current = false;
+-        stopPlayback();
+-      }
+-    };
+-
+-    document.addEventListener('keydown', handleKeyDown);
+-    document.addEventListener('keyup', handleKeyUp);
+-    return () => {
+-      document.removeEventListener('keydown', handleKeyDown);
+-      document.removeEventListener('keyup', handleKeyUp);
+-    };
+-  }, [isOpen, playSelection, isPlaying, stopPlayback]);
+-
+-  // Add touch event handlers for mobile marker dragging
+-  const handleTouchStart = (e: React.TouchEvent) => {
+-    if (!audioBuffer) return;
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-    const touch = e.touches[0];
+-    // Reuse mouse logic
+-    handleMouseDown({
+-      clientX: touch.clientX,
+-      clientY: touch.clientY,
+-      preventDefault: () => e.preventDefault(),
+-      stopPropagation: () => e.stopPropagation(),
+-      nativeEvent: e.nativeEvent,
+-    });
+-  };
+-
+-  const handleTouchMove = (e: React.TouchEvent) => {
+-    if (!dragging || !audioBuffer) return;
+-    const canvas = canvasRef.current;
+-    if (!canvas) return;
+-    const touch = e.touches[0];
+-    // Reuse mouse logic
+-    handleMouseMove({
+-      clientX: touch.clientX,
+-      clientY: touch.clientY,
+-      preventDefault: () => e.preventDefault(),
+-      stopPropagation: () => e.stopPropagation(),
+-      nativeEvent: e.nativeEvent,
+-    });
+-  };
+-
+-  const handleTouchEnd = () => {
+-    handleMouseUp();
+-  };
+-
+-  const handleSaveForAll = () => {
+-    const { sampleRate } = audioBuffer!;
+-    const payload: any = {
+-      inPoint: inFrame / sampleRate,
+-      outPoint: outFrame / sampleRate,
+-    };
+-
+-    // Only add loop properties for multisample files that have loop points
+-    if (hasLoopPoints) {
+-      payload.loopStart = loopStartFrame / sampleRate;
+-      payload.loopEnd = loopEndFrame / sampleRate;
+-    }
+-
+-    onSaveForAll(payload);
+-    onClose();
+-  };
+-
+-  // Focus trap: focus first button on open, restore focus on close
+-  useLayoutEffect(() => {
+-    if (isOpen) {
+-      lastActiveElement.current = document.activeElement as HTMLElement;
+-      setTimeout(() => {
+-        firstButtonRef.current?.focus();
+-      }, 0);
+-    } else if (lastActiveElement.current) {
+-      lastActiveElement.current.focus();
+-    }
+-  }, [isOpen]);
+-
+-  // Focus trap: keep focus inside modal
+-  useEffect(() => {
+-    if (!isOpen) return;
+-    const handleTab = (e: KeyboardEvent) => {
+-      if (!modalRef.current) return;
+-      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+-      );
+-      if (!focusable.length) return;
+-      const first = focusable[0];
+-      const last = focusable[focusable.length - 1];
+-      if (e.key === 'Tab') {
+-        if (e.shiftKey) {
+-          if (document.activeElement === first) {
+-            e.preventDefault();
+-            last.focus();
+-          }
+-        } else {
+-          if (document.activeElement === last) {
+-            e.preventDefault();
+-            first.focus();
+-          }
+-        }
+-      }
+-    };
+-    document.addEventListener('keydown', handleTab);
+-    return () => document.removeEventListener('keydown', handleTab);
+-  }, [isOpen]);
+-
++  const payload = (forAll = false): Partial<MultisampleFile> => ({ inPoint: framesToSeconds(draft.sample.start, sampleRate), outPoint: framesToSeconds(draft.sample.end, sampleRate), ...(hasLoopPoints ? { loopStart: framesToSeconds(draft.loop.start, sampleRate), loopEnd: framesToSeconds(draft.loop.end, sampleRate), loopCrossfade: forAll ? { fraction: Math.min(0.75, crossfade.fraction) } : { ...crossfade } } : {}) });
++  const save = () => { const values = payload(); onSave(values.inPoint!, values.outPoint!, values.loopStart, values.loopEnd, values.loopCrossfade); onClose(); };
++  const saveForAll = () => { onSaveForAll(payload(true)); onClose(); };
++  const cancel = () => { stop(); onClose(); };
+   if (!isOpen) return null;
+ 
+-  return (
+-      <div
+-        role="dialog"
+-        aria-modal="true"
+-        aria-labelledby="waveform-zoom-modal-title"
+-        ref={modalRef}
+-        style={{
+-          position: 'fixed',
+-          top: 0,
+-          left: 0,
+-          right: 0,
+-          bottom: 0,
+-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+-          display: 'flex',
+-          alignItems: 'center',
+-          justifyContent: 'center',
+-          zIndex: 9999,
+-          fontFamily: '"Montserrat", "Arial", sans-serif'
+-        }}
+-        onClick={onClose}
+-      >
+-        <div
+-          style={{
+-            backgroundColor: c.bg,
+-            borderRadius: isMobileDevice() ? '3px' : '6px',
+-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+-            maxWidth: isMobileDevice() ? '100%' : '900px',
+-            width: isMobileDevice() ? '100%' : '90%',
+-            height: isMobileDevice() ? '100%' : 'auto',
+-            margin: isMobileDevice() ? '0' : '0 1rem',
+-            overflow: 'hidden',
+-            display: 'flex',
+-            flexDirection: 'column'
+-          }}
+-          onClick={(e) => e.stopPropagation()}
+-        >
+-          {/* Header */}
+-          <div style={{
+-            padding: isMobileDevice() ? '0.75rem 1rem 0.5rem 1rem' : '1.5rem 1.5rem 1rem 1.5rem',
+-            borderBottom: `1px solid ${c.border}`,
+-            flexShrink: 0
+-          }}>
+-            <h3 id="waveform-zoom-modal-title" style={{
+-              margin: '0',
+-              fontSize: isMobileDevice() ? '1rem' : '1.25rem',
+-              fontWeight: '300',
+-              color: c.text,
+-              display: 'flex',
+-              alignItems: 'center',
+-              gap: '0.5rem'
+-            }}>
+-              <i className="fas fa-search-plus" style={{
+-                color: c.textSecondary,
+-                fontSize: isMobileDevice() ? '1rem' : '1.25rem'
+-              }}></i>
+-              zoom and edit markers
+-              <EnhancedTooltip
+-                content={
+-                  <>
+-                    <h3>
+-                      <i className="fas fa-edit" style={{ marginRight: '0.5rem' }}></i>
+-                      waveform editor
+-                    </h3>
+-                    <p>drag markers to adjust positions. press 'p' to preview.</p>
+-                  </>
+-                }
+-                isVisible={showTooltip}
+-              >
+-                <i
+-                  className="fas fa-question-circle"
+-                  style={{
+-                    color: c.textSecondary,
+-                    fontSize: isMobileDevice() ? '0.9rem' : '1rem',
+-                    cursor: 'help',
+-                    marginLeft: '0.25rem'
+-                  }}
+-                  onMouseEnter={() => setShowTooltip(true)}
+-                  onMouseLeave={() => setShowTooltip(false)}
+-                />
+-              </EnhancedTooltip>
+-            </h3>
++  const fields: Array<{ marker: Marker; label: string; frame: number }> = [{ marker: 'in', label: 'Sample start', frame: draft.sample.start }, { marker: 'out', label: 'Sample end', frame: draft.sample.end }];
++  if (hasLoopPoints) fields.push({ marker: 'loopStart', label: 'Loop start', frame: draft.loop.start }, { marker: 'loopEnd', label: 'Loop end', frame: draft.loop.end });
++  const importedAbovePreviewLimit = !crossfadeEdited && crossfade.fraction > 0.75;
++
++  return <div role="dialog" aria-modal="true" aria-labelledby="waveform-zoom-modal-title" ref={modalRef}
++    style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
++    onClick={(event) => { if (event.target === event.currentTarget) cancel(); }}>
++    <div style={{ width: 'min(900px, 100%)', maxHeight: '100%', overflow: 'auto', background: c.bg, color: c.text, borderRadius: '6px', boxShadow: '0 8px 32px rgba(0,0,0,.15)' }}>
++      <header style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${c.border}` }}><h3 id="waveform-zoom-modal-title" style={{ margin: 0, fontWeight: 400 }}>zoom and edit</h3></header>
++      <main style={{ padding: '1rem 1.5rem' }}>
++        <canvas ref={canvasRef} aria-label="waveform editor: drag markers to set sample and loop points" tabIndex={0} onPointerDown={onPointerDown} onKeyDown={adjustSelected}
++          style={{ width: '100%', height: '200px', display: 'block', border: `1px solid ${c.border}`, touchAction: 'none', cursor: dragRef.current ? 'grabbing' : 'pointer' }} />
++        <p aria-live="polite" style={{ margin: '.5rem 0' }}>Selected marker: {selectedMarker}</p>
++        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(285px, 1fr))', gap: '.75rem' }}>
++          {fields.map(({ marker, label, frame }) => <fieldset key={marker} style={{ border: `1px solid ${c.border}`, borderRadius: '3px', padding: '.6rem' }}><legend>{label}</legend>
++            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem', marginBottom: '.4rem' }}>frames
++              <input aria-label={`${label} frames`} type="number" step="1" min="0" max={frameCount} value={frame} onFocus={() => setSelectedMarker(marker)} onChange={(event) => setFrameValue(marker, event.target.value, 'frames')} style={inputStyle} />
++            </label>
++            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>seconds
++              <input aria-label={`${label} seconds`} type="number" step={1 / sampleRate} min="0" max={frameCount / sampleRate} value={framesToSeconds(frame, sampleRate)} onFocus={() => setSelectedMarker(marker)} onChange={(event) => setFrameValue(marker, event.target.value, 'seconds')} style={inputStyle} />
++            </label>
++          </fieldset>)}
++        </div>
++        {hasLoopPoints && <section style={{ marginTop: '1rem', padding: '.75rem', background: c.bgAlt }}>
++          <label style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>Loop crossfade percent
++            <input aria-label="Loop crossfade percent" type="number" min="0" max="75" step="0.1" value={Math.min(75, crossfade.fraction * 100)}
++              onChange={(event) => { const percent = Math.max(0, Math.min(75, Number(event.target.value) || 0)); setCrossfade({ fraction: percent / 100 }); setCrossfadeEdited(true); }} style={inputStyle} />
++          </label>
++          <p style={{ margin: '.5rem 0 0' }}>Preview smoothing is an approximation applied to a copy. Exported audio stays unchanged; metadata uses the final frame count.</p>
++          {importedAbovePreviewLimit && <p role="status" style={{ margin: '.5rem 0 0' }}>Imported crossfade is {Math.round(crossfade.fraction * 100)}%; the preview editor supports up to 75%. Saving without editing preserves the imported raw value.</p>}
++          {crossfadeNotice && <p role="status" style={{ margin: '.5rem 0 0' }}>{crossfadeNotice}</p>}
++        </section>}
++        <section style={{ marginTop: '1rem', borderTop: `1px solid ${c.border}`, paddingTop: '1rem' }}>
++          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
++            <button ref={firstButtonRef} type="button" aria-label="play" onClick={() => void play()} disabled={transport === 'playing'}>play</button>
++            <button type="button" aria-label="pause" onClick={pause} disabled={transport !== 'playing'}>pause</button>
++            <button type="button" aria-label="release" onClick={release} disabled={transport !== 'playing'}>release</button>
++            <button type="button" aria-label="stop" onClick={stop}>stop</button>
++            <span aria-live="polite">Playhead: {playheadFrame} frames</span>
++            <label><input type="checkbox" checked={snapToZero} onChange={(event) => setSnapToZero(event.target.checked)} /> snap to zero crossings</label>
+           </div>
+-
+-          {/* Content */}
+-          <div style={{
+-            padding: isMobileDevice() ? '0.75rem 1rem' : '1.5rem',
+-            color: c.textSecondary,
+-            fontSize: isMobileDevice() ? '0.85rem' : '0.95rem',
+-            lineHeight: '1.5',
+-            flex: 1,
+-            overflow: 'auto'
+-          }}>
+-            <div style={{ marginBottom: isMobileDevice() ? '0.75rem' : '1rem' }}>
+-              <canvas
+-                ref={canvasRef}
+-                aria-label="waveform editor: drag markers to set sample and loop points"
+-                tabIndex={0}
+-                style={{
+-                  width: '100%',
+-                  height: isMobileDevice() ? '120px' : '200px',
+-                  border: `1px solid ${c.border}`,
+-                  borderRadius: '3px',
+-                  cursor: dragging ? 'grabbing' : 'pointer',
+-                  display: 'block'
+-                }}
+-                onMouseDown={handleMouseDown}
+-                onMouseMove={handleMouseMove}
+-                onMouseUp={handleMouseUp}
+-                onMouseLeave={handleMouseUp}
+-                onTouchStart={handleTouchStart}
+-                onTouchMove={handleTouchMove}
+-                onTouchEnd={handleTouchEnd}
+-              />
+-            </div>
+-
+-            {/* Marker Display */}
+-            {hasLoopPoints ? (
+-              // Multisample layout: Row 1: sample start/end, Row 2: loop start/end
+-              <div style={{
+-                display: 'grid',
+-                gridTemplateColumns: '1fr 1fr',
+-                gridTemplateRows: 'auto auto',
+-                gap: isMobileDevice() ? '1rem' : '2rem',
+-                marginBottom: isMobileDevice() ? '1rem' : '1.5rem'
+-              }}>
+-                {/* Row 1: Sample Start */}
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    sample start:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {audioBuffer ? inFrame.toLocaleString() : '0'}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({audioBuffer ? frameToTime(inFrame).toFixed(3) : '0.000'}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(inFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(inFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-
+-                {/* Row 1: Sample End */}
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    sample end:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {audioBuffer ? outFrame.toLocaleString() : '0'}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({audioBuffer ? frameToTime(outFrame).toFixed(3) : '0.000'}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(outFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(outFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-
+-                {/* Row 2: Loop Start */}
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    loop start:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {audioBuffer ? loopStartFrame.toLocaleString() : '0'}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({audioBuffer ? frameToTime(loopStartFrame).toFixed(3) : '0.000'}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(loopStartFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(loopStartFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-
+-                {/* Row 2: Loop End */}
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    loop end:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {audioBuffer ? loopEndFrame.toLocaleString() : '0'}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({audioBuffer ? frameToTime(loopEndFrame).toFixed(3) : '0.000'}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(loopEndFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(loopEndFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-              </div>
+-            ) : (
+-              // Drum sample layout: single row
+-              <div style={{
+-                display: 'grid',
+-                gridTemplateColumns: '1fr 1fr',
+-                gap: isMobileDevice() ? '1rem' : '2rem',
+-                marginBottom: isMobileDevice() ? '1rem' : '1.5rem'
+-              }}>
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    sample start:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {inFrame.toLocaleString()}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({frameToTime(inFrame).toFixed(3)}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(inFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(inFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-
+-                <div style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                  flexWrap: 'nowrap'
+-                }}>
+-                  <span style={{
+-                    minWidth: isMobileDevice() ? '70px' : '80px',
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    flexShrink: 0
+-                  }}>
+-                    sample end:
+-                  </span>
+-                  <span style={{
+-                    padding: isMobileDevice() ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+-                    backgroundColor: c.bgAlt,
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    fontSize: isMobileDevice() ? '0.75rem' : '0.8rem',
+-                    fontWeight: '500',
+-                    minWidth: isMobileDevice() ? '80px' : '90px',
+-                    textAlign: 'right',
+-                    flexShrink: 0
+-                  }}>
+-                    {outFrame.toLocaleString()}
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.7rem' : '0.75rem',
+-                    color: c.textSecondary,
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    frames ({frameToTime(outFrame).toFixed(3)}s)
+-                  </span>
+-                  <span style={{
+-                    fontSize: isMobileDevice() ? '0.65rem' : '0.7rem',
+-                    color: isNearZeroCrossing(outFrame) ? '#6b7280' : '#9ca3af',
+-                    fontWeight: '500',
+-                    marginLeft: isMobileDevice() ? '0.25rem' : '0.5rem',
+-                    flexShrink: 0
+-                  }}>
+-                    {isNearZeroCrossing(outFrame) ? '✓ zero' : '✗ not zero'}
+-                  </span>
+-                </div>
+-              </div>
+-            )}
+-
+-            <div style={{
+-              borderTop: `1px solid ${c.border}`,
+-              paddingTop: isMobileDevice() ? '0.75rem' : '1rem',
+-              marginTop: isMobileDevice() ? '0.75rem' : '1rem'
+-            }}>
+-              <div style={{
+-                display: 'flex',
+-                alignItems: 'center',
+-                gap: isMobileDevice() ? '0.75rem' : '1rem',
+-                marginBottom: isMobileDevice() ? '0.75rem' : '1rem',
+-                flexWrap: isMobileDevice() ? 'wrap' : 'nowrap'
+-              }}>
+-                <button
+-                  ref={firstButtonRef}
+-                  onMouseDown={() => {
+-                    if (!isPlaying) {
+-                      playSelection().catch(error => {
+-                        console.error('Error playing selection:', error);
+-                      });
+-                    }
+-                  }}
+-                  onMouseUp={stopPlayback}
+-                  onMouseLeave={stopPlayback}
+-                  onTouchStart={() => {
+-                    if (!isPlaying) {
+-                      playSelection().catch(error => {
+-                        console.error('Error playing selection:', error);
+-                      });
+-                    }
+-                  }}
+-                  onTouchEnd={stopPlayback}
+-                  style={{
+-                    padding: isMobileDevice() ? '0.75rem 1.25rem' : '0.65rem 1rem',
+-                    border: `1px solid ${c.border}`,
+-                    borderRadius: '3px',
+-                    background: 'transparent',
+-                    color: c.textSecondary,
+-                    cursor: 'pointer',
+-                    display: 'flex',
+-                    alignItems: 'center',
+-                    gap: '0.5rem',
+-                    fontSize: isMobileDevice() ? '1rem' : '0.875rem',
+-                    fontWeight: '500',
+-                    fontFamily: 'inherit',
+-                    minHeight: isMobileDevice() ? '44px' : undefined,
+-                    // Prevent button from shrinking when text changes
+-                    minWidth: isMobileDevice() ? '180px' : '200px',
+-                    justifyContent: 'center'
+-                  }}
+-                >
+-                  <i className={`fas ${isPlaying ? 'fa-stop' : 'fa-play'}`} style={{ fontSize: isMobileDevice() ? '0.75rem' : '0.8rem' }}></i>
+-                  {isPlaying ? 'stop (P)' : 'play selection (P)'}
+-                </button>
+-                <label style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  gap: '0.5rem',
+-                  fontSize: isMobileDevice() ? '0.8rem' : '0.875rem',
+-                  fontWeight: '500',
+-                  color: 'var(--color-text-primary)',
+-                  cursor: 'pointer'
+-                }}>
+-                  <input
+-                    type="checkbox"
+-                    checked={snapToZero}
+-                    onChange={(e) => setSnapToZero(e.target.checked)}
+-                    style={{
+-                      width: isMobileDevice() ? '14px' : '16px',
+-                      height: isMobileDevice() ? '14px' : '16px',
+-                      accentColor: 'var(--color-text-primary)'
+-                    }}
+-                  />
+-                  <span style={{ marginLeft: '8px', cursor: 'pointer', userSelect: 'none' }}>
+-                    snap to zero crossings
+-                  </span>
+-                </label>
+-              </div>
+-            </div>
+-          </div>
+-
+-          {/* Footer */}
+-          <div style={{
+-            padding: isMobileDevice() ? '0.75rem 1rem' : '1rem 1.5rem',
+-            background: c.bgAlt,
+-            borderTop: `1px solid ${c.border}`,
+-            display: 'flex',
+-            justifyContent: 'flex-end',
+-            gap: isMobileDevice() ? '0.75rem' : '1rem',
+-            flexShrink: 0
+-          }}>
+-            <button
+-              onClick={handleSaveForAll}
+-              style={{
+-                padding: isMobileDevice() ? '0.75rem 1.25rem' : '0.65rem 1rem',
+-                border: `1px solid ${c.border}`,
+-                borderRadius: '3px',
+-                background: 'transparent',
+-                color: c.textSecondary,
+-                cursor: 'pointer',
+-                fontSize: isMobileDevice() ? '1rem' : '0.875rem',
+-                minHeight: isMobileDevice() ? '44px' : undefined
+-              }}
+-            >
+-              save for all
+-            </button>
+-            <button
+-              onClick={onClose}
+-              style={{
+-                padding: isMobileDevice() ? '0.75rem 1.25rem' : '0.65rem 1rem',
+-                border: `1px solid ${c.border}`,
+-                borderRadius: '3px',
+-                background: 'transparent',
+-                color: c.textSecondary,
+-                cursor: 'pointer',
+-                fontSize: isMobileDevice() ? '1rem' : '0.875rem',
+-                minHeight: isMobileDevice() ? '44px' : undefined
+-              }}
+-            >
+-              cancel
+-            </button>
+-            <button
+-              onClick={handleSave}
+-              style={{
+-                padding: isMobileDevice() ? '0.75rem 1.25rem' : '0.65rem 1rem',
+-                border: 'none',
+-                borderRadius: '3px',
+-                background: c.action,
+-                color: '#fff',
+-                cursor: 'pointer',
+-                fontSize: isMobileDevice() ? '1rem' : '0.875rem',
+-                minHeight: isMobileDevice() ? '44px' : undefined
+-              }}
+-            >
+-              save markers
+-            </button>
+-          </div>
+-        </div>
+-      </div>
+-  );
++          {hasLoopPoints && <p style={{ margin: '.6rem 0 0' }}>Loop until release stops looping when the note is released. Loop forever keeps the looped section running through the release.</p>}
++          <p style={{ margin: '.6rem 0 0' }}>ADSR numbers remain the raw export values. Preview timing uses an approximate quadratic mapping up to 30 seconds; it is not calibrated hardware timing.</p>
++        </section>
++      </main>
++      <footer style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '.75rem', background: c.bgAlt, borderTop: `1px solid ${c.border}` }}>
++        <button type="button" onClick={saveForAll}>save for all</button><button type="button" onClick={cancel}>cancel</button><button type="button" onClick={save} style={{ background: c.action, color: '#fff' }}>save markers</button>
++      </footer>
++    </div>
++  </div>;
+ }
+--- before/src/components/drum/DrumSampleSettingsModal.tsx
++++ src/components/drum/DrumSampleSettingsModal.tsx
+@@ -53,7 +53,7 @@
+       
+       // Set local marker state to actual sample marker positions
+       const actualInPoint = sample.inPoint !== undefined ? sample.inPoint : 0;
+-      const actualOutPoint = sample.outPoint !== undefined ? sample.outPoint : (sample.audioBuffer?.duration || 0);
++      const actualOutPoint = sample.outPoint !== undefined ? sample.outPoint : (sample.audioBuffer?.duration ?? 0);
+       
+       setLocalInPoint(actualInPoint);
+       setLocalOutPoint(actualOutPoint);
+@@ -77,12 +77,12 @@
+   // Use local marker state for sample index calculations
+   const getInPointSampleIndex = () => {
+     if (!sample?.audioBuffer) return 0;
+-    return Math.floor(((localInPoint !== null ? localInPoint : sample.inPoint || 0) * sample.audioBuffer.sampleRate));
++    return Math.round(((localInPoint !== null ? localInPoint : sample.inPoint ?? 0) * sample.audioBuffer.sampleRate));
+   };
+ 
+   const getOutPointSampleIndex = () => {
+     if (!sample?.audioBuffer) return 0;
+-    return Math.floor(((localOutPoint !== null ? localOutPoint : sample.outPoint || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate));
++    return Math.round(((localOutPoint !== null ? localOutPoint : sample.outPoint ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate));
+   };
+ 
+   // Convert sample indices back to time values
+@@ -421,8 +421,11 @@
+                   isOpen={showZoomModal}
+                   onClose={() => setShowZoomModal(false)}
+                   audioBuffer={sample.audioBuffer}
+-                  initialInPoint={localInPoint !== null ? localInPoint : sample.inPoint || 0}
+-                  initialOutPoint={localOutPoint !== null ? localOutPoint : sample.outPoint || (sample.audioBuffer.duration || 0)}
++                  initialInPoint={localInPoint !== null ? localInPoint : sample.inPoint ?? 0}
++                  initialOutPoint={localOutPoint !== null ? localOutPoint : sample.outPoint ?? sample.audioBuffer.duration}
++                  reverse={settings.reverse}
++                  playbackRate={2 ** (settings.transpose / 12)}
++                  gain={settings.gain}
+                   onSave={(inPoint, outPoint) => {
+                     setLocalInPoint(inPoint);
+                     setLocalOutPoint(outPoint);
+@@ -691,4 +694,4 @@
+       }
+     };
+   }, [isOpen, onPlay, onStop, playmode]);
+-} +}
+--- before/src/components/drum/DrumSampleTable.tsx
++++ src/components/drum/DrumSampleTable.tsx
+@@ -60,7 +60,7 @@
+   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+   const [selectedSampleIndex, setSelectedSampleIndex] = useState<number>(0);
+   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+-  const [selectedSample, setSelectedSample] = useState<{ index: number; audioBuffer: AudioBuffer; inPoint: number; outPoint: number } | null>(null);
++  const [selectedSample, setSelectedSample] = useState<{ index: number; audioBuffer: AudioBuffer; inPoint: number; outPoint: number; reverse: boolean; transpose: number; gain: number } | null>(null);
+   
+   // Drag and drop state for sample swapping (desktop only)
+   const [draggedItem, setDraggedItem] = useState<number | null>(null);
+@@ -231,8 +231,11 @@
+       setSelectedSample({
+         index,
+         audioBuffer: sample.audioBuffer,
+-        inPoint: sample.inPoint || 0,
+-        outPoint: sample.outPoint || sample.duration || sample.audioBuffer.duration,
++        inPoint: sample.inPoint ?? 0,
++        outPoint: sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration,
++        reverse: sample.reverse,
++        transpose: sample.transpose,
++        gain: sample.gain,
+       });
+       setIsZoomModalOpen(true);
+     }
+@@ -416,10 +419,10 @@
+                            <SmallWaveform
+                              audioBuffer={sample.audioBuffer}
+                              height={50}
+-                             inPoint={Math.round((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
+-                             outPoint={Math.round((sample.outPoint || sample.duration || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                             inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
++                             outPoint={Math.round((sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                              onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
+-                               const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate || 44100);
++                               const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate ?? 44100);
+                                dispatch({
+                                  type: 'UPDATE_DRUM_SAMPLE',
+                                  payload: {
+@@ -651,10 +654,10 @@
+                           <SmallWaveform
+                             audioBuffer={sample.audioBuffer}
+                             height={44}
+-                            inPoint={Math.round((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
+-                            outPoint={Math.round((sample.outPoint || sample.duration || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                            inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
++                            outPoint={Math.round((sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                             onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
+-                              const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate || 44100);
++                              const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate ?? 44100);
+                               dispatch({
+                                 type: 'UPDATE_DRUM_SAMPLE',
+                                 payload: {
+@@ -773,12 +776,15 @@
+       <WaveformZoomModal
+         isOpen={isZoomModalOpen}
+         onClose={closeZoomModal}
+-        audioBuffer={selectedSample?.audioBuffer || null}
+-        initialInPoint={selectedSample?.inPoint || 0}
+-        initialOutPoint={selectedSample?.outPoint || 0}
++        audioBuffer={selectedSample?.audioBuffer ?? null}
++        initialInPoint={selectedSample?.inPoint ?? 0}
++        initialOutPoint={selectedSample?.outPoint ?? 0}
++        reverse={selectedSample?.reverse ?? false}
++        playbackRate={2 ** ((selectedSample?.transpose ?? 0) / 12)}
++        gain={selectedSample?.gain ?? 0}
+         onSave={handleZoomSave}
+         onSaveForAll={handleSaveForAll}
+       />
+     </div>
+   );
+-} +}
+--- before/src/components/multisample/MultisampleSampleTable.tsx
++++ src/components/multisample/MultisampleSampleTable.tsx
+@@ -7,6 +7,7 @@
+ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+ 
+ import { midiNoteToString, noteStringToMidiValue } from '../../utils/audio';
++import { importedCrossfadeNotice } from '../../utils/importedCrossfade';
+ 
+ 
+ interface MultisampleSampleTableProps {
+@@ -471,7 +472,7 @@
+     setZoomModalOpen(false);
+   };
+ 
+-  const handleZoomSave = (inPoint: number, outPoint: number, loopStart?: number, loopEnd?: number) => {
++  const handleZoomSave = (inPoint: number, outPoint: number, loopStart?: number, loopEnd?: number, loopCrossfade?: MultisampleFile['loopCrossfade']) => {
+     dispatch({
+       type: 'UPDATE_MULTISAMPLE_FILE',
+       payload: {
+@@ -479,8 +480,9 @@
+         updates: {
+           inPoint,
+           outPoint,
+-          loopStart: loopStart || 0,
+-          loopEnd: loopEnd || (state.multisampleFiles[zoomSampleIndex]?.audioBuffer ? state.multisampleFiles[zoomSampleIndex].audioBuffer!.duration : 0)
++          loopStart: loopStart ?? 0,
++          loopEnd: loopEnd ?? (state.multisampleFiles[zoomSampleIndex]?.audioBuffer?.duration ?? 0),
++          loopCrossfade,
+         }
+       }
+     });
+@@ -701,10 +703,10 @@
+                           <SmallWaveform
+                             audioBuffer={sample.audioBuffer}
+                             height={44}
+-                            inPoint={Math.floor((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
+-                            outPoint={Math.floor((sample.outPoint || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+-                            loopStart={Math.floor((sample.loopStart || 0) * sample.audioBuffer.sampleRate)}
+-                            loopEnd={Math.floor((sample.loopEnd || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                            inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
++                            outPoint={Math.round((sample.outPoint ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                            loopStart={Math.round((sample.loopStart ?? 0) * sample.audioBuffer.sampleRate)}
++                            loopEnd={Math.round((sample.loopEnd ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                             onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
+                               const audioBuffer = sample.audioBuffer;
+                               if (!audioBuffer) return;
+@@ -716,8 +718,8 @@
+                                   updates: {
+                                     inPoint: toSeconds(markers.inPoint),
+                                     outPoint: toSeconds(markers.outPoint),
+-                                    loopStart: toSeconds(markers.loopStart || 0),
+-                                    loopEnd: toSeconds(markers.loopEnd || audioBuffer.duration),
++                                    loopStart: toSeconds(markers.loopStart ?? 0),
++                                    loopEnd: toSeconds(markers.loopEnd ?? audioBuffer.length),
+                                   },
+                                 },
+                               });
+@@ -1021,10 +1023,10 @@
+                           <SmallWaveform
+                             audioBuffer={sample.audioBuffer}
+                             height={44}
+-                            inPoint={Math.floor((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
+-                            outPoint={Math.floor((sample.outPoint || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+-                            loopStart={Math.floor((sample.loopStart || 0) * sample.audioBuffer.sampleRate)}
+-                            loopEnd={Math.floor((sample.loopEnd || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                            inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
++                            outPoint={Math.round((sample.outPoint ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
++                            loopStart={Math.round((sample.loopStart ?? 0) * sample.audioBuffer.sampleRate)}
++                            loopEnd={Math.round((sample.loopEnd ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                             onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
+                               const audioBuffer = sample.audioBuffer;
+                               if (!audioBuffer) return;
+@@ -1036,8 +1038,8 @@
+                                   updates: {
+                                     inPoint: toSeconds(markers.inPoint),
+                                     outPoint: toSeconds(markers.outPoint),
+-                                    loopStart: toSeconds(markers.loopStart || 0),
+-                                    loopEnd: toSeconds(markers.loopEnd || audioBuffer.duration),
++                                    loopStart: toSeconds(markers.loopStart ?? 0),
++                                    loopEnd: toSeconds(markers.loopEnd ?? audioBuffer.length),
+                                   },
+                                 },
+                               });
+@@ -1177,18 +1179,22 @@
+       <WaveformZoomModal
+         isOpen={zoomModalOpen}
+         onClose={closeZoomModal}
+-        audioBuffer={state.multisampleFiles[zoomSampleIndex]?.audioBuffer || null}
+-        initialInPoint={state.multisampleFiles[zoomSampleIndex]?.inPoint || 0}
+-        initialOutPoint={state.multisampleFiles[zoomSampleIndex]?.outPoint || (state.multisampleFiles[zoomSampleIndex]?.audioBuffer ? state.multisampleFiles[zoomSampleIndex].audioBuffer!.length / state.multisampleFiles[zoomSampleIndex].audioBuffer!.sampleRate : 0)}
+-        initialLoopStart={state.multisampleFiles[zoomSampleIndex]?.loopStart || 0}
+-        initialLoopEnd={state.multisampleFiles[zoomSampleIndex]?.loopEnd || (state.multisampleFiles[zoomSampleIndex]?.audioBuffer ? state.multisampleFiles[zoomSampleIndex].audioBuffer!.length / state.multisampleFiles[zoomSampleIndex].audioBuffer!.sampleRate : 0)}
++        audioBuffer={state.multisampleFiles[zoomSampleIndex]?.audioBuffer ?? null}
++        initialInPoint={state.multisampleFiles[zoomSampleIndex]?.inPoint ?? 0}
++        initialOutPoint={state.multisampleFiles[zoomSampleIndex]?.outPoint ?? state.multisampleFiles[zoomSampleIndex]?.audioBuffer?.duration ?? 0}
++        initialLoopStart={state.multisampleFiles[zoomSampleIndex]?.loopStart ?? 0}
++        initialLoopEnd={state.multisampleFiles[zoomSampleIndex]?.loopEnd ?? state.multisampleFiles[zoomSampleIndex]?.audioBuffer?.duration ?? 0}
++        initialCrossfade={state.multisampleFiles[zoomSampleIndex]?.loopCrossfade}
++        crossfadeNotice={importedCrossfadeNotice(state.multisampleFiles, state.importedMultisamplePreset)}
+         onSave={handleZoomSave}
+         // Pass loop settings for preview playback
+         loopEnabled={state.multisampleSettings.loopEnabled}
+         loopOnRelease={state.multisampleSettings.loopOnRelease}
+         ampEnvelope={state.multisampleSettings.ampEnvelope}
++        playbackRate={2 ** (state.multisampleSettings.transpose / 12)}
++        gain={state.multisampleSettings.gain}
+         onSaveForAll={handleSaveForAll}
+       />
+     </div>
+   );
+-}+}
+--- before/src/context/AppContext.tsx
++++ src/context/AppContext.tsx
+@@ -11,6 +11,8 @@
+ import { hydrateMultisampleSettings } from '../utils/jsonImport';
+ import type { ImportedPresetJson } from '../utils/jsonImport';
+ import type { RestoredProject } from '../utils/projectSerialization';
++import { associateImportedCrossfades } from '../utils/importedCrossfade';
++import { framesToSeconds, normalizeSecondRanges } from '../utils/loopEditing';
+ 
+ // Define enhanced types for the application state
+ export interface DrumSample {
+@@ -53,6 +55,7 @@
+   outPoint: number;
+   loopStart: number;
+   loopEnd: number;
++  loopCrossfade?: LoopCrossfadeProvenance;
+   // WAV metadata from header parsing
+   originalBitDepth?: number;
+   originalSampleRate?: number;
+@@ -60,6 +63,15 @@
+   fileSize?: number;
+   duration?: number;
+   isFloat?: boolean; // Whether sample is 32-bit float format
++}
++
++export interface LoopCrossfadeProvenance {
++  /** Display meaning as a fraction of the region's frame count. */
++  fraction: number;
++  /** Exact imported values are retained for provenance and portable round trips. */
++  importedRaw?: number;
++  importedFramecount?: number;
++  sourceIdentity?: string;
+ }
+ 
+ export interface AppState {
+@@ -717,8 +729,8 @@
+         );
+         finalInPoint = result.inPoint;
+         finalOutPoint = result.outPoint;
+-        finalLoopStart = result.loopStart || initialLoopStart;
+-        finalLoopEnd = result.loopEnd || initialLoopEnd;
++        finalLoopStart = result.loopStart ?? initialLoopStart;
++        finalLoopEnd = result.loopEnd ?? initialLoopEnd;
+         
+ 
+       }
+@@ -1163,8 +1175,8 @@
+         );
+         finalInPoint = result.inPoint;
+         finalOutPoint = result.outPoint;
+-        finalLoopStart = result.loopStart || initialLoopStart;
+-        finalLoopEnd = result.loopEnd || initialLoopEnd;
++        finalLoopStart = result.loopStart ?? initialLoopStart;
++        finalLoopEnd = result.loopEnd ?? initialLoopEnd;
+         
+ 
+       }
+@@ -1190,8 +1202,24 @@
+         duration: action.payload.metadata.duration, // Use calculated duration from metadata
+         isFloat: action.payload.metadata.isFloat
+       };
+-      
+-      const updatedFiles = [...state.multisampleFiles, newMultisampleFile];
++
++      if (action.payload.audioBuffer) {
++        const normalized = normalizeSecondRanges(
++          action.payload.audioBuffer.length,
++          action.payload.audioBuffer.sampleRate,
++          { start: finalInPoint, end: finalOutPoint },
++          { start: finalLoopStart, end: finalLoopEnd },
++        );
++        newMultisampleFile.inPoint = framesToSeconds(normalized.sample.start, action.payload.audioBuffer.sampleRate);
++        newMultisampleFile.outPoint = framesToSeconds(normalized.sample.end, action.payload.audioBuffer.sampleRate);
++        newMultisampleFile.loopStart = framesToSeconds(normalized.loop.start, action.payload.audioBuffer.sampleRate);
++        newMultisampleFile.loopEnd = framesToSeconds(normalized.loop.end, action.payload.audioBuffer.sampleRate);
++      }
++      
++      const updatedFiles = associateImportedCrossfades(
++        [...state.multisampleFiles, newMultisampleFile],
++        state.importedMultisamplePreset,
++      ).files;
+       
+       // Sort by rootNote descending to make zone calculation easier
+       updatedFiles.sort((a, b) => b.rootNote - a.rootNote);
+@@ -1254,13 +1282,18 @@
+       return { ...state, importedDrumPreset: action.payload };
+       
+     case 'SET_IMPORTED_MULTISAMPLE_PRESET':
+-      return { ...state, importedMultisamplePreset: action.payload };
++      return {
++        ...state,
++        importedMultisamplePreset: action.payload,
++        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload).files,
++      };
+ 
+     case 'IMPORT_MULTISAMPLE_PRESET':
+       return {
+         ...state,
+         importedMultisamplePreset: action.payload,
+         multisampleSettings: hydrateMultisampleSettings(state.multisampleSettings, action.payload),
++        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload).files,
+       };
+       
+     case 'TOGGLE_DRUM_KEYBOARD_PIN':
+@@ -1328,7 +1361,10 @@
+         drumSettings: action.payload.drumSettings,
+         multisampleSettings: action.payload.multisampleSettings,
+         drumSamples: restoredDrumSamples,
+-        multisampleFiles: action.payload.multisampleFiles,
++        multisampleFiles: associateImportedCrossfades(
++          action.payload.multisampleFiles,
++          action.payload.importedMultisamplePreset ?? null,
++        ).files,
+         selectedMultisample: action.payload.selectedMultisample,
+         isDrumKeyboardPinned: action.payload.isDrumKeyboardPinned,
+         isMultisampleKeyboardPinned: action.payload.isMultisampleKeyboardPinned,
+--- before/src/hooks/useAudioPlayer.ts
++++ src/hooks/useAudioPlayer.ts
+@@ -94,6 +94,7 @@
+   velocity?: number; // 0-127
+   inFrame?: number;
+   outFrame?: number;
++  onEnded?: () => void;
+ }
+ 
+ // Note envelope state tracking
+@@ -435,17 +436,14 @@
+     const sustainPercent = adsr.sustain / 32767;
+     const releasePercent = adsr.release / 32767;
+ 
+-    // Map to time ranges with exponential curves for natural feel (0-30 seconds)
+-    // Attack: 0-30 seconds (exponential curve for more responsive low values)
++    // Browser-only approximate quadratic mapping (0-30 seconds); raw values remain export truth.
+     const attackTime = Math.pow(attackPercent, 2) * 30;
+     
+-    // Decay: 0-30 seconds (exponential curve)
+     const decayTime = Math.pow(decayPercent, 2) * 30;
+     
+     // Sustain: 0-1 (linear, this is a level)
+     const sustainLevel = sustainPercent;
+     
+-    // Release: 0-30 seconds (exponential curve)
+     const releaseTime = Math.pow(releasePercent, 2) * 30;
+ 
+     return { attackTime, decayTime, sustainLevel, releaseTime };
+@@ -607,11 +605,11 @@
+     const { releaseTime: adsrReleaseTime } = convertADSRValues(noteState.adsr);
+ 
+     // Handle loop on release behavior
+-    if (noteState.loopOnRelease) {
+-      // For loop on release, enable looping but continue from current position
++    if (noteState.loopEnabled && noteState.loopOnRelease) {
++      // “Loop forever” continues the already-looping section through release.
+       noteState.source.loop = true;
+-      noteState.source.loopStart = noteState.loopStart || 0;
+-      noteState.source.loopEnd = noteState.loopEnd || noteState.source.buffer?.duration || 1;
++      noteState.source.loopStart = noteState.loopStart ?? 0;
++      noteState.source.loopEnd = noteState.loopEnd ?? noteState.source.buffer?.duration ?? 1;
+       
+       // For loop on release, apply a gentle release envelope but don't stop the note
+       noteState.envelopePhase = 'release';
+@@ -772,9 +770,9 @@
+         removeTimer(stabilityTimer);
+       }
+       
+-      const playMode = options.playMode || 'poly';
+-      const velocity = options.velocity || 127;
+-      const adsr = options.adsr || { attack: 0, decay: 0, sustain: 32767, release: 0 };
++      const playMode = options.playMode ?? 'poly';
++      const velocity = options.velocity ?? 127;
++      const adsr = options.adsr ?? { attack: 0, decay: 0, sustain: 32767, release: 0 };
+ 
+       // Handle play mode logic
+       if (playMode === 'mono') {
+@@ -799,22 +797,34 @@
+       const gainNode = audioContext.createGain();
+       const panNode = audioContext.createStereoPanner();
+ 
++      let playbackBuffer = audioBuffer;
++      if (options.reverse) {
++        playbackBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
++        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
++          const input = audioBuffer.getChannelData(channel);
++          const output = playbackBuffer.getChannelData(channel);
++          for (let index = 0; index < input.length; index += 1) output[index] = input[input.length - 1 - index];
++        }
++      }
++
+       // Configure source
+-      source.buffer = audioBuffer;
+-      source.playbackRate.value = options.playbackRate || 1;
++      source.buffer = playbackBuffer;
++      source.playbackRate.value = options.playbackRate ?? 1;
+       
+       // Configure looping if enabled
+-      const loopEnabled = options.loopEnabled || false;
+-      const loopOnRelease = options.loopOnRelease || false;
+-      const loopStart = options.loopStart || 0;
+-      const loopEnd = options.loopEnd || audioBuffer.duration;
+-      
+-
+-      
++      const loopEnabled = options.loopEnabled ?? false;
++      const loopOnRelease = options.loopOnRelease ?? false;
++      const requestedLoopStart = options.loopStart ?? 0;
++      const requestedLoopEnd = options.loopEnd ?? audioBuffer.duration;
++      const loopStart = options.reverse ? audioBuffer.duration - requestedLoopEnd : requestedLoopStart;
++      const loopEnd = options.reverse ? audioBuffer.duration - requestedLoopStart : requestedLoopEnd;
++      source.loop = loopEnabled;
++
+       if (loopEnabled) {
+         // Validate loop points
+-        const validLoopStart = Math.max(0, Math.min(loopStart, audioBuffer.duration - 0.1));
+-        const validLoopEnd = Math.max(validLoopStart + 0.1, Math.min(loopEnd, audioBuffer.duration));
++        const oneFrame = 1 / playbackBuffer.sampleRate;
++        const validLoopStart = Math.max(0, Math.min(loopStart, playbackBuffer.duration - oneFrame));
++        const validLoopEnd = Math.max(validLoopStart + oneFrame, Math.min(loopEnd, playbackBuffer.duration));
+         
+         source.loop = true;
+         source.loopStart = validLoopStart;
+@@ -838,22 +848,20 @@
+       applyADSREnvelope(gainNode, adsr, startTime, velocityScale);
+ 
+       // Calculate timing
+-      let bufferStartTime = options.startTime || 0;
+-      let duration = options.duration || (audioBuffer.duration - bufferStartTime);
++      let bufferStartTime = options.startTime ?? 0;
++      let duration = options.duration ?? (audioBuffer.duration - bufferStartTime);
+ 
+       if (options.inFrame !== undefined && options.outFrame !== undefined) {
+-        bufferStartTime = (options.inFrame / audioBuffer.length) * audioBuffer.duration;
+-        const endTime = (options.outFrame / audioBuffer.length) * audioBuffer.duration;
++        const startFrame = options.reverse ? audioBuffer.length - options.outFrame : options.inFrame;
++        const endFrame = options.reverse ? audioBuffer.length - options.inFrame : options.outFrame;
++        bufferStartTime = startFrame / audioBuffer.sampleRate;
++        const endTime = endFrame / audioBuffer.sampleRate;
+         duration = endTime - bufferStartTime;
+       }
+ 
+       // Start playback
+       if (loopEnabled) {
+         // For looping, don't pass duration to allow infinite loop
+-        source.start(0, bufferStartTime);
+-      } else if (loopOnRelease) {
+-        // For loop on release, start without looping but don't pass duration
+-        // This allows the sample to play to the end, then loop on release
+         source.start(0, bufferStartTime);
+       } else if (duration > 0) {
+         // For non-looping, use duration if specified
+@@ -894,6 +902,7 @@
+         if (noteState && noteState.envelopePhase !== 'release') {
+           cleanupNoteState(noteId, noteState);
+         }
++        options.onEnded?.();
+       };
+ 
+       return noteId;
+@@ -1068,4 +1077,4 @@
+     stopAllNotes,
+     getActiveNotesCount,
+   };
+-} +}
+--- before/src/test/components/WaveformZoomModalEditing.test.tsx
++++ src/test/components/WaveformZoomModalEditing.test.tsx
+@@ -0,0 +1,194 @@
++import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { WaveformZoomModal } from '../../components/common/WaveformZoomModal';
++
++const audio = vi.hoisted(() => ({
++  playWithADSR: vi.fn().mockResolvedValue('preview-note'),
++  releaseNote: vi.fn(),
++}));
++const clock = vi.hoisted(() => ({ now: 0 }));
++
++vi.mock('../../hooks/useAudioPlayer', () => ({ useAudioPlayer: () => audio }));
++vi.mock('../../utils/audioContext', () => ({
++  audioContextManager: { getCurrentTime: () => clock.now },
++}));
++vi.mock('react-device-detect', () => ({ isMobile: false, isTablet: false }));
++vi.mock('../../App', () => ({ triggerRotateOverlay: vi.fn() }));
++
++const makeBuffer = () => new (AudioBuffer as unknown as new (...args: unknown[]) => AudioBuffer)(1, 100, 100);
++
++describe('WaveformZoomModal frame editor', () => {
++  const dispatchPointer = (target: Document | Element, type: string, pointerId: number, clientX: number, clientY: number) => {
++    const event = new Event(type, { bubbles: true, cancelable: true });
++    Object.defineProperties(event, {
++      pointerId: { value: pointerId }, clientX: { value: clientX }, clientY: { value: clientY },
++    });
++    fireEvent(target, event);
++  };
++
++  beforeEach(() => {
++    audio.playWithADSR.mockClear().mockResolvedValue('preview-note');
++    audio.releaseNote.mockClear();
++    clock.now = 0;
++    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
++      beginPath: vi.fn(), clearRect: vi.fn(), closePath: vi.fn(), fill: vi.fn(), fillRect: vi.fn(),
++      lineTo: vi.fn(), moveTo: vi.fn(), setLineDash: vi.fn(), stroke: vi.fn(),
++    } as unknown as CanvasRenderingContext2D);
++    vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
++      x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 200, width: 100, height: 200,
++      toJSON: () => ({}),
++    } as DOMRect);
++  });
++
++  afterEach(() => vi.unstubAllGlobals());
++
++  it('edits half-open frame and second values, retaining exact zero and final-frame boundaries', () => {
++    const onSave = vi.fn();
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={1}
++      initialCrossfade={{ fraction: 0 }} onSave={onSave} onSaveForAll={() => {}} />);
++
++    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
++    expect(screen.getByLabelText('Sample end frames')).toHaveValue(100);
++    fireEvent.change(screen.getByLabelText('Loop start seconds'), { target: { value: '0.2' } });
++    fireEvent.change(screen.getByLabelText('Loop end frames'), { target: { value: '100' } });
++    fireEvent.change(screen.getByLabelText('Loop crossfade percent'), { target: { value: '25' } });
++    fireEvent.click(screen.getByRole('button', { name: 'save markers' }));
++
++    expect(onSave).toHaveBeenCalledWith(0, 1, 0.2, 1, { fraction: 0.25 });
++  });
++
++  it('does not reset a local draft when its parent rerenders, and cancel dispatches no save', () => {
++    const onSave = vi.fn();
++    const onSaveForAll = vi.fn();
++    const buffer = makeBuffer();
++    const { rerender } = render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={buffer}
++      initialInPoint={0} initialOutPoint={1} onSave={onSave} onSaveForAll={onSaveForAll} />);
++    fireEvent.change(screen.getByLabelText('Sample start frames'), { target: { value: '12' } });
++    rerender(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={buffer}
++      initialInPoint={0} initialOutPoint={1} onSave={() => onSave()} onSaveForAll={() => onSaveForAll()} />);
++    expect(screen.getByLabelText('Sample start frames')).toHaveValue(12);
++    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
++    expect(onSave).not.toHaveBeenCalled();
++    expect(onSaveForAll).not.toHaveBeenCalled();
++  });
++
++  it('captures pointer movement outside the canvas and reverts a cancelled gesture', () => {
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0.2} initialOutPoint={0.8} onSave={() => {}} onSaveForAll={() => {}} />);
++    const canvas = screen.getByLabelText(/waveform editor/i);
++    Object.defineProperty(canvas, 'width', { configurable: true, value: 100, writable: true });
++    Object.defineProperty(canvas, 'height', { configurable: true, value: 200, writable: true });
++
++    dispatchPointer(canvas, 'pointerdown', 7, 20, 190);
++    dispatchPointer(document, 'pointermove', 7, -50, 190);
++    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
++    dispatchPointer(document, 'pointerup', 7, -50, 190);
++
++    dispatchPointer(canvas, 'pointerdown', 8, 0, 190);
++    dispatchPointer(document, 'pointermove', 8, 40, 190);
++    expect(screen.getByLabelText('Sample start frames')).toHaveValue(40);
++    dispatchPointer(document, 'pointercancel', 8, 40, 190);
++    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
++  });
++
++  it('uses the audio clock for playhead, pause/resume, speed, reverse, and force stop', async () => {
++    let animationFrame: FrameRequestCallback | undefined;
++    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
++      animationFrame = callback;
++      return 1;
++    }));
++    vi.stubGlobal('cancelAnimationFrame', vi.fn());
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} onSave={() => {}} onSaveForAll={() => {}}
++      playbackRate={2} reverse />);
++
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    clock.now = 0.25;
++    act(() => animationFrame?.(250));
++    expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
++    fireEvent.click(screen.getByRole('button', { name: 'pause' }));
++    expect(audio.releaseNote).toHaveBeenCalledWith('preview-note', true);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
++    expect(audio.playWithADSR.mock.calls[1][2]).toMatchObject({ inFrame: 0, outFrame: 50, reverse: true, playbackRate: 2 });
++    fireEvent.click(screen.getByRole('button', { name: 'stop' }));
++    expect(screen.getByText('Playhead: 100 frames')).toBeInTheDocument();
++  });
++
++  it('preserves imported raw crossfade provenance until the value is edited', () => {
++    const onSave = vi.fn();
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={1}
++      initialCrossfade={{ fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav' }}
++      onSave={onSave} onSaveForAll={() => {}} />);
++    expect(screen.getByText(/90%.*preview editor supports up to 75%/i)).toBeInTheDocument();
++    fireEvent.click(screen.getByRole('button', { name: 'save markers' }));
++    expect(onSave.mock.calls[0][4]).toEqual({
++      fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav',
++    });
++  });
++
++  it('removes source-specific provenance when applying a crossfade to all samples', () => {
++    const onSaveForAll = vi.fn();
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={1}
++      initialCrossfade={{ fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav' }}
++      onSave={() => {}} onSaveForAll={onSaveForAll} />);
++    fireEvent.click(screen.getByRole('button', { name: 'save for all' }));
++    expect(onSaveForAll.mock.calls[0][0].loopCrossfade).toEqual({ fraction: 0.75 });
++  });
++
++  it.each([
++    { loopOnRelease: false, expected: 50 },
++    { loopOnRelease: true, expected: 30 },
++  ])('keeps the clock live after release with continuation=$loopOnRelease', async ({ loopOnRelease, expected }) => {
++    let animationFrame: FrameRequestCallback | undefined;
++    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { animationFrame = callback; return 1; }));
++    vi.stubGlobal('cancelAnimationFrame', vi.fn());
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0.2} initialLoopEnd={0.4}
++      loopEnabled loopOnRelease={loopOnRelease} onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'release' })).toBeEnabled());
++    clock.now = 0.3;
++    act(() => animationFrame?.(300));
++    expect(screen.getByText('Playhead: 30 frames')).toBeInTheDocument();
++    fireEvent.click(screen.getByRole('button', { name: 'release' }));
++    expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', false);
++    clock.now = 0.5;
++    act(() => animationFrame?.(500));
++    expect(screen.getByText(`Playhead: ${expected} frames`)).toBeInTheDocument();
++  });
++
++  it('ends an active preview and abandons an active pointer when unmounted', async () => {
++    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
++    vi.stubGlobal('cancelAnimationFrame', vi.fn());
++    const onSave = vi.fn();
++    const { unmount } = render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} onSave={onSave} onSaveForAll={() => {}} />);
++    const canvas = screen.getByLabelText(/waveform editor/i);
++    dispatchPointer(canvas, 'pointerdown', 9, 0, 190);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    unmount();
++    expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', true);
++    dispatchPointer(document, 'pointermove', 9, 50, 190);
++    expect(onSave).not.toHaveBeenCalled();
++  });
++
++  it('force-stops a preview that finishes starting after Stop was pressed', async () => {
++    let finishStart: ((noteId: string) => void) | undefined;
++    audio.playWithADSR.mockImplementationOnce(() => new Promise<string>((resolve) => { finishStart = resolve; }));
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
++    fireEvent.click(screen.getByRole('button', { name: 'stop' }));
++    await act(async () => finishStart?.('late-note'));
++    expect(audio.releaseNote).toHaveBeenLastCalledWith('late-note', true);
++    expect(screen.getByRole('button', { name: 'pause' })).toBeDisabled();
++  });
++});
+--- before/src/test/hooks/useAudioPlayer.test.ts
++++ src/test/hooks/useAudioPlayer.test.ts
+@@ -545,6 +545,10 @@
+         result.current.releaseNote('test-note');
+       });
+ 
++      // "Loop forever" is only meaningful when looping is enabled. The
++      // continuation flag must never create a loop by itself.
++      expect(mockSource.loop).toBe(false);
++
+       // The note should remain active during the release phase
+       // The gain should fade to zero but the source should continue looping
+       expect(result.current.getActiveNotesCount()).toBe(1);
+@@ -600,5 +604,56 @@
+       // The source should not be stopped for loop on release
+       expect(mockSource.stop).not.toHaveBeenCalled();
+     });
+-  });
+-}); +
++    it('accepts a one-frame loop instead of imposing a 0.1 second minimum', async () => {
++      const { result } = renderHook(() => useAudioPlayer());
++      const oneFrame = 1 / mockBuffer.sampleRate;
++      await act(async () => {
++        await result.current.playWithADSR(mockBuffer, 'one-frame', {
++          loopEnabled: true,
++          loopStart: 0,
++          loopEnd: oneFrame,
++        });
++      });
++      expect(mockSource.loop).toBe(true);
++      expect(mockSource.loopStart).toBe(0);
++      expect(mockSource.loopEnd).toBe(oneFrame);
++    });
++
++    it('reverses a copied buffer and reports natural completion without mutating source', async () => {
++      const { result } = renderHook(() => useAudioPlayer());
++      const original = new Float32Array([1, 2, 3, 4]);
++      const reversedData = new Float32Array(4);
++      const reversed = {
++        duration: 4 / 100,
++        length: 4,
++        sampleRate: 100,
++        numberOfChannels: 1,
++        getChannelData: vi.fn(() => reversedData),
++      } as unknown as AudioBuffer;
++      mockAudioContext.createBuffer.mockReturnValue(reversed);
++      const sourceBuffer = {
++        duration: 4 / 100,
++        length: 4,
++        sampleRate: 100,
++        numberOfChannels: 1,
++        getChannelData: vi.fn(() => original),
++      } as unknown as AudioBuffer;
++      const onEnded = vi.fn();
++
++      await act(async () => {
++        await result.current.playWithADSR(sourceBuffer, 'reverse', {
++          reverse: true,
++          inFrame: 1,
++          outFrame: 4,
++          onEnded,
++        });
++      });
++      expect(Array.from(original)).toEqual([1, 2, 3, 4]);
++      expect(Array.from(reversed.getChannelData(0))).toEqual([4, 3, 2, 1]);
++      expect(mockSource.start).toHaveBeenCalledWith(0, 0, 0.03);
++      mockSource.onended();
++      expect(onEnded).toHaveBeenCalledTimes(1);
++    });
++  });
++});
+--- before/src/test/utils/audioLoopMetadata.test.ts
++++ src/test/utils/audioLoopMetadata.test.ts
+@@ -0,0 +1,89 @@
++import { describe, expect, it } from 'vitest';
++import { audioBufferToAiff } from '../../utils/aiffExport';
++import { audioBufferToWav } from '../../utils/wavExport';
++import { readWavMetadataFromArrayBuffer } from '../../utils/audio';
++import { readAudioMetadataFromArrayBuffer } from '../../utils/audioFormats';
++
++function chunk(bytes: Uint8Array, id: string, littleEndian: boolean): { offset: number; size: number } {
++  const text = new TextDecoder();
++  for (let offset = 12; offset + 8 <= bytes.length;) {
++    const name = text.decode(bytes.subarray(offset, offset + 4));
++    const size = new DataView(bytes.buffer, bytes.byteOffset + offset + 4, 4).getUint32(0, littleEndian);
++    if (name === id) return { offset: offset + 8, size };
++    offset += 8 + size + (size % 2);
++  }
++  throw new Error(`Missing ${id} chunk`);
++}
++
++function buffer(length: number): AudioBuffer {
++  return new (AudioBuffer as unknown as new (channels: number, frames: number, rate: number) => AudioBuffer)(1, length, 48_000);
++}
++
++async function bytes(blob: Blob): Promise<Uint8Array> {
++  const data = await new Promise<ArrayBuffer>((resolve, reject) => {
++    const reader = new FileReader();
++    reader.onload = () => resolve(reader.result as ArrayBuffer);
++    reader.onerror = () => reject(reader.error);
++    reader.readAsArrayBuffer(blob);
++  });
++  return new Uint8Array(data);
++}
++
++const exactBuffer = (value: Uint8Array): ArrayBuffer =>
++  value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer;
++
++describe('loop metadata uses half-open frame boundaries', () => {
++  it.each([
++    { start: 0, end: 10, storedStart: 0, storedEnd: 9 },
++    { start: 3, end: 10, storedStart: 3, storedEnd: 9 },
++    { start: 5, end: 6, storedStart: 5, storedEnd: 5 },
++  ])('writes WAV smpl start unchanged and inclusive end for $start..$end', async ({ start, end, storedStart, storedEnd }) => {
++    const output = await bytes(await audioBufferToWav(buffer(10), 16, { loopStart: start, loopEnd: end }));
++    const smpl = chunk(output, 'smpl', true);
++    const view = new DataView(output.buffer, output.byteOffset + smpl.offset, smpl.size);
++    expect(view.getUint32(28, true)).toBe(1);
++    expect(view.getUint32(44, true)).toBe(storedStart);
++    expect(view.getUint32(48, true)).toBe(storedEnd);
++  });
++
++  it('does not enable a WAV loop when only a root note is supplied', async () => {
++    const output = await bytes(await audioBufferToWav(buffer(10), 16, { rootNote: 64 }));
++    const smpl = chunk(output, 'smpl', true);
++    const view = new DataView(output.buffer, output.byteOffset + smpl.offset, smpl.size);
++    expect(view.getUint32(12, true)).toBe(64);
++    expect(view.getUint32(28, true)).toBe(0);
++  });
++
++  it.each([
++    { start: 0, end: 10 },
++    { start: 3, end: 10 },
++    { start: 5, end: 6 },
++  ])('writes AIFF MARK positions as exact boundaries for $start..$end', async ({ start, end }) => {
++    const output = await bytes(await audioBufferToAiff(buffer(10), { bitDepth: 16, loopStart: start, loopEnd: end }));
++    const mark = chunk(output, 'MARK', false);
++    const view = new DataView(output.buffer, output.byteOffset + mark.offset, mark.size);
++    expect(view.getUint16(0, false)).toBe(2);
++    expect(view.getUint32(4, false)).toBe(start);
++    // Marker 1 occupies 12 bytes: id + position + Pascal "start" including padding.
++    expect(view.getUint32(16, false)).toBe(end);
++  });
++
++  it('round trips WAV inclusive smpl ends back to half-open seconds', async () => {
++    const output = await bytes(await audioBufferToWav(buffer(10), 16, { rootNote: 64, loopStart: 0, loopEnd: 10 }));
++    const metadata = await readWavMetadataFromArrayBuffer(exactBuffer(output), 'tone.wav', output.length);
++    expect(metadata.hasLoopData).toBe(true);
++    expect(metadata.loopStart).toBe(0);
++    expect(metadata.loopEnd).toBe(10 / 48_000);
++  });
++
++  it('round trips AIFF boundary markers and leaves root-only WAV metadata loop-disabled', async () => {
++    const aiff = await bytes(await audioBufferToAiff(buffer(10), { bitDepth: 16, rootNote: 64, loopStart: 0, loopEnd: 10 }));
++    const aiffMetadata = await readAudioMetadataFromArrayBuffer(exactBuffer(aiff), 'tone.aif', aiff.length);
++    expect(aiffMetadata.hasLoopData).toBe(true);
++    expect(aiffMetadata.loopEnd).toBe(10 / 48_000);
++
++    const wav = await bytes(await audioBufferToWav(buffer(10), 16, { rootNote: 64 }));
++    const wavMetadata = await readWavMetadataFromArrayBuffer(exactBuffer(wav), 'tone.wav', wav.length);
++    expect(wavMetadata.hasLoopData).toBe(false);
++  });
++});
+--- before/src/test/utils/durableStorage.test.ts
++++ src/test/utils/durableStorage.test.ts
+@@ -153,14 +153,14 @@
+   const state = projectFixture();
+   state.multisampleSettings={...state.multisampleSettings,transpose:12,portamentoType:'exponential',portamentoAmount:67,audioFormat:'aiff',renameFiles:true,
+     ampEnvelope:{attack:11,decay:22,sustain:33,release:44},filterEnvelope:{attack:55,decay:66,sustain:77,release:88}};
+-  state.multisampleFiles=[{...state.drumSamples[5],rootNote:66,loopStart:0,loopEnd:0}];
++  state.multisampleFiles=[{...state.drumSamples[5],rootNote:66,loopStart:0,loopEnd:0,loopCrossfade:{fraction:0.9,importedRaw:90,importedFramecount:100,sourceIdentity:'samples/tone.wav'}}];
+   state.selectedMultisample=0;
+   await sessions.saveSession(state);
+   const restored = appReducer(initialState,{type:'RESTORE_SESSION',payload:await sessions.restoreSession()});
+   expect(restored.drumSamples[0].isLoaded).toBe(false);
+   expect(restored.drumSamples[5]).toMatchObject({name:'editable name',gain:7,isFloat:true,originalSampleRate:96000});
+   expect(restored.drumSamples[25]).toMatchObject({isLoaded:true,isAssigned:false});
+-  expect(restored.multisampleFiles[0]).toMatchObject({rootNote:66,loopStart:0,loopEnd:0});
++  expect(restored.multisampleFiles[0]).toMatchObject({rootNote:66,loopStart:0,loopEnd:1/restored.multisampleFiles[0].audioBuffer!.sampleRate,loopCrossfade:{fraction:0.9,importedRaw:90,importedFramecount:100,sourceIdentity:'samples/tone.wav'}});
+   expect(restored.multisampleSettings).toMatchObject({transpose:12,portamentoType:'exponential',portamentoAmount:67,audioFormat:'aiff',renameFiles:true,
+     ampEnvelope:{attack:11,decay:22,sustain:33,release:44},filterEnvelope:{attack:55,decay:66,sustain:77,release:88}});
+ });
+@@ -176,7 +176,7 @@
+   expect(editor.drumSettings.presetName).toBe('keep drums');
+   expect(editor.drumSamples).toBe(otherState.drumSamples);
+   expect(editor.multisampleSettings).toEqual(state.multisampleSettings);
+-  expect(editor.multisampleFiles[0].loopEnd).toBe(0);
++  expect(editor.multisampleFiles[0].loopEnd).toBe(1/editor.multisampleFiles[0].audioBuffer!.sampleRate);
+   expect(editor.importedMultisamplePreset).toEqual({fx:{delay:31}});
+   const before=editor;
+   preset.data.multisampleFiles[0].audioBlob = new Blob(['bad'],{type:STORED_AUDIO_TYPE});
+--- before/src/test/utils/importedCrossfade.test.ts
++++ src/test/utils/importedCrossfade.test.ts
+@@ -0,0 +1,67 @@
++import { describe, expect, it } from 'vitest';
++import type { MultisampleFile } from '../../context/AppContext';
++import { associateImportedCrossfades } from '../../utils/importedCrossfade';
++
++function sample(name: string, relativePath = ''): MultisampleFile {
++  const file = new File(['audio'], name, { type: 'audio/wav' });
++  Object.defineProperty(file, 'webkitRelativePath', { value: relativePath });
++  return {
++    file,
++    audioBuffer: new (AudioBuffer as unknown as new (c: number, l: number, r: number) => AudioBuffer)(1, 100, 100),
++    name,
++    isLoaded: true,
++    rootNote: 60,
++    inPoint: 0,
++    outPoint: 1,
++    loopStart: 0.1,
++    loopEnd: 0.9,
++  };
++}
++
++describe('imported crossfade association', () => {
++  it('maps an exact unique file identity and preserves raw provenance above the editor range', () => {
++    const result = associateImportedCrossfades([sample('tone.wav', 'samples/tone.wav')], {
++      regions: [{ sample: 'samples/tone.wav', framecount: 100, 'loop.crossfade': 90 }],
++    });
++    expect(result.files[0].loopCrossfade).toEqual({
++      fraction: 0.9,
++      importedRaw: 90,
++      importedFramecount: 100,
++      sourceIdentity: 'samples/tone.wav',
++    });
++    expect(result.notice).toContain('above 75%');
++  });
++
++  it('does not guess from array order or a basename when imported paths are unmatched', () => {
++    const result = associateImportedCrossfades([sample('tone.wav')], {
++      regions: [{ sample: 'folder/tone.wav', framecount: 100, 'loop.crossfade': 25 }],
++    });
++    expect(result.files[0].loopCrossfade).toBeUndefined();
++    expect(result.notice).toContain('could not be matched');
++  });
++
++  it('does not map duplicate file identities or duplicate region identities', () => {
++    const duplicateFiles = associateImportedCrossfades([sample('tone.wav'), sample('tone.wav')], {
++      regions: [{ sample: 'tone.wav', framecount: 100, 'loop.crossfade': 25 }],
++    });
++    expect(duplicateFiles.files.every((file) => file.loopCrossfade === undefined)).toBe(true);
++    expect(duplicateFiles.notice).toContain('ambiguous');
++
++    const duplicateRegions = associateImportedCrossfades([sample('tone.wav')], {
++      regions: [
++        { sample: 'tone.wav', framecount: 100, 'loop.crossfade': 25 },
++        { sample: 'tone.wav', framecount: 100, 'loop.crossfade': 50 },
++      ],
++    });
++    expect(duplicateRegions.files[0].loopCrossfade).toBeUndefined();
++    expect(duplicateRegions.notice).toContain('ambiguous');
++  });
++
++  it('preserves and reports crossfade values it cannot interpret', () => {
++    const preset = { regions: [{ sample: 'tone.wav', framecount: 100, 'loop.crossfade': 'opaque' }] };
++    const result = associateImportedCrossfades([sample('tone.wav')], preset);
++    expect(result.files[0].loopCrossfade).toBeUndefined();
++    expect(result.notice).toMatch(/could not be interpreted.*original JSON/i);
++    expect(preset.regions[0]['loop.crossfade']).toBe('opaque');
++  });
++});
+--- before/src/test/utils/loopEditing.test.ts
++++ src/test/utils/loopEditing.test.ts
+@@ -0,0 +1,60 @@
++import { describe, expect, it } from 'vitest';
++import {
++  crossfadeLoopChannels,
++  framesToSeconds,
++  normalizeSampleAndLoop,
++  previewFrameAtTime,
++  secondsToFrames,
++} from '../../utils/loopEditing';
++
++describe('half-open loop editing contract', () => {
++  it('keeps exact zero and final-frame boundaries through frame/second conversion', () => {
++    expect(secondsToFrames(0, 48_000, 96_000)).toBe(0);
++    expect(secondsToFrames(2, 48_000, 96_000)).toBe(96_000);
++    expect(framesToSeconds(96_000, 48_000)).toBe(2);
++  });
++
++  it('clamps a loop to the selected sample and gives disjoint loops the nearest one-frame interval', () => {
++    expect(normalizeSampleAndLoop(100, { start: 20, end: 80 }, { start: 0, end: 10 })).toEqual({
++      sample: { start: 20, end: 80 },
++      loop: { start: 20, end: 21 },
++    });
++    expect(normalizeSampleAndLoop(100, { start: 20, end: 80 }, { start: 90, end: 100 })).toEqual({
++      sample: { start: 20, end: 80 },
++      loop: { start: 79, end: 80 },
++    });
++    expect(normalizeSampleAndLoop(1, { start: 0, end: 1 }, { start: 0, end: 1 })).toEqual({
++      sample: { start: 0, end: 1 },
++      loop: { start: 0, end: 1 },
++    });
++    expect(() => normalizeSampleAndLoop(0, { start: 0, end: 0 }, { start: 0, end: 0 })).toThrow('positive integer');
++  });
++
++  it('crossfades a copied loop boundary without changing source channel data', () => {
++    const source = new Float32Array([-0.8, 0.6, -0.2, 0.9, -0.4, 0.2, 0.7, 1]);
++    const before = new Float32Array(source);
++    const [preview] = crossfadeLoopChannels([source], { start: 0, end: 8 }, 4);
++
++    expect(source).toEqual(before);
++    expect(preview).not.toBe(source);
++    expect(Math.abs(preview[0] - preview[7])).toBeLessThan(Math.abs(source[0] - source[7]));
++    expect(preview[0]).toBeCloseTo(source[7], 6);
++    expect(preview[3]).toBeCloseTo(source[3], 6);
++  });
++
++  it('derives forward and reverse playheads from the audio clock, speed, and loop boundaries', () => {
++    const base = {
++      startedAt: 10,
++      startFrame: 20,
++      sample: { start: 10, end: 90 },
++      loop: { start: 30, end: 50 },
++      loopEnabled: true,
++      sampleRate: 100,
++      playbackRate: 2,
++    } as const;
++    expect(previewFrameAtTime({ ...base, reverse: false }, 10.2)).toBe(40);
++    expect(previewFrameAtTime({ ...base, reverse: false }, 10.3)).toBe(40);
++    expect(previewFrameAtTime({ ...base, reverse: true, startFrame: 70 }, 10.2)).toBe(30);
++    expect(previewFrameAtTime({ ...base, reverse: true, startFrame: 50 }, 10.3)).toBe(50);
++  });
++});
+--- before/src/test/utils/patchLoopContract.test.ts
++++ src/test/utils/patchLoopContract.test.ts
+@@ -0,0 +1,126 @@
++import JSZip from 'jszip';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { initialState, type AppState, type MultisampleFile } from '../../context/AppContext';
++import { generateDrumPatch, generateMultisamplePatch } from '../../utils/patchGeneration';
++
++const audioMocks = vi.hoisted(() => ({ converted: null as AudioBuffer | null }));
++vi.mock('../../utils/audio', async (importOriginal) => {
++  const actual = await importOriginal<typeof import('../../utils/audio')>();
++  return {
++    ...actual,
++    convertAudioFormat: vi.fn(async (source: AudioBuffer) => audioMocks.converted ?? source),
++  };
++});
++
++const makeAudio = (frames: number, rate: number): AudioBuffer =>
++  new (AudioBuffer as unknown as new (channels: number, length: number, sampleRate: number) => AudioBuffer)(1, frames, rate);
++
++function multiState(loopEnabled = true, cutAtLoopEnd = false): AppState {
++  const source = makeAudio(100, 100);
++  const sample: MultisampleFile = {
++    file: new File(['source'], 'tone.wav', { type: 'audio/wav' }),
++    audioBuffer: source,
++    name: 'tone.wav',
++    isLoaded: true,
++    rootNote: 60,
++    inPoint: 0.2,
++    outPoint: 0.8,
++    loopStart: 0.3,
++    loopEnd: 0.7,
++    loopCrossfade: { fraction: 0.25 },
++    originalBitDepth: 16,
++    originalSampleRate: 100,
++    originalChannels: 1,
++    duration: 1,
++    fileSize: 6,
++  };
++  return {
++    ...initialState,
++    multisampleSettings: {
++      ...structuredClone(initialState.multisampleSettings),
++      loopEnabled,
++      cutAtLoopEnd,
++      sampleRate: 200,
++      bitDepth: 16,
++      channels: 1,
++      normalize: false,
++    },
++    multisampleFiles: [sample],
++  };
++}
++
++async function archive(blob: Blob) {
++  const data = await new Promise<ArrayBuffer>((resolve, reject) => {
++    const reader = new FileReader();
++    reader.onload = () => resolve(reader.result as ArrayBuffer);
++    reader.onerror = () => reject(reader.error);
++    reader.readAsArrayBuffer(blob);
++  });
++  const zip = await JSZip.loadAsync(data);
++  const patch = JSON.parse(await zip.file('patch.json')!.async('string'));
++  const audioName = patch.regions[0].sample as string;
++  return { patch, audio: await zip.file(audioName)!.async('uint8array') };
++}
++
++function wavLoopCount(bytes: Uint8Array): number {
++  const text = new TextDecoder();
++  for (let offset = 12; offset + 8 <= bytes.length;) {
++    const id = text.decode(bytes.subarray(offset, offset + 4));
++    const size = new DataView(bytes.buffer, bytes.byteOffset + offset + 4, 4).getUint32(0, true);
++    if (id === 'smpl') return new DataView(bytes.buffer, bytes.byteOffset + offset + 8, size).getUint32(28, true);
++    offset += 8 + size + (size % 2);
++  }
++  throw new Error('Missing smpl');
++}
++
++describe('patch loop frame contract', () => {
++  beforeEach(() => { audioMocks.converted = null; });
++
++  it('normalizes seconds against converted output and scales crossfade by final frame count', async () => {
++    audioMocks.converted = makeAudio(200, 200);
++    const { patch, audio } = await archive(await generateMultisamplePatch(multiState(), 'converted', 200, 16, 'mono', 0, 'wav'));
++    expect(patch.regions[0]).toMatchObject({
++      framecount: 200,
++      'sample.start': 40,
++      'sample.end': 160,
++      'loop.start': 60,
++      'loop.end': 140,
++      'loop.crossfade': 50,
++      'loop.enabled': true,
++    });
++    expect(wavLoopCount(audio)).toBe(1);
++  });
++
++  it('clamps all output markers and crossfade to the final cut buffer', async () => {
++    audioMocks.converted = makeAudio(140, 200);
++    const { patch } = await archive(await generateMultisamplePatch(multiState(true, true), 'cut', 200, 16, 'mono', 0, 'wav'));
++    expect(patch.regions[0]).toMatchObject({
++      framecount: 140,
++      'sample.start': 40,
++      'sample.end': 140,
++      'loop.start': 60,
++      'loop.end': 140,
++      'loop.crossfade': 35,
++    });
++  });
++
++  it('keeps loop metadata disabled in the audio container when patch looping is off', async () => {
++    audioMocks.converted = makeAudio(200, 200);
++    const { patch, audio } = await archive(await generateMultisamplePatch(multiState(false), 'no-loop', 200, 16, 'mono', 0, 'wav'));
++    expect(patch.regions[0]['loop.enabled']).toBe(false);
++    expect(wavLoopCount(audio)).toBe(0);
++  });
++
++  it('does not add a full-file container loop merely to store a drum root note', async () => {
++    const state = multiState();
++    state.drumSamples[0] = {
++      file: new File(['drum'], 'kick.wav', { type: 'audio/wav' }), audioBuffer: makeAudio(10, 100), name: 'kick.wav', isLoaded: true,
++      inPoint: 0, outPoint: 0.1, playmode: 'oneshot', reverse: false, transpose: 0, pan: 0, gain: 0,
++      hasBeenEdited: false, isAssigned: true, assignedKey: 0, originalBitDepth: 16, originalSampleRate: 100,
++      originalChannels: 1, duration: 0.1, fileSize: 4,
++    };
++    state.drumSettings = { ...state.drumSettings, sampleRate: 0, bitDepth: 16, channels: 1, normalize: false };
++    const { audio } = await archive(await generateDrumPatch(state, 'drum', undefined, 16, 'mono', 'wav'));
++    expect(wavLoopCount(audio)).toBe(0);
++  });
++});
+--- before/src/test/utils/projectArchive.test.ts
++++ src/test/utils/projectArchive.test.ts
+@@ -57,7 +57,7 @@
+     ...initialState,
+     drumSettings:{...structuredClone(initialState.drumSettings),presetName:'Round trip',presetSettings:{...initialState.drumSettings.presetSettings,volume:37}},
+     multisampleSettings:{...structuredClone(initialState.multisampleSettings),presetName:'Envelope test',ampEnvelope:{attack:1,decay:2,sustain:3,release:4},filterEnvelope:{attack:5,decay:6,sustain:7,release:8}},
+-    drumSamples,multisampleFiles:[loadedMulti('C4 source.aif',multi,[6,5,4,3,2,1])],
++    drumSamples,multisampleFiles:[{...loadedMulti('C4 source.aif',multi,[6,5,4,3,2,1]),loopCrossfade:{fraction:0.9,importedRaw:90,importedFramecount:100,sourceIdentity:'C4 source.aif'}}],
+     importedDrumPreset:{type:'drum',unknown:{vendorFx:91}},importedMultisamplePreset:{type:'multisampler',unknown:{vendorMode:'future'}},midiNoteMapping:'C4',
+   };
+ }
+@@ -90,7 +90,8 @@
+     expect(sparse.file?.lastModified).toBe(1239);
+     expect(Array.from(await bytes(sparse.file!))).toEqual([1,2,3,4]);
+     expect(restored.multisampleFiles[0].loopStart).toBe(0);
+-    expect(restored.multisampleFiles[0].loopEnd).toBe(0);
++    expect(restored.multisampleFiles[0].loopEnd).toBe(1 / restored.multisampleFiles[0].audioBuffer!.sampleRate);
++    expect(restored.multisampleFiles[0].loopCrossfade).toEqual({fraction:0.9,importedRaw:90,importedFramecount:100,sourceIdentity:'C4 source.aif'});
+     expect(restored.multisampleSettings.ampEnvelope).toEqual({attack:1,decay:2,sustain:3,release:4});
+     expect(restored.multisampleSettings.filterEnvelope).toEqual({attack:5,decay:6,sustain:7,release:8});
+     expect(restored.importedDrumPreset.unknown.vendorFx).toBe(91);
+@@ -111,6 +112,10 @@
+     ['invalid settings',(m:any)=>{m.project.drumSettings.sampleRate='fast'}],
+     ['missing reference',(m:any)=>{m.project.drumSamples[0].sampleId='missing'}],
+     ['invalid dimensions',(m:any)=>{m.project.drumSamples[0].originalIndex=513}],
++    ['nonfinite crossfade',(m:any)=>{m.project.multisampleFiles[0].loopCrossfade.fraction=Number.NaN}],
++    ['fractional imported frame count',(m:any)=>{m.project.multisampleFiles[0].loopCrossfade.importedFramecount=1.5}],
++    ['fractional sample frame',(m:any)=>{m.project.multisampleFiles[0].loopStart=0.5/m.samples[2].audio.sampleRate}],
++    ['empty loop range',(m:any)=>{m.project.multisampleFiles[0].loopEnd=m.project.multisampleFiles[0].loopStart}],
+   ])('rejects %s before returning a project', async (_name,change) => {
+     const archive=await rewriteManifest(await exportProjectArchive(createProjectSnapshot(projectState())),change);
+     await expect(importProjectArchive(archive)).rejects.toThrow();
+--- before/src/utils/aiffExport.ts
++++ src/utils/aiffExport.ts
+@@ -1,6 +1,8 @@
+ // AIFF/AIFC export utilities
+ // Handles AIFF file generation with proper chunk structure for loop points, root notes, and 32-bit float support
+ // Based on Apple AIFF-C specification and ConvertWithMoss compatibility
++
++import { normalizeFrameRange } from './loopEditing';
+ 
+ export interface AiffExportOptions {
+   rootNote?: number;
+@@ -232,6 +234,9 @@
+   
+   // Calculate chunk sizes
+   const hasMarkers = loopStart !== undefined && loopEnd !== undefined;
++  const loop = hasMarkers
++    ? normalizeFrameRange(numSampleFrames, { start: loopStart, end: loopEnd })
++    : undefined;
+   const hasInstrument = rootNote !== undefined || hasMarkers;
+   
+   // FVER chunk (AIFC only)
+@@ -308,12 +313,12 @@
+     
+     // Start marker
+     dataView.setUint16(offset, 1, false); offset += 2; // ID
+-    dataView.setUint32(offset, loopStart ?? 0, false); offset += 4; // Position
++    dataView.setUint32(offset, loop!.start, false); offset += 4; // Boundary position
+     offset += writePString(dataView, offset, 'start');
+     
+     // End marker
+     dataView.setUint16(offset, 2, false); offset += 2; // ID
+-    dataView.setUint32(offset, (loopEnd ?? (numSampleFrames - 1)) - 1, false); offset += 4; // Position (subtract 1 frame)
++    dataView.setUint32(offset, loop!.end, false); offset += 4; // Boundary position; final frame count is valid
+     offset += writePString(dataView, offset, 'end');
+   }
+   
+@@ -437,4 +442,4 @@
+       }
+     }
+   }
+-} +}
+--- before/src/utils/audio.ts
++++ src/utils/audio.ts
+@@ -197,7 +197,8 @@
+           
+           // Convert frames to seconds
+           loopStart = loopStartFrames / sampleRate;
+-          loopEnd = loopEndFrames / sampleRate;
++          // RIFF smpl stores the final frame inclusively; app ranges are [start,end).
++          loopEnd = (loopEndFrames + 1) / sampleRate;
+           hasLoopData = true;
+         }
+       }
+@@ -905,4 +906,4 @@
+ }
+ 
+ // Export metadata type for use in components
+-export type { WavMetadata };+export type { WavMetadata };
+--- before/src/utils/audioContext.ts
++++ src/utils/audioContext.ts
+@@ -43,6 +43,10 @@
+     return this.audioContext?.sampleRate || 44100;
+   }
+ 
++  public getCurrentTime(): number | null {
++    return this.audioContext?.currentTime ?? null;
++  }
++
+   public isReady(): boolean {
+     return this.isInitialized && this.audioContext?.state === 'running';
+   }
+@@ -70,4 +74,4 @@
+   window.addEventListener('beforeunload', () => {
+     audioContextManager.cleanup();
+   });
+-}+}
+--- before/src/utils/audioFormats.ts
++++ src/utils/audioFormats.ts
+@@ -165,29 +165,29 @@
+     // Validate and set loop points only if they were found in the file
+     if (foundLoopPoints) {
+       // Validate loop points are within audio duration
+-      const maxFrame = numSampleFrames - 1;
++      const maxStartFrame = numSampleFrames - 1;
+       
+       if (loopStart !== undefined) {
+-        if (loopStart < 0 || loopStart > maxFrame) {
++        if (loopStart < 0 || loopStart > maxStartFrame) {
+           console.warn(`[AIF PARSER] Invalid loop start ${loopStart}, clamping to valid range`);
+-          loopStart = Math.max(0, Math.min(loopStart, maxFrame));
++          loopStart = Math.max(0, Math.min(loopStart, maxStartFrame));
+         }
+       } else {
+         loopStart = 0;
+       }
+       
+       if (loopEnd !== undefined) {
+-        if (loopEnd <= loopStart || loopEnd > maxFrame) {
++        if (loopEnd <= loopStart || loopEnd > numSampleFrames) {
+           console.warn(`[AIF PARSER] Invalid loop end ${loopEnd}, clamping to valid range`);
+-          loopEnd = Math.max(loopStart + 1, Math.min(loopEnd, maxFrame));
++          loopEnd = Math.max(loopStart + 1, Math.min(loopEnd, numSampleFrames));
+         }
+       } else {
+-        loopEnd = maxFrame;
++        loopEnd = numSampleFrames;
+       }
+     } else {
+       // No loop points found in file, set to defaults
+       loopStart = 0;
+-      loopEnd = Math.max(0, numSampleFrames - 1);
++      loopEnd = numSampleFrames;
+     }
+ 
+     const duration = numSampleFrames / sampleRate;
+@@ -521,4 +521,4 @@
+   // Check file extension
+   const extension = file.name.toLowerCase();
+   return validExtensions.some(ext => extension.endsWith(ext));
+-} +}
+--- before/src/utils/importedCrossfade.ts
++++ src/utils/importedCrossfade.ts
+@@ -0,0 +1,115 @@
++import type { ImportedPresetJson } from './jsonImport';
++import type { LoopCrossfadeProvenance, MultisampleFile } from '../context/AppContext';
++
++type JsonRecord = Record<string, unknown>;
++
++interface ImportedCrossfadeRegion {
++  identity: string;
++  crossfade: LoopCrossfadeProvenance;
++}
++
++function isRecord(value: unknown): value is JsonRecord {
++  return value !== null && typeof value === 'object' && !Array.isArray(value);
++}
++
++export function sampleFileIdentity(sample: MultisampleFile): string | undefined {
++  const relativePath = sample.file?.webkitRelativePath;
++  if (relativePath) return relativePath;
++  return sample.file?.name || sample.name || undefined;
++}
++
++function importedRegions(preset: ImportedPresetJson | null | undefined): {
++  regions: ImportedCrossfadeRegion[];
++  uninterpreted: number;
++} {
++  if (!preset || !Array.isArray(preset.regions)) return { regions: [], uninterpreted: 0 };
++  const regions: ImportedCrossfadeRegion[] = [];
++  let uninterpreted = 0;
++  for (const value of preset.regions) {
++    if (!isRecord(value) || !Object.hasOwn(value, 'loop.crossfade')) continue;
++    const identity = value.sample;
++    const raw = value['loop.crossfade'];
++    const framecount = value.framecount;
++    if (
++      typeof identity !== 'string' || identity.length === 0 ||
++      typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 ||
++      typeof framecount !== 'number' || !Number.isSafeInteger(framecount) || framecount < 1
++    ) {
++      uninterpreted += 1;
++      continue;
++    }
++    regions.push({
++      identity,
++      crossfade: {
++        fraction: raw / framecount,
++        importedRaw: raw,
++        importedFramecount: framecount,
++        sourceIdentity: identity,
++      },
++    });
++  }
++  return { regions, uninterpreted };
++}
++
++export interface CrossfadeAssociationResult {
++  files: MultisampleFile[];
++  notice?: string;
++}
++
++/** Associate only exact, unique identities. Raw imported JSON remains untouched. */
++export function associateImportedCrossfades(
++  files: readonly MultisampleFile[],
++  preset: ImportedPresetJson | null | undefined,
++): CrossfadeAssociationResult {
++  const scan = importedRegions(preset);
++  const { regions } = scan;
++  if (regions.length === 0 && scan.uninterpreted === 0) return { files: files.map((file) => ({ ...file })) };
++
++  const fileCounts = new Map<string, number>();
++  for (const file of files) {
++    const identity = sampleFileIdentity(file);
++    if (identity) fileCounts.set(identity, (fileCounts.get(identity) ?? 0) + 1);
++  }
++  const regionCounts = new Map<string, number>();
++  for (const region of regions) regionCounts.set(region.identity, (regionCounts.get(region.identity) ?? 0) + 1);
++  const uniqueRegions = new Map(
++    regions.filter((region) => regionCounts.get(region.identity) === 1).map((region) => [region.identity, region]),
++  );
++
++  let matched = 0;
++  let ambiguous = false;
++  let aboveNormalRange = false;
++  const mapped = files.map((file) => {
++    const identity = sampleFileIdentity(file);
++    if (!identity) return { ...file };
++    if ((fileCounts.get(identity) ?? 0) !== 1 || (regionCounts.get(identity) ?? 0) > 1) {
++      if ((regionCounts.get(identity) ?? 0) > 0) ambiguous = true;
++      return { ...file };
++    }
++    const region = uniqueRegions.get(identity);
++    if (!region) return { ...file };
++    matched += 1;
++    aboveNormalRange ||= region.crossfade.fraction > 0.75;
++    return { ...file, loopCrossfade: { ...region.crossfade } };
++  });
++
++  const unmatched = regions.length - matched;
++  const messages: string[] = [];
++  if (scan.uninterpreted > 0) {
++    messages.push('Some imported crossfades could not be interpreted and were left only in the original JSON.');
++  }
++  if (unmatched > 0) {
++    messages.push(ambiguous
++      ? 'Some imported crossfades are ambiguous and were left only in the original JSON.'
++      : 'Some imported crossfades could not be matched to an exact loaded file identity and were left only in the original JSON.');
++  }
++  if (aboveNormalRange) messages.push('An imported crossfade is above 75%; preview is approximate until you choose a normal value.');
++  return { files: mapped, notice: messages.length ? messages.join(' ') : undefined };
++}
++
++export function importedCrossfadeNotice(
++  files: readonly MultisampleFile[],
++  preset: ImportedPresetJson | null | undefined,
++): string | undefined {
++  return associateImportedCrossfades(files, preset).notice;
++}
+--- before/src/utils/indexedDB.ts
++++ src/utils/indexedDB.ts
+@@ -1,4 +1,4 @@
+-import type { AppState } from '../context/AppContext';
++import type { AppState, MultisampleFile } from '../context/AppContext';
+ 
+ // Store bytes rather than Blob/File objects: some WebKit runtimes abort Blob writes.
+ // Public reads still return Blobs/Files; existing native Blob records remain readable.
+@@ -78,6 +78,7 @@
+     outPoint: number;
+     loopStart: number;
+     loopEnd: number;
++    loopCrossfade?: MultisampleFile['loopCrossfade'];
+   }>;
+   selectedMultisample: number | null;
+   isDrumKeyboardPinned: boolean;
+@@ -403,4 +404,4 @@
+ }
+ 
+ // Export singleton instance
+-export const indexedDB = IndexedDBManager.getInstance(); +export const indexedDB = IndexedDBManager.getInstance();
+--- before/src/utils/libraryUtils.ts
++++ src/utils/libraryUtils.ts
+@@ -4,6 +4,7 @@
+ import { decodeStoredAudio, encodeStoredAudio, restoreSourceFile } from './storedAudio';
+ import { createProjectSnapshot, restoreProjectSettings } from './projectSerialization';
+ import type { RestoredProject } from './projectSerialization';
++import { framesToSeconds, normalizeSecondRanges } from './loopEditing';
+ 
+ // --- AudioBuffer <-> Blob utilities ---
+ // You must have a utility to convert AudioBuffer to WAV ArrayBuffer
+@@ -30,8 +31,11 @@
+     if (sample && sample.isLoaded && sample.audioBuffer) {
+       const audioBlob = encodeStoredAudio(sample.audioBuffer);
+       const { audioBuffer, ...rest } = sample;
++      const bounds = normalizeSecondRanges(audioBuffer.length, audioBuffer.sampleRate, { start: sample.inPoint, end: sample.outPoint });
+       preparedSamples.push({
+         ...rest,
++        inPoint: framesToSeconds(bounds.sample.start, audioBuffer.sampleRate),
++        outPoint: framesToSeconds(bounds.sample.end, audioBuffer.sampleRate),
+         audioBlob,
+         originalIndex: index, // Preserve the original index
+         metadata: {
+@@ -58,8 +62,14 @@
+     if (file && file.isLoaded && file.audioBuffer) {
+       const audioBlob = encodeStoredAudio(file.audioBuffer);
+       const { audioBuffer, ...rest } = file;
++      const bounds = normalizeSecondRanges(audioBuffer.length, audioBuffer.sampleRate,
++        { start: file.inPoint, end: file.outPoint }, { start: file.loopStart, end: file.loopEnd });
+       return {
+         ...rest,
++        inPoint: framesToSeconds(bounds.sample.start, audioBuffer.sampleRate),
++        outPoint: framesToSeconds(bounds.sample.end, audioBuffer.sampleRate),
++        loopStart: framesToSeconds(bounds.loop.start, audioBuffer.sampleRate),
++        loopEnd: framesToSeconds(bounds.loop.end, audioBuffer.sampleRate),
+         audioBlob,
+         metadata: {
+           // Basic WAV properties
+@@ -72,8 +82,8 @@
+           midiNote: file.rootNote,
+           // Loop information
+           hasLoopData: true, // We always have loop data since we set defaults
+-          loopStart: file.loopStart,
+-          loopEnd: file.loopEnd,
++          loopStart: framesToSeconds(bounds.loop.start, audioBuffer.sampleRate),
++          loopEnd: framesToSeconds(bounds.loop.end, audioBuffer.sampleRate),
+           // Format information
+           format: 'PCM',
+           dataLength: file.fileSize || 0
+@@ -193,7 +203,12 @@
+     const audioBuffer = await decodeStoredAudio(sample.audioBlob, legacyContext);
+     const {audioBlob, ...rest} = sample;
+     const file = restoreSourceFile(sample.file, sample.file?.name ?? sample.name, audioBlob, audioBuffer, sample.file?.lastModified);
++    const bounds = normalizeSecondRanges(audioBuffer.length, audioBuffer.sampleRate,
++      { start: sample.inPoint, end: sample.outPoint },
++      mode === 'multisample' ? { start: sample.loopStart, end: sample.loopEnd } : undefined);
+     return {...rest, file, audioBuffer, isLoaded:true,
++      inPoint:framesToSeconds(bounds.sample.start,audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,audioBuffer.sampleRate),
++      ...(mode === 'multisample' ? {loopStart:framesToSeconds(bounds.loop.start,audioBuffer.sampleRate),loopEnd:framesToSeconds(bounds.loop.end,audioBuffer.sampleRate)} : {}),
+       originalBitDepth: sample.originalBitDepth ?? sample.metadata?.bitDepth,
+       originalSampleRate: sample.originalSampleRate ?? sample.metadata?.sampleRate ?? audioBuffer.sampleRate,
+       originalChannels: sample.originalChannels ?? sample.metadata?.channels ?? audioBuffer.numberOfChannels,
+--- before/src/utils/loopEditing.ts
++++ src/utils/loopEditing.ts
+@@ -0,0 +1,140 @@
++export interface FrameRange {
++  start: number;
++  end: number;
++}
++
++export interface NormalizedSampleAndLoop {
++  sample: FrameRange;
++  loop: FrameRange;
++}
++
++const finite = (value: number | undefined, fallback: number): number =>
++  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
++
++const clamp = (value: number, minimum: number, maximum: number): number =>
++  Math.max(minimum, Math.min(value, maximum));
++
++export function framesToSeconds(frame: number, sampleRate: number): number {
++  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return 0;
++  return frame / sampleRate;
++}
++
++export function secondsToFrames(seconds: number | undefined, sampleRate: number, frameCount: number): number {
++  const safeFrameCount = Math.max(0, Math.floor(finite(frameCount, 0)));
++  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return 0;
++  return clamp(Math.round(finite(seconds, 0) * sampleRate), 0, safeFrameCount);
++}
++
++export function normalizeFrameRange(frameCount: number, range: Partial<FrameRange> | undefined): FrameRange {
++  if (!Number.isInteger(frameCount) || frameCount < 1) {
++    throw new RangeError('Frame count must be a positive integer');
++  }
++  const safeFrameCount = frameCount;
++  const start = clamp(Math.round(finite(range?.start, 0)), 0, safeFrameCount - 1);
++  const end = clamp(Math.round(finite(range?.end, safeFrameCount)), start + 1, safeFrameCount);
++  return { start, end };
++}
++
++export function normalizeSampleAndLoop(
++  frameCount: number,
++  sampleRange: Partial<FrameRange> | undefined,
++  loopRange: Partial<FrameRange> | undefined,
++): NormalizedSampleAndLoop {
++  const sample = normalizeFrameRange(frameCount, sampleRange);
++  const requestedStart = Math.round(finite(loopRange?.start, sample.start));
++  const requestedEnd = Math.round(finite(loopRange?.end, sample.end));
++
++  if (requestedEnd <= sample.start) {
++    return { sample, loop: { start: sample.start, end: sample.start + 1 } };
++  }
++  if (requestedStart >= sample.end) {
++    return { sample, loop: { start: sample.end - 1, end: sample.end } };
++  }
++
++  const loopStart = clamp(requestedStart, sample.start, sample.end - 1);
++  const loopEnd = clamp(requestedEnd, loopStart + 1, sample.end);
++  return { sample, loop: { start: loopStart, end: loopEnd } };
++}
++
++export function normalizeSecondRanges(
++  frameCount: number,
++  sampleRate: number,
++  sample: { start?: number; end?: number },
++  loop?: { start?: number; end?: number },
++): NormalizedSampleAndLoop {
++  return normalizeSampleAndLoop(
++    frameCount,
++    {
++      start: secondsToFrames(sample.start, sampleRate, frameCount),
++      end: secondsToFrames(sample.end ?? framesToSeconds(frameCount, sampleRate), sampleRate, frameCount),
++    },
++    loop
++      ? {
++          start: secondsToFrames(loop.start, sampleRate, frameCount),
++          end: secondsToFrames(loop.end ?? framesToSeconds(frameCount, sampleRate), sampleRate, frameCount),
++        }
++      : undefined,
++  );
++}
++
++/**
++ * Make a browser-preview copy whose loop head fades from the matching tail.
++ * This is an approximate overlap fade; export audio remains untouched and the
++ * OP-XY receives only its loop.crossfade metadata.
++ */
++export function crossfadeLoopChannels(
++  channels: readonly Float32Array[],
++  loop: FrameRange,
++  requestedFrames: number,
++): Float32Array[] {
++  const output = channels.map((channel) => new Float32Array(channel));
++  if (channels.length === 0) return output;
++  const frameCount = channels[0].length;
++  if (frameCount === 0) return output;
++  const normalized = normalizeFrameRange(frameCount, loop);
++  const loopLength = normalized.end - normalized.start;
++  const fadeFrames = clamp(Math.round(finite(requestedFrames, 0)), 0, Math.floor(loopLength / 2));
++  if (fadeFrames === 0) return output;
++
++  for (let channelIndex = 0; channelIndex < output.length; channelIndex += 1) {
++    const source = channels[channelIndex];
++    const destination = output[channelIndex];
++    for (let index = 0; index < fadeFrames; index += 1) {
++      const headIndex = normalized.start + index;
++      const tailIndex = normalized.end - fadeFrames + index;
++      const headWeight = fadeFrames === 1 ? 0.5 : index / (fadeFrames - 1);
++      const tailValue = index === 0 ? source[normalized.end - 1] : source[tailIndex];
++      destination[headIndex] = tailValue * (1 - headWeight) + source[headIndex] * headWeight;
++    }
++  }
++  return output;
++}
++
++export interface PreviewClock {
++  startedAt: number;
++  startFrame: number;
++  sample: FrameRange;
++  loop: FrameRange;
++  loopEnabled: boolean;
++  sampleRate: number;
++  playbackRate: number;
++  reverse: boolean;
++}
++
++export function previewFrameAtTime(clock: PreviewClock, currentTime: number): number {
++  const elapsedFrames = Math.max(0, currentTime - clock.startedAt) * clock.sampleRate * Math.abs(clock.playbackRate || 1);
++  const direction = clock.reverse ? -1 : 1;
++  const raw = clock.startFrame + direction * elapsedFrames;
++  if (!clock.loopEnabled) return clamp(Math.round(raw), clock.sample.start, clock.sample.end);
++
++  const loopLength = clock.loop.end - clock.loop.start;
++  if (loopLength <= 0) return clamp(Math.round(raw), clock.sample.start, clock.sample.end);
++  if (!clock.reverse) {
++    if (raw < clock.loop.start) return clamp(Math.round(raw), clock.sample.start, clock.sample.end);
++    return Math.round(clock.loop.start + ((raw - clock.loop.start) % loopLength));
++  }
++  if (raw > clock.loop.end) return clamp(Math.round(raw), clock.sample.start, clock.sample.end);
++  const travelled = clock.loop.end - raw;
++  if (travelled <= loopLength) return Math.round(raw);
++  return Math.round(clock.loop.end - (travelled % loopLength));
++}
+--- before/src/utils/patchGeneration.ts
++++ src/utils/patchGeneration.ts
+@@ -8,6 +8,7 @@
+ import { mergeImportedDrumSettings, mergeImportedMultisampleSettings } from './jsonImport';
+ import { allocateUniqueExportNames, validateArchiveReferences } from './exportPlanning';
+ import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
++import { normalizeSecondRanges } from './loopEditing';
+ 
+ interface IndexedDrumSample extends DrumSample { originalIndex: number }
+ interface IndexedMultisampleFile extends MultisampleFile { originalIndex: number }
+@@ -124,21 +125,6 @@
+   if (!Number.isInteger(buffer.length) || buffer.length < 1 || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate <= 0) {
+     throw new Error(`Cannot export sample ${sampleName}: audio buffer has no usable frames`);
+   }
+-}
+-
+-function frameRange(
+-  buffer: AudioBuffer,
+-  startSeconds: number | undefined,
+-  endSeconds: number | undefined,
+-  defaultStartSeconds: number,
+-  defaultEndSeconds: number,
+-): { start: number; end: number } {
+-  const clamp = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(value, maximum));
+-  const safeStart = typeof startSeconds === 'number' && Number.isFinite(startSeconds) ? startSeconds : defaultStartSeconds;
+-  const safeEnd = typeof endSeconds === 'number' && Number.isFinite(endSeconds) ? endSeconds : defaultEndSeconds;
+-  const start = clamp(Math.floor(safeStart * buffer.sampleRate), 0, buffer.length - 1);
+-  const end = clamp(Math.floor(safeEnd * buffer.sampleRate), start + 1, buffer.length);
+-  return { start, end };
+ }
+ 
+ function planDrumSamples(state: AppState, audioFormat: AudioFormat): PlannedDrumSample[] {
+@@ -268,8 +254,6 @@
+       bitDepth: targetBitDepth || sample.originalBitDepth || 16,
+       isFloat: audioFormat === 'aiff' && (targetBitDepth === 32 || (!targetBitDepth && sample.originalBitDepth === 32)),
+       rootNote: 60,
+-      loopStart: 0,
+-      loopEnd: buffer.length - 1,
+     });
+     return { plan, buffer, blob };
+   } catch (error) {
+@@ -288,7 +272,12 @@
+   const { sample, sampleNote } = plan;
+   const sourceBuffer = sample.audioBuffer!;
+   const originalSampleRate = sample.originalSampleRate || sourceBuffer.sampleRate;
+-  const sourceLoop = frameRange(sourceBuffer, sample.loopStart, sample.loopEnd, sourceBuffer.duration * 0.1, sourceBuffer.duration * 0.9);
++  const sourceRanges = normalizeSecondRanges(
++    sourceBuffer.length,
++    sourceBuffer.sampleRate,
++    { start: sample.inPoint, end: sample.outPoint },
++    { start: sample.loopStart, end: sample.loopEnd },
++  );
+   const needsConversion =
+     Boolean(targetSampleRate && sourceBuffer.sampleRate !== targetSampleRate) ||
+     Boolean(targetBitDepth && targetBitDepth !== sample.originalBitDepth) ||
+@@ -304,19 +293,24 @@
+           normalize: state.multisampleSettings.normalize,
+           normalizeLevel: state.multisampleSettings.normalizeLevel,
+           cutAtLoopEnd: state.multisampleSettings.cutAtLoopEnd,
+-          loopEnd: sourceLoop.end,
++          loopEnd: sourceRanges.loop.end,
+           sampleName: sample.name,
+         })
+       : sourceBuffer;
+     requireUsableBuffer(sample.name, buffer);
+-    const outputLoop = frameRange(buffer, sample.loopStart, sample.loopEnd, buffer.duration * 0.1, buffer.duration * 0.9);
++    const outputRanges = normalizeSecondRanges(
++      buffer.length,
++      buffer.sampleRate,
++      { start: sample.inPoint, end: sample.outPoint },
++      { start: sample.loopStart, end: sample.loopEnd },
++    );
+     const blob = await exportAudioBuffer(buffer, {
+       format: audioFormat,
+       bitDepth: targetBitDepth || sample.originalBitDepth || 16,
+       isFloat: audioFormat === 'aiff' && (targetBitDepth === 32 || (!targetBitDepth && sample.originalBitDepth === 32)),
+       rootNote: sampleNote,
+-      loopStart: outputLoop.start,
+-      loopEnd: outputLoop.end,
++      loopStart: state.multisampleSettings.loopEnabled ? outputRanges.loop.start : undefined,
++      loopEnd: state.multisampleSettings.loopEnabled ? outputRanges.loop.end : undefined,
+     });
+     return { plan, buffer, blob };
+   } catch (error) {
+@@ -351,7 +345,7 @@
+   patchJson.regions = assigned.map(({ plan, buffer }) => {
+     const { sample, outputName } = plan;
+     const sampleKey = sample.assignedKey ?? sample.originalIndex;
+-    const marker = frameRange(buffer, sample.inPoint, sample.outPoint, 0, buffer.duration);
++    const marker = normalizeSecondRanges(buffer.length, buffer.sampleRate, { start: sample.inPoint, end: sample.outPoint }).sample;
+     const midiNote = 53 + sampleKey;
+     return {
+       'fade.in': 0,
+@@ -396,23 +390,28 @@
+   const plans = planMultisampleSamples(state, audioFormat);
+   const exported = await Promise.all(plans.map((plan) => exportMultisampleAudio(plan, state, targetSampleRate, targetBitDepth, targetChannels, audioFormat)));
+   patchJson.regions = exported.map(({ plan, buffer }) => {
+-    const sampleMarker = frameRange(buffer, plan.sample.inPoint, plan.sample.outPoint, 0, buffer.duration);
+-    const loopMarker = frameRange(buffer, plan.sample.loopStart, plan.sample.loopEnd, buffer.duration * 0.1, buffer.duration * 0.9);
++    const ranges = normalizeSecondRanges(
++      buffer.length,
++      buffer.sampleRate,
++      { start: plan.sample.inPoint, end: plan.sample.outPoint },
++      { start: plan.sample.loopStart, end: plan.sample.loopEnd },
++    );
++    const crossfade = Math.max(0, Math.round((plan.sample.loopCrossfade?.fraction ?? 0) * buffer.length));
+     return {
+       framecount: buffer.length,
+       gain: multisampleGain,
+       hikey: plan.highKey,
+       lokey: plan.lowKey,
+-      'loop.crossfade': 0,
+-      'loop.end': loopMarker.end,
++      'loop.crossfade': crossfade,
++      'loop.end': ranges.loop.end,
+       'loop.onrelease': state.multisampleSettings.loopOnRelease,
+       'loop.enabled': state.multisampleSettings.loopEnabled,
+-      'loop.start': loopMarker.start,
++      'loop.start': ranges.loop.start,
+       'pitch.keycenter': plan.sampleNote,
+       reverse: false,
+       sample: plan.outputName,
+-      'sample.end': state.multisampleSettings.cutAtLoopEnd ? buffer.length : sampleMarker.end,
+-      'sample.start': sampleMarker.start,
++      'sample.end': state.multisampleSettings.cutAtLoopEnd ? buffer.length : ranges.sample.end,
++      'sample.start': ranges.sample.start,
+       tune: 0,
+     };
+   });
+--- before/src/utils/projectArchive.ts
++++ src/utils/projectArchive.ts
+@@ -157,6 +157,10 @@
+   return {channels,frames,sampleRate,duration:frames/sampleRate};
+ }
+ 
++function isFrameBoundary(seconds:number,sampleRate:number):boolean {
++  return Math.abs(seconds*sampleRate-Math.round(seconds*sampleRate))<1e-6;
++}
++
+ function validateDrumReference(value:unknown,sampleIds:Set<string>):asserts value is SessionData['drumSamples'][number] {
+   if(!isRecord(value)) throw new Error('Invalid drum sample reference');
+   requireSafeInteger(value.originalIndex,0,PROJECT_ARCHIVE_LIMITS.drumSlots-1,'drum sample index');
+@@ -174,6 +178,14 @@
+   requireSafeInteger(value.rootNote,0,127,'root note');
+   for(const key of ['inPoint','outPoint','loopStart','loopEnd']) requireFinite(value[key],`multisample ${key}`);
+   requireString(value.fileName,'multisample filename');
++  if(value.loopCrossfade!==undefined) {
++    if(!isRecord(value.loopCrossfade)) throw new Error('Invalid multisample crossfade');
++    const fraction=requireFinite(value.loopCrossfade.fraction,'multisample crossfade fraction');
++    if(fraction<0 || fraction>1024) throw new Error('Invalid multisample crossfade fraction');
++    if(value.loopCrossfade.importedRaw!==undefined) requireSafeInteger(value.loopCrossfade.importedRaw,0,0xffffffff,'imported crossfade value');
++    if(value.loopCrossfade.importedFramecount!==undefined) requireSafeInteger(value.loopCrossfade.importedFramecount,1,0xffffffff,'imported crossfade frame count');
++    if(value.loopCrossfade.sourceIdentity!==undefined) requireString(value.loopCrossfade.sourceIdentity,'crossfade source identity',512);
++  }
+ }
+ 
+ function validateManifest(raw:unknown,entries:Map<string,ZipEntryInfo>):ArchiveManifestV1 {
+@@ -296,11 +308,13 @@
+   const byId=new Map(manifest.samples.map(sample=>[sample.id,sample]));
+   for(const ref of manifest.project.drumSamples) {
+     const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
+-    if(ref.settings.inPoint<0 || ref.settings.outPoint<ref.settings.inPoint || ref.settings.outPoint>info.duration+1/info.sampleRate) throw new Error('Drum sample markers exceed actual audio length');
++    if(ref.settings.inPoint<0 || ref.settings.outPoint<=ref.settings.inPoint || ref.settings.outPoint>info.duration ||
++      !isFrameBoundary(ref.settings.inPoint,info.sampleRate) || !isFrameBoundary(ref.settings.outPoint,info.sampleRate)) throw new Error('Drum sample markers are not valid frame boundaries');
+   }
+   for(const ref of manifest.project.multisampleFiles) {
+     const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
+-    if(ref.inPoint<0 || ref.outPoint<ref.inPoint || ref.outPoint>info.duration+1/info.sampleRate || ref.loopStart<0 || ref.loopEnd<0 || ref.loopStart>info.duration+1/info.sampleRate || ref.loopEnd>info.duration+1/info.sampleRate) throw new Error('Multisample markers exceed actual audio length');
++    if(ref.inPoint<0 || ref.outPoint<=ref.inPoint || ref.outPoint>info.duration || ref.loopStart<ref.inPoint || ref.loopEnd<=ref.loopStart || ref.loopEnd>ref.outPoint ||
++      ![ref.inPoint,ref.outPoint,ref.loopStart,ref.loopEnd].every(value=>isFrameBoundary(value,info.sampleRate))) throw new Error('Multisample markers are not valid frame boundaries');
+   }
+   const session:SessionData={id:'portable-project',timestamp:0,version:2,savedToLibrary:false,...manifest.project};
+   return deserializeProject(session,async id=>sampleMap.get(id)??null);
+--- before/src/utils/projectSerialization.ts
++++ src/utils/projectSerialization.ts
+@@ -2,6 +2,7 @@
+ import type { SessionData, SampleData } from './indexedDB';
+ import { defaultDrumSettings, defaultMultisampleSettings } from './defaultSettings';
+ import { decodeStoredAudio, encodeStoredAudio, restoreSourceFile } from './storedAudio';
++import { framesToSeconds, normalizeSecondRanges } from './loopEditing';
+ 
+ export type ProjectSnapshot = Pick<AppState, 'drumSettings' | 'multisampleSettings' | 'drumSamples' | 'multisampleFiles' | 'selectedMultisample' | 'isDrumKeyboardPinned' | 'isMultisampleKeyboardPinned' | 'importedDrumPreset' | 'importedMultisamplePreset' | 'midiNoteMapping'>;
+ export type RestoredProject = Omit<ProjectSnapshot, 'drumSamples'> & {drumSamples: Array<DrumSample & {originalIndex: number}>};
+@@ -33,10 +34,18 @@
+     return sampleId;
+   };
+   const drumSamples: SessionData['drumSamples'] = [];
+-  state.drumSamples.forEach((s, index) => { if (s?.isLoaded) drumSamples.push({originalIndex: index, name: s.name, sampleId: store(s, index, 'drum'), isAssigned: s.isAssigned, assignedKey: s.assignedKey,
+-    settings: {inPoint:s.inPoint, outPoint:s.outPoint, playmode:s.playmode, reverse:s.reverse, transpose:s.transpose, pan:s.pan, gain:s.gain, hasBeenEdited:s.hasBeenEdited}}); });
++  state.drumSamples.forEach((s, index) => { if (s?.isLoaded && s.audioBuffer) {
++    const bounds=normalizeSecondRanges(s.audioBuffer.length,s.audioBuffer.sampleRate,{start:s.inPoint,end:s.outPoint});
++    drumSamples.push({originalIndex: index, name: s.name, sampleId: store(s, index, 'drum'), isAssigned: s.isAssigned, assignedKey: s.assignedKey,
++      settings: {inPoint:framesToSeconds(bounds.sample.start,s.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,s.audioBuffer.sampleRate),playmode:s.playmode, reverse:s.reverse, transpose:s.transpose, pan:s.pan, gain:s.gain, hasBeenEdited:s.hasBeenEdited}});
++  } });
+   const multisampleFiles: SessionData['multisampleFiles'] = [];
+-  state.multisampleFiles.forEach((s, index) => { if (s.isLoaded) multisampleFiles.push({sampleId:store(s,index,'multi'), name:s.name, fileName:s.file?.name ?? s.name, rootNote:s.rootNote, note:s.note, inPoint:s.inPoint, outPoint:s.outPoint, loopStart:s.loopStart, loopEnd:s.loopEnd}); });
++  state.multisampleFiles.forEach((s, index) => { if (s.isLoaded && s.audioBuffer) {
++    const bounds=normalizeSecondRanges(s.audioBuffer.length,s.audioBuffer.sampleRate,{start:s.inPoint,end:s.outPoint},{start:s.loopStart,end:s.loopEnd});
++    multisampleFiles.push({sampleId:store(s,index,'multi'), name:s.name, fileName:s.file?.name ?? s.name, rootNote:s.rootNote, note:s.note,
++      inPoint:framesToSeconds(bounds.sample.start,s.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,s.audioBuffer.sampleRate),
++      loopStart:framesToSeconds(bounds.loop.start,s.audioBuffer.sampleRate),loopEnd:framesToSeconds(bounds.loop.end,s.audioBuffer.sampleRate),loopCrossfade:s.loopCrossfade?{...s.loopCrossfade}:undefined});
++  } });
+   return {samples, session: {id,timestamp,version:2,drumSamples,multisampleFiles,
+     drumSettings:state.drumSettings,multisampleSettings:state.multisampleSettings,selectedMultisample:state.selectedMultisample,
+     isDrumKeyboardPinned:state.isDrumKeyboardPinned,isMultisampleKeyboardPinned:state.isMultisampleKeyboardPinned,
+@@ -76,11 +85,15 @@
+     if (!Number.isInteger(s.originalIndex) || s.originalIndex < 0 || s.originalIndex > 100000 || seen.has(s.originalIndex)) throw new Error('Invalid drum sample index');
+     seen.add(s.originalIndex);
+     const decoded = await load(s.sampleId);
+-    return {...decoded,...s.settings,name:s.name ?? decoded.file.name, originalIndex:s.originalIndex,isAssigned:s.isAssigned,assignedKey:s.assignedKey};
++    const bounds=normalizeSecondRanges(decoded.audioBuffer.length,decoded.audioBuffer.sampleRate,{start:s.settings.inPoint,end:s.settings.outPoint});
++    return {...decoded,...s.settings,inPoint:framesToSeconds(bounds.sample.start,decoded.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,decoded.audioBuffer.sampleRate),name:s.name ?? decoded.file.name, originalIndex:s.originalIndex,isAssigned:s.isAssigned,assignedKey:s.assignedKey};
+   }));
+   const multisampleFiles = await Promise.all(session.multisampleFiles.map(async s => {
+     const decoded = await load(s.sampleId);
+-    return {...decoded,name:s.name ?? s.fileName,rootNote:s.rootNote,note:s.note,inPoint:s.inPoint,outPoint:s.outPoint,loopStart:s.loopStart,loopEnd:s.loopEnd};
++    const bounds=normalizeSecondRanges(decoded.audioBuffer.length,decoded.audioBuffer.sampleRate,{start:s.inPoint,end:s.outPoint},{start:s.loopStart,end:s.loopEnd});
++    return {...decoded,name:s.name ?? s.fileName,rootNote:s.rootNote,note:s.note,
++      inPoint:framesToSeconds(bounds.sample.start,decoded.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,decoded.audioBuffer.sampleRate),
++      loopStart:framesToSeconds(bounds.loop.start,decoded.audioBuffer.sampleRate),loopEnd:framesToSeconds(bounds.loop.end,decoded.audioBuffer.sampleRate),loopCrossfade:s.loopCrossfade?{...s.loopCrossfade}:undefined};
+   }));
+   return {...restoreProjectSettings(session),drumSamples,multisampleFiles};
+ }
+--- before/src/utils/wavExport.ts
++++ src/utils/wavExport.ts
+@@ -1,5 +1,7 @@
+ // WAV export utilities
+ // Handles WAV file generation with SMPL chunk support for loop points and root notes
++
++import { normalizeFrameRange } from './loopEditing';
+ 
+ const MAX_AMPLITUDE = 0x7fff;
+ 
+@@ -99,10 +101,14 @@
+   // Calculate sizes
+   const audioDataSize = bufferLength * nChannels * bytesPerSample;
+   const fmtChunkSize = 16;
+-  const smplChunkSize = 60; // Fixed size for SMPL chunk with one loop
++  const hasLoop = options.loopStart !== undefined && options.loopEnd !== undefined;
++  const loop = hasLoop
++    ? normalizeFrameRange(bufferLength, { start: options.loopStart, end: options.loopEnd })
++    : undefined;
++  const smplChunkSize = 36 + (loop ? 24 : 0);
+   
+   // Calculate total size - SMPL chunk goes before data chunk
+-  const hasSmplChunk = options.rootNote !== undefined || options.loopStart !== undefined || options.loopEnd !== undefined;
++  const hasSmplChunk = options.rootNote !== undefined || loop !== undefined;
+   const totalSize = 4 + (8 + fmtChunkSize) + (hasSmplChunk ? (8 + smplChunkSize) : 0) + (8 + audioDataSize);
+   
+   // Create buffer
+@@ -140,16 +146,18 @@
+     dataView.setUint32(offset, 0, true); offset += 4; // MIDI pitch fraction
+     dataView.setUint32(offset, 0, true); offset += 4; // SMPTE format
+     dataView.setUint32(offset, 0, true); offset += 4; // SMPTE offset
+-    dataView.setUint32(offset, 1, true); offset += 4; // number of loops
++    dataView.setUint32(offset, loop ? 1 : 0, true); offset += 4; // number of loops
+     dataView.setUint32(offset, 0, true); offset += 4; // sampler data
+-    
+-    // Loop data (24 bytes)
+-    dataView.setUint32(offset, 0, true); offset += 4; // cue point ID
+-    dataView.setUint32(offset, 0, true); offset += 4; // type (0 = forward loop)
+-    dataView.setUint32(offset, (options.loopStart ?? 0) - 1, true); offset += 4; // start (subtract 1 to match reference)
+-    dataView.setUint32(offset, (options.loopEnd ?? (bufferLength - 1)) - 1, true); offset += 4; // end (subtract 1 frame)
+-    dataView.setUint32(offset, 0, true); offset += 4; // fraction
+-    dataView.setUint32(offset, 0, true); offset += 4; // play count
++
++    if (loop) {
++      // RIFF smpl uses an inclusive end. The app uses [start,end).
++      dataView.setUint32(offset, 0, true); offset += 4; // cue point ID
++      dataView.setUint32(offset, 0, true); offset += 4; // type (0 = forward loop)
++      dataView.setUint32(offset, loop.start, true); offset += 4;
++      dataView.setUint32(offset, loop.end - 1, true); offset += 4;
++      dataView.setUint32(offset, 0, true); offset += 4; // fraction
++      dataView.setUint32(offset, 0, true); offset += 4; // play count
++    }
+   }
+   
+   // Write data chunk
+@@ -283,4 +291,4 @@
+       uint8[byteIndex++] = (intSample >> 16) & 0xff;
+     }
+   }
+-} +}

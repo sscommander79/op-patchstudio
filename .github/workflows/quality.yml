@@ -1,0 +1,84 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:production -- --project=chromium
+      - run: npm run test:e2e:storage-integration -- --project=chromium
+      - name: Dev-origin stale service worker recovery
+        run: npm run test:e2e:dev-origin
+      - name: Synthetic recording and guided multisampling
+        run: npm run test:e2e:recording
+      - name: Synthetic OP-XY stem recording
+        env:
+          PLAYWRIGHT_FAKE_AUDIO_FILE: /tmp/opstudio-ci-stem-audio.wav
+          PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
+        run: npx playwright test --config=playwright.stem-recording.config.ts
+
+  # Pixel baselines for the launch surface and drum workbench are recorded on macOS Chromium. A failure
+  # here needs a person to review the uploaded diff images; baselines are never updated automatically.
+  macos-visual:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test:visual
+      - name: Upload visual diffs for review
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: test-results/visual
+          retention-days: 14
+
+  scheduled-browser-matrix:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:e2e:production
+      - run: npm run test:e2e:storage-integration
+      - name: Synthetic recording and guided multisampling
+        run: npm run test:e2e:recording
+      - name: Synthetic OP-XY stem recording
+        env:
+          PLAYWRIGHT_FAKE_AUDIO_FILE: /tmp/opstudio-ci-stem-audio.wav
+          PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
+        run: npx playwright test --config=playwright.stem-recording.config.ts

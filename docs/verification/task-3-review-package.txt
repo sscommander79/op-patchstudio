@@ -1,0 +1,1270 @@
+Task3 scoped working-tree source/test diff against accepted Task2 snapshot. No commits authorized.
+Changed files:
+src/App.tsx
+src/components/common/ProjectKeyboardShortcuts.tsx
+src/components/common/ProjectToolbar.tsx
+src/components/drum/DrumKeyboard.tsx
+src/components/multisample/VirtualMidiKeyboard.tsx
+src/context/AppContext.tsx
+src/test/components/ProjectKeyboardShortcuts.test.tsx
+src/test/components/ProjectToolbar.test.tsx
+src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
+src/test/context/projectHistory.test.tsx
+src/test/utils/projectArchive.test.ts
+src/utils/projectArchive.ts
+src/utils/projectHistory.ts
+
+--- before/src/App.tsx
++++ after/src/App.tsx
+@@ -8,16 +8,18 @@
+ import { FeedbackPage } from './components/common/FeedbackPage';
+ import { DonatePage } from './components/common/DonatePage';
+ import { SessionRestorationModal } from './components/common/SessionRestorationModal';
+ import { useSessionManagement } from './hooks/useSessionManagement';
+ import './theme/device-themes.scss';
+ import { useState, useEffect } from 'react';
+ import { isMobile, isTablet } from 'react-device-detect';
+ import { registerOverlayControl } from './components/common/WaveformEditor';
++import { ProjectToolbar } from './components/common/ProjectToolbar';
++import { ProjectKeyboardShortcuts } from './components/common/ProjectKeyboardShortcuts';
+ 
+ // Global state for overlay control
+ let setShowRotateOverlayGlobal: ((show: boolean) => void) | null = null;
+ let pendingZoomCallback: (() => void) | null = null;
+ 
+ // Export function to control overlay from other components
+ export const triggerRotateOverlay = (zoomCallback?: () => void) => {
+   // Add a micro-delay to ensure proper state management timing
+@@ -121,16 +123,17 @@
+   }, [showRotateOverlay]);
+ 
+   const handleDismissNotification = (id: string) => {
+     dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
+   };
+ 
+   return (
+     <>
++      <ProjectKeyboardShortcuts />
+       <Theme theme="white" className="opxy-theme">
+         <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-surface-tertiary)' }}>
+           <Content style={{ 
+             padding: isMobileDevice ? '0.5rem' : '2rem',
+             backgroundColor: 'var(--color-surface-tertiary)',
+             maxWidth: '1000px',
+             margin: '0 auto',
+             width: '100%',
+@@ -138,16 +141,17 @@
+           }}>
+             {currentRoute === 'feedback' ? (
+               <FeedbackPage />
+             ) : currentRoute === 'donate' ? (
+               <DonatePage />
+             ) : (
+               <>
+                 <AppHeader />
++                <ProjectToolbar />
+                 <div role={state.sessionSaveError ? 'alert' : 'status'} aria-live="polite" style={{padding:'0.5rem 0'}}>
+                   {state.sessionSaveStatus === 'checking' ? 'Checking saved work…' : state.sessionSaveStatus === 'saving' ? 'Saving…' : state.sessionSaveStatus === 'saved' ? 'Saved on this device' : null}
+                   {state.sessionSaveError && <span> Save failed: {state.sessionSaveError} <button onClick={() => void saveSession()} disabled={state.sessionSaveStatus === 'saving' || state.sessionSaveStatus === 'checking'}>Retry save</button></span>}
+                 </div>
+                 <MainTabs />
+                 
+                 <NotificationSystem 
+                   notifications={state.notifications}
+--- before/src/components/common/ProjectKeyboardShortcuts.tsx
++++ after/src/components/common/ProjectKeyboardShortcuts.tsx
+@@ -0,0 +1,32 @@
++import { useEffect } from 'react';
++import { useAppContext } from '../../context/AppContext';
++
++function isEditableTarget(target:EventTarget|null):boolean {
++  const element=target instanceof Element ? target : document.activeElement;
++  if(!(element instanceof Element)) return false;
++  return Boolean(element.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'));
++}
++
++function hasOpenDialog():boolean {
++  return Boolean(document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]'));
++}
++
++export function ProjectKeyboardShortcuts() {
++  const {dispatch}=useAppContext();
++  useEffect(()=>{
++    const onKeyDown=(event:KeyboardEvent) => {
++      if(event.repeat || event.isComposing || event.altKey || isEditableTarget(event.target) || hasOpenDialog()) return;
++      const modifier=event.metaKey || event.ctrlKey;
++      const key=event.key.toLowerCase();
++      const undo=modifier && key==='z' && !event.shiftKey;
++      const redo=(modifier && key==='z' && event.shiftKey) || (event.ctrlKey && !event.metaKey && !event.shiftKey && key==='y');
++      if(!undo && !redo) return;
++      event.preventDefault();
++      event.stopImmediatePropagation();
++      dispatch({type:undo?'UNDO':'REDO'});
++    };
++    document.addEventListener('keydown',onKeyDown,true);
++    return ()=>document.removeEventListener('keydown',onKeyDown,true);
++  },[dispatch]);
++  return null;
++}
+--- before/src/components/common/ProjectToolbar.tsx
++++ after/src/components/common/ProjectToolbar.tsx
+@@ -0,0 +1,58 @@
++import { useRef, useState } from 'react';
++import { useAppContext, useProjectHistory } from '../../context/AppContext';
++import { createProjectSnapshot } from '../../utils/projectSerialization';
++import { exportProjectArchive, importProjectArchive, projectArchiveFilename } from '../../utils/projectArchive';
++
++const buttonStyle={padding:'0.35rem 0.65rem',border:'1px solid var(--color-border-light)',borderRadius:'4px',background:'white',color:'var(--color-text-primary)',cursor:'pointer'} as const;
++
++export function ProjectToolbar() {
++  const {state,dispatch}=useAppContext();
++  const {canUndo,canRedo,historyLimited}=useProjectHistory();
++  const input=useRef<HTMLInputElement>(null);
++  const [busy,setBusy]=useState<'download'|'open'|null>(null);
++  const [message,setMessage]=useState<{kind:'status'|'error';text:string}|null>(null);
++
++  const download=async () => {
++    const snapshot=createProjectSnapshot(state);
++    const filename=projectArchiveFilename(state);
++    setBusy('download'); setMessage(null);
++    try {
++      const archive=await exportProjectArchive(snapshot);
++      const url=URL.createObjectURL(archive);
++      const anchor=document.createElement('a');
++      anchor.href=url; anchor.download=filename; anchor.click();
++      setTimeout(()=>URL.revokeObjectURL(url),0);
++      setMessage({kind:'status',text:`Downloaded project backup ${filename}`});
++    } catch(error) {
++      setMessage({kind:'error',text:`Could not download project: ${error instanceof Error?error.message:'unknown error'}`});
++    } finally { setBusy(null); }
++  };
++
++  const open=async (file:File|undefined) => {
++    if(!file) return;
++    setBusy('open'); setMessage(null);
++    try {
++      const project=await importProjectArchive(file);
++      dispatch({type:'IMPORT_PROJECT',payload:project});
++      setMessage({kind:'status',text:`Opened project backup ${file.name}`});
++    } catch(error) {
++      setMessage({kind:'error',text:`Could not open project: ${error instanceof Error?error.message:'unknown error'}. Your current project was kept.`});
++    } finally {
++      setBusy(null);
++      if(input.current) input.current.value='';
++    }
++  };
++
++  return <section aria-label="Project backup and history" style={{marginBottom:'0.75rem'}}>
++    <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',alignItems:'center'}}>
++      <button type="button" style={buttonStyle} disabled={busy!==null} onClick={()=>void download()}>Download project</button>
++      <button type="button" style={buttonStyle} disabled={busy!==null} onClick={()=>input.current?.click()}>Open project</button>
++      <input ref={input} aria-label="Project backup file" hidden type="file" accept=".opstudio,application/vnd.op-patchstudio.project+zip,application/zip" onChange={event=>void open(event.target.files?.[0])} />
++      <button type="button" style={buttonStyle} disabled={!canUndo || busy!==null} onClick={()=>dispatch({type:'UNDO'})} title="Undo (Ctrl/Cmd+Z)">Undo</button>
++      <button type="button" style={buttonStyle} disabled={!canRedo || busy!==null} onClick={()=>dispatch({type:'REDO'})} title="Redo (Shift+Ctrl/Cmd+Z)">Redo</button>
++    </div>
++    <small>Project backup includes editable audio and settings. Device patch downloads are available inside each instrument.</small>
++    {historyLimited && <div role="status">Earlier undo steps were discarded to keep memory use bounded.</div>}
++    {message && <div role={message.kind==='error'?'alert':'status'} aria-live="polite">{message.text}</div>}
++  </section>;
++}
+--- before/src/components/drum/DrumKeyboard.tsx
++++ after/src/components/drum/DrumKeyboard.tsx
+@@ -271,16 +271,17 @@
+     // Reset the input value so the same file can be selected again
+     if (fileInputRef.current) {
+       fileInputRef.current.value = '';
+     }
+   };
+ 
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
++      if (e.ctrlKey || e.metaKey || e.altKey) return;
+       // Check if user is typing in an input field
+       const activeElement = document.activeElement;
+       const isTyping = activeElement && (
+         activeElement.tagName === 'INPUT' ||
+         activeElement.tagName === 'TEXTAREA' ||
+         (activeElement as HTMLElement).contentEditable === 'true'
+       );
+       
+@@ -1097,9 +1098,9 @@
+               ))}
+             </div>
+           </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
+-} +}
+--- before/src/components/multisample/VirtualMidiKeyboard.tsx
++++ after/src/components/multisample/VirtualMidiKeyboard.tsx
+@@ -143,16 +143,17 @@
+       return activeElement && (
+         activeElement.tagName === 'INPUT' ||
+         activeElement.tagName === 'TEXTAREA' ||
+         activeElement.hasAttribute('contenteditable')
+       );
+     };
+ 
+     const handleKeyDown = (e: KeyboardEvent) => {
++      if (e.ctrlKey || e.metaKey || e.altKey) return;
+       // If user is typing, don't process keyboard shortcuts
+       if (isUserTyping()) {
+         return;
+       }
+       
+       const key = e.key.toLowerCase();
+       
+       // Prevent default for our mapped keys to avoid browser shortcuts
+@@ -186,21 +187,16 @@
+           }
+           // Do nothing if no sample is loaded - no visual feedback, no action calls
+           // This prevents any response when there's nothing to play
+         }
+       }
+     };
+ 
+     const handleKeyUp = (e: KeyboardEvent) => {
+-      // If user is typing, don't process keyboard shortcuts
+-      if (isUserTyping()) {
+-        return;
+-      }
+-      
+       const key = e.key.toLowerCase();
+       if (key in keyboardMapping || key === 'z' || key === 'x') {
+         setPressedKeys(prev => {
+           const newSet = new Set(prev);
+           newSet.delete(key);
+           return newSet;
+         });
+         
+@@ -1276,9 +1272,9 @@
+                 </div>
+               );
+             })()}
+           </div>
+         </div>
+       </div>
+     </>
+   );
+-} +}
+--- before/src/context/AppContext.tsx
++++ after/src/context/AppContext.tsx
+@@ -1,9 +1,10 @@
+-import { createContext, useContext, useReducer } from 'react';
++import { createContext, useContext, useReducer, useCallback } from 'react';
++import { createHistory, reduceHistory } from '../utils/projectHistory';
+ import type { ReactNode } from 'react';
+ import type { AudioMetadata } from '../utils/audioFormats';
+ import { midiNoteToString, parseFilename } from '../utils/audio';
+ import type { Notification } from '../components/common/NotificationSystem';
+ import { cookieUtils, COOKIE_KEYS } from '../utils/cookies';
+ import type { FilenameSeparator } from '../utils/constants';
+ import { loadDrumDefaultSettings, loadMultisampleDefaultSettings, loadDrumImportedPreset, loadMultisampleImportedPreset } from '../utils/defaultSettings';
+ import { applyZeroCrossingToMarkers } from '../utils/audio';
+@@ -154,16 +155,20 @@
+   sessionInfo: { timestamp: number; drumSamplesCount: number; multisampleFilesCount: number } | null;
+   
+   // MIDI note mapping convention
+   midiNoteMapping: 'C3' | 'C4';
+ }
+ 
+ // Define enhanced action types
+ export type AppAction = 
++  | {type:'UNDO' | 'REDO'}
++  | {type:'BEGIN_EDIT' | 'END_EDIT' | 'CANCEL_EDIT'; payload:string}
++  | {type:'BATCH_EDIT'; payload:AppAction[]}
++  | {type:'IMPORT_PROJECT'; payload:RestoredProject}
+   | { type: 'SET_TAB'; payload: 'drum' | 'multisample' | 'feedback' | 'library' | 'donate' }
+   | { type: 'SET_DRUM_SAMPLE_RATE'; payload: number }
+   | { type: 'SET_DRUM_BIT_DEPTH'; payload: number }
+   | { type: 'SET_DRUM_CHANNELS'; payload: number }
+   | { type: 'SET_DRUM_PRESET_NAME'; payload: string }
+   | { type: 'SET_DRUM_NORMALIZE'; payload: boolean }
+   | { type: 'SET_DRUM_NORMALIZE_LEVEL'; payload: number }
+   | { type: 'SET_DRUM_AUTO_ZERO_CROSSING'; payload: boolean }
+@@ -1270,16 +1275,17 @@
+         sessionLastSavedAt: action.payload.lastSavedAt === undefined ? state.sessionLastSavedAt : action.payload.lastSavedAt};
+     case 'RESTORE_LIBRARY': {
+       const {mode,project} = action.payload;
+       const restored = appReducer(state,{type:'RESTORE_SESSION',payload:project});
+       return mode === 'drum'
+         ? {...state,currentTab:'drum',drumSettings:restored.drumSettings,drumSamples:restored.drumSamples,importedDrumPreset:restored.importedDrumPreset}
+         : {...state,currentTab:'multisample',multisampleSettings:restored.multisampleSettings,multisampleFiles:restored.multisampleFiles,selectedMultisample:restored.selectedMultisample,importedMultisamplePreset:restored.importedMultisamplePreset};
+     }
++    case 'IMPORT_PROJECT':
+     case 'RESTORE_SESSION': {
+       // Create a properly sized drum samples array that can accommodate all samples
+       // Find the highest originalIndex to determine the array size
+       const maxIndex = Math.max(...action.payload.drumSamples.map(s => s.originalIndex), 23); // At least 24 slots
+       const restoredDrumSamples = Array.from({ length: maxIndex + 1 }, (_, index) => {
+         // If there's a restored sample at this index, use it; otherwise create proper initial state
+         const restoredSample = action.payload.drumSamples.find(s => s.originalIndex === index);
+         if (restoredSample) {
+@@ -1393,32 +1399,46 @@
+     }
+   }
+ }
+ 
+ // Export for testing
+ export { appReducer, initialState };
+ 
+ // Create context
+-const AppContext = createContext<{
++interface AppContextValue {
+   state: AppState;
+   dispatch: React.Dispatch<AppAction>;
+-} | null>(null);
++  canUndo:boolean; canRedo:boolean; historyLimited:boolean;
++  beginEdit: (token:string)=>void; endEdit:(token:string)=>void; cancelEdit:(token:string)=>void;
++}
++const AppContext = createContext<AppContextValue | null>(null);
+ 
+ // Provider component
+ export function AppContextProvider({ children }: { children: ReactNode }) {
+-  const [state, dispatch] = useReducer(appReducer, initialState);
++  const [history, dispatch] = useReducer((h:ReturnType<typeof createHistory>,a:AppAction)=>reduceHistory(h,a,appReducer), initialState, createHistory);
++  const state=history.present;
++  const beginEdit=useCallback((token:string)=>dispatch({type:'BEGIN_EDIT',payload:token}),[]);
++  const endEdit=useCallback((token:string)=>dispatch({type:'END_EDIT',payload:token}),[]);
++  const cancelEdit=useCallback((token:string)=>dispatch({type:'CANCEL_EDIT',payload:token}),[]);
+ 
+   return (
+-    <AppContext.Provider value={{ state, dispatch }}>
++    <AppContext.Provider value={{ state, dispatch,canUndo:history.past.length>0,canRedo:history.future.length>0,historyLimited:history.limited,beginEdit,endEdit,cancelEdit }}>
+       {children}
+     </AppContext.Provider>
+   );
+ }
+ 
+ // Custom hook to use the context
+ export function useAppContext() {
+   const context = useContext(AppContext);
+   if (!context) {
+     throw new Error('useAppContext must be used within AppContextProvider');
+   }
+-  return context;
++  return {state:context.state,dispatch:context.dispatch};
+ }
++
++export function useProjectHistory() {
++  const context = useContext(AppContext);
++  if (!context) throw new Error('useProjectHistory must be used within AppContextProvider');
++  const {canUndo,canRedo,historyLimited,beginEdit,endEdit,cancelEdit}=context;
++  return {canUndo,canRedo,historyLimited,beginEdit,endEdit,cancelEdit};
++}
+--- before/src/test/components/ProjectKeyboardShortcuts.test.tsx
++++ after/src/test/components/ProjectKeyboardShortcuts.test.tsx
+@@ -0,0 +1,49 @@
++import { fireEvent, render, screen } from '@testing-library/react';
++import { describe, expect, it } from 'vitest';
++import { ProjectKeyboardShortcuts } from '../../components/common/ProjectKeyboardShortcuts';
++import { AppContextProvider, useAppContext } from '../../context/AppContext';
++
++function Harness({dialog=false}:{dialog?:boolean}) {
++  const {state,dispatch}=useAppContext();
++  return <>
++    <ProjectKeyboardShortcuts />
++    <output aria-label="name">{state.drumSettings.presetName}</output>
++    <button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'A'})}>A</button>
++    <button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'B'})}>B</button>
++    <input aria-label="typing" />
++    <select aria-label="choice"><option>one</option></select>
++    <div aria-label="editor" contentEditable />
++    {dialog && <div role="dialog" aria-modal="true"><button>modal action</button></div>}
++  </>;
++}
++
++describe('project keyboard shortcuts', () => {
++  it('undoes and redoes once while ignoring repeats and IME composition', () => {
++    render(<AppContextProvider><Harness /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'A'})); fireEvent.click(screen.getByRole('button',{name:'B'}));
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('A');
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true,repeat:true});
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true,isComposing:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('A');
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true,shiftKey:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('B');
++    fireEvent.keyDown(document,{key:'z',metaKey:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('A');
++    fireEvent.keyDown(document,{key:'y',ctrlKey:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('B');
++  });
++
++  it('leaves editable controls and open dialogs in charge of their keys', () => {
++    const view=render(<AppContextProvider><Harness /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'A'}));
++    for(const target of [screen.getByLabelText('typing'),screen.getByLabelText('choice'),screen.getByLabelText('editor')]) {
++      target.focus(); fireEvent.keyDown(target,{key:'z',ctrlKey:true});
++      expect(screen.getByLabelText('name')).toHaveTextContent('A');
++    }
++    view.rerender(<AppContextProvider><Harness dialog /></AppContextProvider>);
++    screen.getByRole('button',{name:'modal action'}).focus();
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
++    expect(screen.getByLabelText('name')).toHaveTextContent('A');
++  });
++});
+--- before/src/test/components/ProjectToolbar.test.tsx
++++ after/src/test/components/ProjectToolbar.test.tsx
+@@ -0,0 +1,39 @@
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { describe, expect, it, vi } from 'vitest';
++import { ProjectToolbar } from '../../components/common/ProjectToolbar';
++import { AppContextProvider, useAppContext } from '../../context/AppContext';
++
++function Harness() {
++  const {state,dispatch}=useAppContext();
++  return <><ProjectToolbar /><output aria-label="project name">{state.drumSettings.presetName}</output><button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'Keep me'})}>edit</button></>;
++}
++
++describe('ProjectToolbar', () => {
++  it('offers clearly labelled backup and history controls', () => {
++    render(<AppContextProvider><Harness /></AppContextProvider>);
++    expect(screen.getByRole('button',{name:'Download project'})).toBeEnabled();
++    expect(screen.getByRole('button',{name:'Open project'})).toBeEnabled();
++    expect(screen.getByRole('button',{name:'Undo'})).toBeDisabled();
++    expect(screen.getByRole('button',{name:'Redo'})).toBeDisabled();
++    expect(screen.getByText(/project backup.*device patch/i)).toBeVisible();
++  });
++
++  it('downloads the click-time snapshot with a deterministic extension', async () => {
++    const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
++    render(<AppContextProvider><Harness /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'edit'}));
++    fireEvent.click(screen.getByRole('button',{name:'Download project'}));
++    await waitFor(()=>expect(click).toHaveBeenCalledOnce());
++    expect(URL.createObjectURL).toHaveBeenCalled();
++    click.mockRestore();
++  });
++
++  it('shows an actionable invalid-archive error without touching current work', async () => {
++    render(<AppContextProvider><Harness /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'edit'}));
++    const input=screen.getByLabelText('Project backup file');
++    fireEvent.change(input,{target:{files:[new File(['not a zip'],'broken.opstudio',{type:'application/zip'})]}});
++    expect(await screen.findByRole('alert')).toHaveTextContent(/could not open project/i);
++    expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
++  });
++});
+--- before/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
++++ after/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
+@@ -0,0 +1,24 @@
++import { fireEvent, render } from '@testing-library/react';
++import { describe, expect, it, vi } from 'vitest';
++import { VirtualMidiKeyboard } from '../../components/multisample/VirtualMidiKeyboard';
++import { AppContextProvider } from '../../context/AppContext';
++
++vi.mock('../../hooks/useWebMidi',()=>({useWebMidi:()=>({
++  onMidiEvent:vi.fn(()=>vi.fn()),state:{isInitialized:true,isConnecting:false,devices:[]},initialize:vi.fn(),refreshDevices:vi.fn(),
++})}));
++Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:vi.fn()});
++
++describe('VirtualMidiKeyboard global key ownership', () => {
++  it('ignores modified musical keys and releases a held note after focus moves', () => {
++    const onKeyClick=vi.fn(),onKeyRelease=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={onKeyClick} onKeyRelease={onKeyRelease} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    fireEvent.keyDown(document,{key:'a',ctrlKey:true});
++    expect(onKeyClick).not.toHaveBeenCalled();
++    fireEvent.keyDown(document,{key:'a'});
++    expect(onKeyClick).toHaveBeenCalledWith(72);
++    const input=document.createElement('input'); document.body.append(input); input.focus();
++    fireEvent.keyUp(document,{key:'a'});
++    expect(onKeyRelease).toHaveBeenCalledWith(72);
++    input.remove();
++  });
++});
+--- before/src/test/context/projectHistory.test.tsx
++++ after/src/test/context/projectHistory.test.tsx
+@@ -0,0 +1,112 @@
++import { act, renderHook } from '@testing-library/react';
++import { describe, expect, it } from 'vitest';
++import { AppContextProvider, useAppContext, useProjectHistory, type AppAction } from '../../context/AppContext';
++
++const wrapper = AppContextProvider;
++describe('project history through the real context', () => {
++  it('undoes musical edits while retaining UI and status, ignores no-ops and clears redo on new edits', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    send({type:'SET_DRUM_PRESET_NAME',payload:'Kit A'});
++    send({type:'SET_DRUM_PRESET_NAME',payload:'Kit A'});
++    send({type:'SET_TAB',payload:'multisample'});
++    send({type:'SET_SELECTED_MULTISAMPLE',payload:4});
++    send({type:'SET_SESSION_SAVE_STATUS',payload:{status:'saved'}});
++    send({type:'UNDO'});
++    expect(result.current.state.drumSettings.presetName).toBe('');
++    expect(result.current.state.currentTab).toBe('multisample');
++    expect(result.current.state.selectedMultisample).toBe(4);
++    expect(result.current.state.sessionSaveStatus).not.toBe('saved');
++    expect(result.current.canUndo).toBe(false);
++    send({type:'REDO'});
++    expect(result.current.state.drumSettings.presetName).toBe('Kit A');
++    send({type:'UNDO'}); send({type:'SET_DRUM_PRESET_NAME',payload:'Kit B'});
++    expect(result.current.canRedo).toBe(false);
++  });
++  it('groups explicit gestures and compound imports independently', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    send({type:'BEGIN_EDIT',payload:'drag-1'});
++    send({type:'SET_MULTISAMPLE_GAIN',payload:1}); send({type:'SET_MULTISAMPLE_GAIN',payload:4});
++    send({type:'END_EDIT',payload:'drag-1'});
++    send({type:'BEGIN_EDIT',payload:'drag-2'}); send({type:'SET_MULTISAMPLE_GAIN',payload:7}); send({type:'END_EDIT',payload:'drag-2'});
++    send({type:'UNDO'}); expect(result.current.state.multisampleSettings.gain).toBe(4);
++    send({type:'UNDO'}); expect(result.current.state.multisampleSettings.gain).toBe(0);
++    send({type:'BATCH_EDIT',payload:[{type:'SET_DRUM_PRESET_NAME',payload:'imported'},{type:'SET_IMPORTED_DRUM_PRESET',payload:{unknown:{fx:3}}}]});
++    send({type:'UNDO'}); expect(result.current.state.importedDrumPreset).toBeNull();
++    expect(result.current.state.drumSettings.presetName).toBe('');
++  });
++  it('retains sparse and overflow samples by asset identity through trim, gain and replacement', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const audio = new AudioContext().createBuffer(2,3,48000); audio.getChannelData(0)[0]=0.125;
++    const file = new File(['source'], 'kick.wav');
++    const metadata = {format:'wav' as const,sampleRate:48000,bitDepth:32,channels:2,duration:3/48000,fileSize:6,isFloat:true,audioBuffer:audio,midiNote:60,loopStart:0,loopEnd:0,hasLoopData:false};
++    const send = (action:AppAction) => act(() => result.current.dispatch(action));
++    send({type:'LOAD_DRUM_SAMPLE',payload:{index:5,audioBuffer:audio,file,metadata}});
++    send({type:'ADD_UNASSIGNED_DRUM_SAMPLE',payload:{audioBuffer:audio,file,metadata}});
++    send({type:'UPDATE_DRUM_SAMPLE',payload:{index:5,updates:{gain:8,inPoint:1/48000}}});
++    send({type:'UNDO'});
++    expect(result.current.state.drumSamples[5].gain).toBe(0);
++    expect(result.current.state.drumSamples[5].audioBuffer).toBe(audio);
++    expect(result.current.state.drumSamples[0].isLoaded).toBe(false);
++    expect(result.current.state.drumSamples[24].isAssigned).toBe(false);
++    send({type:'REDO'}); expect(result.current.state.drumSamples[5].gain).toBe(8);
++    expect(audio.getChannelData(0)[0]).toBe(0.125);
++  });
++  it('limits history to 100 entries', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    act(() => { for(let i=1;i<=105;i++) result.current.dispatch({type:'SET_DRUM_PRESET_NAME',payload:String(i)}); });
++    act(() => {for(let i=0;i<101;i++) result.current.dispatch({type:'UNDO'});});
++    expect(result.current.state.drumSettings.presetName).toBe('5');
++    expect(result.current.historyLimited).toBe(true);
++  });
++
++  it('separates overlapping gesture tokens into distinct undo steps', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    send({type:'BEGIN_EDIT',payload:'first-drag'});
++    send({type:'SET_MULTISAMPLE_GAIN',payload:2});
++    send({type:'BEGIN_EDIT',payload:'second-drag'});
++    send({type:'SET_MULTISAMPLE_GAIN',payload:6});
++    send({type:'END_EDIT',payload:'second-drag'});
++
++    send({type:'UNDO'});
++    expect(result.current.state.multisampleSettings.gain).toBe(2);
++    send({type:'UNDO'});
++    expect(result.current.state.multisampleSettings.gain).toBe(0);
++  });
++
++  it('does not resurrect redo assets evicted while a gesture is active', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    const audioLabels=new WeakMap<object,string>();
++    const fakeAudio = (label:string) => ({
++      label,
++      duration: 1,
++      length: 20 * 1024 * 1024,
++      numberOfChannels: 1,
++      sampleRate: 48000,
++      getChannelData: () => new Float32Array(0),
++    }) as unknown as AudioBuffer;
++    const makeAudio=(label:string) => { const value=fakeAudio(label); audioLabels.set(value,label); return value; };
++    const load = (audioBuffer:AudioBuffer) => send({
++      type:'LOAD_DRUM_SAMPLE',
++      payload:{index:0,audioBuffer,file:new File(['x'], `${audioLabels.get(audioBuffer) ?? 'sample'}.wav`),metadata:{format:'wav',sampleRate:48000,bitDepth:32,channels:1,duration:1,fileSize:1,isFloat:true,audioBuffer,midiNote:60,loopStart:0,loopEnd:0,hasLoopData:false}},
++    });
++
++    load(makeAudio('a'));
++    load(makeAudio('b'));
++    send({type:'UNDO'});
++    expect(result.current.canRedo).toBe(true);
++
++    send({type:'BEGIN_EDIT',payload:'replace'});
++    load(makeAudio('c'));
++    send({type:'CANCEL_EDIT',payload:'replace'});
++
++    expect(result.current.state.drumSamples[0].file?.name).toBe('a.wav');
++    expect(result.current.historyLimited).toBe(true);
++    expect(result.current.canRedo).toBe(false);
++    send({type:'REDO'});
++    expect(result.current.state.drumSamples[0].file?.name).toBe('a.wav');
++  });
++});
+--- before/src/test/utils/projectArchive.test.ts
++++ after/src/test/utils/projectArchive.test.ts
+@@ -0,0 +1,186 @@
++import JSZip from 'jszip';
++import { Blob as NodeBlob, File as NodeFile } from 'node:buffer';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { appReducer, initialState, type AppState, type DrumSample, type MultisampleFile } from '../../context/AppContext';
++import { createProjectSnapshot } from '../../utils/projectSerialization';
++import {
++  PROJECT_ARCHIVE_MANIFEST,
++  exportProjectArchive,
++  importProjectArchive,
++} from '../../utils/projectArchive';
++
++const bytes = async (blob:Blob) => new Uint8Array(await blob.arrayBuffer());
++const PositionalAudioBuffer:any=globalThis.AudioBuffer;
++
++beforeEach(() => {
++  vi.stubGlobal('Blob',NodeBlob);
++  vi.stubGlobal('File',NodeFile);
++  vi.stubGlobal('AudioBuffer',class extends PositionalAudioBuffer {
++    constructor(options:AudioBufferOptions) { super(options.numberOfChannels,options.length,options.sampleRate); }
++  });
++});
++afterEach(() => vi.unstubAllGlobals());
++
++function audio(channels:number[][], sampleRate=48000) {
++  const buffer = new AudioContext().createBuffer(channels.length, channels[0].length, sampleRate);
++  channels.forEach((values,index) => buffer.getChannelData(index).set(values));
++  return buffer;
++}
++
++function loadedDrum(index:number, name:string, buffer:AudioBuffer, source:number[], assigned=true):DrumSample {
++  return {
++    file:new File([new Uint8Array(source)],name,{type:'audio/wav',lastModified:1234+index}), audioBuffer:buffer,
++    name,isLoaded:true,inPoint:0,outPoint:buffer.duration,playmode:'gate',reverse:true,transpose:-3,pan:12,gain:4,
++    hasBeenEdited:true,isAssigned:assigned,assignedKey:assigned?index:undefined,originalBitDepth:32,
++    originalSampleRate:buffer.sampleRate,originalChannels:buffer.numberOfChannels,fileSize:source.length,duration:buffer.duration,isFloat:true,
++  };
++}
++
++function loadedMulti(name:string, buffer:AudioBuffer, source:number[]):MultisampleFile {
++  return {
++    file:new File([new Uint8Array(source)],name,{type:'audio/aiff',lastModified:9876}),audioBuffer:buffer,name,isLoaded:true,
++    rootNote:60,note:'C4',inPoint:0,outPoint:buffer.duration,loopStart:0,loopEnd:0,originalBitDepth:32,
++    originalSampleRate:buffer.sampleRate,originalChannels:buffer.numberOfChannels,fileSize:source.length,duration:buffer.duration,isFloat:true,
++  };
++}
++
++function projectState():AppState {
++  const stereo=audio([[0.125,-0,1.25],[-0.5,0.75,-1.5]]);
++  const overflow=audio([[0.25,-0.25]],44100);
++  const multi=audio([[0,-0,0.33333334],[-1,1,0.5]]);
++  const drumSamples=initialState.drumSamples.map(sample => ({...sample}));
++  drumSamples[5]=loadedDrum(5,'clap source.wav',stereo,[1,2,3,4]);
++  const overflowSample=loadedDrum(24,'overflow.wav',overflow,[9,8,7],false);
++  overflowSample.originalSampleRate=48000; overflowSample.originalChannels=2; overflowSample.duration=2/48000;
++  drumSamples.push(overflowSample);
++  return {
++    ...initialState,
++    drumSettings:{...structuredClone(initialState.drumSettings),presetName:'Round trip',presetSettings:{...initialState.drumSettings.presetSettings,volume:37}},
++    multisampleSettings:{...structuredClone(initialState.multisampleSettings),presetName:'Envelope test',ampEnvelope:{attack:1,decay:2,sustain:3,release:4},filterEnvelope:{attack:5,decay:6,sustain:7,release:8}},
++    drumSamples,multisampleFiles:[loadedMulti('C4 source.aif',multi,[6,5,4,3,2,1])],
++    importedDrumPreset:{type:'drum',unknown:{vendorFx:91}},importedMultisamplePreset:{type:'multisampler',unknown:{vendorMode:'future'}},midiNoteMapping:'C4',
++  };
++}
++
++async function rewriteManifest(blob:Blob, change:(manifest:any)=>void) {
++  const zip=await JSZip.loadAsync(await bytes(blob));
++  const manifest=JSON.parse(await zip.file(PROJECT_ARCHIVE_MANIFEST)!.async('string'));
++  change(manifest);
++  zip.file(PROJECT_ARCHIVE_MANIFEST,JSON.stringify(manifest));
++  return new Blob([await zip.generateAsync({type:'uint8array'})],{type:'application/zip'});
++}
++
++describe('portable project archive', () => {
++  it('round trips sparse and overflow samples, exact stereo audio, settings, unknown imports and source bytes', async () => {
++    const archive=await exportProjectArchive(createProjectSnapshot(projectState()));
++    const restored=await importProjectArchive(archive);
++    const sparse=restored.drumSamples.find(sample => sample.originalIndex===5)!;
++    const overflow=restored.drumSamples.find(sample => sample.originalIndex===24)!;
++
++    expect(restored.drumSamples.map(sample => sample.originalIndex)).toEqual([5,24]);
++    expect(overflow.isAssigned).toBe(false);
++    expect(overflow.audioBuffer!.sampleRate).toBe(44100);
++    expect(overflow.originalSampleRate).toBe(48000);
++    expect(overflow.originalChannels).toBe(2);
++    expect(Array.from(sparse.audioBuffer!.getChannelData(0))).toEqual([0.125,-0,1.25]);
++    expect(Array.from(sparse.audioBuffer!.getChannelData(1))).toEqual([-0.5,0.75,-1.5]);
++    expect(sparse.audioBuffer!.sampleRate).toBe(48000);
++    expect(sparse.file?.name).toBe('clap source.wav');
++    expect(sparse.file?.type).toBe('audio/wav');
++    expect(sparse.file?.lastModified).toBe(1239);
++    expect(Array.from(await bytes(sparse.file!))).toEqual([1,2,3,4]);
++    expect(restored.multisampleFiles[0].loopStart).toBe(0);
++    expect(restored.multisampleFiles[0].loopEnd).toBe(0);
++    expect(restored.multisampleSettings.ampEnvelope).toEqual({attack:1,decay:2,sustain:3,release:4});
++    expect(restored.multisampleSettings.filterEnvelope).toEqual({attack:5,decay:6,sustain:7,release:8});
++    expect(restored.importedDrumPreset.unknown.vendorFx).toBe(91);
++    expect(restored.importedMultisamplePreset.unknown.vendorMode).toBe('future');
++  });
++
++  it('round trips the live original-format sentinel for both instruments', async () => {
++    const state=projectState();
++    state.drumSettings={...state.drumSettings,sampleRate:0,bitDepth:0,channels:0};
++    state.multisampleSettings={...state.multisampleSettings,sampleRate:0,bitDepth:0,channels:0};
++    const restored=await importProjectArchive(await exportProjectArchive(createProjectSnapshot(state)));
++    expect(restored.drumSettings).toMatchObject({sampleRate:0,bitDepth:0,channels:0});
++    expect(restored.multisampleSettings).toMatchObject({sampleRate:0,bitDepth:0,channels:0});
++  });
++
++  it.each([
++    ['unsupported version',(m:any)=>{m.version=2}],
++    ['invalid settings',(m:any)=>{m.project.drumSettings.sampleRate='fast'}],
++    ['missing reference',(m:any)=>{m.project.drumSamples[0].sampleId='missing'}],
++    ['invalid dimensions',(m:any)=>{m.project.drumSamples[0].originalIndex=513}],
++  ])('rejects %s before returning a project', async (_name,change) => {
++    const archive=await rewriteManifest(await exportProjectArchive(createProjectSnapshot(projectState())),change);
++    await expect(importProjectArchive(archive)).rejects.toThrow();
++  });
++
++  it('rejects missing, truncated, mismatched and nonfinite audio payloads', async () => {
++    const base=await exportProjectArchive(createProjectSnapshot(projectState()));
++    const variants:Blob[]=[];
++    for(const mode of ['missing','truncated','mismatch','nonfinite'] as const) {
++      const zip=await JSZip.loadAsync(await bytes(base));
++      const manifest=JSON.parse(await zip.file(PROJECT_ARCHIVE_MANIFEST)!.async('string'));
++      const path=manifest.samples[0].audioPath;
++      const payload=await zip.file(path)!.async('uint8array');
++      if(mode==='missing') zip.remove(path);
++      if(mode==='truncated') zip.file(path,payload.slice(0,-1));
++      if(mode==='mismatch') { const view=new DataView(payload.buffer,payload.byteOffset,payload.byteLength); view.setUint32(8,3,true); zip.file(path,payload); }
++      if(mode==='nonfinite') { const view=new DataView(payload.buffer,payload.byteOffset,payload.byteLength); view.setFloat32(24,Number.NaN,true); zip.file(path,payload); }
++      variants.push(new Blob([await zip.generateAsync({type:'uint8array'})],{type:'application/zip'}));
++    }
++    for(const variant of variants) await expect(importProjectArchive(variant)).rejects.toThrow();
++  });
++
++  it('rejects traversal, duplicate raw names, undeclared entries and oversized declared payloads', async () => {
++    const base=await exportProjectArchive(createProjectSnapshot(projectState()));
++    const extra=await JSZip.loadAsync(await bytes(base)); extra.file('../outside.txt','bad');
++    await expect(importProjectArchive(new Blob([await extra.generateAsync({type:'uint8array'})]))).rejects.toThrow(/path/i);
++
++    const undeclared=await JSZip.loadAsync(await bytes(base)); undeclared.file('surprise.txt','bad');
++    await expect(importProjectArchive(new Blob([await undeclared.generateAsync({type:'uint8array'})]))).rejects.toThrow(/unexpected/i);
++
++    const duplicateZip=new JSZip(); duplicateZip.file('a','one'); duplicateZip.file('b','two');
++    const duplicate=await duplicateZip.generateAsync({type:'uint8array'});
++    for(let i=0;i<=duplicate.length-4;i++) {
++      const signature=new DataView(duplicate.buffer,duplicate.byteOffset+i,4).getUint32(0,true);
++      if((signature===0x04034b50 || signature===0x02014b50) && duplicate[i+(signature===0x04034b50?30:46)]===98) duplicate[i+(signature===0x04034b50?30:46)]=97;
++    }
++    await expect(importProjectArchive(new Blob([duplicate]))).rejects.toThrow(/duplicate/i);
++
++    const oversized=await bytes(base);
++    for(let i=0;i<oversized.length-46;i++) if(new DataView(oversized.buffer,oversized.byteOffset+i,4).getUint32(0,true)===0x02014b50) {
++      const view=new DataView(oversized.buffer,oversized.byteOffset+i,46);
++      view.setUint32(20,0x30000000,true); view.setUint32(24,0x30000000,true); break;
++    }
++    await expect(importProjectArchive(new Blob([oversized]))).rejects.toThrow(/large|size/i);
++  });
++
++  it('counts repeated audio references toward the decoded byte budget', async () => {
++    const oneMiB=audio([new Array((1024*1024-24)/4).fill(0)]);
++    const sample=loadedDrum(0,'shared.wav',oneMiB,[1]);
++    const state={...projectState(),drumSamples:[sample],multisampleFiles:[]} as AppState;
++    const base=await exportProjectArchive(createProjectSnapshot(state));
++    const repeated=await rewriteManifest(base,(manifest:any)=>{
++      const original=manifest.samples[0];
++      const originalReference=manifest.project.drumSamples[0];
++      manifest.samples=[];
++      manifest.project.drumSamples=[];
++      for(let index=0;index<129;index++) {
++        const id=`repeat-${index}`;
++        manifest.samples.push({...original,id});
++        manifest.project.drumSamples.push({...originalReference,originalIndex:index,sampleId:id});
++      }
++    });
++    await expect(importProjectArchive(repeated)).rejects.toThrow(/decoded audio|audio.*large/i);
++  });
++
++  it('keeps reducer state unchanged when archive validation rejects', async () => {
++    const before=projectState();
++    const invalid=await rewriteManifest(await exportProjectArchive(createProjectSnapshot(before)),m=>{m.version=99});
++    let after=before;
++    try { after=appReducer(before,{type:'IMPORT_PROJECT',payload:await importProjectArchive(invalid)}); } catch {}
++    expect(after).toBe(before);
++  });
++});
+--- before/src/utils/projectArchive.ts
++++ after/src/utils/projectArchive.ts
+@@ -0,0 +1,313 @@
++import JSZip from 'jszip';
++import type { AppState } from '../context/AppContext';
++import type { SampleData, SessionData } from './indexedDB';
++import { defaultDrumSettings, defaultMultisampleSettings } from './defaultSettings';
++import { deserializeProject, serializeProject, type ProjectSnapshot, type RestoredProject } from './projectSerialization';
++
++export const PROJECT_ARCHIVE_MANIFEST = 'manifest.json';
++export const PROJECT_ARCHIVE_TYPE = 'application/vnd.op-patchstudio.project+zip';
++export const PROJECT_ARCHIVE_VERSION = 1;
++export const PROJECT_ARCHIVE_LIMITS = {
++  archiveBytes: 256 * 1024 * 1024,
++  entries: 520,
++  entryBytes: 128 * 1024 * 1024,
++  uncompressedBytes: 256 * 1024 * 1024,
++  manifestBytes: 2 * 1024 * 1024,
++  samples: 256,
++  decodedAudioBytes: 128 * 1024 * 1024,
++  drumSlots: 512,
++} as const;
++
++type JsonRecord = Record<string, unknown>;
++type ArchiveSample = Omit<SampleData, 'data' | 'sourceFile' | 'createdAt'> & {
++  audioPath:string;
++  sourcePath?:string;
++  audio:{bytes:number;channels:number;frames:number;sampleRate:number};
++};
++interface ArchiveManifestV1 {
++  format:'op-patchstudio-project';
++  version:1;
++  project:Omit<SessionData, 'id' | 'timestamp' | 'version' | 'savedToLibrary'>;
++  samples:ArchiveSample[];
++}
++interface ZipEntryInfo {name:string; compressedSize:number; uncompressedSize:number; method:number; localOffset:number; directory:boolean}
++
++function isRecord(value:unknown):value is JsonRecord {
++  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
++}
++
++function requireSafeInteger(value:unknown, min:number, max:number, label:string):number {
++  if(!Number.isSafeInteger(value) || (value as number)<min || (value as number)>max) throw new Error(`Invalid ${label}`);
++  return value as number;
++}
++
++function requireFinite(value:unknown, label:string):number {
++  if(typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`Invalid ${label}`);
++  return value;
++}
++
++function requireString(value:unknown, label:string, max=1024):string {
++  if(typeof value !== 'string' || !value.length || value.length>max) throw new Error(`Invalid ${label}`);
++  return value;
++}
++
++function validateJson(value:unknown, label:string, depth=0):void {
++  if(depth>32) throw new Error(`${label} is too deeply nested`);
++  if(value===null || typeof value==='string' || typeof value==='boolean') return;
++  if(typeof value==='number') { requireFinite(value,label); return; }
++  if(Array.isArray(value)) { if(value.length>10000) throw new Error(`${label} contains too many values`); value.forEach((item,index)=>validateJson(item,`${label}[${index}]`,depth+1)); return; }
++  if(!isRecord(value) || Object.keys(value).length>10000) throw new Error(`Invalid ${label}`);
++  for(const [key,item] of Object.entries(value)) { if(key.length>1024) throw new Error(`Invalid ${label} key`); validateJson(item,`${label}.${key}`,depth+1); }
++}
++
++function validateLike(value:unknown, template:unknown, label:string):void {
++  if(typeof template==='number') { requireFinite(value,label); return; }
++  if(typeof template==='string' || typeof template==='boolean') { if(typeof value!==typeof template) throw new Error(`Invalid ${label}`); return; }
++  if(isRecord(template)) {
++    if(!isRecord(value)) throw new Error(`Invalid ${label}`);
++    for(const [key,item] of Object.entries(template)) validateLike(value[key],item,`${label}.${key}`);
++    validateJson(value,label);
++    return;
++  }
++  throw new Error(`Invalid ${label}`);
++}
++
++function validateSettings(project:JsonRecord):void {
++  validateLike(project.drumSettings,defaultDrumSettings,'drum settings');
++  validateLike(project.multisampleSettings,defaultMultisampleSettings,'multisample settings');
++  const drum=project.drumSettings as AppState['drumSettings'];
++  const multi=project.multisampleSettings as AppState['multisampleSettings'];
++  for(const [label,settings] of [['drum',drum],['multisample',multi]] as const) {
++    if(![0,11025,22050,44100].includes(settings.sampleRate)) throw new Error(`Invalid ${label} sample rate`);
++    if(![0,8,12,16,24].includes(settings.bitDepth)) throw new Error(`Invalid ${label} bit depth`);
++    if(![0,1,2].includes(settings.channels)) throw new Error(`Invalid ${label} channels`);
++    if(!['wav','aiff'].includes(settings.audioFormat)) throw new Error(`Invalid ${label} audio format`);
++    if(![' ','-'].includes(settings.filenameSeparator)) throw new Error(`Invalid ${label} filename separator`);
++  }
++  if(!['poly','mono','legato'].includes(drum.presetSettings.playmode) || !['poly','mono','legato'].includes(multi.playmode) ||
++     !['linear','exponential'].includes(multi.portamentoType)) throw new Error('Invalid project play mode setting');
++  for(const envelope of [multi.ampEnvelope,multi.filterEnvelope]) for(const [key,value] of Object.entries(envelope)) requireSafeInteger(value,0,32767,`envelope ${key}`);
++}
++
++function safeArchivePath(value:unknown,label:string):string {
++  const path=requireString(value,label,512);
++  if(path.includes('\\') || path.includes('\0') || path.startsWith('/') || /^[a-z]:/i.test(path) || path.split('/').some(part=>!part || part==='.' || part==='..')) throw new Error(`Unsafe archive path: ${path}`);
++  return path;
++}
++
++function findEocd(bytes:Uint8Array):number {
++  const min=Math.max(0,bytes.length-65557);
++  for(let offset=bytes.length-22;offset>=min;offset--) {
++    if(new DataView(bytes.buffer,bytes.byteOffset+offset,4).getUint32(0,true)===0x06054b50) {
++      const comment=new DataView(bytes.buffer,bytes.byteOffset+offset,22).getUint16(20,true);
++      if(offset+22+comment===bytes.length) return offset;
++    }
++  }
++  throw new Error('Invalid ZIP end record');
++}
++
++function decodeName(bytes:Uint8Array):string {
++  try { return new TextDecoder('utf-8',{fatal:true}).decode(bytes); }
++  catch { throw new Error('Invalid ZIP entry name'); }
++}
++
++/** Inspect the central directory before JSZip is allowed to inflate any entry. */
++function inspectZip(bytes:Uint8Array):Map<string,ZipEntryInfo> {
++  const eocd=findEocd(bytes),end=new DataView(bytes.buffer,bytes.byteOffset+eocd,22);
++  const disk=end.getUint16(4,true),centralDisk=end.getUint16(6,true),diskEntries=end.getUint16(8,true),entryCount=end.getUint16(10,true);
++  const centralSize=end.getUint32(12,true),centralOffset=end.getUint32(16,true);
++  if(disk!==0 || centralDisk!==0 || diskEntries!==entryCount || entryCount===0xffff || centralSize===0xffffffff || centralOffset===0xffffffff) throw new Error('Unsupported multi-disk or ZIP64 project archive');
++  if(entryCount<1 || entryCount>PROJECT_ARCHIVE_LIMITS.entries || centralOffset+centralSize>eocd) throw new Error('Project archive has invalid entry dimensions');
++  const found=new Map<string,ZipEntryInfo>(),folded=new Set<string>(); let offset=centralOffset,total=0;
++  for(let index=0;index<entryCount;index++) {
++    if(offset+46>bytes.length) throw new Error('Truncated ZIP directory');
++    const view=new DataView(bytes.buffer,bytes.byteOffset+offset,46);
++    if(view.getUint32(0,true)!==0x02014b50) throw new Error('Invalid ZIP directory entry');
++    const flags=view.getUint16(8,true),method=view.getUint16(10,true),compressedSize=view.getUint32(20,true),uncompressedSize=view.getUint32(24,true);
++    const nameLength=view.getUint16(28,true),extraLength=view.getUint16(30,true),commentLength=view.getUint16(32,true),localOffset=view.getUint32(42,true);
++    const endOffset=offset+46+nameLength+extraLength+commentLength;
++    if(endOffset>bytes.length || (flags&~0x0800)!==0 || method!==0 || compressedSize!==uncompressedSize || compressedSize===0xffffffff) throw new Error('Project archive v1 only supports uncompressed STORE entries');
++    const name=decodeName(bytes.subarray(offset+46,offset+46+nameLength));
++    safeArchivePath(name.endsWith('/')?name.slice(0,-1):name,'ZIP entry');
++    const foldedName=name.toLocaleLowerCase('en-US');
++    if(found.has(name) || folded.has(foldedName)) throw new Error(`Duplicate archive path: ${name}`);
++    if(uncompressedSize>PROJECT_ARCHIVE_LIMITS.entryBytes) throw new Error(`Archive entry is too large: ${name}`);
++    total+=uncompressedSize;
++    if(!Number.isSafeInteger(total) || total>PROJECT_ARCHIVE_LIMITS.uncompressedBytes) throw new Error('Project archive expands beyond the size limit');
++    if(localOffset+30>bytes.length) throw new Error('Invalid ZIP local entry');
++    const local=new DataView(bytes.buffer,bytes.byteOffset+localOffset,30);
++    if(local.getUint32(0,true)!==0x04034b50 || local.getUint16(6,true)!==flags || local.getUint16(8,true)!==method || local.getUint32(18,true)!==compressedSize || local.getUint32(22,true)!==uncompressedSize || local.getUint32(14,true)!==view.getUint32(16,true)) throw new Error('Mismatched ZIP local entry');
++    const localNameLength=local.getUint16(26,true),localExtraLength=local.getUint16(28,true);
++    if(localOffset+30+localNameLength+localExtraLength+compressedSize>bytes.length || decodeName(bytes.subarray(localOffset+30,localOffset+30+localNameLength))!==name) throw new Error('Mismatched ZIP entry name or size');
++    found.set(name,{name,compressedSize,uncompressedSize,method,localOffset,directory:name.endsWith('/')});
++    folded.add(foldedName); offset=endOffset;
++  }
++  if(offset!==centralOffset+centralSize) throw new Error('Invalid ZIP central directory size');
++  return found;
++}
++
++function inspectAudio(bytes:Uint8Array,label:string) {
++  if(bytes.byteLength<24) throw new Error(`Truncated audio payload: ${label}`);
++  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
++  if(view.getUint32(0,true)!==0x5341504f || view.getUint32(4,true)!==1) throw new Error(`Invalid stored audio header: ${label}`);
++  const channels=view.getUint32(8,true),frames=view.getUint32(12,true),sampleRate=view.getFloat64(16,true);
++  const expected=24+channels*frames*4;
++  if(channels<1 || channels>32 || frames<1 || !Number.isSafeInteger(expected) || expected!==bytes.byteLength || !Number.isFinite(sampleRate) || sampleRate<8000 || sampleRate>768000) throw new Error(`Invalid stored audio dimensions: ${label}`);
++  for(let offset=24;offset<bytes.length;offset+=4) if(!Number.isFinite(view.getFloat32(offset,true))) throw new Error(`Nonfinite audio sample: ${label}`);
++  return {channels,frames,sampleRate,duration:frames/sampleRate};
++}
++
++function validateDrumReference(value:unknown,sampleIds:Set<string>):asserts value is SessionData['drumSamples'][number] {
++  if(!isRecord(value)) throw new Error('Invalid drum sample reference');
++  requireSafeInteger(value.originalIndex,0,PROJECT_ARCHIVE_LIMITS.drumSlots-1,'drum sample index');
++  const id=requireString(value.sampleId,'drum sample ID'); if(!sampleIds.has(id)) throw new Error(`Missing sample reference: ${id}`);
++  if(typeof value.isAssigned!=='boolean' || !isRecord(value.settings)) throw new Error('Invalid drum sample assignment or settings');
++  if(value.assignedKey!==undefined) requireSafeInteger(value.assignedKey,0,23,'assigned drum key');
++  const settings=value.settings;
++  for(const key of ['inPoint','outPoint','transpose','pan','gain']) requireFinite(settings[key],`drum sample ${key}`);
++  if(typeof settings.reverse!=='boolean' || typeof settings.hasBeenEdited!=='boolean' || !['oneshot','group','loop','gate'].includes(String(settings.playmode))) throw new Error('Invalid drum sample settings');
++}
++
++function validateMultiReference(value:unknown,sampleIds:Set<string>):asserts value is SessionData['multisampleFiles'][number] {
++  if(!isRecord(value)) throw new Error('Invalid multisample reference');
++  const id=requireString(value.sampleId,'multisample ID'); if(!sampleIds.has(id)) throw new Error(`Missing sample reference: ${id}`);
++  requireSafeInteger(value.rootNote,0,127,'root note');
++  for(const key of ['inPoint','outPoint','loopStart','loopEnd']) requireFinite(value[key],`multisample ${key}`);
++  requireString(value.fileName,'multisample filename');
++}
++
++function validateManifest(raw:unknown,entries:Map<string,ZipEntryInfo>):ArchiveManifestV1 {
++  if(!isRecord(raw) || raw.format!=='op-patchstudio-project') throw new Error('This is not an OP-PatchStudio project');
++  if(raw.version!==PROJECT_ARCHIVE_VERSION) throw new Error(`Unsupported project archive version: ${String(raw.version)}`);
++  if(!isRecord(raw.project) || !Array.isArray(raw.samples) || raw.samples.length>PROJECT_ARCHIVE_LIMITS.samples) throw new Error('Invalid project archive manifest');
++  validateSettings(raw.project);
++  validateJson(raw.project.importedDrumPreset ?? null,'imported drum settings');
++  validateJson(raw.project.importedMultisamplePreset ?? null,'imported multisample settings');
++  if(!['C3','C4'].includes(String(raw.project.midiNoteMapping)) || typeof raw.project.isDrumKeyboardPinned!=='boolean' || typeof raw.project.isMultisampleKeyboardPinned!=='boolean') throw new Error('Invalid project mapping settings');
++  if(raw.project.selectedMultisample!==null && raw.project.selectedMultisample!==undefined) requireSafeInteger(raw.project.selectedMultisample,0,PROJECT_ARCHIVE_LIMITS.samples-1,'selected multisample');
++
++  const sampleIds=new Set<string>(),expected=new Set<string>([PROJECT_ARCHIVE_MANIFEST]);
++  for(const value of raw.samples) {
++    if(!isRecord(value)) throw new Error('Invalid archive sample');
++    const id=requireString(value.id,'sample ID'); if(sampleIds.has(id)) throw new Error(`Duplicate sample ID: ${id}`); sampleIds.add(id);
++    requireString(value.name,'sample name'); if(typeof value.type!=='string' || value.type.length>256) throw new Error('Invalid sample media type');
++    requireSafeInteger(value.size,0,PROJECT_ARCHIVE_LIMITS.entryBytes,'source size');
++    if(!isRecord(value.metadata)) throw new Error('Invalid sample metadata');
++    requireSafeInteger(value.metadata.channels,1,32,'sample channels'); requireSafeInteger(value.metadata.sampleRate,8000,768000,'sample rate');
++    requireSafeInteger(value.metadata.bitDepth,1,64,'sample bit depth'); requireFinite(value.metadata.duration,'sample duration');
++    if(!isRecord(value.audio)) throw new Error('Invalid actual audio dimensions');
++    requireSafeInteger(value.audio.bytes,25,PROJECT_ARCHIVE_LIMITS.entryBytes,'audio bytes');
++    requireSafeInteger(value.audio.channels,1,32,'audio channels'); requireSafeInteger(value.audio.frames,1,0xffffffff,'audio frames');
++    requireFinite(value.audio.sampleRate,'audio sample rate');
++    const audioPath=safeArchivePath(value.audioPath,'audio path'); expected.add(audioPath);
++    if(value.sourcePath!==undefined) expected.add(safeArchivePath(value.sourcePath,'source path'));
++  }
++  if(!Array.isArray(raw.project.drumSamples) || !Array.isArray(raw.project.multisampleFiles) || raw.project.drumSamples.length+raw.project.multisampleFiles.length>PROJECT_ARCHIVE_LIMITS.samples) throw new Error('Project contains too many sample references');
++  raw.project.drumSamples.forEach(value=>validateDrumReference(value,sampleIds));
++  raw.project.multisampleFiles.forEach(value=>validateMultiReference(value,sampleIds));
++  const referenced=new Map<string,number>();
++  for(const ref of [...raw.project.drumSamples,...raw.project.multisampleFiles]) referenced.set(ref.sampleId,(referenced.get(ref.sampleId)??0)+1);
++  for(const id of sampleIds) if(!referenced.has(id)) throw new Error(`Unreferenced sample entry: ${id}`);
++  for(const name of entries.keys()) if(!entries.get(name)!.directory && !expected.has(name)) throw new Error(`Unexpected archive entry: ${name}`);
++  for(const path of expected) if(!entries.has(path) || entries.get(path)!.directory) throw new Error(`Missing archive entry: ${path}`);
++  let decodedAudioBytes=0;
++  for(const sample of raw.samples as unknown as ArchiveSample[]) {
++    if(entries.get(sample.audioPath)!.uncompressedSize!==sample.audio.bytes) throw new Error(`Audio entry size mismatch: ${sample.name}`);
++    decodedAudioBytes+=sample.audio.bytes*(referenced.get(sample.id)??0);
++    if(!Number.isSafeInteger(decodedAudioBytes) || decodedAudioBytes>PROJECT_ARCHIVE_LIMITS.decodedAudioBytes) throw new Error('Project decoded audio is too large');
++  }
++  return raw as unknown as ArchiveManifestV1;
++}
++
++async function blobBytes(blob:Blob):Promise<Uint8Array> {
++  if(blob.size>PROJECT_ARCHIVE_LIMITS.archiveBytes) throw new Error('Project archive is too large');
++  return new Uint8Array(await blob.arrayBuffer());
++}
++
++export async function exportProjectArchive(snapshot:ProjectSnapshot):Promise<Blob> {
++  const {session,samples}=serializeProject(snapshot,'portable-project');
++  const project:ArchiveManifestV1['project']={
++    drumSettings:session.drumSettings,multisampleSettings:session.multisampleSettings,drumSamples:session.drumSamples,
++    multisampleFiles:session.multisampleFiles,selectedMultisample:session.selectedMultisample,
++    isDrumKeyboardPinned:session.isDrumKeyboardPinned,isMultisampleKeyboardPinned:session.isMultisampleKeyboardPinned,
++    importedDrumPreset:session.importedDrumPreset,importedMultisamplePreset:session.importedMultisamplePreset,midiNoteMapping:session.midiNoteMapping,
++  };
++  const zip=new JSZip(),audioPaths=new Map<Blob,string>(),sourcePaths=new Map<Blob,string>();
++  const manifestSamples:ArchiveSample[]=[];
++  const addAsset=async (blob:Blob,kind:'audio'|'source',index:number,map:Map<Blob,string>,prepared?:Uint8Array) => {
++    let path=map.get(blob);
++    if(!path) {
++      path=`assets/${kind}-${String(index).padStart(4,'0')}.${kind==='audio'?'opfloat':'bin'}`;
++      map.set(blob,path);
++      zip.file(path,prepared??new Uint8Array(await blob.arrayBuffer()),{binary:true,createFolders:false});
++    }
++    return path;
++  };
++  for(let index=0;index<samples.length;index++) {
++    const sample=samples[index],{data,sourceFile}=sample;
++    const dataBytes=new Uint8Array(await data.arrayBuffer()),audioInfo=inspectAudio(dataBytes,sample.name);
++    const audioPath=await addAsset(data,'audio',index,audioPaths,dataBytes);
++    const sourcePath=sourceFile?.size ? await addAsset(sourceFile,'source',index,sourcePaths) : undefined;
++    manifestSamples.push({id:sample.id,name:sample.name,type:sample.type,size:sourceFile?.size??sample.size,sourceLastModified:sample.sourceLastModified,
++      metadata:sample.metadata,tags:sample.tags,audioPath,sourcePath,
++      audio:{bytes:dataBytes.byteLength,channels:audioInfo.channels,frames:audioInfo.frames,sampleRate:audioInfo.sampleRate}});
++  }
++  const manifest:ArchiveManifestV1={format:'op-patchstudio-project',version:1,project,samples:manifestSamples};
++  const manifestJson=JSON.stringify(manifest);
++  validateJson(JSON.parse(manifestJson),'project manifest');
++  zip.file(PROJECT_ARCHIVE_MANIFEST,manifestJson,{createFolders:false});
++  const generated=await zip.generateAsync({type:'uint8array',compression:'STORE',platform:'DOS'});
++  if(generated.byteLength>PROJECT_ARCHIVE_LIMITS.archiveBytes) throw new Error('Project archive is too large to download');
++  const entries=inspectZip(generated);
++  validateManifest(manifest,entries);
++  return new Blob([generated],{type:PROJECT_ARCHIVE_TYPE});
++}
++
++export async function importProjectArchive(blob:Blob):Promise<RestoredProject> {
++  const raw=await blobBytes(blob),entries=inspectZip(raw);
++  const manifestInfo=entries.get(PROJECT_ARCHIVE_MANIFEST);
++  if(!manifestInfo || manifestInfo.directory || manifestInfo.uncompressedSize>PROJECT_ARCHIVE_LIMITS.manifestBytes) throw new Error('Project manifest is missing or too large');
++  const zip=await JSZip.loadAsync(raw,{checkCRC32:true,createFolders:false});
++  const manifestFile=zip.file(PROJECT_ARCHIVE_MANIFEST);
++  if(!manifestFile) throw new Error('Project manifest is missing');
++  let parsed:unknown;
++  try { parsed=JSON.parse(await manifestFile.async('string')); }
++  catch { throw new Error('Project manifest is not valid JSON'); }
++  const manifest=validateManifest(parsed,entries);
++  const extracted=new Map<string,Promise<Uint8Array>>();
++  const extract=(path:string) => {
++    let pending=extracted.get(path);
++    if(!pending) {
++      const file=zip.file(path); if(!file) throw new Error(`Missing archive entry: ${path}`);
++      pending=file.async('uint8array').then(value=>{ if(value.byteLength!==entries.get(path)!.uncompressedSize) throw new Error(`Archive entry size mismatch: ${path}`); return value; });
++      extracted.set(path,pending);
++    }
++    return pending;
++  };
++  const sampleMap=new Map<string,SampleData>();
++  for(const sample of manifest.samples) {
++    const audioBytes=await extract(sample.audioPath),audioInfo=inspectAudio(audioBytes,sample.name);
++    if(audioInfo.channels!==sample.audio.channels || audioInfo.frames!==sample.audio.frames || audioInfo.sampleRate!==sample.audio.sampleRate || audioBytes.byteLength!==sample.audio.bytes) throw new Error(`Actual audio dimensions mismatch: ${sample.name}`);
++    const sourceBytes=sample.sourcePath ? await extract(sample.sourcePath) : undefined;
++    if(sourceBytes && sourceBytes.byteLength!==sample.size) throw new Error(`Source size mismatch: ${sample.name}`);
++    sampleMap.set(sample.id,{...sample,data:new Blob([audioBytes],{type:'application/vnd.op-patchstudio.float32'}),
++      sourceFile:sourceBytes ? new Blob([sourceBytes],{type:sample.type}) : undefined,createdAt:0});
++  }
++  const byId=new Map(manifest.samples.map(sample=>[sample.id,sample]));
++  for(const ref of manifest.project.drumSamples) {
++    const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
++    if(ref.settings.inPoint<0 || ref.settings.outPoint<ref.settings.inPoint || ref.settings.outPoint>info.duration+1/info.sampleRate) throw new Error('Drum sample markers exceed actual audio length');
++  }
++  for(const ref of manifest.project.multisampleFiles) {
++    const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
++    if(ref.inPoint<0 || ref.outPoint<ref.inPoint || ref.outPoint>info.duration+1/info.sampleRate || ref.loopStart<0 || ref.loopEnd<0 || ref.loopStart>info.duration+1/info.sampleRate || ref.loopEnd>info.duration+1/info.sampleRate) throw new Error('Multisample markers exceed actual audio length');
++  }
++  const session:SessionData={id:'portable-project',timestamp:0,version:2,savedToLibrary:false,...manifest.project};
++  return deserializeProject(session,async id=>sampleMap.get(id)??null);
++}
++
++export function projectArchiveFilename(state:Pick<AppState,'currentTab'|'drumSettings'|'multisampleSettings'>):string {
++  const preferred=state.currentTab==='multisample'?state.multisampleSettings.presetName:state.drumSettings.presetName;
++  const safe=(preferred||'op-patchstudio-project').normalize('NFKD').replace(/[^a-z0-9._-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,80) || 'op-patchstudio-project';
++  return `${safe}.opstudio`;
++}
+--- before/src/utils/projectHistory.ts
++++ after/src/utils/projectHistory.ts
+@@ -0,0 +1,91 @@
++import type { AppAction, AppState } from '../context/AppContext';
++
++export const HISTORY_ENTRY_LIMIT = 100;
++export const HISTORY_ASSET_BYTES = 128 * 1024 * 1024;
++const musicalKeys = ['drumSettings','multisampleSettings','drumSamples','multisampleFiles','importedDrumPreset','importedMultisamplePreset','midiNoteMapping'] as const;
++export type EditableProjectSnapshot = Pick<AppState, typeof musicalKeys[number]>;
++
++/** AudioBuffer and File are immutable assets. Editing audio must replace the asset. */
++export function selectEditableProject(state: EditableProjectSnapshot): EditableProjectSnapshot {
++  const cloneSample = <T extends {audioBuffer: AudioBuffer | null; file: File | null}>(s:T):T => {
++    const {audioBuffer,file,...metadata}=s;
++    return {...structuredClone(metadata),audioBuffer,file} as T;
++  };
++  return {drumSettings:structuredClone(state.drumSettings),multisampleSettings:structuredClone(state.multisampleSettings),
++    drumSamples:state.drumSamples.map(s=>s ? cloneSample(s):s),multisampleFiles:state.multisampleFiles.map(cloneSample),
++    importedDrumPreset:structuredClone(state.importedDrumPreset),importedMultisamplePreset:structuredClone(state.importedMultisamplePreset),midiNoteMapping:state.midiNoteMapping};
++}
++function equal(a:unknown,b:unknown):boolean {
++  if(Object.is(a,b)) return true;
++  if(!a || !b || typeof a!=='object' || typeof b!=='object') return false;
++  // Distinct assets must never be mistaken for equal opaque objects.
++  if(a instanceof Blob || b instanceof Blob || 'getChannelData' in a || 'getChannelData' in b) return false;
++  const ak=Object.keys(a),bk=Object.keys(b);
++  return ak.length===bk.length && ak.every(k=>Object.prototype.hasOwnProperty.call(b,k) && equal((a as Record<string,unknown>)[k],(b as Record<string,unknown>)[k]));
++}
++function sameProject(a:EditableProjectSnapshot,b:EditableProjectSnapshot) {return musicalKeys.every(k=>equal(a[k],b[k]));}
++function assets(project:EditableProjectSnapshot) {
++  const found=new Map<object,number>();
++  for(const sample of [...project.drumSamples,...project.multisampleFiles]) {
++    if(sample?.audioBuffer) found.set(sample.audioBuffer,sample.audioBuffer.length*sample.audioBuffer.numberOfChannels*4);
++    if(sample?.file) found.set(sample.file,sample.file.size);
++  }
++  return found;
++}
++export function retainedAssetBytes(current:EditableProjectSnapshot,snapshots:EditableProjectSnapshot[]):number {
++  const live=assets(current),retained=new Map<object,number>();
++  for(const snapshot of snapshots) for(const [asset,size] of assets(snapshot)) if(!live.has(asset)) retained.set(asset,size);
++  return [...retained.values()].reduce((sum,n)=>sum+n,0);
++}
++export interface ProjectHistory {
++  present:AppState; past:EditableProjectSnapshot[]; future:EditableProjectSnapshot[]; limited:boolean;
++  group?:{token:string; before:EditableProjectSnapshot};
++}
++export function createHistory(state:AppState):ProjectHistory {return {present:state,past:[],future:[],limited:false};}
++function bound(h:ProjectHistory):ProjectHistory {
++  const past=[...h.past],future=[...h.future]; let group=h.group,limited=h.limited;
++  const retained = () => [...past,...future,...(group ? [group.before] : [])];
++  while(past.length+future.length+(group ? 1 : 0)>HISTORY_ENTRY_LIMIT || retainedAssetBytes(h.present,retained())>HISTORY_ASSET_BYTES) {
++    if(past.length) past.shift(); else if(future.length) future.shift(); else break;
++    limited=true;
++  }
++  if(group && (past.length+future.length+1>HISTORY_ENTRY_LIMIT || retainedAssetBytes(h.present,retained())>HISTORY_ASSET_BYTES)) {
++    group=undefined;
++    limited=true;
++  }
++  return {...h,past,future,group,limited};
++}
++function applySnapshot(state:AppState,snapshot:EditableProjectSnapshot):AppState {
++  return {...state,...snapshot,sessionSaveStatus:state.sessionSaveStatus==='saved'?'idle':state.sessionSaveStatus};
++}
++export function reduceHistory(h:ProjectHistory,action:AppAction,reduce:(s:AppState,a:AppAction)=>AppState):ProjectHistory {
++  const finishGroup = (source:ProjectHistory):ProjectHistory => {
++    if(!source.group) return source;
++    const {before}=source.group;
++    if(sameProject(before,source.present)) return bound({...source,group:undefined});
++    return bound({...source,past:[...source.past,before],future:[],group:undefined});
++  };
++  if(action.type==='BEGIN_EDIT') {
++    if(h.group?.token===action.payload) return h;
++    const settled=finishGroup(h);
++    return bound({...settled,group:{token:action.payload,before:selectEditableProject(settled.present)}});
++  }
++  if(action.type==='END_EDIT' || action.type==='CANCEL_EDIT') {
++    if(h.group?.token!==action.payload) return h;
++    if(action.type==='CANCEL_EDIT') return bound({...h,present:applySnapshot(h.present,h.group.before),group:undefined});
++    return finishGroup(h);
++  }
++  if(action.type==='UNDO' || action.type==='REDO') {
++    const settled=finishGroup(h);
++    const undo=action.type==='UNDO',from=undo?settled.past:settled.future;
++    if(!from.length) return settled;
++    const current=selectEditableProject(settled.present),snapshot=from[from.length-1];
++    return bound({...settled,present:applySnapshot(settled.present,snapshot),past:undo?from.slice(0,-1):[...settled.past,current],future:undo?[...settled.future,current]:from.slice(0,-1),group:undefined});
++  }
++  const next=action.type==='BATCH_EDIT'?action.payload.reduce(reduce,h.present):reduce(h.present,action);
++  if(action.type==='RESTORE_SESSION') return createHistory(next);
++  if(sameProject(h.present,next)) return {...h,present:next};
++  const before=selectEditableProject(h.present);
++  if(h.group) return bound({...h,present:applySnapshot(next,next)});
++  return bound({...h,present:applySnapshot(next,next),past:[...h.past,before],future:[]});
++}
+
+
+Schema fixture docs/verification/fixtures/project-v1-manifest.json
+{
+  "format": "op-patchstudio-project",
+  "version": 1,
+  "project": {
+    "drumSettings": {
+      "sampleRate": 44100,
+      "bitDepth": 16,
+      "channels": 2,
+      "presetName": "Portable kit",
+      "normalize": false,
+      "normalizeLevel": -1,
+      "autoZeroCrossing": false,
+      "renameFiles": false,
+      "filenameSeparator": " ",
+      "audioFormat": "wav",
+      "presetSettings": { "playmode": "poly", "transpose": 0, "velocity": 20, "volume": 69, "width": 0 }
+    },
+    "multisampleSettings": {
+      "sampleRate": 44100,
+      "bitDepth": 16,
+      "channels": 2,
+      "presetName": "",
+      "normalize": false,
+      "normalizeLevel": -1,
+      "autoZeroCrossing": false,
+      "cutAtLoopEnd": false,
+      "gain": 0,
+      "loopEnabled": true,
+      "loopOnRelease": true,
+      "renameFiles": false,
+      "filenameSeparator": " ",
+      "audioFormat": "wav",
+      "playmode": "poly",
+      "transpose": 0,
+      "velocitySensitivity": 20,
+      "volume": 69,
+      "width": 0,
+      "highpass": 0,
+      "portamentoType": "linear",
+      "portamentoAmount": 0,
+      "tuningRoot": 0,
+      "ampEnvelope": { "attack": 500, "decay": 6000, "sustain": 22000, "release": 12000 },
+      "filterEnvelope": { "attack": 0, "decay": 5000, "sustain": 18000, "release": 10000 }
+    },
+    "drumSamples": [
+      {
+        "originalIndex": 0,
+        "name": "kick.wav",
+        "sampleId": "sample-1",
+        "isAssigned": true,
+        "assignedKey": 0,
+        "settings": { "inPoint": 0, "outPoint": 0.000041666666666666665, "playmode": "oneshot", "reverse": false, "transpose": 0, "pan": 0, "gain": 0, "hasBeenEdited": false }
+      }
+    ],
+    "multisampleFiles": [],
+    "selectedMultisample": null,
+    "isDrumKeyboardPinned": false,
+    "isMultisampleKeyboardPinned": false,
+    "importedDrumPreset": null,
+    "importedMultisamplePreset": null,
+    "midiNoteMapping": "C3"
+  },
+  "samples": [
+    {
+      "id": "sample-1",
+      "name": "kick.wav",
+      "type": "audio/wav",
+      "size": 4,
+      "sourceLastModified": 1700000000000,
+      "metadata": { "sampleRate": 48000, "channels": 1, "bitDepth": 32, "isFloat": true, "duration": 0.000041666666666666665 },
+      "audioPath": "assets/audio-0000.opfloat",
+      "sourcePath": "assets/source-0000.bin",
+      "audio": { "bytes": 32, "channels": 1, "frames": 2, "sampleRate": 48000 }
+    }
+  ]
+}

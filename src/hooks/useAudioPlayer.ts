@@ -1,6 +1,8 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { audioContextManager } from '../utils/audioContext';
 import { AUDIO_CONSTANTS } from '../utils/constants';
+import { normalizeFrameRange } from '../utils/loopEditing';
+import {disconnectVoiceNodes,VoiceTimerRegistry,type FadeTimerTracker} from './audioVoiceLifecycle';
 
 // Firefox fallback constants
 const FIREFOX_FALLBACK_CONSTANTS = {
@@ -11,17 +13,6 @@ const FIREFOX_FALLBACK_CONSTANTS = {
 } as const;
 
 // Timer tracking for memory leak prevention
-interface TimerTracker {
-  fadeInterval?: NodeJS.Timeout;
-  fadeTimeoutProtection?: NodeJS.Timeout;
-  cleanupTimer?: NodeJS.Timeout;
-  noteId: string;
-  gainNode: GainNode;
-}
-
-// Global timer registry to prevent memory leaks
-const activeTimersRegistry = new Map<string, TimerTracker>();
-
 // Type declaration for global active notes
 declare global {
   interface Window {
@@ -94,13 +85,17 @@ export interface ADSRPlaybackOptions extends AudioPlaybackOptions {
   velocity?: number; // 0-127
   inFrame?: number;
   outFrame?: number;
+  onEnded?: () => void;
+  signal?: AbortSignal;
 }
 
 // Note envelope state tracking
 interface NoteEnvelopeState {
+  owner: symbol;
   noteId: string;
   source: AudioBufferSourceNode;
   gainNode: GainNode;
+  panNode: StereoPannerNode;
   envelopePhase: 'attack' | 'decay' | 'sustain' | 'release' | 'finished';
   startTime: number;
   releaseTime?: number;
@@ -125,7 +120,8 @@ const createFirefoxFade = (
   gainNode: GainNode,
   startGain: number,
   fadeDuration: number,
-  noteId: string,
+  owner: symbol,
+  timerRegistry: VoiceTimerRegistry,
   onComplete?: () => void
 ): void => {
   const extendedGainNode = gainNode as ExtendedGainNode;
@@ -135,14 +131,11 @@ const createFirefoxFade = (
   const minGain = FIREFOX_FALLBACK_CONSTANTS.MIN_GAIN_THRESHOLD;
   
   // Create timer tracker for this fade operation
-  const timerTracker: TimerTracker = {
-    noteId,
-    gainNode
-  };
+  const timerTracker: FadeTimerTracker = {};
   
   // Add timeout protection to prevent runaway intervals
-  timerTracker.fadeTimeoutProtection = setTimeout(() => {
-    if (timerTracker.fadeInterval) {
+  timerTracker.fadeTimeoutProtection = window.setTimeout(() => {
+    if (timerTracker.fadeInterval!==undefined) {
       clearInterval(timerTracker.fadeInterval);
       delete timerTracker.fadeInterval;
     }
@@ -155,11 +148,11 @@ const createFirefoxFade = (
     }
     
     // Remove from registry
-    activeTimersRegistry.delete(noteId);
+    timerRegistry.delete(owner);
   }, maxFadeDuration);
   
   let currentStep = 0;
-  timerTracker.fadeInterval = setInterval(() => {
+  timerTracker.fadeInterval = window.setInterval(() => {
     currentStep++;
     const progress = currentStep / fadeSteps;
     
@@ -183,11 +176,11 @@ const createFirefoxFade = (
     gainNode.gain.value = newGain;
     
     if (currentStep >= fadeSteps) {
-      if (timerTracker.fadeInterval) {
+      if (timerTracker.fadeInterval!==undefined) {
         clearInterval(timerTracker.fadeInterval);
         delete timerTracker.fadeInterval;
       }
-      if (timerTracker.fadeTimeoutProtection) {
+      if (timerTracker.fadeTimeoutProtection!==undefined) {
         clearTimeout(timerTracker.fadeTimeoutProtection);
         delete timerTracker.fadeTimeoutProtection;
       }
@@ -197,24 +190,24 @@ const createFirefoxFade = (
       if (!extendedGainNode.__cleanupCompleted) {
         extendedGainNode.__cleanupCompleted = true;
         if (onComplete) {
-          timerTracker.cleanupTimer = setTimeout(() => {
+          timerTracker.cleanupTimer = window.setTimeout(() => {
             onComplete();
             // Remove from registry after cleanup
-            activeTimersRegistry.delete(noteId);
+            timerRegistry.delete(owner);
           }, FIREFOX_FALLBACK_CONSTANTS.CLEANUP_DELAY);
         } else {
           // Remove from registry immediately if no cleanup needed
-          activeTimersRegistry.delete(noteId);
+          timerRegistry.delete(owner);
         }
       } else {
         // Remove from registry if already completed
-        activeTimersRegistry.delete(noteId);
+        timerRegistry.delete(owner);
       }
     }
   }, stepDuration);
   
   // Register the timer tracker
-  activeTimersRegistry.set(noteId, timerTracker);
+  timerRegistry.set(owner, timerTracker);
 };
 
 export function useAudioPlayer() {
@@ -230,6 +223,7 @@ export function useAudioPlayer() {
   // ADSR-specific state
   const activeNotesRef = useRef<Map<string, NoteEnvelopeState>>(new Map());
   const lastNoteRef = useRef<NoteEnvelopeState | null>(null);
+  const voiceTimersRef=useRef(new VoiceTimerRegistry());
   
   // Track active timers for cleanup
   const activeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -252,7 +246,7 @@ export function useAudioPlayer() {
   }, []);
 
   // Cleanup verification utility to prevent memory leaks
-  const verifyCleanup = useCallback((noteId: string, noteState: NoteEnvelopeState) => {
+  const verifyCleanup = useCallback((noteState: NoteEnvelopeState) => {
     const extendedGainNode = noteState.gainNode as ExtendedGainNode;
     
     // Verify all intervals and timeouts are cleared
@@ -261,60 +255,15 @@ export function useAudioPlayer() {
     }
     
     // Check if there are any active timers for this note
-    const timerTracker = activeTimersRegistry.get(noteId);
-    if (timerTracker) {
-      // Clean up any remaining timers
-      if (timerTracker.fadeInterval) {
-        clearInterval(timerTracker.fadeInterval);
-        delete timerTracker.fadeInterval;
-      }
-      if (timerTracker.fadeTimeoutProtection) {
-        clearTimeout(timerTracker.fadeTimeoutProtection);
-        delete timerTracker.fadeTimeoutProtection;
-      }
-      if (timerTracker.cleanupTimer) {
-        clearTimeout(timerTracker.cleanupTimer);
-        delete timerTracker.cleanupTimer;
-      }
-      // Remove from registry
-      activeTimersRegistry.delete(noteId);
-    }
+    voiceTimersRef.current.clear(noteState.owner);
     
     return true;
   }, []);
 
   // Cleanup function for timer registry
-  const cleanupTimerRegistry = useCallback((noteId?: string) => {
-    if (noteId) {
-      // Clean up specific note
-      const timerTracker = activeTimersRegistry.get(noteId);
-      if (timerTracker) {
-        if (timerTracker.fadeInterval) {
-          clearInterval(timerTracker.fadeInterval);
-        }
-        if (timerTracker.fadeTimeoutProtection) {
-          clearTimeout(timerTracker.fadeTimeoutProtection);
-        }
-        if (timerTracker.cleanupTimer) {
-          clearTimeout(timerTracker.cleanupTimer);
-        }
-        activeTimersRegistry.delete(noteId);
-      }
-    } else {
-      // Clean up all timers (component unmount)
-      for (const [, timerTracker] of activeTimersRegistry.entries()) {
-        if (timerTracker.fadeInterval) {
-          clearInterval(timerTracker.fadeInterval);
-        }
-        if (timerTracker.fadeTimeoutProtection) {
-          clearTimeout(timerTracker.fadeTimeoutProtection);
-        }
-        if (timerTracker.cleanupTimer) {
-          clearTimeout(timerTracker.cleanupTimer);
-        }
-      }
-      activeTimersRegistry.clear();
-    }
+  const cleanupTimerRegistry = useCallback((noteState?:NoteEnvelopeState) => {
+    if(noteState)voiceTimersRef.current.clear(noteState.owner);
+    else voiceTimersRef.current.clearAll();
   }, []);
 
   // Cleanup function to clear all active timers
@@ -351,12 +300,11 @@ export function useAudioPlayer() {
     }
 
     // Clean up any fade intervals and timeout protection
-    cleanupTimerRegistry(noteId);
+    cleanupTimerRegistry(noteState);
 
     try {
       // Disconnect audio nodes
-      noteState.source.disconnect();
-      noteState.gainNode.disconnect();
+      disconnectVoiceNodes({source:noteState.source,gain:noteState.gainNode,panner:noteState.panNode});
     } catch (error) {
       // Only ignore "already disconnected" errors, log others
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -366,10 +314,11 @@ export function useAudioPlayer() {
     }
 
     // Remove from active notes tracking
-    activeNotesRef.current.delete(noteId);
+    const ownsCurrentNote=activeNotesRef.current.get(noteId)===noteState;
+    if(ownsCurrentNote)activeNotesRef.current.delete(noteId);
     
     // Remove from global active notes if it's a multisample
-    if (noteId.startsWith('multisample-')) {
+    if (ownsCurrentNote&&noteId.startsWith('multisample-')) {
       removeFromGlobalActiveNotes(noteId);
     }
     
@@ -377,12 +326,12 @@ export function useAudioPlayer() {
     noteState.envelopePhase = 'finished';
     
     // Clear last note reference if this was the last note
-    if (lastNoteRef.current?.noteId === noteId) {
+    if (lastNoteRef.current === noteState) {
       lastNoteRef.current = null;
     }
 
     // Verify cleanup completed successfully
-    verifyCleanup(noteId, noteState);
+    verifyCleanup(noteState);
   }, [verifyCleanup, cleanupTimerRegistry]);
 
   const stopCurrentPlayback = useCallback(() => {
@@ -396,6 +345,7 @@ export function useAudioPlayer() {
           console.warn('Unexpected error stopping current playback:', errorMessage);
         }
       }
+      try { currentSourceRef.current.disconnect(); } catch { /* already disconnected */ }
       currentSourceRef.current = null;
     }
     if (currentGainNodeRef.current) {
@@ -435,17 +385,14 @@ export function useAudioPlayer() {
     const sustainPercent = adsr.sustain / 32767;
     const releasePercent = adsr.release / 32767;
 
-    // Map to time ranges with exponential curves for natural feel (0-30 seconds)
-    // Attack: 0-30 seconds (exponential curve for more responsive low values)
+    // Browser-only approximate quadratic mapping (0-30 seconds); raw values remain export truth.
     const attackTime = Math.pow(attackPercent, 2) * 30;
     
-    // Decay: 0-30 seconds (exponential curve)
     const decayTime = Math.pow(decayPercent, 2) * 30;
     
     // Sustain: 0-1 (linear, this is a level)
     const sustainLevel = sustainPercent;
     
-    // Release: 0-30 seconds (exponential curve)
     const releaseTime = Math.pow(releasePercent, 2) * 30;
 
     return { attackTime, decayTime, sustainLevel, releaseTime };
@@ -453,6 +400,7 @@ export function useAudioPlayer() {
 
   // Cleanup on component unmount
   useEffect(() => {
+    const activeNotes = activeNotesRef.current;
     return () => {
       // Clear all active timers when component unmounts
       clearAllTimers();
@@ -461,10 +409,10 @@ export function useAudioPlayer() {
       cleanupTimerRegistry();
       
       // Stop all active notes
-      for (const [noteId, noteState] of activeNotesRef.current) {
+      for (const [noteId, noteState] of activeNotes) {
         cleanupNoteState(noteId, noteState);
       }
-      activeNotesRef.current.clear();
+      activeNotes.clear();
       
       // Stop current playback
       stopCurrentPlayback();
@@ -573,9 +521,9 @@ export function useAudioPlayer() {
         if (adsrReleaseTime > 0) {
           // Use shared Firefox fallback function
           if (noteId && noteState) {
-            createFirefoxFade(gainNode, gainNode.gain.value, adsrReleaseTime, noteId, () => cleanupNoteState(noteId, noteState));
+            createFirefoxFade(gainNode,gainNode.gain.value,adsrReleaseTime,noteState.owner,voiceTimersRef.current,()=>cleanupNoteState(noteId,noteState));
           } else {
-            createFirefoxFade(gainNode, gainNode.gain.value, adsrReleaseTime, 'unknown', () => {
+            createFirefoxFade(gainNode,gainNode.gain.value,adsrReleaseTime,Symbol('unowned-fade'),voiceTimersRef.current,() => {
               // No cleanup callback for unknown notes
             });
           }
@@ -588,7 +536,7 @@ export function useAudioPlayer() {
         gainNode.gain.value = 0;
       }
     }
-  }, [convertADSRValues, generateExponentialCurve]);
+  }, [cleanupNoteState, convertADSRValues, generateExponentialCurve, handleAudioError, isFirefoxBrowser]);
 
   // Trigger release phase for a note
   const triggerRelease = useCallback((noteId: string) => {
@@ -607,11 +555,11 @@ export function useAudioPlayer() {
     const { releaseTime: adsrReleaseTime } = convertADSRValues(noteState.adsr);
 
     // Handle loop on release behavior
-    if (noteState.loopOnRelease) {
-      // For loop on release, enable looping but continue from current position
+    if (noteState.loopEnabled && noteState.loopOnRelease) {
+      // “Loop forever” continues the already-looping section through release.
       noteState.source.loop = true;
-      noteState.source.loopStart = noteState.loopStart || 0;
-      noteState.source.loopEnd = noteState.loopEnd || noteState.source.buffer?.duration || 1;
+      noteState.source.loopStart = noteState.loopStart ?? 0;
+      noteState.source.loopEnd = noteState.loopEnd ?? noteState.source.buffer?.duration ?? 1;
       
       // For loop on release, apply a gentle release envelope but don't stop the note
       noteState.envelopePhase = 'release';
@@ -625,7 +573,8 @@ export function useAudioPlayer() {
             noteState.gainNode,
             noteState.gainNode.gain.value,
             adsrReleaseTime,
-            noteId,
+            noteState.owner,
+            voiceTimersRef.current,
             () => cleanupNoteState(noteId, noteState)
           );
         } else {
@@ -713,7 +662,7 @@ export function useAudioPlayer() {
       }, adsrReleaseTime * 1000);
       addTimer(timerId);
     }
-  }, [releaseNoteWithADSR, convertADSRValues]);
+  }, [addTimer, cleanupNoteState, convertADSRValues, generateExponentialCurve, handleAudioError, isFirefoxBrowser, releaseNoteWithADSR, removeTimer]);
 
   // Play with ADSR envelope support
   const playWithADSR = useCallback(async (
@@ -722,12 +671,15 @@ export function useAudioPlayer() {
     options: ADSRPlaybackOptions = {}
   ) => {
     try {
+      if (options.signal?.aborted) return null;
       const audioContext = await audioContextManager.getAudioContext();
+      if (options.signal?.aborted) return null;
       
       // Ensure audio context is fully ready before proceeding
       if (audioContext.state !== 'running' && typeof audioContext.resume === 'function') {
         console.warn('Audio context not running, attempting to resume...');
         await audioContext.resume();
+        if (options.signal?.aborted) return null;
         
         // Wait for the audio context to be fully running with proper error handling
         let attempts = 0;
@@ -750,6 +702,7 @@ export function useAudioPlayer() {
             const resolveTimer = setTimeout(resolve, checkInterval);
             addTimer(resolveTimer);
           });
+          if (options.signal?.aborted) return null;
           removeTimer(resumeTimer);
           attempts++;
         }
@@ -769,12 +722,13 @@ export function useAudioPlayer() {
           const resolveTimer = setTimeout(resolve, 50);
           addTimer(resolveTimer);
         });
+        if (options.signal?.aborted) return null;
         removeTimer(stabilityTimer);
       }
       
-      const playMode = options.playMode || 'poly';
-      const velocity = options.velocity || 127;
-      const adsr = options.adsr || { attack: 0, decay: 0, sustain: 32767, release: 0 };
+      const playMode = options.playMode ?? 'poly';
+      const velocity = options.velocity ?? 127;
+      const adsr = options.adsr ?? { attack: 0, decay: 0, sustain: 32767, release: 0 };
 
       // Handle play mode logic
       if (playMode === 'mono') {
@@ -795,26 +749,50 @@ export function useAudioPlayer() {
       }
 
       // Create new audio nodes for this note
+      if (options.signal?.aborted) return null;
       const source = audioContext.createBufferSource();
       const gainNode = audioContext.createGain();
       const panNode = audioContext.createStereoPanner();
 
+      const hasSelectedRange = options.inFrame !== undefined || options.outFrame !== undefined;
+      const selectedRange = hasSelectedRange
+        ? normalizeFrameRange(audioBuffer.length, { start: options.inFrame, end: options.outFrame })
+        : { start: 0, end: audioBuffer.length };
+      const selectedLength = selectedRange.end - selectedRange.start;
+      let playbackBuffer = audioBuffer;
+      if (hasSelectedRange || options.reverse) {
+        playbackBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, selectedLength, audioBuffer.sampleRate);
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
+          const input = audioBuffer.getChannelData(channel);
+          const output = playbackBuffer.getChannelData(channel);
+          for (let index = 0; index < selectedLength; index += 1) {
+            const sourceIndex = options.reverse
+              ? selectedRange.end - 1 - index
+              : selectedRange.start + index;
+            output[index] = input[sourceIndex];
+          }
+        }
+      }
+
       // Configure source
-      source.buffer = audioBuffer;
-      source.playbackRate.value = options.playbackRate || 1;
+      source.buffer = playbackBuffer;
+      source.playbackRate.value = options.playbackRate ?? 1;
       
       // Configure looping if enabled
-      const loopEnabled = options.loopEnabled || false;
-      const loopOnRelease = options.loopOnRelease || false;
-      const loopStart = options.loopStart || 0;
-      const loopEnd = options.loopEnd || audioBuffer.duration;
-      
+      const loopEnabled = options.loopEnabled ?? false;
+      const loopOnRelease = options.loopOnRelease ?? false;
+      const selectionStartSeconds = selectedRange.start / audioBuffer.sampleRate;
+      const requestedLoopStart = (options.loopStart ?? selectionStartSeconds) - selectionStartSeconds;
+      const requestedLoopEnd = (options.loopEnd ?? (selectedRange.end / audioBuffer.sampleRate)) - selectionStartSeconds;
+      const loopStart = options.reverse ? playbackBuffer.duration - requestedLoopEnd : requestedLoopStart;
+      const loopEnd = options.reverse ? playbackBuffer.duration - requestedLoopStart : requestedLoopEnd;
+      source.loop = loopEnabled;
 
-      
       if (loopEnabled) {
         // Validate loop points
-        const validLoopStart = Math.max(0, Math.min(loopStart, audioBuffer.duration - 0.1));
-        const validLoopEnd = Math.max(validLoopStart + 0.1, Math.min(loopEnd, audioBuffer.duration));
+        const oneFrame = 1 / playbackBuffer.sampleRate;
+        const validLoopStart = Math.max(0, Math.min(loopStart, playbackBuffer.duration - oneFrame));
+        const validLoopEnd = Math.max(validLoopStart + oneFrame, Math.min(loopEnd, playbackBuffer.duration));
         
         source.loop = true;
         source.loopStart = validLoopStart;
@@ -834,26 +812,16 @@ export function useAudioPlayer() {
 
       // Apply ADSR envelope
       const startTime = audioContext.currentTime;
-      const velocityScale = velocity / 127;
+      const velocityScale = (velocity / 127) * Math.pow(10, (options.gain ?? 0) / 20);
       applyADSREnvelope(gainNode, adsr, startTime, velocityScale);
 
       // Calculate timing
-      let bufferStartTime = options.startTime || 0;
-      let duration = options.duration || (audioBuffer.duration - bufferStartTime);
-
-      if (options.inFrame !== undefined && options.outFrame !== undefined) {
-        bufferStartTime = (options.inFrame / audioBuffer.length) * audioBuffer.duration;
-        const endTime = (options.outFrame / audioBuffer.length) * audioBuffer.duration;
-        duration = endTime - bufferStartTime;
-      }
+      const bufferStartTime = Math.max(0, Math.min(options.startTime ?? 0, playbackBuffer.duration));
+      const duration = options.duration ?? (playbackBuffer.duration - bufferStartTime);
 
       // Start playback
       if (loopEnabled) {
         // For looping, don't pass duration to allow infinite loop
-        source.start(0, bufferStartTime);
-      } else if (loopOnRelease) {
-        // For loop on release, start without looping but don't pass duration
-        // This allows the sample to play to the end, then loop on release
         source.start(0, bufferStartTime);
       } else if (duration > 0) {
         // For non-looping, use duration if specified
@@ -864,12 +832,14 @@ export function useAudioPlayer() {
 
       // Create note state
       const noteState: NoteEnvelopeState = {
+        owner:Symbol(noteId),
         noteId,
         source,
         gainNode,
+        panNode,
         envelopePhase: 'attack',
         startTime,
-        currentGain: velocity / 127,
+        currentGain: velocityScale,
         adsr,
         velocity,
         loopEnabled,
@@ -889,11 +859,14 @@ export function useAudioPlayer() {
 
       // Set up cleanup when source ends
       source.onended = () => {
-        const noteState = activeNotesRef.current.get(noteId);
+        const currentNoteState = activeNotesRef.current.get(noteId);
         // Only clean up if the note is not in release phase (ADSR will handle cleanup)
-        if (noteState && noteState.envelopePhase !== 'release') {
+        if (currentNoteState === noteState && noteState.envelopePhase !== 'release') {
           cleanupNoteState(noteId, noteState);
+        } else if(currentNoteState!==noteState) {
+          disconnectVoiceNodes({source,gain:gainNode,panner:panNode});
         }
+        options.onEnded?.();
       };
 
       return noteId;
@@ -901,7 +874,7 @@ export function useAudioPlayer() {
       console.error('Error playing audio with ADSR:', error);
       return null;
     }
-  }, [applyADSREnvelope, triggerRelease]);
+  }, [addTimer, applyADSREnvelope, cleanupNoteState, removeTimer]);
 
   // Release a specific note or notes matching a pattern
   const releaseNote = useCallback((noteId: string, forceStop: boolean = false) => {
@@ -930,7 +903,7 @@ export function useAudioPlayer() {
       // Exact match
       handleNote(noteId);
     }
-  }, [triggerRelease]);
+  }, [cleanupNoteState, triggerRelease]);
 
   // Release all notes
   const releaseAllNotes = useCallback(() => {
@@ -1011,6 +984,8 @@ export function useAudioPlayer() {
 
       // Set up event handlers
       source.onended = () => {
+        disconnectVoiceNodes({source,gain:gainNode,panner:panNode});
+        if(currentSourceRef.current!==source)return;
         stateRef.current.isPlaying = false;
         currentSourceRef.current = null;
         currentGainNodeRef.current = null;
@@ -1068,4 +1043,4 @@ export function useAudioPlayer() {
     stopAllNotes,
     getActiveNotesCount,
   };
-} 
+}

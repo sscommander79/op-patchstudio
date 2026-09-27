@@ -1,0 +1,89 @@
+{
+  "baseline": "/tmp/opstudio-task9-before-round2",
+  "entries": [
+    {
+      "path": "README.md",
+      "status": "modified",
+      "beforeSha256": "9bd93e4aa0d7afbaa8b0c9394b249a9137a2a69e5c004bacc1f2193daf4a2207",
+      "afterSha256": "e54edf1d2bf30f816449c6e4c7a24dbf27b91524e3b6f76e72bd5c23a70b1464"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "status": "modified",
+      "beforeSha256": "549696a6fc39be76f55f89212834f9586c985388f146ffe9caacc5a9c1b1fd82",
+      "afterSha256": "ee6333627448f2fec78515bf58a17b0e3397d69a64e75d2094caf8bb8b462378"
+    },
+    {
+      "path": "docs/verification/acceptance-matrix.md",
+      "status": "added",
+      "beforeSha256": null,
+      "afterSha256": "785579d76e587d79f7cab5defe4cfba37814028612802359d8ad7bb3a9c68e8d"
+    },
+    {
+      "path": "docs/verification/task-9-report.md",
+      "status": "added",
+      "beforeSha256": null,
+      "afterSha256": "524c40719234182060c2f695dab615907cf126495f39a4770b1bf049c7454ba2"
+    },
+    {
+      "path": "docs/verification/upgrade-progress.md",
+      "status": "added",
+      "beforeSha256": null,
+      "afterSha256": "d9a6d3a22c85746c9ff2e10e120111883ca1f04ed80e73c3bc840b2d541811d9"
+    },
+    {
+      "path": "public/pwa-cache-lifecycle.js",
+      "status": "deleted",
+      "beforeSha256": "ca525d17c3bef8be49b620be3c9721fb5de5f669c79463d6016f813651f4c1aa",
+      "afterSha256": null
+    },
+    {
+      "path": "scripts/pwa-cache-lifecycle.js",
+      "status": "added",
+      "beforeSha256": null,
+      "afterSha256": "3773442bd775e6061ed6c77463ccfc845cd3161f26ead590b76763b30b4947d1"
+    },
+    {
+      "path": "scripts/verify-pwa-build.mjs",
+      "status": "modified",
+      "beforeSha256": "dc4b8df285a068c1f329e5bd7d0c91d5d978e216ae5dcd5400657b7b32e14f18",
+      "afterSha256": "b8c10c265d609480f5746f727833fd03479bf7169556d506ad9919432c52b88e"
+    },
+    {
+      "path": "vite.config.ts",
+      "status": "modified",
+      "beforeSha256": "4453f155611fe02b695eea04fc8711351f0b9c1b1c24e1561d3a1e229c9429ed",
+      "afterSha256": "f23e15cd193fe307221098a563c4f4e71f98630c915d0b25a9ec617377bcf93e"
+    },
+    {
+      "path": "src/audio/recording/captureSession.ts",
+      "status": "modified",
+      "beforeSha256": "b8f493a53d2f3729724956f808a2b2bbeda6b37e47f4f9f7fecadd5c30a19b28",
+      "afterSha256": "6fcaa165e1e89f68db1871e6c1429bf7258720908dc7f8d77fdde108f03109bd"
+    },
+    {
+      "path": "src/components/common/PWAUpdatePrompt.tsx",
+      "status": "modified",
+      "beforeSha256": "d7676153799c35e712bafd73850cde1189b021f351b9ee781a127810cda31639",
+      "afterSha256": "932f80c2a312583e98eeef479217b11733d23ca8b09bc0aa8393709ff15edcdb"
+    },
+    {
+      "path": "src/test/audio/recording/captureSession.test.ts",
+      "status": "modified",
+      "beforeSha256": "37afcf04f842488770b4638caa4e4dc94e9e4df53fe43f478ba98da296070569",
+      "afterSha256": "5a755701043f81ee9ed3d62c128e2c315952e42e47bb23ad8169523813265146"
+    },
+    {
+      "path": "src/test/components/PWAUpdatePrompt.test.tsx",
+      "status": "modified",
+      "beforeSha256": "777f27377650d987a4243c33aa66baba14e2a2172f9a7db66fd11101279cbe00",
+      "afterSha256": "4cfef8ee0ae2751ebe8cc109458a384215d29323565c0cbeeed28c23831c72a8"
+    },
+    {
+      "path": "src/test/utils/pwaCacheLifecycle.test.ts",
+      "status": "modified",
+      "beforeSha256": "56d58023e9326ce95886d54a463bf387aa54a211fbe48301fc80bb07b739a482",
+      "afterSha256": "57ef94c3caca2eb5654691f7292897ea5013d1980953ad582389e37c5ba002a4"
+    }
+  ]
+}

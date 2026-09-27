@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 export interface PatreonPost {
   title: string;
   excerpt: string;
@@ -20,10 +18,120 @@ interface PatreonApiResponse {
   }>;
 }
 
-export async function scrapePatreonPosts(): Promise<PatreonPost[]> {
+const FALLBACK_POST_URL = 'https://www.patreon.com/c/oppatchstudio/posts';
+const MAX_RESPONSE_BYTES = 1_000_000;
+
+function isPatreonPostUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+
   try {
-    const apiUrl = 'https://www.patreon.com/api/posts';
-    const campaignId = '14433645'; // Your Patreon campaign ID
+    const url = new URL(value);
+    return url.protocol === 'https:' &&
+      (url.hostname === 'patreon.com' || url.hostname.endsWith('.patreon.com'));
+  } catch {
+    return false;
+  }
+}
+
+function htmlToExcerpt(content: unknown): string {
+  if (typeof content !== 'string') return '';
+
+  const withBoundaries = content
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/\s*(p|li|div|h[1-6])\s*>/gi, '\n');
+  const document = new DOMParser().parseFromString(withBoundaries, 'text/html');
+  document.querySelectorAll('script, style, template').forEach((element) => element.remove());
+  const walker = document.createTreeWalker(document.body, 4);
+  const fragments: string[] = [];
+  while (walker.nextNode()) fragments.push(walker.currentNode.textContent ?? '');
+
+  const words = fragments.join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
+
+  return words.length > 80
+    ? `${words.slice(0, 80).join(' ')}...`
+    : words.join(' ');
+}
+
+function parsePatreonResponse(value: unknown): PatreonPost[] {
+  if (!value || typeof value !== 'object' || !('data' in value) || !Array.isArray(value.data)) {
+    return [];
+  }
+
+  return value.data.flatMap((candidate): PatreonPost[] => {
+    if (!candidate || typeof candidate !== 'object' || !('id' in candidate) ||
+      !('attributes' in candidate) || !candidate.attributes || typeof candidate.attributes !== 'object') {
+      return [];
+    }
+
+    const id = typeof candidate.id === 'string' ? candidate.id : '';
+    const attributes = candidate.attributes as Record<string, unknown>;
+    const fallbackUrl = id
+      ? `https://www.patreon.com/posts/${encodeURIComponent(id)}`
+      : FALLBACK_POST_URL;
+    const publishedAt = typeof attributes.published_at === 'string'
+      ? attributes.published_at
+      : '';
+    const publishedDate = publishedAt ? new Date(publishedAt) : null;
+
+    return [{
+      title: typeof attributes.title === 'string' && attributes.title.trim()
+        ? attributes.title
+        : 'untitled post',
+      excerpt: htmlToExcerpt(attributes.content),
+      url: isPatreonPostUrl(attributes.url) ? attributes.url : fallbackUrl,
+      date: publishedDate && !Number.isNaN(publishedDate.getTime())
+        ? publishedDate.toLocaleDateString()
+        : 'recent',
+    }];
+  });
+}
+
+async function fetchJson(url: string, headers: HeadersInit): Promise<PatreonApiResponse> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const response = await fetch(url, { headers, signal: controller.signal });
+    if (!response.ok) throw new Error(`Patreon proxy returned ${response.status}`);
+    let raw = '';
+    if (response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let received = 0;
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          received += chunk.value.byteLength;
+          if (received > MAX_RESPONSE_BYTES) {
+            await reader.cancel('Patreon response is too large');
+            throw new Error('Patreon response is too large');
+          }
+          raw += decoder.decode(chunk.value, {stream:true});
+        }
+        raw += decoder.decode();
+      } finally {
+        reader.releaseLock();
+      }
+    } else {
+      raw = await response.text();
+      if (new TextEncoder().encode(raw).byteLength > MAX_RESPONSE_BYTES) {
+        throw new Error('Patreon response is too large');
+      }
+    }
+    return JSON.parse(raw) as PatreonApiResponse;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+export async function scrapePatreonPosts(): Promise<PatreonPost[]> {
+  const apiUrl = 'https://www.patreon.com/api/posts';
+  const campaignId = '14433645';
     
     const headers = {
       'Accept-Language': 'en-US,en;q=0.5'
@@ -39,95 +147,33 @@ export async function scrapePatreonPosts(): Promise<PatreonPost[]> {
 
 
     // Try different CORS proxies until one works
-    let apiResponse: any = null;
+    let apiResponse: PatreonApiResponse | null = null;
+    let lastError: unknown;
     
     for (const proxy of corsProxies) {
       try {
         const apiUrlWithParams = `${apiUrl}?filter[campaign_id]=${campaignId}&sort=-published_at&page[size]=5`;
         
-        apiResponse = await axios.get<PatreonApiResponse>(proxy + encodeURIComponent(apiUrlWithParams), {
-          headers,
-          timeout: 10000
-        });
+        apiResponse = await fetchJson(proxy + encodeURIComponent(apiUrlWithParams), headers);
 
         // If we get a response with data, break out of the loop
-        if (apiResponse.data && Object.keys(apiResponse.data).length > 0) {
+        if (apiResponse.data.length > 0) {
           break;
         }
-              } catch (error) {
-          continue;
-        }
+      } catch (error) {
+        lastError = error;
+      }
     }
     
-    if (!apiResponse || !apiResponse.data || Object.keys(apiResponse.data).length === 0) {
-      return getFallbackPosts();
+    if (!apiResponse || apiResponse.data.length === 0) {
+      throw lastError instanceof Error ? lastError : new Error('Patreon posts are unavailable');
     }
 
-    const posts: PatreonPost[] = [];
-
-    if (apiResponse.data && apiResponse.data.data) {
-      apiResponse.data.data.forEach((post: any) => {
-        const { title, content, published_at, url } = post.attributes;
-        
-        // Create excerpt from content (preserve basic formatting, limit to 100 words)
-        let html = content
-          .replace(/<\s*br\s*\/?>/gi, '\n') // <br> to newline
-          .replace(/<\s*\/p\s*>/gi, '\n')  // </p> to newline
-          .replace(/<\s*p\s*>/gi, '')        // remove <p> open tags
-          .replace(/<\s*\/li\s*>/gi, '\n') // </li> to newline
-          .replace(/<\s*li\s*>/gi, '• ');    // <li> to bullet
-        // Remove all tags except a safe list
-        html = html.replace(/<(?!\/?(b|i|strong|em|ul|ol|li|a|p|br)\b)[^>]*>/gi, '');
-        // Normalize whitespace but preserve newlines
-        html = html.replace(/[ \t]+/g, ' ').trim();
-        // Split into words and limit to 80
-        const words = html.split(' ');
-        const truncatedHtml = words.length > 80 ? words.slice(0, 80).join(' ') + '...' : html;
-        // Convert newlines to <br> tags for HTML display
-        const excerpt = truncatedHtml.replace(/\n/g, '<br>');
-
-        posts.push({
-          title: title || 'untitled post',
-          excerpt,
-          url: url || `https://www.patreon.com/posts/${post.id}`,
-          date: published_at ? new Date(published_at).toLocaleDateString() : 'recent'
-        });
-      });
-    } else {
-      // No data found in API response
-    }
+    const posts = parsePatreonResponse(apiResponse);
 
     if (posts.length > 0) {
       return posts;
     }
 
-    return getFallbackPosts();
-
-  } catch (error) {
-    console.error('Failed to fetch Patreon posts:', error);
-    return getFallbackPosts();
-  }
+  throw new Error('Patreon posts are unavailable');
 }
-
-function getFallbackPosts(): PatreonPost[] {
-  return [
-    {
-      title: "join me on this journey",
-      excerpt: "follow along as we build something amazing together...",
-      url: "https://www.patreon.com/c/oppatchstudio/posts",
-      date: "recent"
-    },
-    {
-      title: "good things are coming",
-      excerpt: "exciting updates and new features are on the horizon...",
-      url: "https://www.patreon.com/c/oppatchstudio/posts",
-      date: "recent"
-    },
-    {
-      title: "aif support added",
-      excerpt: "new audio format support has been added to op-patchstudio...",
-      url: "https://www.patreon.com/c/oppatchstudio/posts",
-      date: "recent"
-    }
-  ];
-} 

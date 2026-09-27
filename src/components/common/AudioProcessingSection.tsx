@@ -3,6 +3,7 @@ import { Toggle, Slider } from '@carbon/react';
 import { AudioFormatControls } from './AudioFormatControls';
 import { EnhancedTooltip } from './EnhancedTooltip';
 import { AUDIO_CONSTANTS } from '../../utils/constants';
+import { useProjectEditGesture } from '../../hooks/useProjectEditGesture';
 
 interface AudioProcessingSectionProps {
   type: 'drum' | 'multisample';
@@ -12,7 +13,7 @@ interface AudioProcessingSectionProps {
   onSampleRateChange: (value: string) => void;
   onBitDepthChange: (value: string) => void;
   onChannelsChange: (value: string) => void;
-  samples: any[];
+  samples: Array<{ isLoaded: boolean }>;
   normalize: boolean;
   normalizeLevel: number;
   onNormalizeChange: (enabled: boolean) => void;
@@ -47,6 +48,8 @@ export function AudioProcessingSection({
   gain = 0,
   onGainChange
 }: AudioProcessingSectionProps) {
+  const normalizeGesture = useProjectEditGesture(`${type}-normalize-level`);
+  const gainGesture = useProjectEditGesture(`${type}-gain`);
   const [isMobile, setIsMobile] = useState(false);
   const [isZeroCrossingTooltipVisible, setIsZeroCrossingTooltipVisible] = useState(false);
   const [isZeroCrossingClicked, setIsZeroCrossingClicked] = useState(false);
@@ -55,7 +58,7 @@ export function AudioProcessingSection({
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -145,7 +148,13 @@ export function AudioProcessingSection({
               max={0.0}
               step={0.1}
               value={normalizeLevel}
-              onChange={({ value }) => onNormalizeLevelChange(value)}
+              onChange={({ value }) => {
+                onNormalizeLevelChange(value);
+              }}
+              onRelease={normalizeGesture.end}
+              onKeyUp={normalizeGesture.end}
+              onBlur={normalizeGesture.end}
+              {...normalizeGesture.sliderProps}
               hideTextInput
               style={{ width: '100%' }}
             />
@@ -215,7 +224,13 @@ export function AudioProcessingSection({
                   max={20}
                   step={1}
                   value={gain}
-                  onChange={({ value }) => onGainChange?.(value)}
+                  onChange={({ value }) => {
+                    onGainChange?.(value);
+                  }}
+                  onRelease={gainGesture.end}
+                  onKeyUp={gainGesture.end}
+                  onBlur={gainGesture.end}
+                  {...gainGesture.sliderProps}
                   hideTextInput
                   style={{ width: '100%' }}
                 />
@@ -242,8 +257,8 @@ export function AudioProcessingSection({
       </div>
 
       {/* Auto Zero Crossing Button - moved to end of audio processing section */}
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         justifyContent: isMobile ? 'center' : 'flex-start',
         marginBottom: '1rem'
       }}>
@@ -305,7 +320,7 @@ export function AudioProcessingSection({
           </button>
         </EnhancedTooltip>
       </div>
-      
+
       {/* Action Buttons Below Settings */}
       {onResetAudioSettingsConfirm && (
         <div style={{
@@ -362,4 +377,4 @@ export function AudioProcessingSection({
       )}
     </div>
   );
-} 
+}

@@ -1,0 +1,94 @@
+{
+  "origin": "http://127.0.0.1:5188",
+  "checks": [
+    "offline new-document cold start"
+  ],
+  "errors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:5188/manifest.json",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "browser": "153.0.8010.12",
+  "initialResources": [
+    {
+      "name": "http://127.0.0.1:5188/assets/index-D22GWRJq.js",
+      "initiatorType": "script",
+      "transferSize": 894176,
+      "encodedBodySize": 893876,
+      "decodedBodySize": 893876
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/index-b7NRBgE6.css",
+      "initiatorType": "link",
+      "transferSize": 270507,
+      "encodedBodySize": 270207,
+      "decodedBodySize": 270207
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff",
+      "initiatorType": "css",
+      "transferSize": 31196,
+      "encodedBodySize": 30896,
+      "decodedBodySize": 30896
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2",
+      "initiatorType": "css",
+      "transferSize": 158520,
+      "encodedBodySize": 158220,
+      "decodedBodySize": 158220
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js",
+      "initiatorType": "script",
+      "transferSize": 6048,
+      "encodedBodySize": 5748,
+      "decodedBodySize": 5748
+    }
+  ],
+  "install": {
+    "controller": "http://127.0.0.1:5188/sw.js",
+    "caches": [
+      {
+        "name": "workbox-precache-v2-http://127.0.0.1:5188/",
+        "urls": [
+          "http://127.0.0.1:5188/index.html?__WB_REVISION__=57b2af0ee10dd450003ef8008200a1ab",
+          "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+          "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+          "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+          "http://127.0.0.1:5188/assets/index-b7NRBgE6.css?__WB_REVISION__=bbc338da6c4a92b1ee9adf1399bb157a",
+          "http://127.0.0.1:5188/assets/index-D22GWRJq.js?__WB_REVISION__=368a2340b8234f9869d4b35a16589189",
+          "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+          "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+          "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+          "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+          "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+          "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+          "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+          "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+          "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+          "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+          "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+          "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+          "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+          "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+          "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+          "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+          "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+          "http://127.0.0.1:5188/assets/MultisampleTool-WwZe5dky.js?__WB_REVISION__=3b7f4f024b06bba8d3d819bc2a96daae",
+          "http://127.0.0.1:5188/assets/LibraryPage--xN1GBMZ.js?__WB_REVISION__=04dc5e2b0ad94f9486d59de1127f0fce",
+          "http://127.0.0.1:5188/assets/FeedbackPage-x5k0D9co.js?__WB_REVISION__=077e8f1ac30e1f660bf5379cbe0eb334",
+          "http://127.0.0.1:5188/assets/DonatePage-BLBOeRHG.js?__WB_REVISION__=32156451e7e1b23fa4e7840942b69a97",
+          "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+        ]
+      }
+    ]
+  },
+  "status": "FAIL",
+  "failure": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'CLP drum key R', exact: true })\u001b[22m\n\u001b[2m    60 × locator resolved to <button tabindex=\"0\" role=\"button\" data-octave=\"0\" data-keychar=\"R\" data-drum-pad=\"5\" aria-pressed=\"false\" data-audio-import=\"drum\" aria-label=\"CLP drum key R\" aria-describedby=\"drum-key-5-0\">…</button>\u001b[22m\n\u001b[2m     - attempting click action\u001b[22m\n\u001b[2m       - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m     - element was detached from the DOM, retrying\u001b[22m\n"
+}

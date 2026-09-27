@@ -2,15 +2,24 @@ import { useState, useEffect } from 'react';
 
 export function FeedbackPage() {
   const [isMobile, setIsMobile] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener('online', markOnline);
+    window.addEventListener('offline', markOffline);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('online', markOnline);
+      window.removeEventListener('offline', markOffline);
+    };
   }, []);
 
   return (
@@ -34,7 +43,7 @@ export function FeedbackPage() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
           <h3 style={{
             margin: 0,
-            color: '#222',
+            color: 'var(--color-text-primary)',
             fontSize: '1.25rem',
             fontWeight: 300,
           }}>
@@ -44,7 +53,7 @@ export function FeedbackPage() {
       </div>
 
       {/* Content */}
-      <div style={{ 
+      <div style={{
         padding: isMobile ? '1rem' : '2rem',
       }}>
         {/* User note about checking GitHub issues first */}
@@ -60,10 +69,11 @@ export function FeedbackPage() {
           lineHeight: 1.5
         }}>
           <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: 'var(--color-text-secondary)' }}></i>
-          before submitting an issue,<br/>please <a href="https://github.com/joseph-holland/op-patchstudio/issues" target="_blank" rel="noopener" style={{ color: 'var(--color-text-secondary)', textDecoration: 'underline', wordBreak: 'break-all' }}>check if your bug or request has already been raised here</a>.
+          before submitting an issue,<br/>please <a href="https://github.com/sscommander79/op-patchstudio/issues" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-text-secondary)', textDecoration: 'underline', wordBreak: 'break-all' }}>check if your bug or request has already been raised here</a>.
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        {isOnline ? <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
           <iframe
+            title="OP-PatchStudio feedback form"
             src="https://docs.google.com/forms/d/e/1FAIpQLSdgfoCaXzmQL6iF4QR08owfFSAwH651jlGChzcnz-pqwsI4Gw/viewform?embedded=true"
             width="1200"
             height="1000"
@@ -80,8 +90,10 @@ export function FeedbackPage() {
           >
             loading…
           </iframe>
-        </div>
+        </div> : <div role="status" className="studio-message studio-message-info">
+          The hosted feedback form is unavailable while offline. Use the Drum, Multisample, or Library tabs to keep working; the form will return when you reconnect.
+        </div>}
       </div>
     </div>
   );
-} 
+}

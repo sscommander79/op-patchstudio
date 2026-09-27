@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateDrumPatch } from '../../utils/patchGeneration';
 import type { AppState } from '../../context/AppContext';
+import type JSZipType from 'jszip';
 
 // Mock JSZip
 vi.mock('jszip', () => {
@@ -9,7 +10,10 @@ vi.mock('jszip', () => {
     generateAsync: vi.fn().mockResolvedValue(new Blob(['mock zip'], { type: 'application/zip' }))
   };
 
-  const mockJSZip = vi.fn().mockImplementation(() => mockJSZipInstance) as any;
+  const mockJSZip = vi.fn(function MockJSZip() { return mockJSZipInstance }) as unknown as {
+    (): typeof mockJSZipInstance;
+    loadAsync: ReturnType<typeof vi.fn>;
+  };
   mockJSZip.loadAsync = vi.fn().mockResolvedValue(mockJSZipInstance);
 
   return {
@@ -32,7 +36,7 @@ vi.mock('../../utils/audioExport', () => ({
 
 // Mock convertAudioFormat
 vi.mock('../../utils/audioFormats', () => ({
-  convertAudioFormat: vi.fn().mockImplementation(async (buffer: any) => buffer)
+  convertAudioFormat: vi.fn().mockImplementation(async (buffer: AudioBuffer) => buffer)
 }));
 
 // Mock value conversions
@@ -145,7 +149,7 @@ describe('Drum patch generation with start/end points', () => {
     };
 
     const JSZip = (await import('jszip')).default;
-    vi.mocked(JSZip).mockImplementation(() => mockZip as any);
+    vi.mocked(JSZip).mockImplementation(function MockJSZip() { return mockZip as unknown as JSZipType });
 
     // Generate the patch
     await generateDrumPatch(mockState, 'Test Kit');
@@ -273,7 +277,7 @@ describe('Drum patch generation with start/end points', () => {
     };
 
     const JSZip = (await import('jszip')).default;
-    vi.mocked(JSZip).mockImplementation(() => mockZip as any);
+    vi.mocked(JSZip).mockImplementation(function MockJSZip() { return mockZip as unknown as JSZipType });
 
     // Generate the patch
     await generateDrumPatch(mockState, 'Test Kit');

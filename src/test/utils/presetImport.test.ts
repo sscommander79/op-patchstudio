@@ -1,7 +1,30 @@
 import { describe, it, expect } from 'vitest'
-import { validatePresetJson } from '../../utils/presetImport'
+import { importPresetFromFile, validatePresetJson } from '../../utils/presetImport'
 
 describe('presetImport', () => {
+  it.each([
+    ['array', []], ['null engine', {type:'drum',engine:null}], ['infinite transpose',{type:'drum',engine:{transpose:Number.POSITIVE_INFINITY}}],
+    ['wrong playmode',{type:'drum',engine:{playmode:'duophonic'}}], ['coerced playmode array',{type:'drum',engine:{playmode:['mono']}}], ['wrong envelope scalar',{type:'drum',engine:{},envelope:{amp:{attack:'fast'}}}],
+  ])('rejects malformed known shape: %s',(_label,value)=>{
+    expect(validatePresetJson(value,'drum').success).toBe(false)
+  })
+
+  it('rejects recursive prototype keys while preserving safe unknown fields exactly',()=>{
+    const unsafe=JSON.parse('{"type":"drum","engine":{},"vendor":{"__proto__":{"polluted":true}}}')
+    expect(validatePresetJson(unsafe,'drum').success).toBe(false)
+    const safe={type:'drum',engine:{volume:12345,vendorPrecision:0.123456789012345},vendor:{mode:'x'}}
+    const result=validatePresetJson(safe,'drum')
+    expect(result).toMatchObject({success:true,data:safe})
+  })
+
+  it('bounds file bytes and combined retained imported settings',async()=>{
+    const tooLarge=new File(['x'.repeat(2*1024*1024+1)],'patch.json',{type:'application/json'})
+    await expect(importPresetFromFile(tooLarge,'drum')).resolves.toMatchObject({success:false,error:expect.stringMatching(/2 MiB/i)})
+    const incomingText=JSON.stringify({type:'drum',engine:{},payload:'x'.repeat(1_100_000)})
+    const incoming={name:'patch.json',size:new TextEncoder().encode(incomingText).length,text:async()=>incomingText} as File
+    const retained={type:'multisampler',engine:{},payload:'y'.repeat(1_100_000)}
+    await expect(importPresetFromFile(incoming,'drum',retained)).resolves.toMatchObject({success:false,error:expect.stringMatching(/combined/i)})
+  })
   describe('validatePresetJson', () => {
     describe('drum preset validation', () => {
       it('should validate a valid drum preset', () => {
@@ -54,16 +77,15 @@ describe('presetImport', () => {
         expect(result.error).toContain('Missing "type" field')
       })
 
-      it('should reject preset without engine field', () => {
-        const invalidPreset = {
+      it('should accept a preset without an engine field when its present fields are valid', () => {
+        const validPreset = {
           type: 'drum',
           regions: []
         }
 
-        const result = validatePresetJson(invalidPreset, 'drum')
+        const result = validatePresetJson(validPreset, 'drum')
         
-        expect(result.success).toBe(false)
-        expect(result.error).toContain('Missing or invalid "engine" field')
+        expect(result.success).toBe(true)
       })
 
       it('should validate drum preset with minimal required fields', () => {
@@ -167,7 +189,7 @@ describe('presetImport', () => {
         const result = validatePresetJson(['not', 'an', 'object'], 'drum')
         
         expect(result.success).toBe(false)
-        expect(result.error).toContain('Missing "type" field')
+        expect(result.error).toContain('Invalid JSON format')
       })
 
       it('should handle JSON parsing errors gracefully', () => {
@@ -233,10 +255,10 @@ describe('presetImport', () => {
         const result = validatePresetJson(invalidEnginePreset, 'drum')
         
         expect(result.success).toBe(false)
-        expect(result.error).toContain('Missing or invalid "engine" field')
+        expect(result.error).toContain('Invalid "engine" field')
       })
 
-      it('should handle missing engine field', () => {
+      it('should preserve a missing optional engine field', () => {
         const noEnginePreset = {
           type: 'drum',
           regions: []
@@ -244,8 +266,8 @@ describe('presetImport', () => {
 
         const result = validatePresetJson(noEnginePreset, 'drum')
         
-        expect(result.success).toBe(false)
-        expect(result.error).toContain('Missing or invalid "engine" field')
+        expect(result.success).toBe(true)
+        expect(result.data).not.toHaveProperty('engine')
       })
 
       it('should accept empty engine object', () => {

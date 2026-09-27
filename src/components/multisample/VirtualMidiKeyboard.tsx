@@ -5,6 +5,7 @@ import { MidiDeviceSelector } from '../common/MidiDeviceSelector';
 import type { MidiEvent } from '../../utils/midi';
 import { useAppContext } from '../../context/AppContext';
 import { UI_CONSTANTS } from '../../utils/constants';
+import { shouldIgnoreKeyboardKeyDown } from '../../utils/keyboardOwnership';
 
 interface VirtualMidiKeyboardProps {
   assignedNotes?: number[]; // MIDI note numbers that have samples assigned
@@ -21,8 +22,12 @@ interface VirtualMidiKeyboardProps {
   isActive?: boolean; // Whether this keyboard should respond to MIDI events
 }
 
-export function VirtualMidiKeyboard({ 
-  assignedNotes = [], 
+const keyboardMapping = {
+  a:0,s:2,d:4,f:5,g:7,h:9,j:11,w:1,e:3,t:6,y:8,u:10,
+} as const;
+
+export function VirtualMidiKeyboard({
+  assignedNotes = [],
   onKeyClick,
   onKeyRelease,
   onUnassignedKeyClick,
@@ -39,7 +44,7 @@ export function VirtualMidiKeyboard({
   const containerRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
   const keyboardScrollRef = useRef<HTMLDivElement>(null);
-  
+
   const [hoveredKey, setHoveredKey] = useState<number | null>(null);
   const [dragOverKey, setDragOverKey] = useState<number | null>(null);
   const [isStuck, setIsStuck] = useState(false);
@@ -47,24 +52,18 @@ export function VirtualMidiKeyboard({
   const [placeholderHeight, setPlaceholderHeight] = useState(0);
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  
+
   // Keyboard control state
   const [activeOctave, setActiveOctave] = useState(4); // Default to middle C (C4)
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const physicalNotesRef = useRef(new Map<string, number>());
 
   const [mousePressedKey, setMousePressedKey] = useState<number | null>(null);
-  const { onMidiEvent, state: midiState, initialize, refreshDevices } = useWebMidi();
+  const { onMidiEvent, state: midiState, refreshDevices } = useWebMidi();
   const [isMidiSelectorVisible, setIsMidiSelectorVisible] = useState(false);
   const [localSelectedMidiChannel, setLocalSelectedMidiChannel] = useState(selectedMidiChannel || 1);
   const [midiTriggeredKeys, setMidiTriggeredKeys] = useState<Set<string>>(new Set());
   const [midiPressedNotes, setMidiPressedNotes] = useState<Set<number>>(new Set());
-
-  // Auto-initialize MIDI if not already initialized
-  useEffect(() => {
-    if (!midiState.isInitialized && !midiState.isConnecting) {
-      initialize();
-    }
-  }, [midiState.isInitialized, midiState.isConnecting, initialize]);
 
   // Refresh MIDI devices when tab becomes visible (helps with device detection)
   useEffect(() => {
@@ -83,29 +82,11 @@ export function VirtualMidiKeyboard({
   // Check if MIDI is connected (initialized and has input devices)
   const inputDevices = midiState.devices.filter(device => device.type === 'input' && device.state === 'connected');
   const isMidiConnected = midiState.isInitialized && inputDevices.length > 0;
-  
+
   // Mouse drag scrolling state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartScrollLeft, setDragStartScrollLeft] = useState(0);
-  
-  // Keyboard mapping - white keys (bottom row) and black keys (top row)
-  const keyboardMapping = {
-    // White keys (C, D, E, F, G, A, B)
-    'a': 0,  // C
-    's': 2,  // D  
-    'd': 4,  // E
-    'f': 5,  // F
-    'g': 7,  // G
-    'h': 9,  // A
-    'j': 11, // B
-    // Black keys (C#, D#, F#, G#, A#)
-    'w': 1,  // C#
-    'e': 3,  // D#
-    't': 6,  // F#
-    'y': 8,  // G#
-    'u': 10  // A#
-  };
 
   // Octave control functions
   const changeOctave = useCallback((direction: 'up' | 'down') => {
@@ -125,11 +106,11 @@ export function VirtualMidiKeyboard({
     const octaveWidth = 7 * 24;
     const targetOctave = activeOctave + 1; // +1 because our octaves start from -1
     const targetPosition = targetOctave * octaveWidth;
-    
+
     // Center the target octave in the viewport
     const containerWidth = scrollContainer.clientWidth;
     const scrollPosition = targetPosition - (containerWidth / 2) + (octaveWidth / 2);
-    
+
     scrollContainer.scrollTo({
       left: Math.max(0, scrollPosition),
       behavior: 'smooth'
@@ -138,28 +119,17 @@ export function VirtualMidiKeyboard({
 
   // Keyboard event handlers
   useEffect(() => {
-    const isUserTyping = () => {
-      const activeElement = document.activeElement;
-      return activeElement && (
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.hasAttribute('contenteditable')
-      );
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      // If user is typing, don't process keyboard shortcuts
-      if (isUserTyping()) {
-        return;
-      }
-      
+      if (shouldIgnoreKeyboardKeyDown(e)) return;
+
       const key = e.key.toLowerCase();
-      
+      const physicalKey = e.code || `key:${key}`;
+
       // Prevent default for our mapped keys to avoid browser shortcuts
       if (key in keyboardMapping || key === 'z' || key === 'x') {
         e.preventDefault();
       }
-      
+
       // Handle octave switching
       if (key === 'z') {
         setPressedKeys(prev => new Set([...prev, key]));
@@ -171,16 +141,17 @@ export function VirtualMidiKeyboard({
         changeOctave('up');
         return;
       }
-      
+
       // Handle note playing - only respond if there's a sample loaded
-      if (key in keyboardMapping && !pressedKeys.has(key) && !midiTriggeredKeys.has(key)) {
+      if (key in keyboardMapping && !physicalNotesRef.current.has(physicalKey) && !midiTriggeredKeys.has(key)) {
         const noteOffset = keyboardMapping[key as keyof typeof keyboardMapping];
         // Fix: Use C3 = 60 convention. C3 is octave 3, so C0 = 60 - (3 * 12) = 24
         const midiNote = activeOctave * 12 + 24 + noteOffset;
-        
+
         if (midiNote >= 0 && midiNote <= 127) {
           // Only trigger actions AND visual feedback if there's a sample assigned to this MIDI note
           if (assignedNotes.includes(midiNote)) {
+            physicalNotesRef.current.set(physicalKey, midiNote);
             setPressedKeys(prev => new Set([...prev, key]));
             onKeyClick?.(midiNote);
           }
@@ -191,48 +162,40 @@ export function VirtualMidiKeyboard({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      // If user is typing, don't process keyboard shortcuts
-      if (isUserTyping()) {
-        return;
-      }
-      
       const key = e.key.toLowerCase();
+      const physicalKey = e.code || `key:${key}`;
       if (key in keyboardMapping || key === 'z' || key === 'x') {
         setPressedKeys(prev => {
           const newSet = new Set(prev);
           newSet.delete(key);
           return newSet;
         });
-        
-        // Trigger release for assigned notes on keyboard release
+
         if (key in keyboardMapping) {
-          const noteOffset = keyboardMapping[key as keyof typeof keyboardMapping];
-          const midiNote = activeOctave * 12 + 24 + noteOffset;
-          
-          if (midiNote >= 0 && midiNote <= 127 && assignedNotes.includes(midiNote)) {
-            onKeyRelease?.(midiNote);
-          }
+          const startedNote = physicalNotesRef.current.get(physicalKey);
+          physicalNotesRef.current.delete(physicalKey);
+          if (startedNote !== undefined) onKeyRelease?.(startedNote);
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
-    
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
     };
-     }, [activeOctave, pressedKeys, keyboardMapping, changeOctave, assignedNotes, onKeyClick, onKeyRelease, onUnassignedKeyClick]);
+  }, [activeOctave, assignedNotes, changeOctave, midiTriggeredKeys, onKeyClick, onKeyRelease]);
 
   // Helper function to get computer key for a MIDI note in the active octave
   const getComputerKeyForNote = useCallback((midiNote: number): string | null => {
     // Fix: Use C3 = 60 convention. C3 is octave 3, so C0 = 60 - (3 * 12) = 24
     const noteOctave = Math.floor((midiNote - 24) / 12);
     if (noteOctave !== activeOctave) return null;
-    
+
     const noteInOctave = (midiNote - 24) % 12;
-    
+
     // Find the computer key that maps to this note
     for (const [key, offset] of Object.entries(keyboardMapping)) {
       if (offset === noteInOctave) {
@@ -240,7 +203,7 @@ export function VirtualMidiKeyboard({
       }
     }
     return null;
-  }, [activeOctave, keyboardMapping]);
+  }, [activeOctave]);
 
   // Function to hide MIDI selector
   const hideMidiSelector = () => {
@@ -255,20 +218,20 @@ export function VirtualMidiKeyboard({
   const handleMidiEvent = useCallback((event: MidiEvent) => {
     if (event.type === 'noteon' || event.type === 'noteoff') {
       const midiNote = event.note;
-      
+
       if (event.type === 'noteon' && event.velocity > 0) {
         // Note on - only trigger playback for assigned notes, not file browser for unassigned
         if (assignedNotes.includes(midiNote)) {
           onKeyClick?.(midiNote);
         }
         // Don't call onUnassignedKeyClick for MIDI - only mouse clicks should trigger file browser
-        
+
         // Hide MIDI selector when a note is played
         hideMidiSelector();
-        
+
         // Add visual feedback for ALL keys (not just current octave)
         setMidiPressedNotes(prev => new Set([...prev, midiNote]));
-        
+
         // Also handle computer keyboard mapping for current octave
         const computerKey = getComputerKeyForNote(midiNote);
         if (computerKey) {
@@ -277,7 +240,7 @@ export function VirtualMidiKeyboard({
           setMidiTriggeredKeys(prev => new Set([...prev, keyLower]));
           setPressedKeys(prev => new Set([...prev, keyLower]));
         }
-        
+
         // Remove visual feedback after timeout (same as mouse clicks)
         setTimeout(() => {
           setMidiPressedNotes(prev => {
@@ -308,12 +271,12 @@ export function VirtualMidiKeyboard({
           newSet.delete(midiNote);
           return newSet;
         });
-        
+
         // Trigger release for assigned notes on MIDI note off
         if (assignedNotes.includes(midiNote)) {
           onKeyRelease?.(midiNote);
         }
-        
+
         // Also clear computer keyboard mapping
         const computerKey = getComputerKeyForNote(midiNote);
         if (computerKey) {
@@ -331,7 +294,7 @@ export function VirtualMidiKeyboard({
         }
       }
     }
-  }, [assignedNotes, onKeyClick, onUnassignedKeyClick, getComputerKeyForNote, hideMidiSelector]);
+  }, [assignedNotes, getComputerKeyForNote, onKeyClick, onKeyRelease]);
 
   // MIDI event handling for multisample keyboard - only when active
   useEffect(() => {
@@ -347,7 +310,7 @@ export function VirtualMidiKeyboard({
     // Set up MIDI event listener
     if (isMidiConnected && localSelectedMidiChannel) {
       const cleanup = onMidiEvent(handleMidiEvent, localSelectedMidiChannel);
-      
+
       return () => {
         cleanup();
       };
@@ -356,7 +319,7 @@ export function VirtualMidiKeyboard({
     } else if (!localSelectedMidiChannel) {
       // console.log(`[MIDI] Virtual keyboard: No MIDI channel selected`);
     }
-  }, [isMidiConnected, localSelectedMidiChannel, onMidiEvent, handleMidiEvent, isActive]);
+  }, [handleMidiEvent, isActive, isMidiConnected, localSelectedMidiChannel, midiState.isInitialized, onMidiEvent]);
 
   // Center the keyboard on the active octave when it changes or on mount
   useEffect(() => {
@@ -411,7 +374,7 @@ export function VirtualMidiKeyboard({
       setDynamicStyles({});
       setIsStuck(false);
     }
-    
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isPinned, isStuck]);
 
@@ -426,20 +389,20 @@ export function VirtualMidiKeyboard({
   const tooltipContent = isMobile ? (
     <>
       <h3>
-        <i className="fas fa-keyboard" style={{ marginRight: '0.5rem' }}></i>
+        <i aria-hidden="true" className="fas fa-keyboard" style={{ marginRight: '0.5rem' }}></i>
         keyboard controls
       </h3>
-      <p><strong>load:</strong> tap empty keys to browse and select files</p>
+      <p><strong>load:</strong> select an empty key, then use Add sounds nearby</p>
       <p><strong>play:</strong> tap keys to play loaded samples</p>
       <p><strong>pin:</strong> use the pin icon to keep the keyboard at the top of the screen</p>
     </>
   ) : (
     <>
       <h3>
-        <i className="fas fa-keyboard" style={{ marginRight: '0.5rem' }}></i>
+        <i aria-hidden="true" className="fas fa-keyboard" style={{ marginRight: '0.5rem' }}></i>
         keyboard controls
       </h3>
-      <p><strong>load:</strong> click empty keys to browse files or drag & drop audio onto any key</p>
+      <p><strong>load:</strong> select an empty key and use Add sounds, or drag audio directly onto a key</p>
       <p><strong>play:</strong> use keyboard keys (<strong>A-J, W, E, T, Y, U</strong>) & <strong>Z/X</strong> to change octave</p>
       <p><strong>pin:</strong> keep the keyboard fixed using the pin icon</p>
     </>
@@ -485,12 +448,12 @@ export function VirtualMidiKeyboard({
     e.preventDefault();
     e.stopPropagation();
     setDragOverKey(null);
-    
+
     const files = Array.from(e.dataTransfer.files);
-    const wavFiles = files.filter(file => 
+    const wavFiles = files.filter(file =>
       file.type === 'audio/wav' || file.name.toLowerCase().endsWith('.wav')
     );
-    
+
     if (wavFiles.length > 0) {
       onKeyDrop?.(midiNote, wavFiles);
     }
@@ -499,7 +462,7 @@ export function VirtualMidiKeyboard({
   // Reusable event handlers for key interactions
   const createKeyEventHandlers = useCallback((midiNote: number) => {
     const isAssigned = assignedNotes.includes(midiNote);
-    
+
     return {
       onMouseDown: () => {
         // Don't set pressed key if we're starting to drag
@@ -520,8 +483,8 @@ export function VirtualMidiKeyboard({
           onKeyRelease?.(midiNote);
         }
       },
-      onMouseLeave: () => { 
-        setMousePressedKey(null); 
+      onMouseLeave: () => {
+        setMousePressedKey(null);
         handleKeyMouseLeave();
         // Trigger release for ADSR when mouse leaves key
         if (isAssigned) {
@@ -545,7 +508,9 @@ export function VirtualMidiKeyboard({
       onMouseEnter: () => handleKeyMouseEnter(midiNote),
       onDragOver: (e: React.DragEvent) => handleKeyDragOver(e, midiNote),
       onDragLeave: handleKeyDragLeave,
-      onDrop: (e: React.DragEvent) => handleKeyDrop(e, midiNote)
+      onDrop: (e: React.DragEvent) => handleKeyDrop(e, midiNote),
+      'data-audio-import': 'multisample',
+      'data-multisample-root': midiNote,
     };
   }, [assignedNotes, isDragging, onKeyClick, onKeyRelease, onUnassignedKeyClick, handleKeyMouseLeave, handleKeyMouseEnter, handleKeyDragOver, handleKeyDragLeave, handleKeyDrop]);
 
@@ -576,7 +541,7 @@ export function VirtualMidiKeyboard({
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!isDragging || !keyboardScrollRef.current) return;
-      
+
       const deltaX = e.clientX - dragStartX;
       keyboardScrollRef.current.scrollLeft = dragStartScrollLeft - deltaX;
       e.preventDefault();
@@ -595,27 +560,27 @@ export function VirtualMidiKeyboard({
   // Generate all 128 MIDI keys
   const renderKeys = () => {
     const keys = [];
-    
+
     // Group keys by octave for better layout
     for (let octave = -2; octave <= 8; octave++) {
       const octaveKeys = [];
-      
+
       // White keys for this octave
       const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11]; // C, D, E, F, G, A, B
-      
+
       for (let i = 0; i < whiteKeyOrder.length; i++) {
         const noteInOctave = whiteKeyOrder[i];
         // Fix: Use C3 = 60 convention. C3 is octave 3, so C0 = 60 - (3 * 12) = 24
         const midiNote = octave * 12 + 24 + noteInOctave;
-        
+
         if (midiNote < 0 || midiNote > 127) continue;
-        
+
         const isAssigned = assignedNotes.includes(midiNote);
         const isHovered = hoveredKey === midiNote;
         const isDragOver = dragOverKey === midiNote;
         const computerKey = getComputerKeyForNote(midiNote);
         const isPressed = (computerKey && pressedKeys.has(computerKey.toLowerCase())) || mousePressedKey === midiNote || midiPressedNotes.has(midiNote);
-        
+
         // Define key colors based on state
         const whiteKeyColors = {
           base: isAssigned ? 'var(--color-bg-primary)' : 'var(--color-key-inactive-white-bg)',
@@ -623,9 +588,9 @@ export function VirtualMidiKeyboard({
           pressed: isPressed ? 'linear-gradient(to top, var(--color-border-subtle) 0%, var(--color-bg-primary) 70%, var(--color-bg-primary) 100%)' : 'var(--color-interactive-secondary)',
           dragOver: 'var(--color-interactive-focus-ring)',
         };
-        
+
         const keyEventHandlers = createKeyEventHandlers(midiNote);
-        
+
         octaveKeys.push(
           <div
             key={`white-${midiNote}`}
@@ -661,8 +626,8 @@ export function VirtualMidiKeyboard({
           >
             {/* Octave marker for C notes - always visible, color changes */}
             {noteInOctave === 0 && (
-              <span style={{ 
-                fontSize: '10px', 
+              <span style={{
+                fontSize: '10px',
                 fontWeight: '600',
                 color: isAssigned ? 'var(--color-black)' : 'var(--color-text-secondary)'
               }}>
@@ -672,7 +637,7 @@ export function VirtualMidiKeyboard({
           </div>
         );
       }
-      
+
       // Black keys for this octave (positioned absolutely over white keys)
       const blackKeyPositions = [
         { noteInOctave: 1, position: 17 },   // C# - between C and D
@@ -681,19 +646,19 @@ export function VirtualMidiKeyboard({
         { noteInOctave: 8, position: 113 },  // G# - between G and A
         { noteInOctave: 10, position: 137 }  // A# - between A and B
       ];
-      
+
       for (const { noteInOctave, position } of blackKeyPositions) {
         // Fix: Use C3 = 60 convention. C3 is octave 3, so C0 = 60 - (3 * 12) = 24
         const midiNote = octave * 12 + 24 + noteInOctave;
-        
+
         if (midiNote < 0 || midiNote > 127) continue;
-        
+
         const isAssigned = assignedNotes.includes(midiNote);
         const isHovered = hoveredKey === midiNote;
         const isDragOver = dragOverKey === midiNote;
         const computerKey = getComputerKeyForNote(midiNote);
         const isPressed = (computerKey && pressedKeys.has(computerKey.toLowerCase())) || mousePressedKey === midiNote || midiPressedNotes.has(midiNote);
-        
+
         // Define key colors based on state
         const blackKeyColors = {
           base: isAssigned ? 'var(--color-interactive-dark)' : 'var(--color-key-inactive-black-bg)',
@@ -701,9 +666,9 @@ export function VirtualMidiKeyboard({
           pressed: isPressed ? 'linear-gradient(to top, var(--color-key-inactive-black-bg) 0%, var(--color-interactive-dark) 70%, var(--color-interactive-dark) 100%)' : 'var(--color-interactive-secondary)',
           dragOver: 'var(--color-interactive-secondary)',
         };
-        
+
         const keyEventHandlers = createKeyEventHandlers(midiNote);
-        
+
         octaveKeys.push(
           <div
             key={`black-${midiNote}`}
@@ -734,7 +699,7 @@ export function VirtualMidiKeyboard({
           />
         );
       }
-      
+
       keys.push(
         <div
           key={`octave-${octave}`}
@@ -747,13 +712,13 @@ export function VirtualMidiKeyboard({
         </div>
       );
     }
-    
+
     return keys;
   };
 
   return (
     <>
-      <div 
+      <div
         ref={placeholderRef}
         style={{
           display: isStuck ? 'block' : 'none',
@@ -763,11 +728,13 @@ export function VirtualMidiKeyboard({
       />
       <div
         ref={containerRef}
-        className={`virtual-midi-keyboard ${isPinned ? 'pinned' : ''} ${className}`}
+        role="region"
+        aria-label={`Multisample instrument, ${loadedSamplesCount} of 24 loaded`}
+        className={`virtual-midi-keyboard studio-performance-surface studio-multisample-surface ${isPinned ? 'pinned' : ''} ${className}`}
         style={combinedStyles}
       >
         {/* Left fade overlay */}
-        <div style={{
+        <div className="studio-performance-header" style={{
           position: 'absolute',
           left: 0,
           top: '60px', // Start below the header section
@@ -806,7 +773,7 @@ export function VirtualMidiKeyboard({
               fontSize: '1.25rem',
               fontWeight: 300,
             }}>
-              load and play samples
+              multisample keys
             </h3>
             <EnhancedTooltip
               isVisible={isTooltipVisible}
@@ -821,10 +788,10 @@ export function VirtualMidiKeyboard({
                 onMouseEnter={() => setIsTooltipVisible(true)}
                 onMouseLeave={() => setIsTooltipVisible(false)}
               >
-                <i 
-                  className="fas fa-question-circle" 
-                  style={{ 
-                    fontSize: iconSize, 
+                <i aria-hidden="true"
+                  className="fas fa-question-circle"
+                  style={{
+                    fontSize: iconSize,
                     color: 'var(--color-text-secondary)',
                     cursor: 'help'
                   }}
@@ -841,13 +808,13 @@ export function VirtualMidiKeyboard({
           }}>
             {!isMobile && (
               <>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '0.5rem',
                   fontWeight: 500
                 }}>
-                  <i className="fas fa-check-circle" style={{ color: 'var(--color-text-secondary)', fontSize: iconSize }}></i>
+                  <i aria-hidden="true" className="fas fa-check-circle" style={{ color: 'var(--color-text-secondary)', fontSize: iconSize }}></i>
                   {loadedSamplesCount} / 24 loaded
                 </div>
                 <button
@@ -859,12 +826,10 @@ export function VirtualMidiKeyboard({
                     }
                   }}
                   style={{
-                    background: isMidiSelectorVisible 
-                      ? 'var(--color-interactive-focus)' 
-                      : midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0
-                        ? 'var(--color-text-primary)'
-                        : 'var(--color-text-secondary)',
-                    border: 'none',
+                    background: isMidiSelectorVisible
+                      ? 'var(--color-interactive-focus)'
+                      : 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border-medium)',
                     cursor: 'pointer',
                     padding: '0.25rem 0.5rem',
                     borderRadius: '3px',
@@ -872,31 +837,15 @@ export function VirtualMidiKeyboard({
                     alignItems: 'center',
                     gap: '0.25rem',
                     fontSize: '0.875rem',
-                    color: 'var(--color-white)',
+                    color: isMidiSelectorVisible ? 'var(--studio-accent-text)' : 'var(--color-white)',
                     transition: 'all 0.2s ease',
                     fontFamily: '"Montserrat", "Arial", sans-serif',
                     fontWeight: 500,
                     minHeight: '32px'
                   }}
-                  onMouseEnter={e => {
-                    const hasConnectedDevices = midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0;
-                    e.currentTarget.style.backgroundColor = isMidiSelectorVisible 
-                      ? 'var(--color-interactive-dark)' 
-                      : hasConnectedDevices
-                        ? 'var(--color-interactive-focus)'
-                        : 'var(--color-interactive-focus)';
-                  }}
-                  onMouseLeave={e => {
-                    const hasConnectedDevices = midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0;
-                    e.currentTarget.style.backgroundColor = isMidiSelectorVisible 
-                      ? 'var(--color-interactive-focus)' 
-                      : hasConnectedDevices
-                        ? 'var(--color-text-primary)'
-                        : 'var(--color-text-secondary)';
-                  }}
                   title="connect midi devices"
                 >
-                  <i className="fas fa-plug" style={{ fontSize: '0.75rem' }}></i>
+                  <i aria-hidden="true" className="fas fa-plug" style={{ fontSize: '0.75rem' }}></i>
                   <span>midi</span>
                 </button>
               </>
@@ -917,7 +866,7 @@ export function VirtualMidiKeyboard({
               }}
               title={isPinned ? 'Unpin keyboard' : 'Pin keyboard to top'}
             >
-              <i className="fas fa-thumbtack" style={{ 
+              <i aria-hidden="true" className="fas fa-thumbtack" style={{
                 fontSize: iconSize,
               }}></i>
             </button>
@@ -925,17 +874,17 @@ export function VirtualMidiKeyboard({
         </div>
 
         {/* MIDI Device Selector (Hidden by default) */}
-        <div 
+        <div
           className="midi-device-selector"
-          style={{ 
+          style={{
             display: isMidiSelectorVisible ? 'block' : 'none',
             padding: '0.75rem 1rem',
             backgroundColor: 'var(--color-bg-primary)',
             borderBottom: '1px solid var(--color-border-light)'
           }}
         >
-          <MidiDeviceSelector 
-            showInputsOnly={true} 
+          <MidiDeviceSelector
+            showInputsOnly={true}
             onChannelChange={(channel) => {
               setLocalSelectedMidiChannel(channel);
               localStorage.setItem('midi-channel', channel.toString());
@@ -944,7 +893,7 @@ export function VirtualMidiKeyboard({
           />
         </div>
 
-        <div 
+        <div
           ref={keyboardScrollRef}
           className="hide-scrollbar"
           style={{
@@ -961,7 +910,7 @@ export function VirtualMidiKeyboard({
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}>
-          
+
           <div style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -1041,7 +990,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     A
                   </div>
-                  
+
                   {/* C# key - W (black key at 17px, width 14px, center at 17+7=24px) */}
                   <div style={{
                     position: 'absolute',
@@ -1058,7 +1007,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     W
                   </div>
-                  
+
                   {/* D key - S (white key 24-48px, center at 36px) */}
                   <div style={{
                     position: 'absolute',
@@ -1075,7 +1024,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     S
                   </div>
-                  
+
                   {/* D# key - E (black key at 41px, width 14px, center at 41+7=48px) */}
                   <div style={{
                     position: 'absolute',
@@ -1092,7 +1041,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     E
                   </div>
-                  
+
                   {/* E key - D (white key 48-72px, center at 60px) */}
                   <div style={{
                     position: 'absolute',
@@ -1109,7 +1058,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     D
                   </div>
-                  
+
                   {/* F key - F (white key 72-96px, center at 84px) */}
                   <div style={{
                     position: 'absolute',
@@ -1126,7 +1075,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     F
                   </div>
-                  
+
                   {/* F# key - T (black key at 89px, width 14px, center at 89+7=96px) */}
                   <div style={{
                     position: 'absolute',
@@ -1143,7 +1092,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     T
                   </div>
-                  
+
                   {/* G key - G (white key 96-120px, center at 108px) */}
                   <div style={{
                     position: 'absolute',
@@ -1160,7 +1109,7 @@ export function VirtualMidiKeyboard({
                   }}>
                     G
                   </div>
-                  
+
                   {/* Hide subsequent keys on the last octave */}
                   {activeOctave < lastOctaveWithKeys && (
                     <>
@@ -1180,7 +1129,7 @@ export function VirtualMidiKeyboard({
                       }}>
                         Y
                       </div>
-                      
+
                       {/* A key - H (white key 120-144px, center at 132px) */}
                       <div style={{
                         position: 'absolute',
@@ -1197,7 +1146,7 @@ export function VirtualMidiKeyboard({
                       }}>
                         H
                       </div>
-                      
+
                       {/* A# key - U (black key at 137px, width 14px, center at 137+7=144px) */}
                       <div style={{
                         position: 'absolute',
@@ -1214,7 +1163,7 @@ export function VirtualMidiKeyboard({
                       }}>
                         U
                       </div>
-                      
+
                       {/* B key - J (white key 144-168px, center at 159px) */}
                       <div style={{
                         position: 'absolute',
@@ -1234,7 +1183,7 @@ export function VirtualMidiKeyboard({
                     </>
                   )}
                   </div> {/* End of letter keys container */}
-                  
+
                   {/* Octave switching controls */}
                   {/* Z key (octave down) - only show on left side if not at lowest octave */}
                   {activeOctave > -2 && (
@@ -1254,7 +1203,7 @@ export function VirtualMidiKeyboard({
                       Z ◀
                     </div>
                   )}
-                  
+
                   {/* X key (octave up) - only show on right side if not at highest octave */}
                   {activeOctave < 8 && (
                     <div style={{
@@ -1281,4 +1230,4 @@ export function VirtualMidiKeyboard({
       </div>
     </>
   );
-} 
+}

@@ -1,0 +1,1020 @@
+--- before/README.md
++++ after/README.md
+@@ -47,7 +47,7 @@
+ 
+ The production build is an installable progressive web app. After a successful online visit has populated its cache, the core studio, local import/edit flows, recording code, project backups and preset export are designed to work offline. A first-ever visit cannot work offline. Live Patreon posts, support links, the hosted feedback form and other external pages need a network connection; the app shows an offline fallback instead of an empty hosted form.
+ 
+-When a new build is ready, the app presents **Update now** and **Later**. Choosing Later leaves the current editor running so an active recording or unsaved draft is not silently reloaded. Save or back up important work and close other OP-PatchStudio tabs before choosing Update now. If another Studio tab is still open, the update stays waiting and the app asks you to close it before retrying. The current and previous application caches are retained as bounded update/reload protection; older application caches are retired after a later update, while unrelated origin caches are left alone.
++When a new build is ready, the app presents **Update now** and **Later**. Choosing Later leaves the current editor running so an active recording or unsaved draft is not silently reloaded. Save or back up important work and close other OP-PatchStudio tabs before choosing Update now. If another Studio tab is still open, the update stays waiting and the app asks you to close it before retrying. While an update waits, the active build, its previous activated build and the newest waiting build may be retained; superseded waiting builds are retired. After activation, the current and previous builds remain as bounded update/reload protection. If cache ownership cannot be proved during an upgrade or race, cleanup is deferred rather than deleting a possibly live build. Unrelated origin caches are left alone.
+ 
+ ## Browser permissions and limits
+ 
+--- before/CHANGELOG.md
++++ after/CHANGELOG.md
+@@ -26,8 +26,9 @@
+ ### Fixed
+ 
+ - Patreon post content is rendered as plain text with validated Patreon HTTPS links; oversized responses are cancelled while streaming.
+-- Stable public PWA assets retain content revisions, duplicate manifest/icon precache entries are rejected, and updates wait for per-tab user action instead of silently reloading another tab's editor.
++- Stable public PWA assets retain content revisions, duplicate manifest/icon precache entries are rejected, and updates wait for per-tab user action instead of silently reloading another tab's editor. Build-owned worker identities distinguish same-version builds, and superseded waiting caches are removed only when active, previous and waiting ownership is known.
+ - Automatic MIDI permission is attempted once per document, with explicit retry retained, and drum-pad DOM identity remains stable through parent and pressed-state renders.
++- Recording setup now freezes an already-running audio clock until the worklet graph and message path are connected, then resumes the complete graph.
+ - Feedback and Patreon panels show explicit network-unavailable states.
+ - Test doubles now model native AudioBuffer copy and constructor behavior and no longer test mocked versions of the component under test.
+ 
+--- before/docs/verification/acceptance-matrix.md
++++ after/docs/verification/acceptance-matrix.md
+@@ -0,0 +1,36 @@
++# Upgrade acceptance matrix
++
++This records delivered behavior, not intentions. Pending is the default until direct evidence exists.
++
++| Requirement | Evidence required | Current status |
++|---|---|---|
++| Sparse drum mapping | Real downloaded ZIP from pad 0/5 has 53/58 | Browser GREEN in all5 configurations; Task1 independent re-review PASS |
++| Collision-safe samples | Same-name/different-content files survive archive | Browser GREEN in all5 configurations; Task1 independent re-review PASS |
++| Failed export rejects | Forced conversion/export rejection produces no completed archive | Real ZIP rejection tests GREEN; Task1 independent re-review PASS |
++| Imported settings survive | Imported fx/LFO/settings match exported JSON | Browser import→download GREEN; raw precision and independent re-review PASS |
++| Export frame/marker truth | Actual PCM/AIFF frame counts and valid bounds | RealRIFF/AIFF byte bounds and converted/cutbrowserexport verified; Task4 independentround2PASS |
++| Atomic saves | Failed transaction retains old samples and session | Real browser rollback GREEN in5 profiles; Task2 independent re-review PASS |
++| Serialized save/clear | Ordered queue and failure recovery | Independent focused tests GREEN |
++| Lossless saved audio | Exact Float32 values/dimensions after round trip | Exact precision/rate/dimensions browser GREEN in5 profiles |
++| Complete restore | Advanced settings/zero loops/assignments/imports preserved | Unit and actual library reload/export GREEN; settings-only recovery browser GREEN; independent re-review PASS |
++| Visible storage status | State revision tracked; actionable failures/retry | Retry and stale-completion checks GREEN; failed-load autosave/marker outcome regressions GREEN; independent re-review PASS |
++| Recovery independent of age | Older sessions remain recoverable | Two-day-old recovery and nondestructive Escape browser GREEN in5 profiles |
++| Undo/redo | Musical gestures/replacement/slicing reversible, memory bounded | Task3 history/batches/realCarbon gestures/keyboard and memory bounds verified; independent round2 PASS. Task5 guarded slicing commit and actual one-click Undo verified in all5 browser profiles |
++| Portable projects | Versioned validated lossless backup round trip | Real ZIP precision/schema/rejection and DOM backup/open/undo GREEN across5profiles; independent Task3 PASS |
++| Loop editing | Crossfade/playhead/numeric boundaries/drag outside frame | Task4 actualnumeric/pointer/touch/transport/exportbrowserGREEN all5profiles; independentround2PASS |
++| Preview calibration | Primary documentation + device comparison | Source research and honestapproximatepreviewlabels delivered; gain/trim/release/clocksoftwaretestsPASS; physicalhardwarecalibrationpending |
++| Automatic slicing | Preview/sensitivity/adjustment/cancel/assignment | Task5 full85browserPASS,617unitPASS, independentround2PASS; bounded heuristic and portable capacity checked |
++| Manual chopping | Audition/mark/refine/apply, one undo | Actualaudio-clockMark/numeric/drag/Cancel/Apply/Undo/restore verified; stablemarkeridentity, ownedpreviewcleanup, independentTask5PASS |
++| Batch recording | Multiple takes/review/assignment/cleanup | Task6 accepted:684units, recording10/10 browser +productionfake1/1, Astra round3PASS; guarded Apply/overflow/Undo/ownership verified |
++| Sound-triggered capture | Pre-roll and onset/silence/length behavior | Actual processor frame/credit/limits tests and synthetic five-profile capture PASS; observed idle gaps recover, active/unseen gaps reject; physical input fidelity unverified |
++| Better imports | Multiple payload types, errors, user-controlled suggestions | Task7 accepted:743units, prior full118browserpass/2desktop-onlymobile skips plus final localized23pass/2skips; Astra round2PASS. Nine findings closed; actual codec backup/reopen, partial intake, guarded settings and allocation bounds verified |
++| Focus workspace | Full retained capability map, selected editor/table/tray | Task8 accepted: retained Focus/Table/tray capability, guarded replacement, stable selection, actual loop/Stop behavior; Astra round2 PASS |
++| Demo/onboarding | Original demo, first-preset route, no destructive replacement | Task8 accepted: original Studio Seed, guarded Add/Replace and one Undo; three-engine exact PCM/backup proof PASS; human listening pending |
++| Mobile/accessibility | Portrait, focus, keyboard, contrast, reduced motion | Task8 software checks PASS: 320px reflow, keyboard selection, nested dialog focus, contrast and theme behavior; real assistive technology unperformed |
++| Dark mode | Entire workflow/dialog/canvas coverage | Task8 reviewed surfaces and mounted-canvas theme redraw PASS; retained screenshots and measured notification contrast |
++| Offline/performance | Offline cold reload and workflows; measured startup assets | Task9 round2 frozen: entry JS raw/gzip reduced 15.89%/13.62%, CSS 69.04%/54.20%; 32 unique revised precache URLs. Round1 controller offline workflow and conservative A-to-B update/draft/old-lazy/static checks passed. Round2 adds UUID worker/cache identity and worker-owned current/previous/waiting cleanup with fail-closed migration/race handling; final multi-build controller proof pending |
++| Meaningful checks | No placeholders, unit/build/lint/browser pass | Task9 round2 local gates PASS: 751 units/76 files, typecheck, build, audit0 and ESLint10 zero errors/warnings; recording stress16/16 passes after graph setup sequencing correction without changing strict gap checks. Initial111pass/12fail/2skip and round1 121pass/2recordingfail/2skip browser matrices remain retained; fresh full browser gate pending |
++| CI/documentation | Runnable scripts/workflows reflect verified behavior | Task9 scripts, clean-install/Chromium CI, scheduled/manual multi-engine CI, fork README, unreleased changelog and device checklist delivered; controller production proof pending |
++| Independent final review | Scoped fixes + full requirement audit | Task9 Astra review closed R9-1–R9-4 and required R9-5/R9-6 cache corrections; round2 candidate is frozen for final scoped re-review. Task10 whole-branch review remains pending |
++| Device validation | OP-XY loads/plays representative exported presets | Unperformed; physical OP-XY transfer/import/playback remains a delivery limitation |
++| Reviewable delivery | Source attribution, local runnable build, branch clean of generated files | Worktree prepared; delivery pending |
+--- before/docs/verification/task-9-report.md
++++ after/docs/verification/task-9-report.md
+@@ -0,0 +1,116 @@
++# Task 9 quality, performance, offline and documentation report
++
++Date: 2026-09-05  
++Status: round-2 correction candidate frozen; controller final production-browser, offline, update, visual and scoped re-review gates pending
++
++## Scope and evidence boundary
++
++Task 9 starts from the accepted Task 8 working tree at `b669b7c57937bb74b887774a9ca73b5d4a81afed` plus the uncommitted upgrade. It addresses quality gates, dependency advisories, startup assets, PWA cache ownership, optional network content and public documentation. No commit, push, deployment, hardware test, human listening session or assistive-technology session was performed.
++
++The implementation worker ran source, unit, type, lint, clean-install and production-build checks. The controller owns all browser execution. Browser conclusions will be added only from completed production runs; service-worker readiness or a generated `sw.js` alone is not accepted as offline proof.
++
++## Recorded baseline
++
++The frozen post-Task 8 production entry points were:
++
++| Artifact | Raw bytes | Gzip bytes |
++| --- | ---: | ---: |
++| Main JavaScript | 1,064,407 | 300,865 |
++| Main CSS | 872,861 | 105,963 |
++
++The complete post-Task 8 generated inventory is retained in `task-9-post-task8-assets.json`. It contains 22 generated JS/CSS/font/HTML files and 2,689,130 raw bytes, including old duplicate generated files; it is an artifact inventory, not a claim that all 22 resources were requested during first paint. The baseline build transformed 618 modules and generated 36 precache entries totaling 2,780.77 KiB.
++
++The installed dependency audit reported 35 advisories: 4 critical, 21 high, 8 moderate and 2 low. These were package-advisory counts across production and development tooling, not evidence that each issue was exploitable through the browser application. Post-Task 8 lint reported 341 errors and 20 warnings. Task 8 had 774 tests, including 15 tests that mocked the complete `VirtualMidiKeyboard` component under test and were removed as misleading coverage during this task.
++
++The production offline baseline failed in Chromium: the service worker reached `activated`, but CacheStorage remained empty and an offline reload ended with `ERR_INTERNET_DISCONNECTED`. Generated icon URLs appeared twice with conflicting revision forms. The reproducible evidence is `/tmp/opstudio-offline-baseline.log` and `/tmp/opstudio-offline-baseline2.log`.
++
++## Security and optional network content
++
++The Patreon loader no longer passes remote HTML into React. It parses documents with `DOMParser`, extracts plain text, and accepts only HTTPS links on `patreon.com` or its subdomains. Scripts, styles, event attributes and non-Patreon or non-HTTPS links cannot become rendered markup or navigation targets. The former static posts labelled “recent” were removed. A failed live request now produces an explicit unavailable state while retaining Joseph Holland's direct Patreon link.
++
++Response intake counts encoded bytes while streaming and cancels the reader after 1,000,000 bytes. The fallback path for environments without a readable stream validates UTF-8 byte length after reading; only the streaming path bounds allocation during intake. Tests cover malicious allowed-element attributes and URLs, plain-text rendering, malformed responses, proxy failure and an oversized streamed response.
++
++## Test integrity and library readiness
++
++The global `AudioBuffer` test double accepts the native options-object constructor and a positional convenience form used by existing tests, validates dimensions, provides independent channel arrays, and implements `copyFromChannel` and `copyToChannel` ranges. AudioContext doubles used with `new` are constructible functions under Vitest 4.
++
++The first full upgraded unit run is deliberately retained at `/tmp/opstudio-task9-first-full-unit-failure.log`: 725 passed and 17 failed. Sixteen failures came from non-constructible arrow-function AudioContext doubles. One capacity test reused a Vitest-wrapped allocator whose inherited call history made the rejected allocator appear called; the admission calculation itself did not change. Focused regressions passed after using constructible native-shaped doubles and a fresh allocator, and the final full run passed 743/743.
++
++The `LibraryPage` test context now has a stable dispatch identity and resolves controlled reads within the test update boundary. Production list reads use a latest-request generation so stale completion cannot replace newer data, and the redundant delayed mount read was removed. Component tests assert exact date order, use the accessible Load operation, drive a real audio-bearing decode failure, require dispatch of a failure notification with no restore, and confirm that an open Load decision still restores its original preset after a background refresh replaces the visible list. This closes the source-supported readiness hazards. It does not establish the cause of either the old intermittent unit failure or the historical Firefox Load timeout; that historical browser cause remains unproven.
++
++The file that replaced `VirtualMidiKeyboard` with a mock of itself was deleted. Placeholder `expect(true)`, swallowed asynchronous checks and seven tests that reimplemented or cloned their own patch-generation result were removed or replaced by observable component/domain assertions. The round-1 suite contains 76 files and 744 tests.
++
++## Dependency disposition
++
++Dependencies were selected from affected advisory ranges, current package metadata and primary documentation. No `npm audit fix --force` or unrelated React/framework migration was used.
++
++| Disposition | Packages and reason |
++| --- | --- |
++| Removed as unused | `carbon-components`, `react-icons`, standalone `jest`, and redundant `@types/uuid` had no current source, script or config imports. |
++| Removed after code replacement | `axios` was used only by the optional Patreon loader; native bounded `fetch` replaced it. |
++| Browser/runtime retained | React 19.1, React DOM 19.1, JSZip 3.10.1, Carbon React/styles, Font Awesome, UUID 11.1.1, WebMidi 3.1.16. |
++| Build/test updated | Playwright 1.63.0, Vitest/coverage/UI 4.1.6, Vite 7.3.6, Vite PWA 1.3.0, Sharp 0.35.4, Sass 1.104.0, TypeScript ESLint 8.69.0, ESLint 10.10.0, `@eslint/js` 10.0.1 and React Hooks plugin 7.1.1. |
++
++An intermediate clean install selected ESLint 9.39.5 but emitted its unsupported-version notice. Current official ESLint documentation identifies the v10 flat configuration line, while the selected TypeScript ESLint and React Hooks releases declare compatible ESLint 10 peers. ESLint was therefore advanced to 10.10.0; this was a support correction rather than an advisory claim. Its Node requirement is recorded in `package.json` as `^20.19.0 || ^22.13.0 || >=24`, and CI uses Node 22.
++
++React Hooks 7's broad recommended preset also enables optional React Compiler diagnostics, while this application does not configure React Compiler. The flat configuration explicitly retains the established correctness gates, `rules-of-hooks` and `exhaustive-deps`, as errors. It does not disable or exclude old findings. All previously reported hook dependencies and lifecycle cleanup findings were corrected, and ESLint 10's additional core findings were fixed by retaining caught-error causes and removing unused assignments.
++
++Final `npm ci` installed 655 packages and audited 656 with zero advisories. Final audit metadata reports 82 production, 636 development, 105 optional and 740 total dependency relationships. npm 11 displays two Sharp optional-support artifacts as extraneous in `npm ls` even after a clean install; they are not declared application dependencies and do not produce an audit advisory. Workbox currently emits a `glob@11.1.0` deprecation notice during install despite a zero-advisory graph; it arrives through `vite-plugin-pwa -> workbox-build`.
++
++Current documentation was consulted through Context7 for ESLint flat configuration, Vite PWA registration/cache behavior, Vitest migration behavior, React Refresh and Web Audio constructor/copy and suspend/resume contracts. Package registry metadata was used where a plugin did not expose a useful Context7 result.
++
++## Startup assets and PWA ownership
++
++The production entry imports only the Carbon Sass components used by the application and the three Font Awesome families it references. Remote Google Fonts and the full Carbon and Font Awesome bundles were removed. Feedback, Donate, Library and Multisample surfaces are lazy chunks while their navigation remains available offline through precache.
++
++| Artifact | Baseline raw/gzip | Frozen raw/gzip | Reduction |
++| --- | ---: | ---: | ---: |
++| Main JavaScript | 1,064,407 / 300,865 | 895,232 / 259,899 | 15.89% / 13.62% |
++| Main CSS | 872,861 / 105,963 | 270,196 / 48,526 | 69.04% / 54.20% |
++
++The round-2 build transforms 571 modules. The main JS chunk remains 895.23 kB and triggers Vite's 500 kB advisory, so the report claims a measured reduction rather than a startup-speed guarantee. The controller separately recorded five requested production resources and 1,360,447 transfer bytes on its uncompressed local server, excluding the document and later service-worker precache requests. That is neither a gzip total nor a startup-time comparison.
++
++There is now one generated service worker and one generated web manifest. The unused public worker, which deleted every other cache on the origin, and the duplicate public manifest were removed. The PWA uses prompt registration and a distinct application activation message; the application does not send Workbox's unconditional `SKIP_WAITING` message. The waiting worker counts all in-scope window clients and activates only when the requesting tab is the sole open window. With another Studio tab open it remains waiting, reports the block to the requester and requires the user to close other Studio tabs and explicitly retry. Each tab reloads only after its own consent, so another tab cannot force a deferred editor to navigate.
++
++Each build receives a timestamp plus cryptographically random UUID cache identity even when package version or CI revision is unchanged. Vite emits a uniquely named lifecycle asset containing that same worker-owned identity, and the build verifier rejects a mismatch between lifecycle and cache identity. The active worker searches its own revised precache first when an old document requests a lazy or stable asset, with revision-query matching for Workbox cache keys.
++
++Scope-owned lifecycle metadata records the current activated build, the actual previous activated build and the newest waiting build. Claiming a newer waiting worker removes a superseded waiter while preserving those protected identities. Immediately before each deletion, cleanup rereads ownership; missing, migrating or changed ownership stops deletion. While an update waits, current, previous and waiting can therefore occupy three application precaches. After activation, cleanup returns to current and previous. The first upgrade from a worker without lifecycle metadata can temporarily retain additional caches until a later activation establishes complete ownership; this is a deliberate no-prune fallback, not a universal hard cache-count promise. Unrelated caches are never candidates. A window opened during the short client-count-to-activation interval is a remaining service-worker platform race and should save/recover work normally.
++
++Every precache entry, including same-name public icons and preview images, carries a content revision. `npm run build` executes `verify:pwa`, which rejects a missing build-owned lifecycle script, a cache/lifecycle identity mismatch, missing waiting-worker ownership or sole-window gates, a missing precache, duplicate URLs, or a stable public asset without a revision. The preliminary round-2 build passed with 32 unique URLs and 10 stable public assets with revisions. Production installation, offline editor workflows, retained recovery, optional-network fallback and controlled multi-build activation remain controller-run gates.
++
++The first controller browser matrix on the initial Task 9 freeze passed 111 cases, failed 12 and retained 2 deliberate mobile skips. Nine Firefox cases lost drum-pad targets while delayed MIDI denial caused repeated initialization and component replacement; two Chromium-family cases had stale expectations after M4A became the ninth supported codec; one Chromium sound-trigger case lost synthetic input before Arm. A controlled delayed-denial probe confirmed six permission requests and 288 removed pad nodes. Automatic MIDI initialization is now owned once per document, explicit retry remains available, and drum pads retain node/focus/pressed-state identity across rerenders. The codec assertions now require the actual nine-format result.
++
++The round-1 controller matrix closed those pad and codec failures but both Chromium recording cases failed: manual capture reported `Capture frame discontinuity: expected 128, received 640`, and sound-triggered capture found its synthetic input closed before Arm. Diagnostic reruns did not reproduce either failure: serial recording passed 2/2, a two-worker run passed 2/2, a five-worker Chromium project run passed both recording cases, and an eight-repeat/five-worker recording-only run passed 16/16. The trace did establish that Chromium created the AudioContext already running while the worklet module and graph were still being constructed. Round 2 now suspends that clock, constructs and connects the processor graph and message path, then resumes before exposing monitoring. Cancellation and setup rejection release the stream, context, source and node at each boundary. Processor handling of observed empty frames and unseen frame jumps during active capture is unchanged. This is a source-supported startup sequencing correction; because the original failure did not occur during the diagnostic run, it is not claimed as a captured proof of the prior discontinuity's exact cause. Fresh controller browser evidence remains pending.
++
++The initial two-tab A-to-B update proof confirmed that tab B, after choosing Later, navigated and lost its 240-frame local draft when tab A chose Update now. The first attempt also showed the notice intercepting the modal's Save markers pointer. The round-1 correction gave the notice existing opaque light/dark theme tokens and placed it below owned dialogs. Its A-to-B controller proof then passed blocked activation, retained draft, old-build offline lazy Library loading, explicit retry, exact saved markers and PCM, changed same-name static content, unrelated-cache preservation and offline B startup. A parallel B/C build exposed an actual same-millisecond cache-ID collision, and a sequential waiting C left superseded B cached. Round 2 replaces the timestamp-only ID and activation-only cleanup as described above. The final controller proof must cover distinct same-version build IDs, superseded-waiter cleanup, protected current/previous/waiting caches and the fail-closed migration boundary without asserting a false universal two-cache bound while an update waits.
++
++## CI and public documentation
++
++The checked-in workflow runs clean install, typecheck, ESLint, unit tests, the production build, Chromium production E2E and deterministic fake-input recording on pushes and pull requests. Manual and scheduled runs add the configured Chromium, Firefox, WebKit and mobile-emulation production matrix. The recording job uses a generated WAV fixture and makes no real-microphone claim.
++
++README and in-app links identify this as the `sscommander79` fork while retaining Joseph Holland's authorship, upstream link and MIT notices. Documentation distinguishes device ZIPs from `.opstudio` v1 backups; explains local IndexedDB, quota/eviction, decoding and permission limits; documents the prompted update flow; and links current OP-XY COM/MTP transfer guidance. `CHANGELOG.md` marks 0.16.0 as an unreleased local candidate. `BUGS.md` remains an attributed historical upstream snapshot and points to current acceptance and device-limit records.
++
++## Local verification at freeze
++
++| Command | Result |
++| --- | --- |
++| `npm ci` | PASS; 655 packages installed, 656 audited, zero vulnerabilities |
++| `npm run typecheck` | PASS after round-2 corrections |
++| `npm run lint` | PASS after round-2 corrections; zero errors and zero warnings |
++| `npm test` | PASS after round-2 corrections; 76 files, 751 tests, 7.53 seconds |
++| `npm run build` | PASS after round-2 corrections; 571 modules, PWA 32 unique entries / 2,155.25 KiB, UUID ownership and stable-asset revision verifier passed |
++| `npm audit --audit-level=moderate` | PASS after round-2 corrections; zero vulnerabilities |
++| `git diff --check` | PASS |
++
++Initial freeze logs remain at `/tmp/opstudio-task9-final-*`. Round-1 logs are `/tmp/opstudio-task9-round1-typecheck.log`, `/tmp/opstudio-task9-round1-lint.log`, `/tmp/opstudio-task9-round1-full-unit.log`, `/tmp/opstudio-task9-round1-build.log` and `/tmp/opstudio-task9-round1-audit.log`. Round-2 logs are `/tmp/opstudio-task9-round2-full-unit.log`, `/tmp/opstudio-task9-round2-typecheck-final.log`, `/tmp/opstudio-task9-round2-lint-final.log`, `/tmp/opstudio-task9-round2-audit.log` and `/tmp/opstudio-task9-round2-build-final.log`; frozen runtime hashes are `/tmp/opstudio-task9-round2-runtime-sha256.txt`. The post-correction recording stress result is `/tmp/opstudio-task9-round2-recording-stress-fixed.log`. An accidental duplicate `--run` CLI invocation failed before test discovery and was replaced by the clean `npm test` result; it is not application evidence.
++
++## Remaining verification and limits
++
++- Controller production browser matrix: pending.
++- Real production cache installation, cold offline reload and offline import/edit/undo/redo/library/recovery/backup/device-ZIP flow: pending.
++- Controlled same-origin A-to-B update, retained open work while waiting and refreshed same-name static asset: pending.
++- Rendered layout/visual regression check after CSS and dependency changes: pending.
++- Independent scoped Task 9 review: pending.
++- Human listening, real microphone fidelity, real MIDI devices, assistive technology and physical OP-XY import/playback: unperformed; use `device-validation-checklist.md` for future evidence.
++
++Task 9 is not accepted until the controller records the pending browser gates and independent review.
+--- before/docs/verification/upgrade-progress.md
++++ after/docs/verification/upgrade-progress.md
+@@ -0,0 +1,198 @@
++# Studio upgrade progress
++Plan: docs/superpowers/plans/2026-09-04-studio-upgrade.md
++Base: b669b7c57937bb74b887774a9ca73b5d4a81afed
++Branch: codex/studio-upgrade
++Workspace: /Users/stevencommander/Desktop/AI/op-patchstudio-improved
++
++## Decisions
++- User authorization: implement the full prior review. Earlier discussion and this instruction supply design direction; proceed without repeated approvals for reversible implementation.
++- No commits or external publication authorized; retain work and review evidence in the working tree. Review packages use scoped working-tree diffs rather than commit ranges.
++- MaxMSPMCP tools were searched and are unavailable in this session. Consult primary sources for new audio/DSP behavior; do not invent object or hardware contracts.
++- Cloud sync/native companion/additional device formats remain future directions as specified in the review, not silently dropped current deliverables.
++
++## Preflight
++| Tasks | Shared interface/files | Decision |
++|---|---|---|
++| 1 / 4 | patchGeneration, loop fields | Task 1 establishes bounds/name contract; task 4 preserves it. |
++| 2 / 3 | session/library serialization and AppState | Task 2 defines durable audio; task 3 adds archives/history afterward. |
++| 3 / 5 / 6 / 7 / 8 | reducer/edit actions | Creative actions integrate with history; no parallel implementation writes. |
++| 4 / 8 | selected sample editor | Preserve editor semantics in workspace redesign. |
++| 9 / all | scripts/config/tests | Controller may prepare isolated infrastructure; integrate after feature stabilization. |
++| 1 | tests vs implementation | Cases are explicit, independent expected outputs; public APIs retained. |
++| 2-10 | detailed briefs | Expand at execution against current state; full acceptance requirements remain in spec. |
++
++## Status
++- Setup: fork cloned, isolated worktree created, dependencies installed; baseline verified.
++- Task 1: complete (uncommitted scoped changes; independent re-review clean).
++- Task 2: complete (uncommitted scoped changes; independent re-review PASS).
++- Task 3: complete (uncommitted changes; independent round2 scoped PASS).
++- Task 4: complete (uncommitted; independent round2 PASS and full80browserPASS).
++- Task 5: starting fresh Sol implementation. Tasks6–10 pending.
++
++## Evidence (fresh worktree)
++- Baseline unit suite: 34 files / 435 tests passed (2026-09-04), /tmp/opstudio-upgrade-baseline.log.
++- Controller added tests/e2e/export-workflow.spec.ts and isolated browser config; real user upload/download RED reproduced sparse mapping (54 instead of 58) and duplicate sample archive collision (1 unique reference instead of 2). Evidence /tmp/opstudio-e2e-red.log. Browser binaries installed for all configured engines; HTML reporter configured never to block execution.
++- Task 1 implementer: /root/export_reliability, active; scoped to export source/tests.
++- Workspace UX report: docs/verification/workspace-design.md, complete design research; implementation pending.
++- Audio contract research: docs/verification/audio-contract-research.md complete. Hardware timing remains unverified; use explicit approximate-preview wording.
++- Task 2 brief prepared at docs/verification/task-2-brief.md; implementation pending Task 1 review.
++- Bundled task-brief helper failed because its sdd-workspace sibling lacks execute permission. Scoped brief extracted directly; no tool-install permissions changed.
++- Export browser GREEN: 10/10 checks across Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari, /tmp/opstudio-export-green2.log.
++- Storage browser RED: failed replacement leaves missing old audio; library round trip changes 48000 Hz/32 frames to 44100 Hz/29 frames and quantizes Float32 values, /tmp/opstudio-recovery-red2.log. Both remain pending Task 2.
++- Task 1 independent reviewer: /root/export_review. No parallel implementation dispatch until review closure.
++- Task 4 must fix WAV start underflow and AIFF endpoint conversion using byte-level fixtures, as identified in audio-contract-research.md; these are inherited writer defects outside Task 1 scope.
++- Task 1: fix round 1/5 dispatched (3 P2 open: scalar octave corruption, multisample import hydration, omitted multisample playmode). Findings in task-1-review.md. Ruling: extend Task1 to active multisample import handler and a coherent reducer import action if needed — preservation must hold through the actual UI, not only helper tests — cost is a small dependency for later history/storage integration.
++- Tasks3/4 briefs prepared for reconciliation with preceding implementation reports before dispatch.
++- Task1 round1 also covers root-confirmed deepMerge prototype mutation from imported __proto__ (isolated Node probe made a fresh object inherit a test property). Own-key safe merge required; normal unknown hardware fields retained. Scoped re-review must include this safety regression.
++- Browser RED for real multisample import→download: octave{}, transpose0 and default envelope replace supplied values; /tmp/opstudio-import-settings-red3.log. Two earlier runs failed on test locators and are not product evidence.
++- Browser RED for aged recovery: actual chooser/autosave followed by a two-day-old timestamp and reload yields no restore prompt; /tmp/opstudio-recovery-workflow-red.log.
++- Dependency audit baseline: 35 findings (4 critical,21 high,8 moderate,2 low) across installed graph, /tmp/opstudio-upgrade-audit.json. Counts are package advisories, not demonstrated app exploits. Task9 must triage reachable runtime vs build/test tooling, update compatible dependencies and rerun full gates; do not run blind force upgrades.
++- Task1 fix browser GREEN15/15 (sparse/duplicate/import round-trip across five profiles), /tmp/opstudio-task1-round1-browser.log. Focused raw percentage preservation edge follows that run; awaiting implementer report and scoped re-review.
++- Browser RED actual autosave failure has no Retry save control, /tmp/opstudio-autosave-retry-red.log. Task2 brief updated with all controller browser cases and nondestructive Escape behavior for recovery prompt.
++- Task9 baseline details in task-9-notes.md; Tasks5/6 briefs prepared for interface reconciliation before dispatch.
++- Task1: fix round1/5 closed, all3 review findings plus root merge-safety/precision regressions addressed. Independent re-review78/78 passed plus real ZIP probes; task-1-rereview.md PASS. No important open Task1 findings. Inherited container endpoint work explicitly remains Task4.
++- Task2: /root/durable_storage owns listed storage/context changes plus bounded App.tsx status/modal integration; controller keeps browser tests/configs. No parallel source implementation. Task1 source stable for subsequent integration.
++- Additional Task2 browser RED: actual library saveA→importB→reloadA→download retains wrong volume32767 vs12345 and drops FX vendorSetting, /tmp/opstudio-library-workflow-red.log. Test remains controller-owned in export-workflow.spec.ts.
++- Task9 production offline baseline failed twice: activated/controller present but no caches/index, offline reload disconnected. Generated duplicate icon precache entries have conflicting revisions; details and harness in task-9-notes.md. Preview5188 stopped after baseline.
++- Transfer UI evidence collected in transfer-guidance-notes.md; do not infer hardware acceptance from a download.
++
++- Task2 final implementation:482/482 unit tests and build pass; binary ArrayBuffer storage envelopes resolve isolated WebKit Blob/File preparation failure, WebKit5/5 storage flows pass. Full browser matrix running. task-2-report.md and task-2-review-package.txt prepared.
++- Task2 final combined browser matrix:40/40 passed across Chromium, Firefox, WebKit, Mobile Chrome and Mobile Safari profiles; /tmp/opstudio-task2-final-browser.log. These are browser-engine tests, not physical devices. Independent Task2 review in progress.
++- Task3 browser RED: portable project workflow fails because Download project is absent; /tmp/opstudio-project-backup-red.log. Controller test adds actual backup/download/open/undo/redo against sparse pad exports.
++- Ruling: Task4 preserves optional per-sample crossfade provenance, including untouched imported values above75% with unverified-preview wording; normal edits use0..75%. Task4 extends Task2 serialization and Task3 archive validation together — prevents hidden imported-value loss — cost is a bounded schema extension and tests.
++- Ruling: Task4 clamps loop bounds into sample selection with a one-frame minimum; disjoint bounds move to the nearest valid interval. Modal Save is one global undo step; no extra modal history required — uses existing draft/cancel semantics — cost is explicit displayed clamping and no intermediate modal undo.
++- Task2 fix round1/5:3P2 findings confirmed by independent regressions (settings-only recovery loss, autosave suppressed after failed/abandoned library load, committed library save falsely reported failed by informational marker). Original implementer /root/durable_storage resumed; task-2-review.md. Controller settings-only DOM recovery RED /tmp/opstudio-settings-recovery-red.log.
++- Task2 round1 implementation verified:489/489 unit tests, production build, and45/45 browser workflows across5profiles passed; /tmp/opstudio-task2-round1-unit.log, /tmp/opstudio-task2-round1-build.log, /tmp/opstudio-task2-round1-browser.log. Independent scoped re-review pending. Temporary baseline source/test snapshot relocated to /tmp/opstudio-task-2-before-round1 to avoid test collection.
++- Task2 fix round1/5 closed: all3P2 addressed, independent70/70 tests and scoped spec/quality PASS; task-2-rereview.md. Task2 complete with no Important findings left open. Task3 explicit START sent to /root/project_history; minimal App.tsx toolbar integration granted, controller retains e2e/configs.
++- User model preference: Astra for assessment/planning/reviews; Sol for implementation. Apply to subsequent dispatches; do not resume the Astra loop preflight worker for implementation. Task3 original worker hit usage limit after partial history utility/tests; Sol /root/project_history_sol continues existing changes using /tmp/opstudio-before-task3/src as baseline. No Task3 completion claim.
++- Root captured pre-workspace-redesign desktop/phone screenshots in docs/verification/images/before-desktop.png and before-phone.png; current early-upgrade state, not untouched upstream. Diagnostic server5189 stopped. Keyboard undo browser RED /tmp/opstudio-keyboard-undo-red.log.
++- Astra recording assessment complete: recording-architecture.md, primary-source PCM worklet/sample-clock/pre-roll/backpressure/cleanup plan; no runtime or hardware acceptance claimed.
++- Ruling: Task6 uses lossless internal .opfloat source assets and explicit prepared buffers; device exports remain WAV/AIFF — reuses verified codec without quantizing capture — cost is an internal source type documented separately from device formats.
++- Ruling: multisample recording shows editable/proposed unused root notes, explicit occupied-note replacement,24-zone apply capacity and excess retained in review tray — preserves work without inventing another assignment model — cost is explicit note/capacity review before applying large batches.
++- Task3 Sol history/provider GREEN, full510units before browser-driven correction. First60-case matrix invalidated by source edits triggering HMR; malformed-test alert selector also corrected. Do not use that run as acceptance.
++- Task3 frozen-source matrix /tmp/opstudio-task3-browser-stable.log:55passed/5failed. All failures are portable backup export rejecting valid0='original' rate/depth/channels. Sol fixing validator and adding explicit regression; other55 workflows passed. After freeze, rerun5portable cases; broader repeats only if changes justify.
++- Verification coordination: a browser-ready handoff freezes runtime and browser-test files until controller reports completion. Finish typing cleanup before declaring ready; report/docs may be written while tests run.
++- Task3 original-format0 sentinel corrected: archive10/10, history+archive16/16, build pass. Portable rerun4profiles pass; Firefox initially captured backup before first audio decode completed because helper waited only for a visible download button. Explicit1sample-loaded readiness corrected the harness; Firefox rerun passes (/tmp/opstudio-task3-portable-firefox.log). All60browser scenarios covered across stable55 +localized4 +Firefox1, not one60/60run. Runtime source frozen for /root/history_review (Astra) scoped review.
++- Task3 independent Astra review requires fixes:4findings (P1 actual compound/slider grouping absent, P1 held-note release after octave changes, P2 musical/modal preview guards, P2 real confirmation ownership). task-3-review.md. Source snapshot /tmp/opstudio-task3-before-round1; round1/5 assigned to originalSol implementer.
++
++- Task3 round1 implementation:518/518 units and build pass; expanded browser matrix60passed/5failed, all new compound-import/confirmation scenario waits for absent reset-settings label. Sol correcting bounded harness locator and rerunning that scenario across5profiles; independent Astra scoped re-review in progress. /tmp/opstudio-task3-round1-browser.log.
++- Task3 round1 browser closure: corrected actual reset label; new compound-import/confirmation scenario5/5 GREEN (/tmp/opstudio-task3-round1-browser-focused.log), prior60passed. Astra scoped re-review closes original2–4 and compound batching, but original1 remains P1: actual Carbon controlled updates create phantom gestures. Round2/5 assigned Sol with real Carbon regression and gesture-after-Undo coverage; bounded confirmation description P3 also included. task-3-rereview.md.
++- Task3 round2 real installed-Carbon RED confirmed: import→separate playmode edit→unmount discards mono and restores imported legato; active slider→Undo misses expected baseline; confirmation description repeats title. /tmp/opstudio-task3-round2-carbon-red.log. Sol fixing genuine interaction boundaries and stale gesture ownership.
++- Task3 round2 frozen: realCarbon regression and description fixed; focused33/33, full520/520 on rerun, productionbuild and browser5/5 pass. First full run exposed an intermittent LibraryPage render test race; isolated plus fullrerun pass, recorded for Task9 rather than hidden. Astra scoped round2 re-review dispatched; task-3-round2-review-package.txt.
++- Task3 accepted: Astra round2 spec PASS/quality APPROVED, all original findings closed; task-3-round2-rereview.md. Final520units/buildpass; browser65scenarios covered by prior60 plus corrected5 acrossfiveprofiles, localized5 repeatedafterround2. No hardware claim.
++- Task4 fresh Sol /root/loop_editor_sol START dispatched; source baseline /tmp/opstudio-before-task4/src. Root refreshed official sample guide looptypes: off/untilrelease/forever throughrelease; avoid mislabeling continuation as start-onrelease. Source/e2e workerowned; browser runs requirefreeze.
++- Ruling: Task5 materializes exact bounded slice audio, retaining original once as accessibleunassignedsource and referencing original frameprovenance — currentexportwriteswholebuffers, so trim-onlyviews would duplicate longfiles — cost is bounded additionalFloat32 allocation and codecserialization, tested beforeallocation. Task5brief updated.
++- Task4 intermediate actualcontainer RED/GREEN:7bytecases reproduced/fixed WAVzero underflow/nonzerostartshift/rootnote-onlyloop and AIFFend-1, includingoneframe/finalend. /tmp/opstudio-task4-container-red.log. Optionalcrossfade provenance persistence/archivevalidation28focusedpass afterRED; transport/editor/exportcallerintegration stillpending, notTask4acceptance.
++- Task4 interim: containerbinaryroundtrips/postconversionpatchbounds/crossfademetadata and identity-onlyimportassociation GREEN; previewhook22/22 includesdisabledloop,oneframe,immutablereverse,naturalcompletion. Editor5/5 pre-fixRED captured; Sol implementingnumeric/pointer/clocktransport/provenance thenhistorycallers/e2e. No Task4acceptanceyet; sourceunfrozen.
++- Task4 editorintegration intermediate79/79focusedtests across9files GREEN: numeric/modal/pointer/shortcut andreleaseplayhead; Saveatomic/Saveforallatomic/Cancelunchanged, zerovaluespreserved, portraitrotationgate removed. Sol added e2e realconversion/cut/undo/cancel/outside-drag/portrait; fullunits/selfreview/reportpending beforefreeze.
++- Task4 frozenimplementation557/557units/buildpass; fullbrowser75total66passed9failed, allnewlooptests exceptChromiummain (/tmp/opstudio-task4-browser.log), runfinished. Astrareview foundpauseonendedownership/Pkeyupcleanup, mobileearlyreturnmissingmodal, incompleteinlinepointer/history/endpoints, ignoredADSRpreviewgain, deliberatecrossfadeoverwrittenbyrawimportassociation, andv1archivecompatibilityregressions. SourcefrozenpendingfinalreviewthenoneboundedSolfixround. Existing5framecutpadding is inherited, notnew.
++- Task4 independentreport complete: task-4-review.md R1–R11 (2P1/9P2), Solround1/5 START. Covers editedcrossfadepreservation, priorv1migration, pause/Pkeyownership, mobilemodal, outsidedragdismissal, gain, releasepasttrim, livedraftclock, disabledloopcrossfade, perrecipientSaveforallnormalization. All9browserfailures requiredisposition. Preliminaryinlinegesture findingwithdrawn: alltableSmallWaveforms launchonly; EnhancedWaveformEditor localdraftoneSave. No dead-codeworkrequired.
++- Ruling: Task4 legacyv1 boundedfinite marker inputs migrate throughcanonicalnormalization beforestate, retainingZIP/audio/referenceguards — preservesapprovedTask3backups — cost is explicit oldfixturecompatibilitytests.
++- Ruling: Marker/crossfadeedits maystoppreview instead ofretargetingactivevoice; voiceandplayheadmustshareimmutablegenerationsnapshot — preventsdisplayingaudionotbeingsounded — cost is deliberatePlayafteredit.
++- Ruling: retain inherited5sourceframecutpadding anddocumentit; metadatausesactualoutputframes — notanintroducedboundarydefect — cost is tinyresampledtrailingpadding, hardwarebehaviorunverified.
++- Task4 round1RED: actualTask3export+Task3reimport archive2190bytes sha2562a8848a7d74ec1c932bc91b8a44f1fc14df829c3c408a79c3db5eec2055b94ec via/tmp/opstudio-before-task4/src (/tmp/opstudio-task4-task3-fixture.log), embeddedbase64fixtureprovenance. ReviewedboundaryRED14failed/70passed in6files (/tmp/opstudio-task4-round1-red.log); twoharnessissues separatelyidentified (historyimporttypo/AudioBufferconstructor), notcountedasproductproof.
++- Task4 round1 verified569units/build; focusedbrowser15cases5pass10fail (/tmp/opstudio-task4-round1-browser.log): portrait+landscapeopen5pass, main5blockedbyCarbonvisualtoggleoverlay, drum5hiddeninputuploadwithoutpadtarget. Browserfinished. Astra task-4-rereview.md clears9originalfindings, residualRR1 explicitpresetreplacement andRR2paused-edit-resumebounds; Solround2/5 START withactualbrowsertransportaddition andharnessfixes. Sourcebaseline /tmp/opstudio-task4-before-round2/src requested.
++- Ruling: explicit IMPORT_MULTISAMPLE_PRESET replacescrossfade onuniquelymatchedsamples (manualorauto) asoneundoableimport; ADD/RESTORE/library preserveauthoritativestate, unmatchedhumanfractionsretained/staleautoprovenanceinvalidated — distinguishesdeliberatepresetreplacement frombackgroundhydration — cost is replacingmatchedmanualcrossfades duringexplicitimport, reversiblebyUndo.
++- Task4 round2: RR1/RR2actualRED5fail→89focusedpass, full574pass/buildpass; Astra task-4-round2-rereview.md bothPASS. First15browserpassrun overlappedlatee2eassertionedit, excludedfromacceptance. Stablefrozenrerun15/15PASS (/tmp/opstudio-task4-round2-browser-stable.log25.5s), includingrealWebAudiotransport. Full80browsermatrixfinalsharedrestore/importregression running /tmp/opstudio-task4-final-browser.log; source/e2eremainfrozen.
++- Task4 accepted: full80/80browserPASS in1.1m (/tmp/opstudio-task4-final-browser.log), full574unit/buildpass, independentround2spec/qualityPASS; all11findingsclosed. Hardwareparityremainsunverified. Finalbrowserfinished; Task5sourcebaseline /tmp/opstudio-before-task5/src.
++- Task5 freshSol /root/slicing_sol START. Ruling: existingin-projectsource staysinplacewithoutduplicateretainedcopy; newexternalsourceonceunassigned; projectedprojectmustfitarchive256samples/128MiBdecoded — avoidsduplicatedsourcebytesandunbackuppableslicedprojects — cost is explicitadmissionlimit beforeapply. Suggestedsourcecaps64MiBdecoded/64MiBfile,max128slices, implementermayjustifytighterbound.
++- Ruling: Task6 reviewtraycapacity doesnotoverrideprojectarchive128MiB/256sampleadmission; applychecksprojectedexisting+newaudioandretainsunappliedtakes — keepsrecordedprojectsbackuppable — cost is explicitcapacityfeedback andpossiblysmallerappliedbatch.
++- Task5 core11/11GREEN afterassessment: streamedonsetselection bounded128 withactionableerror, cachedchannelarrays/chunkyields, dense300onsetcapfixture, immutableboundedmaterialization viarealAudioBufferallocator. NewsourcepredecodeacceptsvalidateduncompressedPCM/floatWAV/AIFF only (compressedWAV/AIFCrejectedexplicitly); chunkbodieswithinfile anddecodedbyteboundsvalidated. UI/provenance/integrationstillpending.
++- Task5workercheckpoint gap investigated: no runningtests; interrupt/resume exposed transientSolcapacityerror, oneretrysucceeded. Solretained peruserpreference; optionalTerrafallbackquestion waswithdrawn incommentary afterrecovery. Savedworkcore11pass plusnewprepareSliceApplication2REDtests; implementationresumed. No runtimeeditsbycontroller.
++- Task5 provenance/reducer20/20focusedGREEN (/tmp/opstudio-task5-provenance-green.log): oneBATCHsourceinplace/newexternalsourceonce, emptyascendingpads/overflow, wholeapplicationUndo, exactopfloatderivedassets andoriginalsourcecoordinatespersist session/library/archive. Modal/clock/audition/staleasync/UI/e2e/fullverificationpending.
++- Ruling: Task8deviceexportpreflight defaults to mappedaudio with explicitoptionalunassignedinclusion andomittedcount; portablebackupsretainall — slicinglongoriginalsotherwisegetbundledunintentionally underoldincludeallhelper — cost is visibleUIexportdefaultchange, helpercompatibilitypreservedwherepossible andno projectassetdeletion.
++- Task5 modal4/4realcontrolGREEN (/tmp/opstudio-task5-modal-green.log; REDmodal-red.log): autoanalysis/count/destinations/audition, manualactualclockMark/M, stoppednumeric/pointer/arrow/delete, oneBATCHApply/Cancelnodispatch, generation+AbortSignal/voiceownership. DetectedtrailingcontentendnowretainedacrossUIrangebuild. Tool/tablewiring, stale-source/pointertests,e2e/export/fullchecks pending.
++- Task5 wiring12/12GREEN (/tmp/opstudio-task5-wiring-green.log), midbuildpassed aftermissingDrumSampletypeimportfix; modal7/7controltestsGREEN (/tmp/opstudio-task5-modal-controls-green.log) clock/frame0/pointercancel/stalesource/silence/>20secwarning; realderivedWAVbytes3/3GREEN (/tmp/opstudio-task5-export-frames-green.log). E2e/fullfinalchecks/reportpendingbeforefreeze.
++- Task5 realisticringingfixtureactualRED: detectorreturned[100,120,140,160,603,626] vs twoattacks[100,600] (/tmp/opstudio-task5-ringing-red.log). Soladdedbounded5msquietrearm/max50msattackstartrefinement;13coretestsGREEN (/tmp/opstudio-task5-ringing-green.log), preservesminspacingreplacement/densecap. Finalfocused/full/buildrerunningbeforefreeze.
++
++- Task5 initial frozen gates: focused72/full603units and buildPASS; full browser80passed/5failed, all new slicing flows fail post-export Undo (/tmp/opstudio-task5-browser.log). Independent task-5-review.md requires changes: R1 combined project capacity/codec headers, R2 stale atomic apply, R3 stale auto analysis, R4 numeric focus/typing, R5 preview close lifecycle, R6 declared container bounds, R7 crossed marker drag identity. Sol /root/slicing_sol round1/5 START; snapshot /tmp/opstudio-task5-before-round1/src. Source/e2e released for fixes; no browser active. All seven findings plus actual Undo failure must close before Task5 acceptance.
++
++- Task5 round1 interim:66focusedPASS/buildPASS/newlintclean; guarded commit alone does not resolve browser Undo. Sol narrow Chromium still fails same point and is tracing actual history/events. Root source inspection additionally found RESTORE_SESSION/IMPORT_PROJECT reconstruct drum objects without sourceIdentity/sliceProvenance; Sol must fix and test actual reducer/library restore, then finish browser backup suffix previously blocked by Undo.
++
++- Task5 round1 frozen:67focused/27atomic/full616units/build/targetedlintPASS. Undo trace confirmed post-slice AudioFormatControls automatic SET_DRUM_BIT_DEPTH created an extra history entry and re-fired after Undo; removed automatic format rewrites, keeps current options enabled. Actual restore/import/library provenance reconstruction fixed. Root frozen slicing browser5/5PASS (/tmp/opstudio-task5-round1-browser.log); full85 running (/tmp/opstudio-task5-round1-full-browser.log), Astra scoped rereview in progress. Source/e2e remain frozen.
++
++- Task5 round1 fullbrowser85/85PASS58.3s. Astra task-5-rereview.md closes R2–R7, original R1 omissions, Undo and restore provenance; sole residual RR1 P2 is omitted ZIPheaders/names beyond full2MiBmanifestreserve. Exactmetadataonly case committed then would exceed256MiBarchive by17382bytes. Sol tinyround2/5 RELEASED helper/accounting+tests only, baseline /tmp/opstudio-task5-before-round2/src; no e2e changes or broadbrowserrepeat warranted for this scoped arithmetic correction.
++
++- Task5 accepted: Astra task-5-round2-rereview.md bothPASS, soleRR1closed with63100-byte STOREstructure reserve beyond2MiBmanifest.43focused/full617units/build/scopedlintPASS; priorfrozen85browserPASS retained accurately (notrerunforhelper-onlyarithmetic). All7originalfindings+Undo+actualrestoreprovenance+ZIPedgeclosed. Task6next; nohardwarecertification/publication.
++
++- Task6 fresh Sol /root/recording_sol START; baseline /tmp/opstudio-before-task6/src. Complete brief+recordingarchitecture+integrationchecklist handed off, syntheticmedia only, rootbrowserownership, oneimplementationworker. Astra /root/slicing_review preparing boundedTask7currenthandler/identity/asynccommitintegration checklist alongsideindependentcapturework.
++
++- Task6 interim core9/session5focusedGREEN: exactsampleclock/preroll/stereopeak/length/quietmemory/credit; rootearlyreviewcorrectedlargecompletioncopy→preallocatedbuffertransfer+freshackreservation, manualallzeromax emitsnotake, active/pendingreentryguard. Sessiontestscoverconstraints/readback, latepermissionStop/close, disposal/processorerror/staletake. Processor missinginput boundedsetup/activegaphandling and constructionallocation policy beingresolved; reviewtray/guardedcommit/UI/browser stillpending. Noactualmicrophone/browserused.
++
++- Task6 interim core9/session8/application4GREEN. Rootearlyreview found Stop invalidated finaltake generation beforeflush; corrected ownedtake→stopped +awaitmaterialization, flush500msfailurevisible, onTakerejectiondisposeswithoutack. Processor0.5sinitialmissinginputgrace/activegaperror; reportedchannelsallocateconstruction, absentchannelsone-timefirstquantum documented. Preparedrecording/reducer tests coverdrumholesoverflow/Undo/displacedretention, multinotecapacity andopfloatprecision. Rootflaggedprepfalsecapacityrejection fortrue multisamplereplacement and missingdisplaynote; implementeraddressingwithbudget/trayUI. Finaltests/browserstillpending.
++
++- Task6 interim25focusedGREEN andproductionbuildemitscaptureProcessorasset. BothcallerRecordtakes/Recordherewired, realprovider/reducertraytests, actualrootnotedisplay, size-neutral256reference multisamplereplacementregression. Sessionpreallocation+ring/active/transfer/staging/codecreserve andwithholdackoncapacity implemented. Rootearlymodalreview sentpendingissues: generationguardsenable/audition/enumeration/onTake, changedmonitoringconfig, repeatedStartafterStop, Applystop+draftownership, Replacefirstselectedroot, elapsedtimer, devicechange,44pxtargets. Solstrengtheningthese/capacitytests/e2ebeforefreeze; no browseracceptanceyet.
++
++- Task6 interim32focusedGREEN (core/session/application/modal). TestedrepeatStartafterStop, Closependingenable/previewresume, targetrootedit, synctakesRefincluding31→32noack, pre-armcapacity, preservedsharedrefsinsize-neutralreplacement. Syntheticrecording e2e2caseswritten(notrun): twotriggeredtakes/retainedunselected/actualOPASbackup/UndoRedo, repeatedmanualStop/Cancel/tracksended. BuildTSnarrowingissuefixed; finalfull/build/lint/report pendingfreeze.
++
++- Task6 initial frozen gates:657units/build/scopedlintPASS. Synthetic browser3PASS/7FAIL (/tmp/opstudio-task6-browser.log): extra fixture burst on Stop, singular/plural locator, WebKit media facade override failure; no project deletion finding. Separate production native fake-input gate failed with Not supported (/tmp/opstudio-task6-production-fake-browser.log), stage unknown. Both runs finished. Astra task-6-review.md requires changes: R1 acquired setup resources unowned, R2 audition request races, R3 duplicate proposed tray roots, R4 stranded Stop promise, R5 stale Apply busy after reopening, R6 overflow feedback. Task6 round1/5 released to originalSol /root/recording_sol for all six plus harness and production root-cause corrections. Baseline /tmp/opstudio-task6-before-round1 includes src/tests/configs; Sol owns bounded browser diagnosis until freeze. No acceptance yet.
++
++- Task6 round1 interim: actual session regressions RED3/17 then GREEN17/17 (/tmp/opstudio-task6-round1-session-{red,green}.log). Production failure isolated to native getUserMedia NotSupportedError in chromium_headless_shell-1181; same explicit fake-device/file flags with full bundled Chromium channel succeed, production UI capture1/1 (/tmp/opstudio-task6-round1-production-channel-probe.log). Browser harness fix, no runtime fallback; final assertion-only rerun pending. R2/R3/R5/R6 and synthetic facade corrections still in progress.
++
++- Task6 round1 frozen:670units/41focused/buildPASS, correctedsynthetic10/10 andproductionfake1/1PASS. Fullbrowser94/95PASS (/tmp/opstudio-task6-round1-full-browser.log): existingFirefoxlibraryLoad→OK timedout withno dialog; isolatedsamecasePASS2.8s (/tmp/opstudio-task6-round1-library-firefox.log), preserveintermittency forTask9 ratherthanclaim95/95. Astra scopedrereview currently identifies residualpreview race acrosspendingStop and newdrumdependencyonmultisamplerootavailability; finalreportpending. Allbrowsersfinished/sourcefrozen.
++
++- Task6 round1 Astra task-6-round1-rereview.md: originalR1/R4/R5/R6closed; RR1P2auditionticketaftersharedStop andRR2P2drumrejectedby128occupiedmultiroots remain. C1P3sameinstancesupersededcleanup closesreplacement, normalmodalfreshinstanceslimitscallerimpact. Round2/5 releasedoriginalSol forRR1/RR2+adjacentC1hardening, snapshot /tmp/opstudio-task6-before-round2. Noe2e/config/libraryeditsneeded; focusedrecordingbrowserafterfreeze.
++
++- Task6 round2 scopedAstraPASS:RR1/RR2/C1closed,676units/47focused/buildPASS. Controllerlocalizedrecording9/10PASS; Chromiummanualfailed actualvisibleCaptureframe discontinuityexpected128received640 (/tmp/opstudio-task6-round2-recording-browser.log), notjustelapsedlocator. Productionnativefake1/1PASS3.6s (/tmp/opstudio-task6-round2-production-fake.log). OverallTask6acceptanceblockedpendingclockgaprootcause; workerreadonlydiagnosis, sourcefrozen/allbrowsersfinished. Do notweakenclockgapguardorclassifyasharnesswithout evidence.
++
++- Task6 clockdiagnosis: five serialChromiummanualrunsPASS (10starts/120loggedcallbacks, all128inputframes/missing0), /tmp/opstudio-task6-round2-clock-diagnostic.log. Actualprocessorcontrolledprobe reproducesexact128→640error aftervalidmonitoringframe0, fouremptyidlecallbacks, Startbeforevalid640; /tmp/opstudio-task6-round2-clock-controlled.log. Thisprovesareachableidlegraceseam, nothistoricalbrowsercallbacksequence. Temporaryinstrumentationrestoredbyteexact (0bytepostrestorediff).
++- Ruling: Task6 round3 fixes only observed empty-input idlemonitoring timeline invalidation, clearingstalehistory andusingexistingfirst-realframeanchor; active/armed/waitingquietmissinginput remainsfatal, unseenframejumpsstillreject. Evidence supports this boundedgap path, notpermissiverebasing. Cost: prioridlemonitoringtimeline discardedafterknownmissinginput; actualtakeframesremaintruthful. Historicalbrowserfailurecauseremainsinferred, notconfirmed. Snapshot /tmp/opstudio-task6-before-round3/src; Soloriginalworker ownsboundedfix.
++
++- Task6 accepted: round3 Astra task-6-round3-rereview.md spec/qualityPASS; allsixoriginalfindings+RR1/RR2/C1closed andprovenidlegraceseamfixed.684units/59focused/build/TSC/scopedlintPASS; finalrecording10/10PASS21.3s (/tmp/opstudio-task6-round3-recording-browser.log) andproductionnativefake1/1PASS3.3s (/tmp/opstudio-task6-round3-production-fake.log). Earlierfull94/95+isolatedlibrary1pass documented, notsingle95pass. Historicalclockgapcallbacksequenceremainsunconfirmed; knownidlepathfixed, actualactive/unseenjumpsstillreject. Task7freshSolnext; baseline /tmp/opstudio-before-task7/src.
++
++- Task7 freshSol /root/imports_sol START; fullbrief/currenthandlerchecklist/acceptedTask6interfaces supplied, baseline /tmp/opstudio-before-task7/src. Rootprepared original7codecfixtures +directdecoder3enginebaseline (/tmp/opstudio-task7-codec-fixtures): M4AconditionalChromiumfail, AIFFmanualfallbacknecessaryChrome/Firefox, lossydecodedframesvary. Browserchecklist task-7-browser-checklist.md; noappacceptanceclaim. Rootnoactivebrowser/server.
++
++- Task7 interimSol reported initialAPI-stubRED12assertions, core8/8GREEN, additionalprojectgeneration/signatureRED7 andactualunknown-depthserializeRED(received32); initialREDoutputsnotpersisted,reportmuststatehonestly. Noappbrowsergateyet. Providercontract Importaudio review / Applyimport / Cancelimport, COMMIT_PREPARED_IMPORTS withprojectGeneration/receipt, unknownsourcebitdepthomitted.
++- Task7 rootearlyWIPassessment sentSol concretecases beforefinal: modernhandleglobalentrycounterabsent; nestedchildfailureabortsremaining siblings; fallbackFiles discardedwhenitemsunreadable; aggregatepreparationdecodedbudgetneededbeforeApply; Providerpartialreceiptcanreprocessendlessly; replacementidentitycapturedatApplyinsteadofconsent; projectreplacementduringpendingpreparationnotabort; unmountcleanupneeded; conflictingopen+closedhatmustambiguous. Workerowntargetedregressions/fixes, no rootruntimeedits. FinalTask7reviewmustdispositionthese, notassumeaddressed.
++- Task8 rootaccessibilitypreflight prepared usingdesign:accessibility-review skill plusW3Csources; tokencontrastcalculated, faintlightborder/accent anddarkborderagainstwellneedstrongeridentifyingcues. task-8-accessibility-preflight.md.44pxisprojectrequirement/WCAGenhancedAAA, notmisstatedAA; renderedchecksandactualATremainpending.
++
++- Task7 rootadded44.1kHzWAV/MP3fixtures and3engine48kHzdecoderbaseline; allresampleto48kHz, lossyframesvary. SentSol source-vs-decodedmetadataacceptance seam: nooriginalsource48kHzclaimfromdecodedbuffer alone. No appsourcechanges/rootbrowserremaining.
++
++- Task7 interimSol: external+application14/14GREEN covers nestedlegacy/modernpartialfailures, abortrethrow, synchronousfallbackassociation/globalmodernentrycount. Stageddecoded128MiBbudget nowsequential/preallocationchecks, remainingfilesclassifiedwithoutfurtherdecode; conflictinghatsambiguous. Provider2/2GREEN pendingdecode→projectreplacement andexplicitdrumreplacementidentity. UniqueApplyreceipts/ownedgenerationallphases implemented; rootrequestedactualpartialsecondApply+multireplacementregressions beforefinal. Unknownsource rate/channels persistenceRED observed/fixapplied; fulltype/caller/preset/directory/internaldrag/e2e/reportgatespending. No appbrowseracceptanceyet.
++
++- Task7 interim62focusedGREEN beforelatestadditions. SolreportsallactualAppaudiochooser/dropcallerswiredsharedProvider, newfolderchoosers, capturephaseexternaldropownership/internalcustomMIMEexclusive; oldprivatehandlersonlyisolatedcomponentfallbacks. Bothpatch.jsoncallerscombineotherrawpresetfor2MiBbound; fullresetbumpsgeneration. Unknowncompressedsource depth/rate/channels omittedthroughpersistence withdecoded dimensions separate. Remainingpartialmultireceipt/OP1staleworkguard/e2ehelpers+newcodecflows/fullgates/report; nofreeze/browseryet.
++
++- Task7 initialFROZEN:97focused/726fullunits/build/TSC/ownedscopedlintPASS,105browserdiscovery. Newimports10/10PASS7.6s (/tmp/opstudio-task7-browser.log); rootfull105running /tmp/opstudio-task7-full-browser.log. FreshAstra /root/imports_review reviewing48file4100linepackage, source/e2efrozen. Reportfixturewordingcorrecteddocsonly:addeduncommitted93367bytes, notcommitted71KiB. NoTask7acceptanceuntilfullbrowser+review.
++
++- Task7 full105/105browserPASS1.2m, but independenttask-7-review.md bothCHANGESREQUIRED: R1desktoprowmultiplechoosercancelsearlierfiles; R2activechooserprefiltershiderejections; R3laterdirectoryenumerationfailurelosescapturedchildren; R4String(playmode)admitsarray; R5raw-onlybudget/key/depthcanproduceunreadablebackup; R6patchsettingsstaleasync/crossmodeadmission; R7known54byteAIFFrequests4GBbeforevalidation(refusal-onlyprobe,nolargeallocation); R8explicitpadintent+filenameproposalcollision. R5–R7P1, othersP2. All8plusactualcodecbackup/reopen+malformedsettingscallerbrowsergaps assignedoriginalSolround1/5; baseline /tmp/opstudio-task7-before-round1/src+tests. NoTask7acceptanceyet; source/e2ereleased/allbrowserfinished.
++
++- Task7 latepre-fixR9P2confirmedAstraaddendum: persistent sourceIdentity derivedsessionserial repeatsafterreload; twofreshmoduleinstances assignsource:intake-1-file-1 tounrelatedFiles. Source-family/sliceProvenance conflates; nobyteloss/dedup/consentbypassclaimed. Addedtoround1Sol durableUUID+restoredprefixregression, preservingexistingserializedids. task-7-review.md nowninefindings, samefixround.
++
++- Task7 round1 interim Sol reports exact metadata-only candidate archive validation (no PCM encoding/copy), shared encodeManifest/settings rules, and global latest-wins preset-read ownership checked against project generation/live reducer state. Focused crossmode/replacement/Undo/combined-manifest4/4GREEN; R3/R4/R7/R8 focused regressions green. R1/R2 caller tests, R9 durable identity, extended browser scenarios and final gates still pending; source/e2e not frozen. Root continues assessment/review on Astra and implementation on Sol per user preference.
++
++- Task7 round1 FROZEN:120focused/739fullunits/build/TSC/ownedscopedlintPASS. Root newimportbrowser23/23applicablePASS17.4s,2explicitdesktop-onlymobile skips (/tmp/opstudio-task7-round1-browser.log). Realcompressedsourcebackup/reopen andunknownmetadata exercised. Full120configured matrix running /tmp/opstudio-task7-round1-full-browser.log; Astra imports_review reviewing24file1089linediff in task-7-round1-review-package.txt. No runtime/e2e edits until gates finish.
++
++- Task7 round1 fullbrowser118/118applicablePASS1.9m,2desktop-onlymobile skips (/tmp/opstudio-task7-round1-full-browser.log). Astra task-7-round1-rereview.md closesR1/R2/R3/R4/R6/R7/R9; residualR5P1complete metadataadmissionskipsreference/provenancevalidators (8framefractionalrawcrossfadeacceptedthenbackupexportfails), R8P2occupiedexplicitdestinationincorrectlyfallstosuggestionwhilerowclaims unassigned. SameSolround2 RELEASED with /tmp/opstudio-task7-before-round2/src+tests snapshot; allbrowserfinished. Focusedhelper/provider/reducerregressions +scopedbrowser warranted; no need repeatentirematrix unlessbroaderchanges/failure.
++
++- Task7 round2 FROZEN5file202linediff;41focused/743fullunits/build/TSC/scopedlintPASS. SharedvalidateManifestMetadata nowvalidatesreference/provenancewithoutPCMreads; occupiedexplicitrequests excludedfromautosuggestions. Rootlocalizedimportbrowser23PASS19.7s/2desktop-onlymobile skips (/tmp/opstudio-task7-round2-browser.log), nofullmatrixrepeatfornarrowdelta; previous118pass retainedaccurately. Astra task-7-round2-rereview pending. Source/e2e stillfrozen/allbrowserfinished.
++
++- Task7 accepted: Astra task-7-round2-rereview.md spec/qualityPASS, allR1–R9closed. Final743units/41focused/build/scopedlintPASS; finallocalized23browserPASS19.7s/2desktop-onlymobile skips, priorfull118PASS1.9m/2skips retainedwithoutclaimingfullrerun. Actualraw0.5crossfade rejectedprecommit0PCMreads, raw4export/reopen exactprovenance/sourcebytes. FreshSolTask8next; nohardware/publicationclaim.
++
++- Task8 freshSol /root/workspace_sol START with fullbrief/workspacedesign/demo/accessibility/currentinterfacehandoff; baseline /tmp/opstudio-before-task8/src+tests+config/package. Rootprepared task-8-browser-checklist.md for functional/visual/geometry/contrast gates and honest listening/AT/hardware boundaries. Astra imports_review doing separate read-only Task9libraryreadinesspreflight; no secondruntimewriter. Source/e2e not frozen, no browser/server.
++
++- Task8 interimSol: toolbar5/5GREEN (name/saveRetry/history/library/default/backup/open/mapped-onlypreflight/erroroutcome), demo/preflight9/9, demo reducerhistory3/3, keyboardselection15/15. Earlier22focusedpassed; rootWIPassessmentcaught omittedStudioSeedrimnoise and fullsource-durationwarning mismatch, Solcorrected exactrecipe+export-range/legacy-mappingalignment. Appsingleowner/theme/focus/table/tray/demoGuide/multisampleintegration stillpending; nofreeze/browserclaim. RootTask9read-onlylibrarypreflight andofflinechecklist prepared; concretePatreonremoteHTMLattribute/sinkissue deferredTask9 withregressionrequirement.
++
++- Task8 temporaryvisualfreeze: buildPASS,57dialog/import/record/slice/waveform +26mobile/demo/reducer +earlier22instrument/toolbar workerchecksPASS. RootproductionChromium152viewportassessment found incomplete darkinheritance/whiteonaccent,320pxscrollWidth363(header+viewtoggle), overlongloadedcomposition, shortlandscapestickytoolbar178px, and Detailededit lackingdialogrole/focus/Escape. Mobilepadboxes84.94x66.5passedgeometry; newpreflight16Tabscontained/Escaperestored. task-8-first-visual-review.md sevenrequiredcorrections+screenshots. Browseropstudio8andpreview5188closed; initialimplementationreleasedforfixes/E2Eadaptation/fullgates, noTask8acceptance.
++
++- Task8 visualfixinterimSol: groups3–5structurallycorrected(header/viewreflow,compactdemo/collapsedguide,creativeactionsnearkeyboard,sidebysideFocus,advanceddisclosures,heightawarestatictoolbar); group6Detailededitownedrole/Escape/focusimplemented,nestedtestpending; themegroups1–2substantiallypatched,group7help/icons/forklinkpatched. Stillpendingthrowingpresentationstorage/candidatefullmanifestdemo regression,focusedtests,E2Eadaptation/fullunits/build/lint andsecondvisualfreeze. Rootnoactivebrowser/server.
++
++- Task8 second temporaryvisualfreeze: darkinheritance/mainactioncontrast/320pxwidth and compactcomposition improved; Detailededit14Tabscontained, nested2→Escape1→Escape0withfocusreturn;844×390toolbarstatic95.75px. Persistent1440desktopoutercolumnsclipkeyboard+Focuscontrols, and enabledDetailedForward/Playwhiteonpale remain. task-8-second-visual-review.md records evidence/screenshots. Browseropstudio8bandpreviewclosed; Solreleasedfortwotargetedcorrections plusremaininginitialtests/E2E/report. NoTask8acceptance.
++
++- Task8 initial frozen gate: rootfreshbuildPASS; thirdvisualdesktop/intermediateclipping and Detailedbuttoncontrastfixed,320width/pad84.94x66.5verified. Darktoastnewcomputedfailure243/243/235texton248/249/250; actualmultiFocusroot128→backupInvalidrootnoteconfirmed. NewStudioE2E5/5FAILactual6174→6175same-rateconversion; separateproductionPCMproofconfirms. Full125configured78PASS45FAIL2desktop-onlymobile skips3.1m; other40failpointsincompleteoldlocatoradaptation,not40confirmedproductbugs. task-8-third-browser-review.md. Astra task-8-review.md bothCHANGESREQUIRED R1P1trayReplacebypassesguardedintake,R2invalidnumeric,R3multiFocuspreview,R4initialselectionidentity,R5arrows,R6frames,R7toast. Solround1RELEASEDafterallbrowser/serverclosed; baseline /tmp/opstudio-task8-before-round1/src+tests+failedsnapshots. NoTask8acceptance.
++
++- Task8 round1 addendumR8 source-confirmedAstra: preflightautomaticrate/channels/size canmisstateactualconversionbranch (decoded48k/original44.1k+downmix, rate0; restoredchannels2retainmono). Appendedtask-8-review.md andsameSolcorrectionpass; noextraimplementationagent. Preserveacceptedwritersemantics/cutpadding, shareeffectiveplan. RootR7computedtoastpairs appendedreview. Task8stillpending.
++
++- Task8 round1 frozen controller gates: full125configured browser run116PASS/7FAIL/2desktop-onlymobile skips2.1m. Remaining failures are two stale adapters: wrong drum Focus region in five profiles and desktop CLP label asserted in two mobile profiles. Runtime review R1–R8 PASS; overall gate pending selector closure. Production demo proof PASS in Chromium139.0.7258.5/Firefox140.0.2/WebKit26.0, 134505 quantized samples per engine, repeated source bytes and backup source identities exact; observed cross-engine Float32 difference0 with contract tolerance1e-6. Focus proof PASS in all3 engines: silent arrow selection, stable sorted asset, invalid128 root rejected with backup root48, actual loop.02–.06, Stop/Table cleanup. Rendered toast contrast light14.80/6.11 and dark13.90/8.28 title/body; mounted waveform redraw on System theme change verified. Harnesses/artifacts retained in docs/verification. Browser/server closed; Sol released E2E-only two-selector round2. No human listening, AT or hardware claim.
++
++- Task8 ACCEPTED: task-8-round2-rereview.md bothPASS; R1–R8 plus two stale E2E adapters closed. Finalaffected10/10browserPASS18.4s; priorfull116pass7fail2skip preserved, no fullrerunclaim. Productionthree-engine demo/Focus numericalproofPASS; 774units/build/scopedlintPASS. task-8-final-controller-evidence.md and retained harness/artifacts document boundaries. FreshSolTask9 authorizednext; no runtime/browser active.
++
++- Task9 freshSol quality_sol START after Task8 acceptance; baseline /tmp/opstudio-before-task9 includes source/tests/scripts/CI/public/rootconfigs. Baseline341lint errors20warnings, JS1064407/gzip300865,CSS872861/gzip105963; audit35. Worker reports maliciousremoteHTML regression fixed via plaintext/validatedPatreonURLs; library duplicate-read/stale-response regressions fixed (historicalFirefoxcause stillunproven). Selectedcompatiblepatchedtoolchain withcurrentdocs; audit0 and buildgreen at interimstage. MatchingPlaywright1.63 browserbinaries installed byroot: Chromium153.0.8010.12,Firefox155.0,WebKit26.6. PWA prompt/manualactivation and singlemanifest/workerownership inprogress; broadlint/testintegrity/CSS/CI/docs notyetcomplete. Rootoffline/update/visualproofs prepared, no browser launched whileworkerediting.
++
++- Task9 controllerinterimresponsebound/fallbackobservations incorporated bySol: streamedbytecount/canceloversizedresponse regression, explicitlivefeedunavailable+authorlink, fictionalrecentpostsremoved. FocusedDonate7/7 andTSgatepassreported. See task-9-controller-notes.md; finalfreeze/independentreview stillpending.
++
++- Task9 implementation FROZEN for controller gates: final clean npm ci/audit0,743/743units across74files,typecheck,ESLint10zeroerrors/warnings,buildPASS571modules andPWAintegrity31uniqueentries/10stableassetsrevised/zeronullrevisions. EntryJS893876/gzip259340 (16.02%/13.80% reduction fromTask8); CSS270207/gzip48536 (69.04%/54.20%). FirstVitest4 fullrun725pass/17fail preserved `/tmp/opstudio-task9-first-full-unit-failure.log`;16constructor-shapedAudioContextfixtures and1inheritedmock-historyfixture corrected withoutcapacitymathchange. Source/test/E2E/config frozen; root productionbrowser/offline/A-B-update/visual gates and independentAstra review pending. Worker may edit onlyTask9 documentation until gate results.
++
++- Task9 initial controller gate retained: full browser111PASS/12FAIL/2deliberate mobile skips;9Firefox pad-detach,2stale Chromium-family codec counts afterM4Asupport,1sound-trigger input closure. Isolated recording repeat1/1PASS,causeunconfirmed/no speculative recording change. Controlled delayedMIDI denial confirms6permissionrequests/288removedpads. Initial offlinecoldstart loaded thenpad churn blocked workflow. Two-tab A-to-B proves tab2Later draft/sentinel loss when tab1updated; notice z10020 also intercepted modalSave pointer. Astra task-9-review.md requiresR9-1/2/3/4 correction.
++
++- Task9 round1 correction FROZEN: automatic MIDI initialization owned once/document with explicit retry; drum pad node/focus/pressed identity stable; M4A expectation9. PWA notice uses opaque existing tokens belowdialogs. App uses distinct sole-window activation request, per-tab reloadconsent, blocked actionable retry, artifact-unique cacheprefix, revision-query old-lazy fallback and bounded current+previous appprecaches while preserving unrelated caches; no app-issued WorkboxSKIP_WAITING. R9-1 self-implemented generator tests removed; Library exact sort, actual failure and confirmation-through-refresh complete. Local55affectedPASS, full744/744across76files, typecheck/lint/audit0/buildPASS571modules/PWA32entries2151.10KiB. EntryJS894537/gzip259699 (15.96%/13.68% reduction); CSS270196/gzip48526 (69.04%/54.20%). Source/tests/E2E/config frozen for controller revised fullmatrix/offline/two-tabA-B/visual and Astra scoped re-review; no browser run by Sol.
++- Task9 round2 correction FROZEN: R9-5 lifecycle metadata now protects the actual current/previous activated builds plus newest waiting build, prunes successively superseded B/C waiters before activation, and rereads ownership immediately before deletion; missing/migrating/changing ownership defers cleanup. R9-6 build identity is timestamp+cryptoUUID and embedded in a unique lifecycle asset, with build verifier requiring exact worker/cache identity and no unresolved config closure. Sole-tab activation requires the exact scoped requesting client; active worker cache is first for old lazy/static lookup. Recording setup now suspends an already-running AudioContext, loads/connects graph+message path, then resumes; processor strict observed-empty and unseen active-gap rejection unchanged. Diagnostic runs did not capture the prior failure, so exact causality remains unclaimed; post-fix synthetic recording stress16/16 at5workers passes. Final local751/751units across76files, typecheck, ESLint10zero, audit0, build571modules/PWA32entries2155.25KiB allPASS. Runtime hashes `/tmp/opstudio-task9-round2-runtime-sha256.txt`; source/tests/E2E/config/scripts frozen for root final matrix/offline/multi-build/visual/Astra gates.
+--- before/public/pwa-cache-lifecycle.js
++++ after/public/pwa-cache-lifecycle.js
+@@ -1,24 +0,0 @@
+-/* Keep the current and immediately previous app precaches as bounded
+- * activation/reload protection. Updates cannot activate while another app
+- * window is open. CacheStorage preserves creation order, so a third build
+- * retires the oldest app precache while unrelated origin caches are untouched. */
+-self.addEventListener('message', (event) => {
+-  if (event.data?.type !== 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') return;
+-  event.waitUntil((async () => {
+-    const openWindows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+-    if (openWindows.length <= 1) {
+-      await self.skipWaiting();
+-      return;
+-    }
+-    event.source?.postMessage({ type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' });
+-  })());
+-});
+-
+-self.addEventListener('activate', (event) => {
+-  event.waitUntil((async () => {
+-    const appPrecaches = (await caches.keys()).filter((name) =>
+-      name.startsWith('op-patchstudio-') && name.includes('-precache-'));
+-    const expired = appPrecaches.slice(0, -2);
+-    await Promise.all(expired.map((name) => caches.delete(name)));
+-  })());
+-});
+--- before/scripts/pwa-cache-lifecycle.js
++++ after/scripts/pwa-cache-lifecycle.js
+@@ -0,0 +1,118 @@
++const BUILD_ID = '__OPSTUDIO_PWA_BUILD_ID__';
++self.__OPSTUDIO_BUILD_ID__ = BUILD_ID;
++const APP_CACHE_PREFIX = 'op-patchstudio-';
++const METADATA_CACHE = 'op-patchstudio-lifecycle-metadata-v1';
++const METADATA_URL = new URL('__opstudio_cache_lifecycle__', self.registration.scope).href;
++let lifecycleOperation = Promise.resolve();
++
++function serialized(operation) {
++  lifecycleOperation = lifecycleOperation.then(operation, operation);
++  return lifecycleOperation;
++}
++
++async function readMetadata() {
++  const response = await (await caches.open(METADATA_CACHE)).match(METADATA_URL);
++  if (!response) return {};
++  try {
++    const value = await response.json();
++    return value && typeof value === 'object' ? value : {};
++  } catch {
++    return {};
++  }
++}
++
++async function writeMetadata(value) {
++  await (await caches.open(METADATA_CACHE)).put(METADATA_URL, new Response(JSON.stringify(value), {
++    headers: { 'content-type': 'application/json' },
++  }));
++}
++
++function isAppPrecache(name) {
++  return name.startsWith(APP_CACHE_PREFIX) && name.includes('-precache-');
++}
++
++function belongsToBuild(name, buildId) {
++  return typeof buildId === 'string' && buildId.length > 0 &&
++    name.startsWith(`${APP_CACHE_PREFIX}${buildId}-precache-`);
++}
++
++function sameOwnership(left, right) {
++  return left.current === right.current && left.previous === right.previous &&
++    left.waiting === right.waiting && left.complete === right.complete;
++}
++
++async function pruneSupersededCaches(expectedWaiting) {
++  const ownership = await readMetadata();
++  if (typeof ownership.current !== 'string' || ownership.current.length === 0 || ownership.complete !== true) return false;
++  if (expectedWaiting && ownership.waiting !== expectedWaiting) return false;
++
++  const protectedBuilds = [ownership.current, ownership.previous, ownership.waiting]
++    .filter((value) => typeof value === 'string' && value.length > 0);
++  const candidates = (await caches.keys()).filter((name) =>
++    isAppPrecache(name) && !protectedBuilds.some((buildId) => belongsToBuild(name, buildId)));
++
++  for (const name of candidates) {
++    // A newer worker may have become waiting since this operation began. Its
++    // identity must be visible before any cache owned by another build is removed.
++    const latest = await readMetadata();
++    if (!sameOwnership(ownership, latest)) return false;
++    await caches.delete(name);
++  }
++  return true;
++}
++
++function scopedWindow(client) {
++  if (client?.type !== 'window' || typeof client.url !== 'string') return false;
++  try {
++    const scope = new URL(self.registration.scope);
++    const candidate = new URL(client.url);
++    return candidate.origin === scope.origin && candidate.pathname.startsWith(scope.pathname);
++  } catch {
++    return false;
++  }
++}
++
++self.addEventListener('message', (event) => {
++  if (event.data?.type === 'OPSTUDIO_IDENTIFY_WORKER') {
++    event.source?.postMessage({ type: 'OPSTUDIO_WORKER_IDENTITY', buildId: BUILD_ID });
++    return;
++  }
++
++  if (event.data?.type === 'OPSTUDIO_CLAIM_WAITING') {
++    event.waitUntil(serialized(async () => {
++      if (!scopedWindow(event.source)) return;
++      const metadata = await readMetadata();
++      await writeMetadata({ ...metadata, waiting: BUILD_ID });
++      const pruned = await pruneSupersededCaches(BUILD_ID);
++      event.source?.postMessage({ type: 'OPSTUDIO_WAITING_CLAIMED', buildId: BUILD_ID, pruned });
++    }));
++    return;
++  }
++
++  if (event.data?.type !== 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') return;
++  event.waitUntil(serialized(async () => {
++    const openWindows = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
++      .filter(scopedWindow);
++    const requester = event.source;
++    if (scopedWindow(requester) && openWindows.length === 1 && openWindows[0].id === requester.id) {
++      await self.skipWaiting();
++      return;
++    }
++    requester?.postMessage({ type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' });
++  }));
++});
++
++self.addEventListener('activate', (event) => {
++  event.waitUntil(serialized(async () => {
++    const metadata = await readMetadata();
++    if (metadata.waiting && metadata.waiting !== BUILD_ID) return;
++    const appPrecaches = (await caches.keys()).filter(isAppPrecache);
++    const ownershipComplete = typeof metadata.current === 'string' ||
++      appPrecaches.every((name) => belongsToBuild(name, BUILD_ID));
++    const previous = metadata.current && metadata.current !== BUILD_ID
++      ? metadata.current
++      : metadata.previous;
++    await writeMetadata({ current: BUILD_ID, previous, waiting: undefined, complete: ownershipComplete });
++    if (ownershipComplete) await pruneSupersededCaches();
++  }));
++});
+--- before/scripts/verify-pwa-build.mjs
++++ after/scripts/verify-pwa-build.mjs
+@@ -1,20 +1,28 @@
+ import { readFile } from 'node:fs/promises'
+ 
+ const worker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8')
+-const lifecycle = await readFile(new URL('../dist/pwa-cache-lifecycle.js', import.meta.url), 'utf8')
+-
+-if (!worker.includes('pwa-cache-lifecycle.js')) {
+-  throw new Error('Generated service worker does not import the bounded app-cache lifecycle')
++const lifecyclePath = worker.match(/["'](assets\/pwa-cache-lifecycle-[^"']+\.js)["']/)?.[1]
++if (!lifecyclePath) {
++  throw new Error('Generated service worker does not import its build-owned cache lifecycle')
+ }
+-if (!worker.includes('op-patchstudio-') || !worker.includes('-precache-')) {
+-  throw new Error('Generated service worker does not contain the prior-build asset fallback')
++const lifecycle = await readFile(new URL(`../dist/${lifecyclePath}`, import.meta.url), 'utf8')
++const buildId = lifecycle.match(/const BUILD_ID = '([^']+)'/)?.[1]
++if (!buildId || !/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(buildId)) {
++  throw new Error('Generated lifecycle does not contain a collision-resistant build identity')
++}
++if (!worker.includes(`op-patchstudio-${buildId}`)) {
++  throw new Error('Worker cache identity and lifecycle ownership identity differ')
++}
++if (worker.includes('${pwaBuildId}')) {
++  throw new Error('Generated worker contains an unresolved build-configuration closure')
+ }
+ if (!lifecycle.includes('OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') ||
+-    !lifecycle.includes('OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS')) {
+-  throw new Error('Generated lifecycle does not enforce the explicit sole-window update gate')
++    !lifecycle.includes('OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS') ||
++    !lifecycle.includes('OPSTUDIO_CLAIM_WAITING')) {
++  throw new Error('Generated lifecycle does not enforce waiting-worker ownership and the explicit sole-window update gate')
+ }
+-if (!lifecycle.includes('slice(0, -2)')) {
+-  throw new Error('Generated lifecycle does not retain exactly two app precache generations')
++if (!lifecycle.includes('sameOwnership(ownership, latest)')) {
++  throw new Error('Generated lifecycle does not recheck worker-owned cache metadata before deletion')
+ }
+ const matches = [...worker.matchAll(/\{url:"([^"]+)",revision:(null|"[^"]+")\}/g)]
+ 
+@@ -43,4 +51,4 @@
+   throw new Error(`Stable public assets lack content revisions: ${missingRevisions.map(({ url }) => url).join(', ')}`)
+ }
+ 
+-console.log(`Verified ${entries.length} unique precache URLs; ${stablePublicAssets.length} stable public assets have content revisions.`)
++console.log(`Verified ${entries.length} unique precache URLs; ${stablePublicAssets.length} stable public assets have content revisions; lifecycle ${buildId} owns its cache identity.`)
+--- before/vite.config.ts
++++ after/vite.config.ts
+@@ -3,16 +3,29 @@
+ import react from '@vitejs/plugin-react'
+ import { VitePWA } from 'vite-plugin-pwa'
+ import { readFileSync } from 'fs'
++import { randomUUID } from 'node:crypto'
++import type { Plugin } from 'vite'
+ 
+ // Read version from package.json
+ const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
+-const pwaBuildId = `${process.env.OPSTUDIO_BUILD_ID ?? process.env.GITHUB_SHA ?? `v${packageJson.version}`}-${Date.now().toString(36)}`
++const pwaBuildId = `${process.env.OPSTUDIO_BUILD_ID ?? process.env.GITHUB_SHA ?? `v${packageJson.version}`}-${Date.now().toString(36)}-${randomUUID()}`
+   .replace(/[^a-zA-Z0-9._-]/g, '-')
++const lifecycleAsset = `assets/pwa-cache-lifecycle-${pwaBuildId}.js`
++const lifecycleSource = readFileSync('./scripts/pwa-cache-lifecycle.js', 'utf-8')
++  .replace('__OPSTUDIO_PWA_BUILD_ID__', pwaBuildId)
++const pwaLifecycleAssetPlugin:Plugin = {
++  name: 'op-patchstudio-pwa-lifecycle-asset',
++  apply: 'build',
++  generateBundle() {
++    this.emitFile({ type: 'asset', fileName: lifecycleAsset, source: lifecycleSource })
++  },
++}
+ 
+ // https://vite.dev/config/
+ export default defineConfig({
+   plugins: [
+     react(),
++    pwaLifecycleAssetPlugin,
+     VitePWA({
+       registerType: 'prompt',
+       injectRegister: false,
+@@ -21,7 +34,7 @@
+         cacheId: `op-patchstudio-${pwaBuildId}`,
+         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+         cleanupOutdatedCaches: false,
+-        importScripts: ['pwa-cache-lifecycle.js'],
++        importScripts: [lifecycleAsset],
+         // Keep a content revision on public assets as well as Vite's hashed bundles.
+         // Icon and preview filenames are stable across releases, so URL-only cache
+         // keys could otherwise preserve stale pixels after an update.
+@@ -37,7 +50,13 @@
+             } }).caches;
+             const appPrecaches = (await workerCaches.keys()).filter((name) =>
+               name.startsWith('op-patchstudio-') && name.includes('-precache-'));
+-            for (const name of appPrecaches.reverse()) {
++            const workerBuildId = (globalThis as unknown as { __OPSTUDIO_BUILD_ID__?: string }).__OPSTUDIO_BUILD_ID__;
++            const ownPrefix = workerBuildId ? `op-patchstudio-${workerBuildId}-precache-` : '';
++            const lookupOrder = [
++              ...appPrecaches.filter((name) => ownPrefix && name.startsWith(ownPrefix)),
++              ...appPrecaches.filter((name) => !ownPrefix || !name.startsWith(ownPrefix)).reverse(),
++            ];
++            for (const name of lookupOrder) {
+               const response = await (await workerCaches.open(name)).match(request, { ignoreSearch: true });
+               if (response) return response;
+             }
+--- before/src/audio/recording/captureSession.ts
++++ after/src/audio/recording/captureSession.ts
+@@ -36,6 +36,8 @@
+   generation:number;
+   stream?:MediaStream;
+   context?:AudioContext;
++  source?:MediaStreamAudioSourceNode;
++  node?:AudioWorkletNode;
+   released:boolean;
+ }
+ 
+@@ -128,22 +130,32 @@
+       attempt.context=context;
+       if(context.sampleRate<8_000||context.sampleRate>96_000)throw new Error('The browser capture rate is outside the supported 8–96 kHz range.');
+       if(reportedRate!==undefined&&context.sampleRate!==reportedRate)throw new Error(`The browser could not preserve the reported ${reportedRate} Hz input rate.`);
++      if(context.state==='running'){
++        stage='suspending the audio capture context for graph setup';
++        await context.suspend();
++      }
++      if(generation!==this.generation||this.disposed){await this.releaseSetupAttempt(attempt);return false;}
+       stage='loading the local capture processor';
+       await context.audioWorklet.addModule(this.deps.workletUrl);
+-      stage='resuming the audio capture context';
+-      if(context.state==='suspended')await context.resume();
+       if(generation!==this.generation||this.disposed){await this.releaseSetupAttempt(attempt);return false;}
+       stage='connecting the audio capture graph';
+       const source=context.createMediaStreamSource(stream);
+       const node=this.deps.createWorkletNode(context,{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCountMode:'max',channelInterpretation:'discrete',
+         processorOptions:{...(this.deps.capture??{mode:'manual'}),channels:reportedChannels}});
++      attempt.source=source;attempt.node=node;
++      const pendingMessages:ProcessorMessage[]=[];
++      node.port.onmessage=event=>{pendingMessages.push(event.data);};
+       source.connect(node); node.connect(context.destination);
++      stage='resuming the connected audio capture graph';
++      await context.resume();
++      if(generation!==this.generation||this.disposed){await this.releaseSetupAttempt(attempt);return false;}
+       if(this.setupAttempt===attempt)this.setupAttempt=undefined;
+-      attempt.stream=undefined;attempt.context=undefined;attempt.released=true;
++      attempt.stream=undefined;attempt.context=undefined;attempt.source=undefined;attempt.node=undefined;attempt.released=true;
+       this.stream=stream;this.track=track;this.context=context;this.source=source;this.node=node;
+       track.addEventListener('ended',this.trackEnded); node.addEventListener('processorerror',this.processorError); context.addEventListener('statechange',this.contextState);
+       node.port.onmessage=event=>{void this.handleMessage(event.data,generation);};
+       this.setStatus({state:'monitoring',sampleRate:context.sampleRate,channels:reportedChannels,settingsReported:reportedRate!==undefined});
++      for(const message of pendingMessages)void this.handleMessage(message,generation);
+       return true;
+     } catch(reason) {
+       await this.releaseSetupAttempt(attempt);
+@@ -250,7 +262,10 @@
+     if(attempt.released)return;
+     attempt.released=true;
+     if(this.setupAttempt===attempt)this.setupAttempt=undefined;
+-    const stream=attempt.stream,context=attempt.context;attempt.stream=undefined;attempt.context=undefined;
++    const stream=attempt.stream,context=attempt.context,source=attempt.source,node=attempt.node;
++    attempt.stream=undefined;attempt.context=undefined;attempt.source=undefined;attempt.node=undefined;
++    if(node){node.port.onmessage=null;try{node.port.postMessage({type:'close'});}catch{ /* already closed */ }node.port.close();node.disconnect();}
++    source?.disconnect();
+     stopTracks(stream);
+     if(context)await context.close().catch(()=>undefined);
+   }
+--- before/src/components/common/PWAUpdatePrompt.tsx
++++ after/src/components/common/PWAUpdatePrompt.tsx
+@@ -9,6 +9,14 @@
+   const reloadConsent = useRef(false);
+ 
+   useEffect(() => {
++    let refreshPending = false;
++    let claimedWorker: ServiceWorker | null = null;
++    const claimWaitingWorker = () => {
++      const worker = registration.current?.waiting ?? null;
++      if (!refreshPending || !worker || worker === claimedWorker) return;
++      claimedWorker = worker;
++      worker.postMessage({ type: 'OPSTUDIO_CLAIM_WAITING' });
++    };
+     const handleWorkerMessage = (event: MessageEvent) => {
+       if (event.data?.type !== 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS') return;
+       reloadConsent.current = false;
+@@ -16,10 +24,15 @@
+     };
+     navigator.serviceWorker?.addEventListener('message', handleWorkerMessage);
+     registerSW({
+-      onNeedRefresh: () => setNotice('update'),
++      onNeedRefresh: () => {
++        refreshPending = true;
++        claimWaitingWorker();
++        setNotice('update');
++      },
+       onOfflineReady: () => setNotice('offline'),
+       onRegisteredSW: (_url, currentRegistration) => {
+         registration.current = currentRegistration;
++        claimWaitingWorker();
+       },
+       onNeedReload: () => {
+         if (reloadConsent.current) reloadPage();
+--- before/src/test/audio/recording/captureSession.test.ts
++++ after/src/test/audio/recording/captureSession.test.ts
+@@ -17,7 +17,7 @@
+   const source={connect:vi.fn(),disconnect:vi.fn()};
+   const context={sampleRate:48_000,state:'running',audioWorklet:{addModule:vi.fn().mockResolvedValue(undefined)},destination:{},
+     createMediaStreamSource:vi.fn(()=>source),createBuffer:(channels:number,frames:number,rate:number)=>new AudioContext().createBuffer(channels,frames,rate),
+-    close:vi.fn().mockResolvedValue(undefined),resume:vi.fn().mockResolvedValue(undefined),
++    close:vi.fn().mockResolvedValue(undefined),suspend:vi.fn().mockResolvedValue(undefined),resume:vi.fn().mockResolvedValue(undefined),
+     addEventListener:vi.fn(),removeEventListener:vi.fn()};
+   const stream={getAudioTracks:()=>[track],getTracks:()=>[track]} as unknown as MediaStream;
+   return {port,node,source,context,stream};
+@@ -51,12 +51,46 @@
+     expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();module.resolve();await expect(enabling).resolves.toBe(false);await closing;expect(g.source.connect).not.toHaveBeenCalled();
+   });
+ 
++  it('releases input and context when close interrupts the initial suspension',async()=>{
++    const track=fakeTrack(),g=graph(track),suspend=deferred<void>();g.context.suspend=vi.fn(()=>suspend.promise);
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js'});
++    const enabling=session.enableInput('');await vi.waitFor(()=>expect(g.context.suspend).toHaveBeenCalled());const closing=session.dispose();
++    expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();suspend.resolve();
++    await expect(enabling).resolves.toBe(false);await closing;expect(g.context.audioWorklet.addModule).not.toHaveBeenCalled();
++  });
++
++  it('reports a suspension rejection and releases every setup resource',async()=>{
++    const track=fakeTrack(),g=graph(track),onError=vi.fn();g.context.suspend=vi.fn().mockRejectedValue(new DOMException('suspend refused','NotAllowedError'));
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onError});
++    await expect(session.enableInput('')).resolves.toBe(false);
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/Suspending the audio capture context for graph setup failed \(NotAllowedError: suspend refused\)/));
++    expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();expect(g.context.audioWorklet.addModule).not.toHaveBeenCalled();
++  });
++
+   it('releases acquired input and context while context resume is still pending',async()=>{
+-    const track=fakeTrack(),g=graph(track),resume=deferred<void>();g.context.state='suspended';g.context.resume=vi.fn(()=>resume.promise);
++    const track=fakeTrack(),g=graph(track),resume=deferred<void>();g.context.suspend=vi.fn(async()=>{g.context.state='suspended'});g.context.resume=vi.fn(()=>resume.promise);
+     const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+       createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js'});
+     const enabling=session.enableInput('');await vi.waitFor(()=>expect(g.context.resume).toHaveBeenCalled());const stopping=session.stop();
+-    expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();resume.resolve();await expect(enabling).resolves.toBe(false);await stopping;expect(g.source.connect).not.toHaveBeenCalled();
++    expect(track.stop).toHaveBeenCalledOnce();expect(g.context.close).toHaveBeenCalledOnce();expect(g.source.disconnect).toHaveBeenCalledOnce();expect(g.node.disconnect).toHaveBeenCalledOnce();resume.resolve();await expect(enabling).resolves.toBe(false);await stopping;
++  });
++
++  it('freezes a running context until the complete capture graph is connected',async()=>{
++    const track=fakeTrack(),g=graph(track),order:string[]=[];
++    g.context.suspend=vi.fn(async()=>{order.push('suspend');g.context.state='suspended'});
++    g.context.audioWorklet.addModule=vi.fn(async()=>{order.push('add-module')});
++    g.context.createMediaStreamSource=vi.fn(()=>{order.push('create-source');return g.source});
++    g.source.connect=vi.fn(()=>{order.push('connect-source')});
++    g.node.connect=vi.fn(()=>{order.push('connect-node')});
++    g.context.resume=vi.fn(async()=>{order.push('resume');g.context.state='running'});
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>{order.push('create-worklet');return g.node as unknown as AudioWorkletNode},workletUrl:'/capture.js'});
++    await expect(session.enableInput('')).resolves.toBe(true);
++    expect(order).toEqual(['suspend','add-module','create-source','create-worklet','connect-source','connect-node','resume']);
++    expect(session.status.state).toBe('monitoring');
++    await session.dispose();
+   });
+ 
+   it('requests processing constraints off and reports actual browser-delivered settings', async () => {
+--- before/src/test/components/PWAUpdatePrompt.test.tsx
++++ after/src/test/components/PWAUpdatePrompt.test.tsx
+@@ -5,6 +5,7 @@
+ 
+ const pwa = vi.hoisted(() => ({
+   options: undefined as RegisterSWOptions | undefined,
++  deferRegistration: false,
+   update: vi.fn(async () => undefined),
+   postMessage: vi.fn(),
+ }));
+@@ -12,9 +13,9 @@
+ vi.mock('virtual:pwa-register', () => ({
+   registerSW: (options: RegisterSWOptions) => {
+     pwa.options = options;
+-    options.onRegisteredSW?.('/sw.js', {
+-      waiting: { postMessage: pwa.postMessage },
+-    } as unknown as ServiceWorkerRegistration);
++    if (!pwa.deferRegistration) options.onRegisteredSW?.('/sw.js', {
++        waiting: { postMessage: pwa.postMessage },
++      } as unknown as ServiceWorkerRegistration);
+     return pwa.update;
+   },
+ }));
+@@ -23,6 +24,7 @@
+   beforeEach(() => {
+     Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: new EventTarget() });
+     pwa.options = undefined;
++    pwa.deferRegistration = false;
+     pwa.update.mockClear();
+     pwa.postMessage.mockClear();
+   });
+@@ -33,12 +35,23 @@
+ 
+     act(() => pwa.options?.onNeedRefresh?.());
+     expect(screen.getByRole('status')).toHaveTextContent('An update is ready');
+-    expect(pwa.postMessage).not.toHaveBeenCalled();
++    expect(pwa.postMessage).toHaveBeenCalledWith({ type: 'OPSTUDIO_CLAIM_WAITING' });
+ 
+     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update now' })));
+     expect(pwa.postMessage).toHaveBeenCalledWith({ type: 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT' });
+     act(() => pwa.options?.onNeedReload?.());
+     expect(reloadPage).toHaveBeenCalledOnce();
++  });
++
++  it('claims a waiting worker when registration resolves after the refresh event', () => {
++    pwa.deferRegistration = true;
++    render(<PWAUpdatePrompt />);
++    act(() => pwa.options?.onNeedRefresh?.());
++    expect(pwa.postMessage).not.toHaveBeenCalled();
++    act(() => pwa.options?.onRegisteredSW?.('/sw.js', {
++      waiting: { postMessage: pwa.postMessage },
++    } as unknown as ServiceWorkerRegistration));
++    expect(pwa.postMessage).toHaveBeenCalledWith({ type: 'OPSTUDIO_CLAIM_WAITING' });
+   });
+ 
+   it('allows the update prompt to be deferred without changing the current session', () => {
+@@ -49,7 +62,8 @@
+     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+ 
+     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+-    expect(pwa.postMessage).not.toHaveBeenCalled();
++    expect(pwa.postMessage).toHaveBeenCalledTimes(1);
++    expect(pwa.postMessage).toHaveBeenCalledWith({ type: 'OPSTUDIO_CLAIM_WAITING' });
+     act(() => pwa.options?.onNeedReload?.());
+     expect(reloadPage).not.toHaveBeenCalled();
+   });
+@@ -79,6 +93,7 @@
+     act(() => pwa.options?.onNeedReload?.());
+     expect(reloadPage).not.toHaveBeenCalled();
+     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update now' })));
+-    expect(pwa.postMessage).toHaveBeenCalledTimes(2);
++    expect(pwa.postMessage.mock.calls.filter(([message]) =>
++      message.type === 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT')).toHaveLength(2);
+   });
+ });
+--- before/src/test/utils/pwaCacheLifecycle.test.ts
++++ after/src/test/utils/pwaCacheLifecycle.test.ts
+@@ -1,48 +1,129 @@
+ import { readFileSync } from 'node:fs';
+ import { describe, expect, it, vi } from 'vitest';
+ 
+-type WorkerListener = (event: {
+-  data?: {type?:string};
+-  source?: {postMessage:(message:unknown)=>void};
++type Ownership={current?:string;previous?:string;waiting?:string;complete?:boolean};
++type WorkerEvent={
++  data?:{type?:string};
++  source?:{id:string;type:string;url:string;postMessage:(message:unknown)=>void};
+   waitUntil:(promise:Promise<unknown>)=>void;
+-}) => void;
++};
++type WorkerListener=(event:WorkerEvent)=>void;
+ 
+-function loadLifecycle(windowCount:number,cacheNames:string[]) {
++interface CacheState {
++  names:Set<string>;
++  ownership?:Ownership;
++  metadataReads:number;
++  beforeMetadataRead?:(read:number,state:CacheState)=>void;
++}
++
++function loadLifecycle(buildId:string,windowIds:string[],state:CacheState) {
+   const listeners=new Map<string,WorkerListener>();
+   const deleted:string[]=[];
+   const skipWaiting=vi.fn(async()=>undefined),postMessage=vi.fn();
++  const clients=windowIds.map(id=>({id,type:'window',url:`https://studio.test/${id}`}));
+   const worker={
+-    clients:{matchAll:vi.fn(async()=>Array.from({length:windowCount},()=>({})))},
++    registration:{scope:'https://studio.test/'},
++    clients:{matchAll:vi.fn(async()=>clients)},
+     skipWaiting,
+     addEventListener:(type:string,listener:WorkerListener)=>listeners.set(type,listener),
+   };
+-  const cacheStorage={keys:vi.fn(async()=>cacheNames),delete:vi.fn(async(name:string)=>{deleted.push(name);return true;})};
+-  const source=readFileSync(`${process.cwd()}/public/pwa-cache-lifecycle.js`,'utf8');
+-  Function('self','caches',source)(worker,cacheStorage);
+-  const dispatch=async(type:string,data?:{type:string})=>{
++  const cacheStorage={
++    keys:vi.fn(async()=>[...state.names]),
++    delete:vi.fn(async(name:string)=>{deleted.push(name);state.names.delete(name);return true;}),
++    open:vi.fn(async(name:string)=>{
++      if(name!=='op-patchstudio-lifecycle-metadata-v1')return {match:vi.fn(),put:vi.fn()};
++      return {
++        match:vi.fn(async()=>{
++          state.metadataReads+=1;
++          state.beforeMetadataRead?.(state.metadataReads,state);
++          return state.ownership?new Response(JSON.stringify(state.ownership)):undefined;
++        }),
++        put:vi.fn(async(_url:string,response:Response)=>{state.ownership=await response.json() as Ownership;}),
++      };
++    }),
++  };
++  const source=readFileSync(`${process.cwd()}/scripts/pwa-cache-lifecycle.js`,'utf8')
++    .replace('__OPSTUDIO_PWA_BUILD_ID__',buildId);
++  Function('self','caches','Response','URL',source)(worker,cacheStorage,Response,URL);
++  const dispatch=async(type:string,data?:{type:string},sourceId=windowIds[0]??'requester')=>{
+     let work:Promise<unknown>=Promise.resolve();
+-    listeners.get(type)?.({data,source:{postMessage},waitUntil:promise=>{work=Promise.resolve(promise);}});
++    const sourceClient={id:sourceId,type:'window',url:`https://studio.test/${sourceId}`,postMessage};
++    listeners.get(type)?.({data,source:sourceClient,waitUntil:promise=>{work=Promise.resolve(promise);}});
+     await work;
+   };
+   return {dispatch,deleted,postMessage,skipWaiting};
+ }
+ 
++function cache(buildId:string){return `op-patchstudio-${buildId}-precache-v2-https://studio.test/`;}
++function state(names:string[],ownership?:Ownership):CacheState{return {names:new Set(names),ownership,metadataReads:0};}
++
+ describe('PWA cache lifecycle',()=>{
+-  it('keeps an update waiting while another app window is open',async()=>{
+-    const worker=loadLifecycle(2,[]);
+-    await worker.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'});
+-    expect(worker.skipWaiting).not.toHaveBeenCalled();
+-    expect(worker.postMessage).toHaveBeenCalledWith({type:'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS'});
++  it('accepts activation only from the sole scoped app window',async()=>{
++    const shared=state([],{current:'A',waiting:'B',complete:true});
++    const multiple=loadLifecycle('B',['one','two'],shared);
++    await multiple.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'},'one');
++    expect(multiple.skipWaiting).not.toHaveBeenCalled();
++    expect(multiple.postMessage).toHaveBeenCalledWith({type:'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS'});
++
++    const sole=loadLifecycle('B',['one'],shared);
++    await sole.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'},'different');
++    expect(sole.skipWaiting).not.toHaveBeenCalled();
++    await sole.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'},'one');
++    expect(sole.skipWaiting).toHaveBeenCalledOnce();
+   });
+ 
+-  it('activates for a sole app window and retains only two app precaches',async()=>{
+-    const worker=loadLifecycle(1,[
+-      'op-patchstudio-A-precache-v2-scope','unrelated-cache',
+-      'op-patchstudio-B-precache-v2-scope','op-patchstudio-C-precache-v2-scope',
+-    ]);
+-    await worker.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'});
+-    await worker.dispatch('activate');
+-    expect(worker.skipWaiting).toHaveBeenCalledOnce();
+-    expect(worker.deleted).toEqual(['op-patchstudio-A-precache-v2-scope']);
++  it('removes a superseded waiting build while retaining active, previous, and newest waiting builds',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),'unrelated-cache'],{current:'A',previous:'P',complete:true});
++    const waitingB=loadLifecycle('B',['one','two'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect([...shared.names]).toEqual([cache('P'),cache('A'),cache('B'),'unrelated-cache']);
++
++    shared.names.add(cache('C'));
++    const waitingC=loadLifecycle('C',['one','two'],shared);
++    await waitingC.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect([...shared.names]).toEqual([cache('P'),cache('A'),'unrelated-cache',cache('C')]);
++    expect(shared.ownership).toEqual({current:'A',previous:'P',waiting:'C',complete:true});
++
++    shared.names.add(cache('D'));
++    const waitingD=loadLifecycle('D',['one','two'],shared);
++    await waitingD.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect([...shared.names]).toEqual([cache('P'),cache('A'),'unrelated-cache',cache('D')]);
++    expect(shared.ownership).toEqual({current:'A',previous:'P',waiting:'D',complete:true});
++
++    await waitingD.dispatch('activate');
++    expect([...shared.names]).toEqual([cache('A'),'unrelated-cache',cache('D')]);
++    expect(shared.ownership).toEqual({current:'D',previous:'A',complete:true});
++  });
++
++  it('fails closed when ownership changes immediately before deletion',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',waiting:'B',complete:true});
++    shared.beforeMetadataRead=(read,current)=>{if(read===3)current.ownership={current:'A',previous:'P',waiting:'C',complete:true};};
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingB.deleted).toEqual([]);
++    expect(shared.names.has(cache('C'))).toBe(true);
++  });
++
++  it('keeps existing generations when active-worker ownership is unavailable',async()=>{
++    const shared=state([cache('A'),cache('B')]);
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingB.deleted).toEqual([]);
++  });
++
++  it('keeps pre-metadata caches through migration until a later activation establishes the previous worker',async()=>{
++    const shared=state([cache('legacy-A'),cache('B')],{waiting:'B'});
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('activate');
++    expect(waitingB.deleted).toEqual([]);
++    expect(shared.ownership).toEqual({current:'B',complete:false});
++
++    shared.names.add(cache('C'));
++    const waitingC=loadLifecycle('C',['one'],shared);
++    await waitingC.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingC.deleted).toEqual([]);
++    await waitingC.dispatch('activate');
++    expect([...shared.names]).toEqual([cache('B'),cache('C')]);
++    expect(shared.ownership).toEqual({current:'C',previous:'B',complete:true});
+   });
+ });

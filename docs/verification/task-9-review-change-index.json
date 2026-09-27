@@ -1,0 +1,554 @@
+[
+  {
+    "path": ".github/workflows/quality.yml",
+    "beforeBytes": 0,
+    "afterBytes": 1110,
+    "sha256": "cea9d64f907f8dbaf7563ceb17c96c7423625bc9b9d35f8d5d8075665b955dd5"
+  },
+  {
+    "path": "BUGS.md",
+    "beforeBytes": 3566,
+    "afterBytes": 4054,
+    "sha256": "db9ae3e3c67056517272dfbc3321db2b120d8a6dbe54b449bca21c0008497ba8"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "beforeBytes": 11772,
+    "afterBytes": 14006,
+    "sha256": "85e6bb21e997a5a1541036dc439f5f061cb8a7032b2953b7b09caa9d377b78c7"
+  },
+  {
+    "path": "README.md",
+    "beforeBytes": 8867,
+    "afterBytes": 8002,
+    "sha256": "3ccbebfbf4624696d4cedcb252a89ba6e585e31a5d200e5d90a60e7d8a852072"
+  },
+  {
+    "path": "eslint.config.js",
+    "beforeBytes": 610,
+    "afterBytes": 1306,
+    "sha256": "bc5dcec67d595c43cf3c50e8b4796dd9355071065e30a7fa298bb5b9376e8378"
+  },
+  {
+    "path": "package-lock.json",
+    "beforeBytes": 546169,
+    "afterBytes": 386684,
+    "sha256": "ce00ad309f32d1daf34496716ef053f6a714f70e633b8634dcf45f4a2f1a3a75"
+  },
+  {
+    "path": "package.json",
+    "beforeBytes": 2480,
+    "afterBytes": 2840,
+    "sha256": "c532b5529cdbcb682266448298279919bd49f4f83e082a7400669663596b495a"
+  },
+  {
+    "path": "public/manifest.json",
+    "beforeBytes": 2174,
+    "afterBytes": 0,
+    "sha256": null
+  },
+  {
+    "path": "public/sw.js",
+    "beforeBytes": 1128,
+    "afterBytes": 0,
+    "sha256": null
+  },
+  {
+    "path": "scripts/verify-pwa-build.mjs",
+    "beforeBytes": 0,
+    "afterBytes": 1261,
+    "sha256": "b1d9d7cbc5fa8536ede5ec1673baf970728cf63a54a510a3c8a9aa48eb844a22"
+  },
+  {
+    "path": "src/App.tsx",
+    "beforeBytes": 4009,
+    "afterBytes": 4366,
+    "sha256": "514c3344b5faf24054e145754cf67a1aa07f641eab5fd5ee53fa9cf73ad64641"
+  },
+  {
+    "path": "src/audio/recording/captureSession.ts",
+    "beforeBytes": 17085,
+    "afterBytes": 17030,
+    "sha256": "b8f493a53d2f3729724956f808a2b2bbeda6b37e47f4f9f7fecadd5c30a19b28"
+  },
+  {
+    "path": "src/components/common/AudioProcessingSection.tsx",
+    "beforeBytes": 15410,
+    "afterBytes": 15433,
+    "sha256": "4e57c39503be2baa7cafa8ce60fb933aa082edc3b2650b06a6c32e60bf27d417"
+  },
+  {
+    "path": "src/components/common/DonatePage.tsx",
+    "beforeBytes": 12120,
+    "afterBytes": 12151,
+    "sha256": "50c415bb1ea57178a239fd82f6648081cbd545e7c9305b81c0d72dee68e6f6a9"
+  },
+  {
+    "path": "src/components/common/EnhancedWaveformEditor.tsx",
+    "beforeBytes": 12814,
+    "afterBytes": 12578,
+    "sha256": "f8a8a0cf52e4be7f0df5f49074bc43348679fb325f84541b6f89ca630e030199"
+  },
+  {
+    "path": "src/components/common/FeedbackPage.tsx",
+    "beforeBytes": 2983,
+    "afterBytes": 3699,
+    "sha256": "74a0526ab67beecbf104a86d7f8fbec062c9995fb8e5cd6a7f5dde370bcdd656"
+  },
+  {
+    "path": "src/components/common/Footer.tsx",
+    "beforeBytes": 2600,
+    "afterBytes": 2659,
+    "sha256": "f673134e3cda08d61b90565b356709061e7b098f1ae6708be68297b6e81fa9f4"
+  },
+  {
+    "path": "src/components/common/GeneratePresetSection.tsx",
+    "beforeBytes": 21817,
+    "afterBytes": 21706,
+    "sha256": "24d1b2cb22baf4def5f38d9cade1a6f9521db92738ae8c16baa81b730583ea02"
+  },
+  {
+    "path": "src/components/common/MainTabs.tsx",
+    "beforeBytes": 2676,
+    "afterBytes": 3239,
+    "sha256": "a1e2daf07414481a3ae0eace318f4f88b1091147f4c899637de348c38ae98c72"
+  },
+  {
+    "path": "src/components/common/MidiDeviceSelector.tsx",
+    "beforeBytes": 12263,
+    "afterBytes": 12238,
+    "sha256": "98d3585010b4ad0a2501b3a506318dfaf121c224c16397a2d712417e75bfb32d"
+  },
+  {
+    "path": "src/components/common/NotificationSystem.tsx",
+    "beforeBytes": 4446,
+    "afterBytes": 4426,
+    "sha256": "7884784b6303ebf784568bcec38721a8409def18d71b86cc2afad72a4d31d085"
+  },
+  {
+    "path": "src/components/common/PWAInstallPrompt.tsx",
+    "beforeBytes": 10075,
+    "afterBytes": 10045,
+    "sha256": "03dd5d51d353e4f7e8849a8544aad465bb4da73ca9d4f51c4ac25268e226586a"
+  },
+  {
+    "path": "src/components/common/PWAUpdatePrompt.tsx",
+    "beforeBytes": 0,
+    "afterBytes": 1119,
+    "sha256": "6001cd8f3884ab1937109e220466a3f099fda06be0b4b7cd33d6556a5c7c0133"
+  },
+  {
+    "path": "src/components/common/PatchSizeIndicator.tsx",
+    "beforeBytes": 6914,
+    "afterBytes": 6954,
+    "sha256": "a5d317972e123ed50eddc960cbd306224cfad029b93462c97d6277bf46f80e34"
+  },
+  {
+    "path": "src/components/common/SessionRestorationModal.tsx",
+    "beforeBytes": 9808,
+    "afterBytes": 9775,
+    "sha256": "8186d6c9069f4f31d4bed712ffd05d3c2767d23283abd2463924229ffec145e0"
+  },
+  {
+    "path": "src/components/common/SmallWaveform.tsx",
+    "beforeBytes": 12604,
+    "afterBytes": 12185,
+    "sha256": "7ef45faf9ceb9e12c9cee3678b3bbe1e909c8bcfa656631f08716b87bfe38790"
+  },
+  {
+    "path": "src/components/common/TabNavigation.tsx",
+    "beforeBytes": 4613,
+    "afterBytes": 4607,
+    "sha256": "0377909d5c6d4fead807c0fbc65652e2c2b817c0cb2394f29e135bedec984b82"
+  },
+  {
+    "path": "src/components/common/WaveformEditor.tsx",
+    "beforeBytes": 12728,
+    "afterBytes": 11880,
+    "sha256": "2c7b66a0f7ee2bbf0bbc5eaba103c500a8faf1e3ff4ad192a334d0641ce2c119"
+  },
+  {
+    "path": "src/components/common/WaveformZoomModal.tsx",
+    "beforeBytes": 28226,
+    "afterBytes": 28114,
+    "sha256": "7b57ad5008d5aacca18afe911291e2e46f2af7e40566dedbdd1c048f092f9da3"
+  },
+  {
+    "path": "src/components/drum/DrumBulkEditModal.tsx",
+    "beforeBytes": 14807,
+    "afterBytes": 14838,
+    "sha256": "918df527a9e10de12815aba0780024ac1fda523bc2d41330d21064933127ecd2"
+  },
+  {
+    "path": "src/components/drum/DrumKeyboard.tsx",
+    "beforeBytes": 32572,
+    "afterBytes": 30614,
+    "sha256": "f7265ce6bd97a460937ad1e43792c3e40567fcc87bb27b0d96fd382c12573feb"
+  },
+  {
+    "path": "src/components/drum/SliceAudioModal.tsx",
+    "beforeBytes": 23719,
+    "afterBytes": 23611,
+    "sha256": "d55e730d37622ce3b4ab5e420ec725c10953d2766aff9d6ea7fba16a4039ebbb"
+  },
+  {
+    "path": "src/components/library/LibraryPage.tsx",
+    "beforeBytes": 19115,
+    "afterBytes": 19691,
+    "sha256": "4ec60c9ab5c1a187e7d9f73ddeb5d32b92c64d4c1be3e28d769bf127a74911c9"
+  },
+  {
+    "path": "src/components/multisample/MultisampleAdvancedSettings.tsx",
+    "beforeBytes": 17830,
+    "afterBytes": 17974,
+    "sha256": "d9567594a49f8df564e204974810e72cd9d7d18cfead462cd6c563f23dbfaa07"
+  },
+  {
+    "path": "src/components/multisample/MultisamplePresetSettings.tsx",
+    "beforeBytes": 37841,
+    "afterBytes": 37070,
+    "sha256": "ca57f17d3ffa44aa5754aadc2357a1919cd6bde691ec3fe5deb717a48c722cb7"
+  },
+  {
+    "path": "src/components/multisample/MultisampleSampleTable.tsx",
+    "beforeBytes": 47308,
+    "afterBytes": 45083,
+    "sha256": "1050099c87fbd6ad612ac21e079e20d6b1a1b33845149d49447f102584647605"
+  },
+  {
+    "path": "src/components/multisample/VirtualMidiKeyboard.tsx",
+    "beforeBytes": 49379,
+    "afterBytes": 49010,
+    "sha256": "d13432521d0f8ce4dd0c3b5762a3cd51c6b3c552e694fed9d535c89ac5a5718b"
+  },
+  {
+    "path": "src/context/AppContext.tsx",
+    "beforeBytes": 70167,
+    "afterBytes": 70107,
+    "sha256": "abe14a67e412b3bebf312ef4084b81aaeeba9d6c6ae2c5c8354c7fdbfbed70b9"
+  },
+  {
+    "path": "src/hooks/useAudioPlayer.ts",
+    "beforeBytes": 38459,
+    "afterBytes": 38682,
+    "sha256": "4d9e9b0873c11a81c1863f97bd262d00b152088bf79a8a4b7b6390534b38dd2b"
+  },
+  {
+    "path": "src/hooks/useSessionManagement.ts",
+    "beforeBytes": 5800,
+    "afterBytes": 5915,
+    "sha256": "91c335828f6dd3acfca0b5b84e80ee100d11dfeefeb4be5bab95cdf31f5e54dd"
+  },
+  {
+    "path": "src/hooks/useStudioCanvasTheme.ts",
+    "beforeBytes": 1125,
+    "afterBytes": 1259,
+    "sha256": "4ed397aca5e99c21124b16a5b2eb5a6433258ed4c3138b9994d6239520304703"
+  },
+  {
+    "path": "src/hooks/useWebMidi.ts",
+    "beforeBytes": 11007,
+    "afterBytes": 10926,
+    "sha256": "7db285fbff587f3925bf25a3fd7694276faf8f133f18c4e2261d00b7182a4c29"
+  },
+  {
+    "path": "src/index.css",
+    "beforeBytes": 15540,
+    "afterBytes": 15806,
+    "sha256": "86af6820192f89351047f60554b4a7b2ad342e6d5046c8caf1dec980ebdd2554"
+  },
+  {
+    "path": "src/main.tsx",
+    "beforeBytes": 269,
+    "afterBytes": 260,
+    "sha256": "cc49206dc3d55ef02543e128874ed412ce9da97de609ff87847b4e8b52b810db"
+  },
+  {
+    "path": "src/styles/carbon.scss",
+    "beforeBytes": 0,
+    "afterBytes": 415,
+    "sha256": "51579f15542e8a6bd906f51c7bb04b64f7c24af19abcd800981c370080e6a5a1"
+  },
+  {
+    "path": "src/styles/studio.css",
+    "beforeBytes": 18393,
+    "afterBytes": 19042,
+    "sha256": "3d42aa4d35275bde4e7bd392194f6a3ffc94db17d828a01e8afddaab5409ec98"
+  },
+  {
+    "path": "src/test/audio/recording/captureSession.test.ts",
+    "beforeBytes": 22173,
+    "afterBytes": 22129,
+    "sha256": "37afcf04f842488770b4638caa4e4dc94e9e4df53fe43f478ba98da296070569"
+  },
+  {
+    "path": "src/test/components/DonatePage.test.tsx",
+    "beforeBytes": 3113,
+    "afterBytes": 5320,
+    "sha256": "3635757f024079f9f578b50a1f20a50314002933fcb64a364102257e7d62a740"
+  },
+  {
+    "path": "src/test/components/DrumTool.test.tsx",
+    "beforeBytes": 11949,
+    "afterBytes": 12949,
+    "sha256": "70ca611ca056020662ac30b5dff9ec05c8af98b5603d4eb76193c1d36d9b5338"
+  },
+  {
+    "path": "src/test/components/FeedbackPage.test.tsx",
+    "beforeBytes": 2563,
+    "afterBytes": 3032,
+    "sha256": "c6526b3558e805ebfa719398d50e147d20baea69f947b3aa5e90d142fe402be8"
+  },
+  {
+    "path": "src/test/components/LibraryPage.test.tsx",
+    "beforeBytes": 16554,
+    "afterBytes": 18543,
+    "sha256": "025672aa69d286ca88294e80909914f20054b8f17b397240712510b7ca7a8654"
+  },
+  {
+    "path": "src/test/components/MultisampleTool.test.tsx",
+    "beforeBytes": 20782,
+    "afterBytes": 21306,
+    "sha256": "78709577fe37e5139e752a35d6b432bbe59965a03700c882621d589566ff5cbb"
+  },
+  {
+    "path": "src/test/components/PWAUpdatePrompt.test.tsx",
+    "beforeBytes": 0,
+    "afterBytes": 1500,
+    "sha256": "ce9e22078d95cbab031d0f174f666ec04cf50cd8fdc5b328166742e1b12589f1"
+  },
+  {
+    "path": "src/test/components/TabNavigation.test.tsx",
+    "beforeBytes": 5775,
+    "afterBytes": 5704,
+    "sha256": "51519500994fc7bdfea0c142ef793df8c1cdc70c2059545df2947c8d62d0dc68"
+  },
+  {
+    "path": "src/test/components/VirtualMidiKeyboard.test.tsx",
+    "beforeBytes": 7899,
+    "afterBytes": 0,
+    "sha256": null
+  },
+  {
+    "path": "src/test/context/audioSlicingApplication.test.ts",
+    "beforeBytes": 16181,
+    "afterBytes": 16282,
+    "sha256": "20398326f7ad6e93f8085fe4312f8030f8ce8078fc4586e8650bd6712609f89d"
+  },
+  {
+    "path": "src/test/hooks/sessionRecovery.test.tsx",
+    "beforeBytes": 7984,
+    "afterBytes": 8058,
+    "sha256": "526173a5d876da09bd2797bcfd8b6f66680797af33f9589697110194bb9bf859"
+  },
+  {
+    "path": "src/test/hooks/settingsOnlyRecovery.test.tsx",
+    "beforeBytes": 3788,
+    "afterBytes": 3853,
+    "sha256": "373db061a3669cd77b25d4d9def18906b3bd75fe9de00890f7f3305e45539688"
+  },
+  {
+    "path": "src/test/hooks/useAudioPlayer.test.ts",
+    "beforeBytes": 25430,
+    "afterBytes": 26590,
+    "sha256": "d37e6734071d4ef46a6ce2074c3f163c58e1c37e7c598ca3fdd6216f3d4b1b87"
+  },
+  {
+    "path": "src/test/hooks/useFileUpload.test.ts",
+    "beforeBytes": 4645,
+    "afterBytes": 4683,
+    "sha256": "a7932b64ac15aeb69cf08093117885b9bae5857b979cf99ca56f5c80bb0f98e2"
+  },
+  {
+    "path": "src/test/hooks/usePatchGeneration.test.ts",
+    "beforeBytes": 29428,
+    "afterBytes": 29965,
+    "sha256": "7f41ca161b2b02f7a1d6fd1f08666e68c1633b206151d799934167da10d2f962"
+  },
+  {
+    "path": "src/test/setup.ts",
+    "beforeBytes": 6603,
+    "afterBytes": 8254,
+    "sha256": "78372da2e382f842ade8bf91f03aa40421c0167ba839e07a143e723e53c885f7"
+  },
+  {
+    "path": "src/test/setupAudioBuffer.test.ts",
+    "beforeBytes": 0,
+    "afterBytes": 1513,
+    "sha256": "7abb1f62f2a0d5e0d4ce3b7a93b4e7676e2b04481a3a3d81f1038f306b96476b"
+  },
+  {
+    "path": "src/test/utils/audio.test.ts",
+    "beforeBytes": 40212,
+    "afterBytes": 39924,
+    "sha256": "8b25a26df7ba2190e81deb22ec79ce53f4b9f14a3b9a3fb6dfa83905f4816d87"
+  },
+  {
+    "path": "src/test/utils/audioContext.test.ts",
+    "beforeBytes": 8615,
+    "afterBytes": 8767,
+    "sha256": "2a9cc4b5cb39b4a09be9c841cfeb503a07a7c591e80bd69c09bf57675d78639b"
+  },
+  {
+    "path": "src/test/utils/audioExport.test.ts",
+    "beforeBytes": 6816,
+    "afterBytes": 7195,
+    "sha256": "99101f2c57ae06a732b99d0c97f9d8cfd58042d702d9c48ce52eda47721e9556"
+  },
+  {
+    "path": "src/test/utils/defaultSettings.test.ts",
+    "beforeBytes": 16737,
+    "afterBytes": 16762,
+    "sha256": "53122e44fdf24a175c587ec497ce3f02cb2fc879c06a9db187283ea51abb8d86"
+  },
+  {
+    "path": "src/test/utils/drumStartPoints.test.ts",
+    "beforeBytes": 9794,
+    "afterBytes": 10017,
+    "sha256": "83091fefaf88722357245f672635dac461bc064ea328aec12f90cd3ed858cd31"
+  },
+  {
+    "path": "src/test/utils/durableStorage.test.ts",
+    "beforeBytes": 18651,
+    "afterBytes": 18837,
+    "sha256": "8b2586ffc9126808764f5a50aa4e4022f2b870fba84ae775b2092cfb304b8336"
+  },
+  {
+    "path": "src/test/utils/indexedDB.test.ts",
+    "beforeBytes": 23264,
+    "afterBytes": 4238,
+    "sha256": "7c3e962fefd056e12729b484c41e533d07be6e1e73810d170c9e133d47771989"
+  },
+  {
+    "path": "src/test/utils/libraryUtils.test.ts",
+    "beforeBytes": 28368,
+    "afterBytes": 28590,
+    "sha256": "7412362221ae895faa5d1130e0e5d04abaf2381dc25ec078e70921a548505690"
+  },
+  {
+    "path": "src/test/utils/patchGeneration.test.ts",
+    "beforeBytes": 18688,
+    "afterBytes": 18591,
+    "sha256": "b31864a28c04b5531674b7426d7d270e2a6fc7cdc04eb2439f40d1db5547e26f"
+  },
+  {
+    "path": "src/test/utils/projectArchive.test.ts",
+    "beforeBytes": 23866,
+    "afterBytes": 24647,
+    "sha256": "edc59f5bcdcb255d87c2737853a843196a806bb2a409a435d057386c9972ccb0"
+  },
+  {
+    "path": "src/test/utils/smplChunk.test.ts",
+    "beforeBytes": 13634,
+    "afterBytes": 9681,
+    "sha256": "2bbd3d112b2b52fd936dae945b3eba1395afa0734e24d703d05cd4c3fe42d6e0"
+  },
+  {
+    "path": "src/test/utils/version.test.ts",
+    "beforeBytes": 1150,
+    "afterBytes": 1188,
+    "sha256": "825ae577418c4cafccd5d4a9876e6485e1c0173ca70e33668ab6aa49db92414d"
+  },
+  {
+    "path": "src/test/vitest.d.ts",
+    "beforeBytes": 258,
+    "afterBytes": 263,
+    "sha256": "0b04698d3ce69a2dc835529559fa49af631b02ce84c8b57f0af0496b354a44d1"
+  },
+  {
+    "path": "src/theme/device-themes.scss",
+    "beforeBytes": 12074,
+    "afterBytes": 12076,
+    "sha256": "64cfb463ca9e7b74cca75ada5e79da3b5e031cf995e7d63121194f356df1eb8c"
+  },
+  {
+    "path": "src/utils/audio.ts",
+    "beforeBytes": 30445,
+    "afterBytes": 30419,
+    "sha256": "946e71160911e6ba8d9e8d9731acdecde18cf10a4b3dbebd36a7b025c83a015e"
+  },
+  {
+    "path": "src/utils/audioContext.ts",
+    "beforeBytes": 2170,
+    "afterBytes": 2161,
+    "sha256": "2ffa303a29b4aa69b18e4bdb6777550ead1015a0dc7f1b364725011ca6bdacc5"
+  },
+  {
+    "path": "src/utils/audioFormats.ts",
+    "beforeBytes": 20457,
+    "afterBytes": 20511,
+    "sha256": "219c97af1a3a0d12a6c65ef97a4eb8464c96448766498ef84bf2672dad6a49eb"
+  },
+  {
+    "path": "src/utils/defaultSettings.ts",
+    "beforeBytes": 11441,
+    "afterBytes": 11526,
+    "sha256": "3f50f6190f0663c6632a3a1ad68eef389182eff62b8c83ef19d5d2b9f87e43cd"
+  },
+  {
+    "path": "src/utils/indexedDB.ts",
+    "beforeBytes": 14861,
+    "afterBytes": 15153,
+    "sha256": "33eec40db2bedc4c8e30987a31d4fb0967f4bac3774d3f5d60212e5e41a860f4"
+  },
+  {
+    "path": "src/utils/jsonImport.ts",
+    "beforeBytes": 8239,
+    "afterBytes": 8289,
+    "sha256": "5c1be0003c6e93ed30ad47ca71ea5c4e0a5c40bbc2c7cbf3e4b60116b9022284"
+  },
+  {
+    "path": "src/utils/libraryUtils.ts",
+    "beforeBytes": 9716,
+    "afterBytes": 11964,
+    "sha256": "008c064a879d0bd9e782da8aee5191ee9092e8093e285665e04ec5b72f958ea8"
+  },
+  {
+    "path": "src/utils/op1DrumPresetParser.ts",
+    "beforeBytes": 22707,
+    "afterBytes": 22169,
+    "sha256": "069b7b2c1e55c79cbeeff8f88024fc81b0e61ea806a30ff3cbf3b3dd50434ec2"
+  },
+  {
+    "path": "src/utils/patchGeneration.ts",
+    "beforeBytes": 17428,
+    "afterBytes": 17464,
+    "sha256": "9ff3f8950a99cd41876c2bf619f33b45e1c7789dd78d590af393d3af42b50655"
+  },
+  {
+    "path": "src/utils/patreonPosts.ts",
+    "beforeBytes": 4029,
+    "afterBytes": 5564,
+    "sha256": "5a76810abb5fa643eca8be2798111dd0e0638ace51d88f240434d9045d5aa4c8"
+  },
+  {
+    "path": "src/utils/sessionStorage.ts",
+    "beforeBytes": 10345,
+    "afterBytes": 10350,
+    "sha256": "6e6841a44e3d0d358538a2953810f303e53e4d2b076cb2d546f40dc1a857b908"
+  },
+  {
+    "path": "src/utils/sessionStorageIndexedDB.ts",
+    "beforeBytes": 3515,
+    "afterBytes": 3628,
+    "sha256": "8f9ef23db02b4ea3a37b6f756f921eedf7fc1847ec4977ca6eeeb718422bb8c7"
+  },
+  {
+    "path": "src/utils/storedAudio.ts",
+    "beforeBytes": 5196,
+    "afterBytes": 5348,
+    "sha256": "f87a5a19efec1b525110442fc558ce312efed0cc16d0c10d375c04a6a7a283dd"
+  },
+  {
+    "path": "src/vite-env.d.ts",
+    "beforeBytes": 80,
+    "afterBytes": 232,
+    "sha256": "dd23529ae88e680cb732c0408bd791d86ccae6d5afd8886128e95c0f227370e9"
+  },
+  {
+    "path": "vite.config.ts",
+    "beforeBytes": 2826,
+    "afterBytes": 2819,
+    "sha256": "55141908536b26993fe3bda20e9eb24f4e0cf4b2d512e2f7c57ec7f614a50854"
+  }
+]

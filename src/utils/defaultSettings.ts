@@ -1,6 +1,7 @@
 import { cookieUtils, COOKIE_KEYS } from './cookies';
 import { AUDIO_CONSTANTS } from './constants';
 import type { AppState } from '../context/AppContext';
+import type { ImportedPresetJson } from './jsonImport';
 
 // Default settings that will be used when no custom defaults are saved
 export const defaultDrumSettings: AppState['drumSettings'] = {
@@ -65,16 +66,16 @@ export const defaultMultisampleSettings: AppState['multisampleSettings'] = {
 // Extended default settings that include imported preset data
 export interface ExtendedDrumDefaults {
   basicSettings: typeof defaultDrumSettings;
-  importedPreset: any | null;
+  importedPreset: ImportedPresetJson | null;
 }
 
 export interface ExtendedMultisampleDefaults {
   basicSettings: typeof defaultMultisampleSettings;
-  importedPreset: any | null;
+  importedPreset: ImportedPresetJson | null;
 }
 
 // Save drum settings as default (including imported preset data)
-export function saveDrumSettingsAsDefault(settings: AppState['drumSettings'], importedPreset: any | null = null): void {
+export function saveDrumSettingsAsDefault(settings: AppState['drumSettings'], importedPreset: ImportedPresetJson | null = null): {success:boolean;error?:string} {
   try {
     const settingsToSave: ExtendedDrumDefaults = {
       basicSettings: {
@@ -98,15 +99,19 @@ export function saveDrumSettingsAsDefault(settings: AppState['drumSettings'], im
       },
       importedPreset: importedPreset
     };
-    
-    cookieUtils.setCookie(COOKIE_KEYS.DRUM_DEFAULT_SETTINGS, JSON.stringify(settingsToSave), 365);
+
+    const serialized=JSON.stringify(settingsToSave);
+    cookieUtils.setCookie(COOKIE_KEYS.DRUM_DEFAULT_SETTINGS, serialized, 365);
+    if(cookieUtils.getCookie(COOKIE_KEYS.DRUM_DEFAULT_SETTINGS)!==serialized)return {success:false,error:'Browser storage did not retain the drum defaults.'};
+    return {success:true};
   } catch (error) {
     console.warn('Failed to save drum default settings:', error);
+    return {success:false,error:error instanceof Error?error.message:'Could not save drum defaults.'};
   }
 }
 
 // Save multisample settings as default (including imported preset data)
-export function saveMultisampleSettingsAsDefault(settings: AppState['multisampleSettings'], importedPreset: any | null = null): void {
+export function saveMultisampleSettingsAsDefault(settings: AppState['multisampleSettings'], importedPreset: ImportedPresetJson | null = null): {success:boolean;error?:string} {
   try {
     const settingsToSave: ExtendedMultisampleDefaults = {
       basicSettings: {
@@ -139,10 +144,14 @@ export function saveMultisampleSettingsAsDefault(settings: AppState['multisample
       },
       importedPreset: importedPreset
     };
-    
-    cookieUtils.setCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS, JSON.stringify(settingsToSave), 365);
+
+    const serialized=JSON.stringify(settingsToSave);
+    cookieUtils.setCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS, serialized, 365);
+    if(cookieUtils.getCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS)!==serialized)return {success:false,error:'Browser storage did not retain the multisample defaults.'};
+    return {success:true};
   } catch (error) {
     console.warn('Failed to save multisample default settings:', error);
+    return {success:false,error:error instanceof Error?error.message:'Could not save multisample defaults.'};
   }
 }
 
@@ -152,7 +161,7 @@ export function loadDrumDefaultSettings(): typeof defaultDrumSettings {
     const savedSettings = cookieUtils.getCookie(COOKIE_KEYS.DRUM_DEFAULT_SETTINGS);
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings);
-      
+
       // Handle both old format (just basic settings) and new format (with imported preset)
       if (parsed.basicSettings) {
         // New format with imported preset
@@ -180,12 +189,12 @@ export function loadMultisampleDefaultSettings(): typeof defaultMultisampleSetti
     const savedSettings = cookieUtils.getCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS);
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings);
-      
+
       // Handle both old format (just basic settings) and new format (with imported preset)
       if (parsed.basicSettings) {
         // New format with imported preset and advanced settings
         const settings = { ...defaultMultisampleSettings, ...parsed.basicSettings };
-        
+
         // Ensure all advanced settings are properly loaded
         settings.playmode = parsed.basicSettings.playmode || defaultMultisampleSettings.playmode;
         settings.transpose = parsed.basicSettings.transpose ?? defaultMultisampleSettings.transpose;
@@ -196,7 +205,7 @@ export function loadMultisampleDefaultSettings(): typeof defaultMultisampleSetti
         settings.portamentoType = parsed.basicSettings.portamentoType || defaultMultisampleSettings.portamentoType;
         settings.portamentoAmount = parsed.basicSettings.portamentoAmount ?? defaultMultisampleSettings.portamentoAmount;
         settings.tuningRoot = parsed.basicSettings.tuningRoot ?? defaultMultisampleSettings.tuningRoot;
-        
+
         // Load envelope settings with fallbacks to defaults
         settings.ampEnvelope = {
           attack: parsed.basicSettings.ampEnvelope?.attack ?? defaultMultisampleSettings.ampEnvelope.attack,
@@ -204,17 +213,17 @@ export function loadMultisampleDefaultSettings(): typeof defaultMultisampleSetti
           sustain: parsed.basicSettings.ampEnvelope?.sustain ?? defaultMultisampleSettings.ampEnvelope.sustain,
           release: parsed.basicSettings.ampEnvelope?.release ?? defaultMultisampleSettings.ampEnvelope.release
         };
-        
+
         settings.filterEnvelope = {
           attack: parsed.basicSettings.filterEnvelope?.attack ?? defaultMultisampleSettings.filterEnvelope.attack,
           decay: parsed.basicSettings.filterEnvelope?.decay ?? defaultMultisampleSettings.filterEnvelope.decay,
           sustain: parsed.basicSettings.filterEnvelope?.sustain ?? defaultMultisampleSettings.filterEnvelope.sustain,
           release: parsed.basicSettings.filterEnvelope?.release ?? defaultMultisampleSettings.filterEnvelope.release
         };
-        
+
         // Always reset preset name to empty string on page reload
         settings.presetName = '';
-        
+
         return settings;
       } else {
         // Old format - just basic settings
@@ -231,7 +240,7 @@ export function loadMultisampleDefaultSettings(): typeof defaultMultisampleSetti
 }
 
 // Load drum imported preset data
-export function loadDrumImportedPreset(): any | null {
+export function loadDrumImportedPreset(): ImportedPresetJson | null {
   try {
     const savedSettings = cookieUtils.getCookie(COOKIE_KEYS.DRUM_DEFAULT_SETTINGS);
     if (savedSettings) {
@@ -245,7 +254,7 @@ export function loadDrumImportedPreset(): any | null {
 }
 
 // Load multisample imported preset data
-export function loadMultisampleImportedPreset(): any | null {
+export function loadMultisampleImportedPreset(): ImportedPresetJson | null {
   try {
     const savedSettings = cookieUtils.getCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS);
     if (savedSettings) {
@@ -274,4 +283,4 @@ export function clearDrumDefaults(): void {
 
 export function clearMultisampleDefaults(): void {
   cookieUtils.removeCookie(COOKIE_KEYS.MULTISAMPLE_DEFAULT_SETTINGS);
-} 
+}

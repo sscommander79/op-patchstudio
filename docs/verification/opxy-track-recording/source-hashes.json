@@ -1,0 +1,18 @@
+{
+  "source": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved",
+  "branch": "codex/studio-upgrade",
+  "files": {
+    "src/audio/recording/stemCapture.ts": "e124a0e6c0be54bd6987f51c1617328950cdf6097c5608cc3b2d9660a9c93b89",
+    "src/audio/recording/stemBrowser.ts": "b2c2c9a8dedfdb4ff354b9f741b7076dfff28ad9136ac8c3448b080058f07a6a",
+    "src/audio/recording/captureSession.ts": "3cd7dbe32bda8e24ee37b5cec28fd6741c5eece37ac48c186381e8431a164cb5",
+    "src/components/common/StemRecordingModal.tsx": "0025bab9c537044b473bcc5c17aef23a84187040d91d31e746024bdef62201ce",
+    "src/components/common/StudioShell.tsx": "27617f4700f7a5b2de14a9f1621b116cb98f1f70b0387a01aa8025272dc3efdb",
+    "src/test/audio/recording/stemCapture.test.ts": "41b5727c4b9a3e536cf563b84177bde60a047a2a31b1c1f9b445550164c915a4",
+    "src/test/audio/recording/stemCaptureReview.test.ts": "91f2e13aa01442001e17ef739c7787cfa9cadc7942cf53edb6209d0edce20c71",
+    "src/test/components/StemRecordingModal.test.tsx": "d58e6333d9080e59935fcfa1b697d7791eef3961baca989257b121da26b2c65c",
+    "tests/e2e/stem-recording.spec.ts": "fe7cf76b43b2d52ea73a76000266f164cd2560aefdebdf18ec1557792a57d968",
+    "tests/e2e/stem-recording-device.spec.ts": "493bbf50b5a0840dc470e212a223a9778312e6bb3772830cfa654e74473e403b",
+    "playwright.stem-recording.config.ts": "bfa961da921c16cf497d84c060ffeaa1659920e3051f57fc302ae72583602ddd"
+  },
+  "distIndexSha256": "85604cb23cc7195d1372f2c722858b07674a0c527c927210bc00ab9f03606e33"
+}

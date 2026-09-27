@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import type { AppAction, AppState } from '../../context/AppContext';
 import { Select, SelectItem, Toggle, Slider } from '@carbon/react';
 import { ADSREnvelope } from '../common/ADSREnvelope';
-import { importPresetFromFile } from '../../utils/presetImport';
-import type { MultisamplePresetJson } from '../../utils/presetImport';
-import { percentToInternal } from '../../utils/valueConversions';
+import { useProjectEditGesture } from '../../hooks/useProjectEditGesture';
 
 // ADSR Presets for different instrument types (copied from ADSREnvelope component)
 const ADSR_PRESETS = {
@@ -80,24 +79,30 @@ const createTrueDefaultSettings = (): MultisampleAdvancedSettings => {
 };
 
 export function MultisamplePresetSettings() {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, importPresetFile } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const transposeGesture = useProjectEditGesture('multisample-preset-transpose');
+  const widthGesture = useProjectEditGesture('multisample-preset-width');
+  const highpassGesture = useProjectEditGesture('multisample-preset-highpass');
+  const velocityGesture = useProjectEditGesture('multisample-preset-velocity');
+  const volumeGesture = useProjectEditGesture('multisample-preset-volume');
+  const portamentoGesture = useProjectEditGesture('multisample-preset-portamento');
   const [isMobile, setIsMobile] = useState(false);
-  
+
 
 
   // Function to convert global state to local settings format
-  const createSettingsFromGlobalState = (): MultisampleAdvancedSettings => {
+  const createSettingsFromGlobalState = useCallback((): MultisampleAdvancedSettings => {
     const currentAmpEnvelope = state.multisampleSettings.ampEnvelope;
     const currentFilterEnvelope = state.multisampleSettings.filterEnvelope;
-    
 
-    
+
+
     // Always use the current envelope values from global state
     // Don't replace with preset values - preserve user's custom settings
     const ampEnvelope = currentAmpEnvelope;
     const filterEnvelope = currentFilterEnvelope;
-    
+
     return {
       playmode: state.multisampleSettings.playmode,
       loopEnabled: state.multisampleSettings.loopEnabled,
@@ -113,7 +118,7 @@ export function MultisamplePresetSettings() {
       ampEnvelope,
       filterEnvelope,
     };
-  };
+  }, [state.multisampleSettings]);
 
   const [settings, setSettings] = useState<MultisampleAdvancedSettings>(() => {
     return createSettingsFromGlobalState();
@@ -128,7 +133,7 @@ export function MultisamplePresetSettings() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -144,28 +149,7 @@ export function MultisamplePresetSettings() {
       }
       return prevSettings;
     });
-  }, [
-    state.multisampleSettings.playmode,
-    state.multisampleSettings.loopEnabled,
-    state.multisampleSettings.loopOnRelease,
-    state.multisampleSettings.transpose,
-    state.multisampleSettings.velocitySensitivity,
-    state.multisampleSettings.volume,
-    state.multisampleSettings.width,
-    state.multisampleSettings.highpass,
-    state.multisampleSettings.portamentoType,
-    state.multisampleSettings.portamentoAmount,
-    state.multisampleSettings.tuningRoot,
-    // Include envelope dependencies to prevent stale closures
-    state.multisampleSettings.ampEnvelope.attack,
-    state.multisampleSettings.ampEnvelope.decay,
-    state.multisampleSettings.ampEnvelope.sustain,
-    state.multisampleSettings.ampEnvelope.release,
-    state.multisampleSettings.filterEnvelope.attack,
-    state.multisampleSettings.filterEnvelope.decay,
-    state.multisampleSettings.filterEnvelope.sustain,
-    state.multisampleSettings.filterEnvelope.release,
-  ]);
+  }, [createSettingsFromGlobalState]);
 
   // Note: Removed the useEffect that was resetting envelopes to 'keys' preset
   // This was causing the envelopes to reset every time the user interacted with them
@@ -183,49 +167,8 @@ export function MultisamplePresetSettings() {
     // Reset the input so the same file can be selected again
     event.target.value = '';
 
-    try {
-      const result = await importPresetFromFile(file, 'multisampler');
-      
-      if (result.success && result.data) {
-        const importedPreset = result.data as MultisamplePresetJson;
-        
-        // Store the complete imported preset for patch generation
-        dispatch({ type: 'SET_IMPORTED_MULTISAMPLE_PRESET', payload: importedPreset });
-        
-        // Show success notification
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'success',
-            title: 'settings imported',
-            message: 'successfully imported multisample preset settings'
-          }
-        });
-      } else {
-        // Show error notification
-        dispatch({
-          type: 'ADD_NOTIFICATION',
-          payload: {
-            id: Date.now().toString(),
-            type: 'error',
-            title: 'import failed',
-            message: result.error || 'failed to import preset'
-          }
-        });
-      }
-    } catch (error) {
-      // Show error notification for unexpected errors
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now().toString(),
-          type: 'error',
-          title: 'import error',
-          message: `unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }
-      });
-    }
+    if(!importPresetFile)throw new Error('Preset import is unavailable');
+    await importPresetFile(file,'multisample');
   };
 
   const handleReset = () => {
@@ -236,7 +179,7 @@ export function MultisamplePresetSettings() {
 
   const updateSetting = <K extends keyof MultisampleAdvancedSettings>(
     key: K,
-    value: MultisampleAdvancedSettings[K]
+    value: MultisampleAdvancedSettings[K],
   ) => {
     setSettings(prev => {
       const newSettings = { ...prev, [key]: value };
@@ -247,96 +190,28 @@ export function MultisamplePresetSettings() {
 
   // Function to dispatch current settings to app context
   const dispatchSettingsToContext = (currentSettings: MultisampleAdvancedSettings) => {
-    // Dispatch individual settings to global context for save-as-defaults functionality
-    dispatch({ type: 'SET_MULTISAMPLE_PLAYMODE', payload: currentSettings.playmode });
-    dispatch({ type: 'SET_MULTISAMPLE_TRANSPOSE', payload: currentSettings.transpose });
-    dispatch({ type: 'SET_MULTISAMPLE_VELOCITY_SENSITIVITY', payload: currentSettings.velocitySensitivity });
-    dispatch({ type: 'SET_MULTISAMPLE_VOLUME', payload: currentSettings.volume });
-    dispatch({ type: 'SET_MULTISAMPLE_WIDTH', payload: currentSettings.width });
-    dispatch({ type: 'SET_MULTISAMPLE_HIGHPASS', payload: currentSettings.highpass });
-    dispatch({ type: 'SET_MULTISAMPLE_PORTAMENTO_TYPE', payload: currentSettings.portamentoType });
-    dispatch({ type: 'SET_MULTISAMPLE_PORTAMENTO_AMOUNT', payload: currentSettings.portamentoAmount });
-    dispatch({ type: 'SET_MULTISAMPLE_TUNING_ROOT', payload: currentSettings.tuningRoot });
-    dispatch({ type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: currentSettings.ampEnvelope });
-    dispatch({ type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: currentSettings.filterEnvelope });
-    
-    // Dispatch loop settings to global context
-    dispatch({ type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: currentSettings.loopEnabled });
-    dispatch({ type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: currentSettings.loopOnRelease });
-    
-    // Also store in the imported preset format for patch generation
-    const payload = {
-      engine: {
-        playmode: currentSettings.playmode,
-        transpose: currentSettings.transpose,
-        'velocity.sensitivity': percentToInternal(currentSettings.velocitySensitivity),
-        volume: percentToInternal(currentSettings.volume),
-        width: percentToInternal(currentSettings.width),
-        highpass: percentToInternal(currentSettings.highpass),
-        'portamento.amount': percentToInternal(currentSettings.portamentoAmount),
-        'portamento.type': currentSettings.portamentoType === 'linear' ? 32767 : 0,
-        'tuning.root': currentSettings.tuningRoot,
-      },
-      envelope: {
-        amp: {
-          attack: currentSettings.ampEnvelope.attack,
-          decay: currentSettings.ampEnvelope.decay,
-          sustain: currentSettings.ampEnvelope.sustain,
-          release: currentSettings.ampEnvelope.release,
-        },
-        filter: {
-          attack: currentSettings.filterEnvelope.attack,
-          decay: currentSettings.filterEnvelope.decay,
-          sustain: currentSettings.filterEnvelope.sustain,
-          release: currentSettings.filterEnvelope.release,
-        },
-      },
-      regions: [] // Will be populated during patch generation
-    };
-
-    dispatch({
-      type: 'SET_IMPORTED_MULTISAMPLE_PRESET',
-      payload
-    });
+    const actions: AppAction[] = [
+      { type: 'SET_MULTISAMPLE_PLAYMODE', payload: currentSettings.playmode },
+      { type: 'SET_MULTISAMPLE_TRANSPOSE', payload: currentSettings.transpose },
+      { type: 'SET_MULTISAMPLE_VELOCITY_SENSITIVITY', payload: currentSettings.velocitySensitivity },
+      { type: 'SET_MULTISAMPLE_VOLUME', payload: currentSettings.volume },
+      { type: 'SET_MULTISAMPLE_WIDTH', payload: currentSettings.width },
+      { type: 'SET_MULTISAMPLE_HIGHPASS', payload: currentSettings.highpass },
+      { type: 'SET_MULTISAMPLE_PORTAMENTO_TYPE', payload: currentSettings.portamentoType },
+      { type: 'SET_MULTISAMPLE_PORTAMENTO_AMOUNT', payload: currentSettings.portamentoAmount },
+      { type: 'SET_MULTISAMPLE_TUNING_ROOT', payload: currentSettings.tuningRoot },
+      { type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: currentSettings.ampEnvelope },
+      { type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: currentSettings.filterEnvelope },
+      { type: 'SET_MULTISAMPLE_LOOP_ENABLED', payload: currentSettings.loopEnabled },
+      { type: 'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload: currentSettings.loopOnRelease },
+    ];
+    dispatch({ type: 'BATCH_EDIT', payload: actions });
   };
 
   const updateAmpEnvelope = (envelope: MultisampleAdvancedSettings['ampEnvelope']) => {
     setSettings(prev => {
       const newSettings = { ...prev, ampEnvelope: envelope };
-      // Dispatch envelope changes to global state
       dispatch({ type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: envelope });
-
-      // Also update the imported preset format for patch generation
-      const payload = {
-        engine: {
-          playmode: newSettings.playmode,
-          transpose: newSettings.transpose,
-          'velocity.sensitivity': percentToInternal(newSettings.velocitySensitivity),
-          volume: percentToInternal(newSettings.volume),
-          width: percentToInternal(newSettings.width),
-          highpass: percentToInternal(newSettings.highpass),
-          'portamento.amount': percentToInternal(newSettings.portamentoAmount),
-          'portamento.type': newSettings.portamentoType === 'linear' ? 32767 : 0,
-          'tuning.root': newSettings.tuningRoot,
-        },
-        envelope: {
-          amp: {
-            attack: envelope.attack,
-            decay: envelope.decay,
-            sustain: envelope.sustain,
-            release: envelope.release,
-          },
-          filter: {
-            attack: newSettings.filterEnvelope.attack,
-            decay: newSettings.filterEnvelope.decay,
-            sustain: newSettings.filterEnvelope.sustain,
-            release: newSettings.filterEnvelope.release,
-          },
-        },
-        regions: []
-      };
-      dispatch({ type: 'SET_IMPORTED_MULTISAMPLE_PRESET', payload });
-
       return newSettings;
     });
   };
@@ -344,40 +219,7 @@ export function MultisamplePresetSettings() {
   const updateFilterEnvelope = (envelope: MultisampleAdvancedSettings['filterEnvelope']) => {
     setSettings(prev => {
       const newSettings = { ...prev, filterEnvelope: envelope };
-      // Dispatch envelope changes to global state
       dispatch({ type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: envelope });
-
-      // Also update the imported preset format for patch generation
-      const payload = {
-        engine: {
-          playmode: newSettings.playmode,
-          transpose: newSettings.transpose,
-          'velocity.sensitivity': percentToInternal(newSettings.velocitySensitivity),
-          volume: percentToInternal(newSettings.volume),
-          width: percentToInternal(newSettings.width),
-          highpass: percentToInternal(newSettings.highpass),
-          'portamento.amount': percentToInternal(newSettings.portamentoAmount),
-          'portamento.type': newSettings.portamentoType === 'linear' ? 32767 : 0,
-          'tuning.root': newSettings.tuningRoot,
-        },
-        envelope: {
-          amp: {
-            attack: newSettings.ampEnvelope.attack,
-            decay: newSettings.ampEnvelope.decay,
-            sustain: newSettings.ampEnvelope.sustain,
-            release: newSettings.ampEnvelope.release,
-          },
-          filter: {
-            attack: envelope.attack,
-            decay: envelope.decay,
-            sustain: envelope.sustain,
-            release: envelope.release,
-          },
-        },
-        regions: []
-      };
-      dispatch({ type: 'SET_IMPORTED_MULTISAMPLE_PRESET', payload });
-
       return newSettings;
     });
   };
@@ -435,7 +277,7 @@ export function MultisamplePresetSettings() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
           <h3 style={{
             margin: 0,
-            color: '#222',
+            color: 'var(--color-text-primary)',
             fontSize: '1.25rem',
             fontWeight: 300,
           }}>
@@ -445,12 +287,12 @@ export function MultisamplePresetSettings() {
       </div>
 
       {/* Content */}
-      <div style={{ 
+      <div style={{
         padding: isMobile ? '1rem' : '2rem',
       }}>
         {/* Settings Grid */}
         <div style={{ display: 'grid', gap: '1rem' }}>
-          
+
           {/* Essential Settings */}
           <section style={{
             border: '1px solid var(--color-border-light)',
@@ -496,20 +338,20 @@ export function MultisamplePresetSettings() {
             {/* Content */}
             {expandedSections.basic && (
               <div style={{ padding: '1.25rem' }}>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                   gap: isMobile ? '1.5rem' : '2rem',
                   alignItems: 'start',
                   justifyContent: isMobile ? 'center' : 'start'
                 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignItems: isMobile ? 'center' : 'flex-start',
                     textAlign: isMobile ? 'center' : 'left'
                   }}>
-                    <label style={{ 
+                    <label style={{
                       display: 'block',
                       marginBottom: '0.5rem',
                       fontWeight: '500',
@@ -523,7 +365,7 @@ export function MultisamplePresetSettings() {
                         id="playmode"
                         labelText=""
                         value={settings.playmode}
-                        onChange={(e) => updateSetting('playmode', e.target.value as any)}
+                        onChange={(e) => updateSetting('playmode', e.target.value as AppState['multisampleSettings']['playmode'])}
                         size="sm"
                       >
                         <SelectItem value="poly" text="poly" />
@@ -533,13 +375,13 @@ export function MultisamplePresetSettings() {
                     </div>
                   </div>
 
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignItems: isMobile ? 'center' : 'flex-start',
                     textAlign: isMobile ? 'center' : 'left'
                   }}>
-                    <label style={{ 
+                    <label style={{
                       display: 'block',
                       marginBottom: '0.5rem',
                       fontWeight: '500',
@@ -560,13 +402,13 @@ export function MultisamplePresetSettings() {
                     </div>
                   </div>
 
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignItems: isMobile ? 'center' : 'flex-start',
                     textAlign: isMobile ? 'center' : 'left'
                   }}>
-                    <label style={{ 
+                    <label style={{
                       display: 'block',
                       marginBottom: '0.5rem',
                       fontWeight: '500',
@@ -674,6 +516,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.transpose}
                       onChange={({ value }) => updateSetting('transpose', value)}
+                      onRelease={transposeGesture.end}
+                      onKeyUp={transposeGesture.end}
+                      onBlur={transposeGesture.end}
+                      {...transposeGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -690,6 +536,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.width}
                       onChange={({ value }) => updateSetting('width', value)}
+                      onRelease={widthGesture.end}
+                      onKeyUp={widthGesture.end}
+                      onBlur={widthGesture.end}
+                      {...widthGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -702,6 +552,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.highpass}
                       onChange={({ value }) => updateSetting('highpass', value)}
+                      onRelease={highpassGesture.end}
+                      onKeyUp={highpassGesture.end}
+                      onBlur={highpassGesture.end}
+                      {...highpassGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -718,6 +572,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.velocitySensitivity}
                       onChange={({ value }) => updateSetting('velocitySensitivity', value)}
+                      onRelease={velocityGesture.end}
+                      onKeyUp={velocityGesture.end}
+                      onBlur={velocityGesture.end}
+                      {...velocityGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -730,6 +588,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.volume}
                       onChange={({ value }) => updateSetting('volume', value)}
+                      onRelease={volumeGesture.end}
+                      onKeyUp={volumeGesture.end}
+                      onBlur={volumeGesture.end}
+                      {...volumeGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -744,7 +606,7 @@ export function MultisamplePresetSettings() {
                         id="portamento-type"
                         labelText=""
                         value={settings.portamentoType}
-                        onChange={(e) => updateSetting('portamentoType', e.target.value as any)}
+                        onChange={(e) => updateSetting('portamentoType', e.target.value as AppState['multisampleSettings']['portamentoType'])}
                         size="sm"
                       >
                         <SelectItem value="linear" text="linear" />
@@ -761,6 +623,10 @@ export function MultisamplePresetSettings() {
                       step={1}
                       value={settings.portamentoAmount}
                       onChange={({ value }) => updateSetting('portamentoAmount', value)}
+                      onRelease={portamentoGesture.end}
+                      onKeyUp={portamentoGesture.end}
+                      onBlur={portamentoGesture.end}
+                      {...portamentoGesture.sliderProps}
                       hideTextInput
                     />
                   </div>
@@ -813,7 +679,7 @@ export function MultisamplePresetSettings() {
             </div>
             {/* Content */}
             {expandedSections.envelopes && (
-              <div style={{ 
+              <div style={{
                 display: 'flex',
                 flexDirection: isMobile ? 'column' : 'row',
                 gap: isMobile ? '1.5rem' : '3rem',
@@ -821,7 +687,7 @@ export function MultisamplePresetSettings() {
                 border: '1px solid var(--color-border-light)'
               }}>
                 {/* Envelopes */}
-                <div style={{ 
+                <div style={{
                   flex: isMobile ? '1' : '1 1 50%',
                   minWidth: 0
                 }}>
@@ -832,7 +698,7 @@ export function MultisamplePresetSettings() {
                     onFilterEnvelopeChange={updateFilterEnvelope}
                   />
                 </div>
-                
+
                 {/* Filters (Coming Soon) */}
                 <div style={{
                   flex: isMobile ? '1' : '1 1 50%',
@@ -927,7 +793,7 @@ export function MultisamplePresetSettings() {
               border: 'none',
               borderRadius: '6px',
               backgroundColor: 'var(--color-interactive-focus)',
-              color: 'var(--color-white)',
+              color: 'var(--studio-accent-text)',
               fontSize: '0.9rem',
               fontWeight: '500',
               cursor: 'pointer',
@@ -954,6 +820,7 @@ export function MultisamplePresetSettings() {
         <input
           ref={fileInputRef}
           type="file"
+          aria-label="choose multisample patch settings"
           accept=".json"
           onChange={handleFileImport}
           style={{ display: 'none' }}
@@ -999,4 +866,4 @@ export function MultisamplePresetSettings() {
       `}</style>
     </div>
   );
-} 
+}

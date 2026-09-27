@@ -1,95 +1,74 @@
+import { lazy, Suspense } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { DrumTool } from '../drum/DrumTool';
-import { MultisampleTool } from '../multisample/MultisampleTool';
-import { LibraryPage } from '../library/LibraryPage';
-import { FeedbackPage } from './FeedbackPage';
-import { DonatePage } from './DonatePage';
-import { TabNavigation } from './TabNavigation';
 import { FEATURE_FLAGS } from '../../utils/constants';
 
-export function MainTabs() {
-  const { state, dispatch } = useAppContext();
+const MultisampleTool = lazy(() => import('../multisample/MultisampleTool').then(module => ({ default: module.MultisampleTool })));
+const DrumTool = lazy(() => import('../drum/DrumTool').then(module => ({ default: module.DrumTool })));
+const LibraryPage = lazy(() => import('../library/LibraryPage').then(module => ({ default: module.LibraryPage })));
+const FeedbackPage = lazy(() => import('./FeedbackPage').then(module => ({ default: module.FeedbackPage })));
+const DonatePage = lazy(() => import('./DonatePage').then(module => ({ default: module.DonatePage })));
 
-  const handleTabChange = (tabName: 'drum' | 'multisample' | 'feedback' | 'library' | 'donate') => {
-    dispatch({ type: 'SET_TAB', payload: tabName });
-  };
+const loadingSurface = <p className="studio-workspace-loading">Loading workspace…</p>;
 
-  const tabPanelStyle = {
-    background: 'var(--color-bg-primary)',
-    borderRadius: '15px',
-    border: '1px solid var(--color-border-subtle)',
-    borderTop: 'none',
-    minHeight: '500px',
-    overflow: 'hidden'
-  };
+export type RecorderRequest = { id: number; tab: 'drum' | 'multisample'; guided: boolean; source: 'hardware' | 'software' };
+
+export function MainTabs({ recorderRequest, onRecorderRequestConsumed }: {
+  recorderRequest?: RecorderRequest | null;
+  onRecorderRequestConsumed?: () => void;
+} = {}) {
+  const { state } = useAppContext();
 
   return (
-    <div 
-      role="tabpanel"
-      aria-label="main application content"
-      style={{ marginBottom: '2rem' }}
-    >
-      <TabNavigation currentTab={state.currentTab} onTabChange={handleTabChange} />
-      
-      {/* Tab Content */}
+    <div className="studio-workspace-tabs">
+      {/* The shell owns navigation; this component renders only the chosen working surface. */}
       {state.currentTab === 'drum' && (
-        <div 
-          role="tabpanel"
+        <section
           id="drum-tabpanel"
-          aria-labelledby="drum-tab"
           aria-label="drum tool content"
-          style={tabPanelStyle}
+          className="studio-workspace-panel"
         >
-          <DrumTool />
-        </div>
+          <Suspense fallback={loadingSurface}><DrumTool recorderRequest={recorderRequest?.tab === 'drum' ? recorderRequest : null} onRecorderRequestConsumed={onRecorderRequestConsumed} /></Suspense>
+        </section>
       )}
       
       {state.currentTab === 'multisample' && (
-        <div 
-          role="tabpanel"
+        <section
           id="multisample-tabpanel"
-          aria-labelledby="multisample-tab"
           aria-label="multisample tool content"
-          style={tabPanelStyle}
+          className="studio-workspace-panel"
         >
-          <MultisampleTool />
-        </div>
+          <Suspense fallback={loadingSurface}><MultisampleTool recorderRequest={recorderRequest?.tab === 'multisample' ? recorderRequest : null} onRecorderRequestConsumed={onRecorderRequestConsumed} /></Suspense>
+        </section>
       )}
       
       {state.currentTab === 'feedback' && (
-        <div
-          role="tabpanel"
+        <section
           id="feedback-tabpanel"
-          aria-labelledby="feedback-tab"
           aria-label="feedback and support content"
-          style={tabPanelStyle}
+          className="studio-workspace-panel"
         >
-          <FeedbackPage />
-        </div>
+          <Suspense fallback={loadingSurface}><FeedbackPage /></Suspense>
+        </section>
       )}
       
       {state.currentTab === 'donate' && FEATURE_FLAGS.DONATE_PAGE && (
-        <div
-          role="tabpanel"
+        <section
           id="donate-tabpanel"
-          aria-labelledby="donate-tab"
           aria-label="donation and support content"
-          style={tabPanelStyle}
+          className="studio-workspace-panel"
         >
-          <DonatePage />
-        </div>
+          <Suspense fallback={loadingSurface}><DonatePage /></Suspense>
+        </section>
       )}
       
       {state.currentTab === 'library' && (
-        <div
-          role="tabpanel"
+        <section
           id="library-tabpanel"
-          aria-labelledby="library-tab"
           aria-label="preset library content"
-          style={tabPanelStyle}
+          className="studio-workspace-panel"
         >
-          <LibraryPage />
-        </div>
+          <Suspense fallback={loadingSurface}><LibraryPage /></Suspense>
+        </section>
       )}
     </div>
   );

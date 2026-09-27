@@ -16,7 +16,7 @@ export interface WebMidiState {
 
 export interface WebMidiHookReturn {
   state: WebMidiState;
-  initialize: () => Promise<boolean>;
+  initialize: (options?: { automatic?: boolean }) => Promise<boolean>;
   refreshDevices: () => void;
   onMidiEvent: (callback: (event: MidiEvent) => void, channel?: number) => () => void;
   offMidiEvent: () => void;
@@ -25,6 +25,11 @@ export interface WebMidiHookReturn {
   sendControlChange: (controller: number, value: number, channel?: number) => void;
 }
 // Note: All channel parameters use 1-16 numbering (MIDI standard), not 0-15
+
+// Multiple instrument surfaces mount their own hook. Only one of them may ask
+// for permission automatically during a document lifetime; explicit Retry
+// actions still call initialize() without the automatic flag.
+let automaticInitializationAttempted = false;
 
 export function useWebMidi(): WebMidiHookReturn {
   const [state, setState] = useState<WebMidiState>({
@@ -37,21 +42,25 @@ export function useWebMidi(): WebMidiHookReturn {
 
   // Populate devices if WebMidi is already enabled (e.g., other hook instance enabled earlier)
   useEffect(() => {
-    if (WebMidi.enabled && state.devices.length === 0) {
+    if (WebMidi.enabled) {
       const devices = getDevicesFromWebMidi();
-      setState(prev => ({ ...prev, devices }));
+      setState(prev => prev.devices.length === 0 ? ({ ...prev, devices }) : prev);
     }
   }, []);
 
   // Initialize WebMIDI
-  const initialize = useCallback(async (): Promise<boolean> => {
+  const initialize = useCallback(async (options?: { automatic?: boolean }): Promise<boolean> => {
+    if (options?.automatic) {
+      if (!WebMidi.supported || automaticInitializationAttempted) return false;
+      automaticInitializationAttempted = true;
+    }
     setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
       // If WebMidi is already enabled, just update the state
       if (WebMidi.enabled) {
         const devices = getDevicesFromWebMidi();
-        
+
         setState(prev => ({
           ...prev,
           isInitialized: true,
@@ -64,9 +73,9 @@ export function useWebMidi(): WebMidiHookReturn {
       }
 
       await WebMidi.enable();
-      
+
       const devices = getDevicesFromWebMidi();
-      
+
       setState(prev => ({
         ...prev,
         isInitialized: true,
@@ -77,7 +86,11 @@ export function useWebMidi(): WebMidiHookReturn {
 
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) errorMessage = error.message;
+      else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+        errorMessage = error.message;
+      }
       setState(prev => ({
         ...prev,
         isConnecting: false,
@@ -107,12 +120,12 @@ export function useWebMidi(): WebMidiHookReturn {
         setState(prev => {
           // Only update if device list has actually changed
           const hasChanged = currentDevices.length !== prev.devices.length ||
-            currentDevices.some((device, index) => 
-              !prev.devices[index] || 
+            currentDevices.some((device, index) =>
+              !prev.devices[index] ||
               prev.devices[index].state !== device.state ||
               prev.devices[index].id !== device.id
             );
-          
+
           if (hasChanged) {
             return { ...prev, devices: currentDevices };
           }
@@ -127,12 +140,12 @@ export function useWebMidi(): WebMidiHookReturn {
   // Convert WebMidi.js devices to our format
   const getDevicesFromWebMidi = (): MidiDevice[] => {
     const devices: MidiDevice[] = [];
-    
+
     // Add input devices
     WebMidi.inputs.forEach((input: Input) => {
       // More robust connection state detection
-      let connectionState: 'connected' | 'disconnected' | 'error' = 'disconnected';
-      
+      let connectionState: 'connected' | 'disconnected' | 'error';
+
       if (input.connection === 'open') {
         connectionState = 'connected';
       } else if (input.connection === 'closed') {
@@ -156,8 +169,8 @@ export function useWebMidi(): WebMidiHookReturn {
     // Add output devices
     WebMidi.outputs.forEach((output: Output) => {
       // More robust connection state detection
-      let connectionState: 'connected' | 'disconnected' | 'error' = 'disconnected';
-      
+      let connectionState: 'connected' | 'disconnected' | 'error';
+
       if (output.connection === 'open') {
         connectionState = 'connected';
       } else if (output.connection === 'closed') {
@@ -185,8 +198,8 @@ export function useWebMidi(): WebMidiHookReturn {
   // This is more efficient than polling and should catch most device changes
   useEffect(() => {
     const handlePortsChanged = () => {
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         devices: getDevicesFromWebMidi(),
         isInitialized: WebMidi.enabled
       }));
@@ -201,8 +214,8 @@ export function useWebMidi(): WebMidiHookReturn {
     const handleEnabled = () => {
       WebMidi.addListener('portschanged', handlePortsChanged);
       // Immediately update device list when enabled
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         devices: getDevicesFromWebMidi(),
         isInitialized: true
       }));
@@ -328,4 +341,4 @@ export function useWebMidi(): WebMidiHookReturn {
     sendNoteOff,
     sendControlChange
   };
-} 
+}

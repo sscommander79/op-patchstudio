@@ -1,0 +1,76 @@
+{
+  "format": "op-patchstudio-project",
+  "version": 1,
+  "project": {
+    "drumSettings": {
+      "sampleRate": 44100,
+      "bitDepth": 16,
+      "channels": 2,
+      "presetName": "Portable kit",
+      "normalize": false,
+      "normalizeLevel": -1,
+      "autoZeroCrossing": false,
+      "renameFiles": false,
+      "filenameSeparator": " ",
+      "audioFormat": "wav",
+      "presetSettings": { "playmode": "poly", "transpose": 0, "velocity": 20, "volume": 69, "width": 0 }
+    },
+    "multisampleSettings": {
+      "sampleRate": 44100,
+      "bitDepth": 16,
+      "channels": 2,
+      "presetName": "",
+      "normalize": false,
+      "normalizeLevel": -1,
+      "autoZeroCrossing": false,
+      "cutAtLoopEnd": false,
+      "gain": 0,
+      "loopEnabled": true,
+      "loopOnRelease": true,
+      "renameFiles": false,
+      "filenameSeparator": " ",
+      "audioFormat": "wav",
+      "playmode": "poly",
+      "transpose": 0,
+      "velocitySensitivity": 20,
+      "volume": 69,
+      "width": 0,
+      "highpass": 0,
+      "portamentoType": "linear",
+      "portamentoAmount": 0,
+      "tuningRoot": 0,
+      "ampEnvelope": { "attack": 500, "decay": 6000, "sustain": 22000, "release": 12000 },
+      "filterEnvelope": { "attack": 0, "decay": 5000, "sustain": 18000, "release": 10000 }
+    },
+    "drumSamples": [
+      {
+        "originalIndex": 0,
+        "name": "kick.wav",
+        "sampleId": "sample-1",
+        "isAssigned": true,
+        "assignedKey": 0,
+        "settings": { "inPoint": 0, "outPoint": 0.000041666666666666665, "playmode": "oneshot", "reverse": false, "transpose": 0, "pan": 0, "gain": 0, "hasBeenEdited": false }
+      }
+    ],
+    "multisampleFiles": [],
+    "selectedMultisample": null,
+    "isDrumKeyboardPinned": false,
+    "isMultisampleKeyboardPinned": false,
+    "importedDrumPreset": null,
+    "importedMultisamplePreset": null,
+    "midiNoteMapping": "C3"
+  },
+  "samples": [
+    {
+      "id": "sample-1",
+      "name": "kick.wav",
+      "type": "audio/wav",
+      "size": 4,
+      "sourceLastModified": 1700000000000,
+      "metadata": { "sampleRate": 48000, "channels": 1, "bitDepth": 32, "isFloat": true, "duration": 0.000041666666666666665 },
+      "audioPath": "assets/audio-0000.opfloat",
+      "sourcePath": "assets/source-0000.bin",
+      "audio": { "bytes": 32, "channels": 1, "frames": 2, "sampleRate": 48000 }
+    }
+  ]
+}

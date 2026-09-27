@@ -14,7 +14,11 @@ vi.mock('jszip', () => {
     generateAsync: vi.fn().mockResolvedValue(new Blob(['mock zip'], { type: 'application/zip' }))
   };
 
-  const mockJSZip = vi.fn().mockImplementation(() => mockJSZipInstance) as any;
+  const mockJSZip = vi.fn(function MockJSZip() { return mockJSZipInstance }) as unknown as {
+    (): typeof mockJSZipInstance;
+    loadAsync: ReturnType<typeof vi.fn>;
+    setTransposeValue(value: number): void;
+  };
   mockJSZip.loadAsync = vi.fn().mockResolvedValue(mockJSZipInstance);
   
   // Allow setting the transpose value for different tests
@@ -45,26 +49,12 @@ vi.mock('../../utils/audio', () => ({
 
 // Mock convertAudioFormat
 vi.mock('../../utils/audioFormats', () => ({
-  convertAudioFormat: vi.fn().mockImplementation(async (buffer: any) => buffer)
+  convertAudioFormat: vi.fn().mockImplementation(async (buffer: AudioBuffer) => buffer)
 }));
 
 describe('patchGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe('format conversion', () => {
-    it('should ensure all exported files have .wav extension', async () => {
-      // This test verifies the basic functionality
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('AIF loop points conversion', () => {
-    it('should correctly convert AIF loop points from seconds to frames', () => {
-      // This test verifies AIF conversion
-      expect(true).toBe(true);
-    });
   });
 
   describe('drum patch generation with unassigned samples', () => {
@@ -207,15 +197,15 @@ describe('patchGeneration', () => {
       };
       
       const JSZip = (await import('jszip')).default;
-      vi.mocked(JSZip).mockImplementation(() => mockZip as any);
+      vi.mocked(JSZip).mockImplementation(function MockJSZip() { return mockZip as unknown as JSZip });
 
       // Generate the patch
       await generateDrumPatch(mockState, 'Test Kit');
 
       // Verify that all samples (assigned and unassigned) were added to the ZIP
-      expect(mockZip.file).toHaveBeenCalledWith('assigned1.wav', expect.any(Promise));
-      expect(mockZip.file).toHaveBeenCalledWith('unassigned1.wav', expect.any(Promise));
-      expect(mockZip.file).toHaveBeenCalledWith('assigned2.wav', expect.any(Promise));
+      expect(mockZip.file).toHaveBeenCalledWith('assigned1.wav', expect.any(Blob));
+      expect(mockZip.file).toHaveBeenCalledWith('unassigned1.wav', expect.any(Blob));
+      expect(mockZip.file).toHaveBeenCalledWith('assigned2.wav', expect.any(Blob));
 
       // Verify that patch.json was added to the ZIP
       expect(mockZip.file).toHaveBeenCalledWith('patch.json', expect.any(String));
@@ -230,13 +220,13 @@ describe('patchGeneration', () => {
       expect(patchJsonContent.regions).toHaveLength(2); // Only 2 assigned samples
       
       // Verify the regions contain the correct sample names
-      const regionSampleNames = patchJsonContent.regions.map((region: any) => region.sample);
+      const regionSampleNames = patchJsonContent.regions.map((region: { sample: string }) => region.sample);
       expect(regionSampleNames).toContain('assigned1.wav');
       expect(regionSampleNames).toContain('assigned2.wav');
       expect(regionSampleNames).not.toContain('unassigned1.wav'); // Should NOT be in patch.json
     });
   });
-}); 
+});
 
 describe('Drum patch generation with updated mappings', () => {
   it('should generate correct filenames for drum samples with updated indices', async () => {
@@ -360,7 +350,7 @@ describe('Drum patch generation with sample settings', () => {
     };
     
     const JSZip = (await import('jszip')).default;
-    vi.mocked(JSZip).mockImplementation(() => mockZip as any);
+    vi.mocked(JSZip).mockImplementation(function MockJSZip() { return mockZip as unknown as JSZip });
 
     // Generate the patch
     await generateDrumPatch(mockState, 'Test Kit');
@@ -391,7 +381,7 @@ describe('Drum patch generation with sample settings', () => {
 describe('patch export structure', () => {
   it('should apply transpose setting to engine in drum patch', async () => {
     // Set the mock to return transpose value 12 for drum patch
-    (JSZip as any).setTransposeValue(12);
+    (JSZip as unknown as { setTransposeValue(value: number): void }).setTransposeValue(12);
     
     const mockState: AppState = {
       currentTab: 'drum',
@@ -468,7 +458,7 @@ describe('patch export structure', () => {
 
   it('should apply transpose setting to engine in multisample patch', async () => {
     // Set the mock to return transpose value -6 for multisample patch
-    (JSZip as any).setTransposeValue(-6);
+    (JSZip as unknown as { setTransposeValue(value: number): void }).setTransposeValue(-6);
     
     const mockState: AppState = {
       currentTab: 'multisample',
@@ -542,4 +532,4 @@ describe('patch export structure', () => {
     const patchJson = JSON.parse(patchJsonContent!);
     expect(patchJson.engine.transpose).toBe(-6);
   });
-}); 
+});

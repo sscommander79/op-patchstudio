@@ -2,6 +2,9 @@
 // Handles AIFF file generation with proper chunk structure for loop points, root notes, and 32-bit float support
 // Based on Apple AIFF-C specification and ConvertWithMoss compatibility
 
+import { normalizeFrameRange } from './loopEditing';
+import { convertAudioBufferChannels, resampleAudioBuffer } from './audioBufferConversion';
+
 export interface AiffExportOptions {
   rootNote?: number;
   loopStart?: number;
@@ -138,42 +141,6 @@ function writeID(dataView: DataView, offset: number, id: string): void {
 }
 
 /**
- * Resample audio buffer to target sample rate
- */
-async function resampleAudioBuffer(audioBuffer: AudioBuffer, targetSampleRate: number): Promise<AudioBuffer> {
-  const audioContext = new OfflineAudioContext(
-    audioBuffer.numberOfChannels,
-    Math.ceil(audioBuffer.length * targetSampleRate / audioBuffer.sampleRate),
-    targetSampleRate
-  );
-  
-  const source = audioContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(audioContext.destination);
-  source.start();
-  
-  return await audioContext.startRendering();
-}
-
-/**
- * Convert audio buffer to target channel count
- */
-async function convertChannels(audioBuffer: AudioBuffer, targetChannels: number): Promise<AudioBuffer> {
-  const audioContext = new OfflineAudioContext(
-    targetChannels,
-    audioBuffer.length,
-    audioBuffer.sampleRate
-  );
-  
-  const source = audioContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(audioContext.destination);
-  source.start();
-  
-  return await audioContext.startRendering();
-}
-
-/**
  * Convert AudioBuffer to AIFF file with comprehensive chunk support
  */
 export async function audioBufferToAiff(
@@ -215,7 +182,7 @@ export async function audioBufferToAiff(
   
   // Handle channel conversion
   if (targetChannels && targetChannels !== audioBuffer.numberOfChannels) {
-    processedBuffer = await convertChannels(processedBuffer, targetChannels);
+    processedBuffer = convertAudioBufferChannels(processedBuffer, targetChannels);
   }
 
   const nChannels = processedBuffer.numberOfChannels;
@@ -232,6 +199,9 @@ export async function audioBufferToAiff(
   
   // Calculate chunk sizes
   const hasMarkers = loopStart !== undefined && loopEnd !== undefined;
+  const loop = hasMarkers
+    ? normalizeFrameRange(numSampleFrames, { start: loopStart, end: loopEnd })
+    : undefined;
   const hasInstrument = rootNote !== undefined || hasMarkers;
   
   // FVER chunk (AIFC only)
@@ -308,12 +278,12 @@ export async function audioBufferToAiff(
     
     // Start marker
     dataView.setUint16(offset, 1, false); offset += 2; // ID
-    dataView.setUint32(offset, loopStart ?? 0, false); offset += 4; // Position
+    dataView.setUint32(offset, loop!.start, false); offset += 4; // Boundary position
     offset += writePString(dataView, offset, 'start');
     
     // End marker
     dataView.setUint16(offset, 2, false); offset += 2; // ID
-    dataView.setUint32(offset, (loopEnd ?? (numSampleFrames - 1)) - 1, false); offset += 4; // Position (subtract 1 frame)
+    dataView.setUint32(offset, loop!.end, false); offset += 4; // Boundary position; final frame count is valid
     offset += writePString(dataView, offset, 'end');
   }
   
@@ -437,4 +407,4 @@ function writeAudioData(
       }
     }
   }
-} 
+}

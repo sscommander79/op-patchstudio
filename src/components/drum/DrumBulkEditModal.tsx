@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import type { AppAction, DrumSample } from '../../context/AppContext';
+import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 
 interface DrumBulkEditModalProps {
   isOpen: boolean;
@@ -16,7 +18,8 @@ interface BulkSettings {
 
 export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
   const { state, dispatch } = useAppContext();
-  
+  const dialogRef=useRef<HTMLDivElement>(null);
+
   const [settings, setSettings] = useState<BulkSettings>({
     playmode: 'oneshot',
     reverse: false,
@@ -28,7 +31,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
   const loadedSamplesCount = state.drumSamples.filter(sample => sample && sample.isLoaded).length;
 
   const handleSave = () => {
-    // Apply settings to all loaded samples
+    const actions: AppAction[] = [];
     state.drumSamples.forEach((sample, index) => {
       if (sample && sample.isLoaded) {
         // Check if any values actually changed from the sample's current values
@@ -39,15 +42,15 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
           gain: sample.gain || 0,
           pan: sample.pan || 0
         };
-        
-        const valuesChanged = 
+
+        const valuesChanged =
           settings.playmode !== originalValues.playmode ||
           settings.reverse !== originalValues.reverse ||
           settings.transpose !== originalValues.transpose ||
           settings.gain !== originalValues.gain ||
           settings.pan !== originalValues.pan;
-        
-        dispatch({
+
+        actions.push({
           type: 'UPDATE_DRUM_SAMPLE',
           payload: {
             index,
@@ -59,19 +62,26 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
         });
       }
     });
-    
+    if (actions.length > 0) dispatch({ type: 'BATCH_EDIT', payload: actions });
+
     onClose();
   };
 
   const handleCancel = () => {
     onClose();
   };
+  useOwnedDialog({active:isOpen,dialogRef,onClose:handleCancel});
 
   if (!isOpen) return null;
 
   return (
-    <div 
-      style={{ 
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="drum-bulk-edit-title"
+      tabIndex={-1}
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -91,7 +101,8 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
       }}
     >
       <div style={{
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--color-bg-primary)',
+        color: 'var(--color-text-primary)',
         borderRadius: '8px',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         width: '90%',
@@ -101,22 +112,22 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
       }}>
         <div style={{
           padding: '1.5rem 2rem',
-          borderBottom: '1px solid #e5e7eb'
+          borderBottom: '1px solid var(--color-border-light)'
         }}>
-          <h3 style={{
+          <h3 id="drum-bulk-edit-title" style={{
             margin: 0,
-            color: '#222',
+            color: 'var(--color-text-primary)',
             fontSize: '1.25rem',
             fontWeight: '300'
           }}>bulk edit samples</h3>
         </div>
         <div style={{ padding: '2rem' }}>
-          <div 
-            style={{ 
-              fontSize: '0.9rem', 
-              background: '#f3f4f6', 
-              color: '#374151', 
-              border: '1px solid #d1d5db',
+          <div
+            style={{
+              fontSize: '0.9rem',
+              background: 'var(--color-bg-secondary)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border-light)',
               borderRadius: '6px',
               padding: '1rem',
               marginBottom: '2rem'
@@ -127,7 +138,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Playmode */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -136,8 +147,8 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             }}>
               playmode
             </label>
-            <select 
-              style={{ 
+            <select
+              style={{
                 width: '100%',
                 padding: '0.75rem',
                 border: '1px solid #d1d5db',
@@ -148,7 +159,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 outline: 'none'
               }}
               value={settings.playmode}
-              onChange={(e) => setSettings({...settings, playmode: e.target.value as any})}
+              onChange={(e) => setSettings({...settings, playmode: e.target.value as DrumSample['playmode']})}
             >
               <option value="oneshot">oneshot - play whole sample</option>
               <option value="group">mute group - choke when another sample plays</option>
@@ -159,7 +170,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Direction */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -168,8 +179,8 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             }}>
               direction
             </label>
-            <select 
-              style={{ 
+            <select
+              style={{
                 width: '100%',
                 padding: '0.75rem',
                 border: '1px solid #d1d5db',
@@ -189,7 +200,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Transpose */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -214,13 +225,13 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, transpose: parseInt(e.target.value)})}
               />
-              <input 
-                type="number" 
-                min="-48" 
-                max="48" 
-                value={settings.transpose} 
-                style={{ 
-                  width: '80px', 
+              <input
+                type="number"
+                min="-48"
+                max="48"
+                value={settings.transpose}
+                style={{
+                  width: '80px',
                   padding: '0.5rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
@@ -239,7 +250,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Gain */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -264,13 +275,13 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, gain: parseInt(e.target.value)})}
               />
-              <input 
-                type="number" 
-                min="-30" 
-                max="20" 
-                value={settings.gain} 
-                style={{ 
-                  width: '80px', 
+              <input
+                type="number"
+                min="-30"
+                max="20"
+                value={settings.gain}
+                style={{
+                  width: '80px',
                   padding: '0.5rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
@@ -289,7 +300,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Pan */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -314,14 +325,14 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, pan: parseInt(e.target.value)})}
               />
-              <input 
-                type="number" 
-                min="-100" 
-                max="100" 
-                value={settings.pan} 
-                step="1" 
-                style={{ 
-                  width: '80px', 
+              <input
+                type="number"
+                min="-100"
+                max="100"
+                value={settings.pan}
+                step="1"
+                style={{
+                  width: '80px',
                   padding: '0.5rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
@@ -346,9 +357,10 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
           justifyContent: 'flex-end',
           gap: '0.75rem'
         }}>
-          <button 
-            type="button" 
-            style={{ 
+          <button
+            data-initial-focus="true"
+            type="button"
+            style={{
               padding: '0.625rem 1.25rem',
               border: '1px solid #d1d5db',
               borderRadius: '3px',
@@ -377,9 +389,9 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             <i className="fas fa-times"></i>
             cancel
           </button>
-          <button 
-            type="button" 
-            style={{ 
+          <button
+            type="button"
+            style={{
               padding: '0.625rem 1.25rem',
               border: 'none',
               borderRadius: '3px',
@@ -418,4 +430,4 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
       </div>
     </div>
   );
-} 
+}

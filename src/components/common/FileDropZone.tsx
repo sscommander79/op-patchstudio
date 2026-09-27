@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Button } from '@carbon/react';
 import type { DragEvent, ChangeEvent } from 'react';
+import { AUDIO_FILE_ACCEPT } from '../../utils/audioFormats';
 
 interface FileDropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -10,16 +11,18 @@ interface FileDropZoneProps {
   children?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  instrument?: 'drum'|'multisample';
 }
 
 export function FileDropZone({
   onFilesSelected,
-  accept = "audio/*,.wav,.aif,.aiff,.mp3,.m4a,.ogg,.flac",
+  accept = AUDIO_FILE_ACCEPT,
   multiple = false,
   disabled = false,
   children,
   className,
-  style
+  style,
+  instrument
 }: FileDropZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,12 +34,12 @@ export function FileDropZone({
   const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (disabled) return;
-    
+
     const files = Array.from(e.dataTransfer.files);
-    const audioFiles = files.filter(file => 
-      file.type.startsWith('audio/') || 
+    const audioFiles = files.filter(file =>
+      file.type.startsWith('audio/') ||
       file.name.toLowerCase().endsWith('.wav') ||
       file.name.toLowerCase().endsWith('.aif') ||
       file.name.toLowerCase().endsWith('.aiff') ||
@@ -45,7 +48,7 @@ export function FileDropZone({
       file.name.toLowerCase().endsWith('.ogg') ||
       file.name.toLowerCase().endsWith('.flac')
     );
-    
+
     if (audioFiles.length > 0) {
       onFilesSelected(audioFiles);
     }
@@ -104,6 +107,7 @@ export function FileDropZone({
         disabled={disabled}
       />
       <div
+        data-audio-import={instrument}
         className={className}
         style={defaultStyle}
         onDragOver={handleDragOver}
@@ -117,7 +121,7 @@ export function FileDropZone({
             <div style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem', marginBottom: '1rem' }}>
               {disabled ? 'processing files...' : 'drop audio files here or click to browse'}
             </div>
-            <Button 
+            <Button
               kind="secondary"
               disabled={disabled}
             >
@@ -128,4 +132,4 @@ export function FileDropZone({
       </div>
     </>
   );
-} 
+}

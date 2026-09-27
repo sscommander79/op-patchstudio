@@ -4,6 +4,38 @@ all notable changes to this project will be documented in this file.
 
 the format is based on [keep a changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - local 0.16.0 candidate
+
+### Added
+
+- Project toolbar with visible save state, retry, undo/redo, library save, versioned `.opstudio` backup and validated project reopen.
+- Non-destructive drum slicing, manual chop markers, overflow handling and retained source provenance.
+- Batch recording with input selection, manual or sound-triggered capture, pre-roll, stop conditions and take review.
+- Unified file/folder/drop intake with signature validation, reviewable assignments and bounded decode preparation.
+- Focus workspaces, generated demo kit, first-preset guide, export preflight, themes and keyboard help.
+- Prompted PWA updates with a sole-open-tab activation gate, deterministic offline cache validation, Chromium CI and scheduled/manual browser-matrix CI.
+
+### Changed
+
+- Library and recovery storage now preserve exact editable audio/settings with serialized atomic writes and actionable save status.
+- Export planning uses exact sample identities, frame bounds and settings; duplicate filenames no longer collide.
+- Startup Carbon CSS is selectively loaded and secondary pages are lazy-loaded.
+- Current supported dependency releases replace vulnerable or unused packages; the local candidate's production dependency audit reports no known advisories at this verification gate.
+- Public documentation now distinguishes device exports, editable backups, local storage, browser permissions and unperformed hardware checks.
+
+### Fixed
+
+- Patreon post content is rendered as plain text with validated Patreon HTTPS links; oversized responses are cancelled while streaming.
+- Stable public PWA assets retain content revisions, duplicate manifest/icon precache entries are rejected, and updates wait for per-tab user action instead of silently reloading another tab's editor. Build-owned worker identities distinguish same-version builds, and superseded waiting caches are removed only when active, previous and waiting ownership is known.
+- Automatic MIDI permission is attempted once per document, with explicit retry retained, and drum-pad DOM identity remains stable through parent and pressed-state renders.
+- Recording setup now freezes an already-running audio clock until the worklet graph and message path are connected, then resumes the complete graph.
+- Feedback and Patreon panels show explicit network-unavailable states.
+- Test doubles now model native AudioBuffer copy and constructor behavior and no longer test mocked versions of the component under test.
+
+### Validation boundary
+
+- Completed local unit and production-build checks cover the fixtures recorded in `docs/verification`; browser and offline results remain pending in the Task 9 report. Human listening, assistive-technology sessions and physical OP-XY import/playback have not been performed for this local candidate.
+
 ## [0.15.5] - 2025-09-22
 
 ### fixed
@@ -373,4 +405,4 @@ the format is based on [keep a changelog](https://keepachangelog.com/en/1.0.0/).
 - n/a
 
 ### fixed
-- n/a 
+- n/a

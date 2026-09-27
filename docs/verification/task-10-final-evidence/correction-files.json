@@ -1,0 +1,13 @@
+{
+  ".github/workflows/quality.yml": "f1f9e721a1738ee3dd1b7c3e032bea3d1d73fef936a51f1bee5ba61749038a95",
+  "README.md": "7c20374d9a53e5bd18c83760ca9735fd320d6177bb42d84af9ffd53ec03c83d8",
+  "package.json": "dfb0e96e6e2759bb7163fb7e2fe0c734d851bb96c1907b6c6fefb98c4301e3fb",
+  "playwright.config.ts": "c53ba2e8720d0abdd37630bf2b4408685b627436ef88c378e84548a945dd389a",
+  "playwright.storage-integration.config.ts": "e7adeaf81e67b4e45194bd33ecc5901c1a70a9b2ad673543a83be9e46726ba3a",
+  "src/context/AppContext.tsx": "25a59cc121d5585f9fde6797d5dee64fdcd7e045f89a2b2eb396ba7883e25cc9",
+  "src/test/context/finalCandidateAdmission.test.ts": "13bc185af53a43553d5b050437e23fa739b24b43d0aed409c185b088cdc53a42",
+  "src/utils/audioImport.ts": "fc0bdd58fa87c6374229123cdacc7891659a1698f3fe4a38e8a36763fe076b4c",
+  "tests/e2e/export-workflow.spec.ts": "c7656059323a85e1ac2c182a01bc77d23d3d8d3ff47edb0babc53d84c92dcba6",
+  "tests/e2e/indexeddb-helpers.ts": "3616248588f0d028580e80b584d108298ff66f0d2572211a2b642b485da70462",
+  "tests/e2e/recovery-integrity.spec.ts": "b7bb6d0aa62bafce7391b221470a5306b882681bcde4b2537986b657471b4b90"
+}

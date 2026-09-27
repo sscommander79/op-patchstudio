@@ -1,0 +1,221 @@
+
+> op-patchstudio@0.16.0 test:e2e:storage-integration
+> playwright test --config=playwright.storage-integration.config.ts --workers=2 --retries=0
+
+[WebServer] (node:26696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 2 workers
+
+(node:26698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26699) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (369ms)
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+[WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9   @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+[WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+[WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+[WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+[WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9   @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+[WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+[WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+[WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+[WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17  @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+[WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+[WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+[WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+[WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17  @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+[WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+[WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+[WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+[WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9         @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+[WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+[WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+[WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+[WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+[WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+[WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+[WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9         @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+[WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+[WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+[WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+[WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+[WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+[WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+[WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17        @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+[WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+[WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+[WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+[WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+[WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+[WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+[WebServer] 
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]     ╷
+[WebServer] 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+[WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]     ╵
+[WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17        @use
+[WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+[WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+[WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+[WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+[WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+[WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+[WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+[WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+[WebServer] 
+  ✓   2 [chromium] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (599ms)
+(node:26710) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+[WebServer] 
+[WebServer] Suggestion: if(sass($tooltip-type == "definition"): convert.to-rem(8px) convert.to-rem(16px); else: convert.to-rem(3px) convert.to-rem(16px))
+[WebServer] 
+[WebServer] More info: https://sass-lang.com/d/if-function
+[WebServer] 
+[WebServer]    ╷
+[WebServer] 39 │     padding: if(
+[WebServer]    │ ┌────────────^
+[WebServer] 40 │ │     $tooltip-type == 'definition',
+[WebServer] 41 │ │     convert.to-rem(8px) convert.to-rem(16px),
+[WebServer] 42 │ │     convert.to-rem(3px) convert.to-rem(16px)
+[WebServer] 43 │ │   );
+[WebServer]    │ └───^
+[WebServer]    ╵
+[WebServer]     node_modules/@carbon/styles/scss/utilities/_tooltip.scss 39:12          @forward
+[WebServer]     node_modules/@carbon/styles/scss/utilities/_index.scss 23:1             @use
+[WebServer]     node_modules/@carbon/styles/scss/components/popover/_popover.scss 16:1  @forward
+[WebServer]     node_modules/@carbon/styles/scss/components/popover/_index.scss 8:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/components/tooltip/_tooltip.scss 8:1   @forward
+[WebServer]     node_modules/@carbon/styles/scss/components/tooltip/_index.scss 8:1     @use
+[WebServer]     node_modules/@carbon/styles/scss/components/button/_button.scss 11:1    @forward
+[WebServer]     node_modules/@carbon/styles/scss/components/button/_index.scss 9:1      @use
+[WebServer]     src/styles/carbon.scss 2:1                                              root stylesheet
+[WebServer] 
+[WebServer] WARNING: 1 repetitive deprecation warnings omitted.
+[WebServer] Run in verbose mode to see all warnings.
+[WebServer] 
+(node:26711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [firefox] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (1.2s)
+  ✓   4 [firefox] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (982ms)
+(node:26729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26730) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [webkit] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (405ms)
+  ✓   6 [webkit] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (575ms)
+(node:26752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26754) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [Mobile Chrome] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (137ms)
+(node:26769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [Mobile Chrome] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (311ms)
+(node:26780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [Mobile Safari] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (335ms)
+  ✓  10 [Mobile Safari] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (514ms)
+
+  10 passed (7.4s)

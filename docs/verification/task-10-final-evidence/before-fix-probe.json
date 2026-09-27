@@ -1,0 +1,38 @@
+{
+  "status": "CONFIRMED",
+  "manifestLimitBytes": 2097152,
+  "maximumAcceptedFillerLength": 2095959,
+  "before": {
+    "metadataValid": true,
+    "portableArchive": true,
+    "archiveBytes": 2097276,
+    "manifestBytes": 2097152
+  },
+  "recording": {
+    "commitStatus": "committed",
+    "historyEntries": 1,
+    "metadataError": "Project manifest is too large",
+    "archiveError": "Project manifest is too large",
+    "undoReturnsPortable": true,
+    "audioFrames": 8
+  },
+  "slicing": {
+    "commitStatus": "committed",
+    "historyEntries": 1,
+    "metadataError": "Project manifest is too large",
+    "archiveError": "Project manifest is too large",
+    "undoReturnsPortable": true,
+    "sourceFrames": 8,
+    "sliceFrames": 4
+  },
+  "importedCrossfade": {
+    "beforeMetadataValid": true,
+    "commitStatus": "committed",
+    "historyEntries": 1,
+    "importedRaw": 0.5,
+    "metadataError": "Invalid imported crossfade value",
+    "archiveError": "Invalid imported crossfade value",
+    "undoReturnsPortable": true,
+    "audioFrames": 8
+  }
+}

@@ -128,31 +128,19 @@ export function AudioFormatControls({
     if (!hasAnyStereo) {
       result.channels['1'] = true;
     }
+
+    // A configured conversion remains a valid explicit choice. Loading audio may
+    // change suggestions, but must not disable or rewrite the user's selection.
+    result.sampleRate[sampleRate.toString()] = false;
+    result.bitDepth[bitDepth.toString()] = false;
+    result.channels[channels.toString()] = false;
     
     return result;
-  }, [samples]);
-
-  // Auto-switch to "keep original" if current selection becomes disabled
-  React.useEffect(() => {
-    if (disabledOptions.sampleRate[sampleRate.toString()]) {
-      onSampleRateChange('0');
-    }
-  }, [disabledOptions.sampleRate, sampleRate, onSampleRateChange]);
-  
-  React.useEffect(() => {
-    if (disabledOptions.bitDepth[bitDepth.toString()]) {
-      onBitDepthChange('0');
-    }
-  }, [disabledOptions.bitDepth, bitDepth, onBitDepthChange]);
-  
-  React.useEffect(() => {
-    if (disabledOptions.channels[channels.toString()]) {
-      onChannelsChange('0');
-    }
-  }, [disabledOptions.channels, channels, onChannelsChange]);
+  }, [bitDepth, channels, sampleRate, samples]);
 
   const containerStyle: React.CSSProperties = {
     display: 'flex',
+    flexWrap: 'wrap',
     flexDirection: isMobile ? 'column' : 'row',
     gap: isMobile ? '0.75rem' : '1rem',
     alignItems: isMobile ? 'stretch' : 'end',
@@ -161,6 +149,7 @@ export function AudioFormatControls({
 
   return (
     <div style={containerStyle}>
+      {bitDepth===0&&samples.some(sample=>sample?.isLoaded&&sample.originalBitDepth===undefined)&&<div role="status" style={{flexBasis:'100%',fontSize:'0.8rem',color:'var(--color-text-secondary)'}}>Source bit depth is unknown. “Original” uses a 16-bit output policy for OP-XY export; it does not change the stored source metadata.</div>}
       <div style={{ 
         flex: isMobile ? 'none' : '1',
         width: isMobile ? '100%' : 'auto'
@@ -262,4 +251,4 @@ export function AudioFormatControls({
       </div>
     </div>
   );
-} 
+}

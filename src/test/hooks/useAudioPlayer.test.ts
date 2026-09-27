@@ -11,11 +11,15 @@ vi.mock('../../utils/audioContext', () => ({
 }));
 
 describe('useAudioPlayer', () => {
-  let mockAudioContext: any;
-  let mockSource: any;
-  let mockGainNode: any;
-  let mockPanNode: any;
-  let mockGainParam: any;
+  type MockFunction = ReturnType<typeof vi.fn>;
+  let mockAudioContext: {
+    createBufferSource: MockFunction; createGain: MockFunction; createStereoPanner: MockFunction;
+    destination: object; createBuffer: MockFunction; currentTime: number;
+  };
+  let mockSource: { buffer: AudioBuffer | null; playbackRate: { value: number }; onended: (() => void) | null; loop: boolean; loopStart: number; loopEnd: number; connect: MockFunction; disconnect: MockFunction; start: MockFunction; stop: MockFunction };
+  let mockGainNode: { gain: typeof mockGainParam; connect: MockFunction; disconnect: MockFunction; context: { currentTime: number } };
+  let mockPanNode: { pan: { value: number }; connect: MockFunction; disconnect: MockFunction };
+  let mockGainParam: { value: number; setValueAtTime: MockFunction; linearRampToValueAtTime: MockFunction; exponentialRampToValueAtTime: MockFunction; setTargetAtTime: MockFunction; setValueCurveAtTime: MockFunction; cancelScheduledValues: MockFunction; automationRate: 'a-rate'; defaultValue: number; maxValue: number; minValue: number; addEventListener: MockFunction; removeEventListener: MockFunction; dispatchEvent: MockFunction; cancelAndHoldAtTime: MockFunction };
 
   beforeEach(async () => {
     // Mock timers
@@ -46,7 +50,11 @@ describe('useAudioPlayer', () => {
       buffer: null,
       playbackRate: { value: 1 },
       onended: null,
+      loop: false,
+      loopStart: 0,
+      loopEnd: 0,
       connect: vi.fn(),
+      disconnect: vi.fn(),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -77,7 +85,7 @@ describe('useAudioPlayer', () => {
 
     // Mock the audioContextManager to return our mock context
     const { audioContextManager } = await import('../../utils/audioContext');
-    (audioContextManager.getAudioContext as any).mockResolvedValue(mockAudioContext);
+    vi.mocked(audioContextManager.getAudioContext).mockResolvedValue(mockAudioContext as unknown as AudioContext);
   });
 
   afterEach(() => {
@@ -172,6 +180,27 @@ describe('useAudioPlayer', () => {
     expect(mockSource.stop).toHaveBeenCalled();
     expect(mockGainNode.disconnect).toHaveBeenCalled();
     expect(mockPanNode.disconnect).toHaveBeenCalled();
+  });
+
+  it('keeps replacement playback owned when the old source ends late',async()=>{
+    const sourceA={...mockSource,playbackRate:{value:1},connect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
+    const sourceB={...mockSource,playbackRate:{value:1},connect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
+    const gainA={...mockGainNode,connect:vi.fn(),disconnect:vi.fn()},gainB={...mockGainNode,connect:vi.fn(),disconnect:vi.fn()};
+    const panA={...mockPanNode,connect:vi.fn(),disconnect:vi.fn()},panB={...mockPanNode,connect:vi.fn(),disconnect:vi.fn()};
+    mockAudioContext.createBufferSource.mockReturnValueOnce(sourceA).mockReturnValueOnce(sourceB);
+    mockAudioContext.createGain.mockReturnValueOnce(gainA).mockReturnValueOnce(gainB);
+    mockAudioContext.createStereoPanner.mockReturnValueOnce(panA).mockReturnValueOnce(panB);
+    const buffer={duration:1,length:44_100,sampleRate:44_100,numberOfChannels:1,getChannelData:vi.fn(()=>new Float32Array(44_100))} as unknown as AudioBuffer;
+    const {result}=renderHook(()=>useAudioPlayer());
+    await act(async()=>{await result.current.play(buffer);});
+    const delayedEnd=sourceA.onended as unknown as ()=>void;
+    await act(async()=>{await result.current.play(buffer);});
+    delayedEnd();
+    expect(result.current.getState().isPlaying).toBe(true);
+    act(()=>result.current.stop());
+    expect(sourceB.stop).toHaveBeenCalledTimes(1);
+    expect(gainB.disconnect).toHaveBeenCalledTimes(1);
+    expect(panB.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('should handle playback options correctly', async () => {
@@ -274,6 +303,45 @@ describe('useAudioPlayer', () => {
       });
 
       expect(result.current.getActiveNotesCount()).toBe(2);
+    });
+
+    it('does not let an old same-id ADSR source clean up its replacement',async()=>{
+      const sourceA={...mockSource,playbackRate:{value:1},connect:vi.fn(),start:vi.fn(),stop:vi.fn(),disconnect:vi.fn(),onended:null};
+      const sourceB={...mockSource,playbackRate:{value:1},connect:vi.fn(),start:vi.fn(),stop:vi.fn(),disconnect:vi.fn(),onended:null};
+      const gainA={...mockGainNode,connect:vi.fn(),disconnect:vi.fn()},gainB={...mockGainNode,connect:vi.fn(),disconnect:vi.fn()};
+      const panA={...mockPanNode,connect:vi.fn(),disconnect:vi.fn()},panB={...mockPanNode,connect:vi.fn(),disconnect:vi.fn()};
+      mockAudioContext.createBufferSource.mockReturnValueOnce(sourceA).mockReturnValueOnce(sourceB);
+      mockAudioContext.createGain.mockReturnValueOnce(gainA).mockReturnValueOnce(gainB);
+      mockAudioContext.createStereoPanner.mockReturnValueOnce(panA).mockReturnValueOnce(panB);
+      const {result}=renderHook(()=>useAudioPlayer());
+      await act(async()=>{await result.current.playWithADSR(mockBuffer,'same-id');});
+      const delayedEnd=sourceA.onended as unknown as ()=>void;
+      await act(async()=>{await result.current.playWithADSR(mockBuffer,'same-id');});
+      delayedEnd();
+      expect(result.current.getActiveNotesCount()).toBe(1);
+      act(()=>result.current.stopAllNotes());
+      expect(sourceB.stop).toHaveBeenCalledTimes(1);
+      expect(sourceB.disconnect).toHaveBeenCalledTimes(1);
+      expect(gainB.disconnect).toHaveBeenCalledTimes(1);
+      expect(panB.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps Firefox fade timers owned by each hook instance',async()=>{
+      const originalAgent=navigator.userAgent;
+      Object.defineProperty(navigator,'userAgent',{configurable:true,value:'Firefox'});
+      mockGainParam.setValueCurveAtTime.mockImplementation(()=>{throw new Error('unsupported curve');});
+      const first=renderHook(()=>useAudioPlayer()),second=renderHook(()=>useAudioPlayer());
+      const options={loopEnabled:true,loopOnRelease:true,adsr:{attack:0,decay:0,sustain:32767,release:16384}};
+      await act(async()=>{
+        await first.result.current.playWithADSR(mockBuffer,'first',options);
+        await second.result.current.playWithADSR(mockBuffer,'second',options);
+      });
+      act(()=>{first.result.current.releaseNote('first');second.result.current.releaseNote('second');});
+      first.unmount();
+      act(()=>vi.advanceTimersByTime(31_000));
+      expect(second.result.current.getActiveNotesCount()).toBe(0);
+      second.unmount();
+      Object.defineProperty(navigator,'userAgent',{configurable:true,value:originalAgent});
     });
 
     it('should handle mono mode correctly', async () => {
@@ -405,6 +473,23 @@ describe('useAudioPlayer', () => {
       // Verify ADSR envelope was applied with velocity scaling
       expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(0, 0);
       expect(mockGainParam.setValueCurveAtTime).toHaveBeenCalled();
+    });
+
+    it.each([-6, 6])('combines %s dB gain with velocity in the ADSR envelope and release', async (gain) => {
+      const { result } = renderHook(() => useAudioPlayer());
+      const expectedPeak = (64 / 127) * Math.pow(10, gain / 20);
+      await act(async () => {
+        await result.current.playWithADSR(mockBuffer, `gain-${gain}`, {
+          adsr: { attack: 0, decay: 0, sustain: 32767, release: 16384 },
+          velocity: 64,
+          gain,
+        });
+      });
+      expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(expectedPeak, 0);
+      mockGainParam.value = expectedPeak;
+      act(() => result.current.releaseNote(`gain-${gain}`));
+      const releaseCurve = mockGainParam.setValueCurveAtTime.mock.calls.at(-1)?.[0] as Float32Array;
+      expect(releaseCurve[0]).toBeCloseTo(expectedPeak, 5);
     });
 
     it('should handle zero ADSR values', async () => {
@@ -545,6 +630,10 @@ describe('useAudioPlayer', () => {
         result.current.releaseNote('test-note');
       });
 
+      // "Loop forever" is only meaningful when looping is enabled. The
+      // continuation flag must never create a loop by itself.
+      expect(mockSource.loop).toBe(false);
+
       // The note should remain active during the release phase
       // The gain should fade to zero but the source should continue looping
       expect(result.current.getActiveNotesCount()).toBe(1);
@@ -600,5 +689,96 @@ describe('useAudioPlayer', () => {
       // The source should not be stopped for loop on release
       expect(mockSource.stop).not.toHaveBeenCalled();
     });
+
+    it('accepts a one-frame loop instead of imposing a 0.1 second minimum', async () => {
+      const { result } = renderHook(() => useAudioPlayer());
+      const oneFrame = 1 / mockBuffer.sampleRate;
+      await act(async () => {
+        await result.current.playWithADSR(mockBuffer, 'one-frame', {
+          loopEnabled: true,
+          loopStart: 0,
+          loopEnd: oneFrame,
+        });
+      });
+      expect(mockSource.loop).toBe(true);
+      expect(mockSource.loopStart).toBe(0);
+      expect(mockSource.loopEnd).toBe(oneFrame);
+    });
+
+    it('does not start an ADSR source when its owner aborts during context acquisition',async()=>{
+      const {audioContextManager}=await import('../../utils/audioContext');
+      let resolveContext:(context:AudioContext)=>void=()=>{};
+      vi.mocked(audioContextManager.getAudioContext).mockReturnValueOnce(new Promise(resolve=>{resolveContext=resolve;}));
+      const controller=new AbortController();const {result}=renderHook(()=>useAudioPlayer());
+      let playback:Promise<string|null>;
+      act(()=>{playback=result.current.playWithADSR(mockBuffer,'owned-preview',{signal:controller.signal});});
+      controller.abort();resolveContext(mockAudioContext as unknown as AudioContext);
+      await act(async()=>{expect(await playback!).toBeNull();});
+      expect(mockAudioContext.createBufferSource).not.toHaveBeenCalled();
+      expect(mockSource.start).not.toHaveBeenCalled();
+    });
+
+    it('reverses a copied buffer and reports natural completion without mutating source', async () => {
+      const { result } = renderHook(() => useAudioPlayer());
+      const original = new Float32Array([1, 2, 3, 4]);
+      const reversedData = new Float32Array(3);
+      const reversed = {
+        duration: 3 / 100,
+        length: 3,
+        sampleRate: 100,
+        numberOfChannels: 1,
+        getChannelData: vi.fn(() => reversedData),
+      } as unknown as AudioBuffer;
+      mockAudioContext.createBuffer.mockReturnValue(reversed);
+      const sourceBuffer = {
+        duration: 4 / 100,
+        length: 4,
+        sampleRate: 100,
+        numberOfChannels: 1,
+        getChannelData: vi.fn(() => original),
+      } as unknown as AudioBuffer;
+      const onEnded = vi.fn();
+
+      await act(async () => {
+        await result.current.playWithADSR(sourceBuffer, 'reverse', {
+          reverse: true,
+          inFrame: 1,
+          outFrame: 4,
+          onEnded,
+        });
+      });
+      expect(Array.from(original)).toEqual([1, 2, 3, 4]);
+      expect(Array.from(reversed.getChannelData(0))).toEqual([4, 3, 2]);
+      expect(mockSource.start).toHaveBeenCalledWith(0, 0, 0.03);
+      mockSource.onended?.();
+      expect(onEnded).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      { reverse: false, expected: [2, 3, 4, 5, 6], loopStart: 0.1, loopEnd: 0.3 },
+      { reverse: true, expected: [6, 5, 4, 3, 2], loopStart: 0.2, loopEnd: 0.4 },
+    ])('bounds a released trimmed voice to its selected tail with reverse=$reverse', async ({ reverse, expected, loopStart, loopEnd }) => {
+      const { result } = renderHook(() => useAudioPlayer());
+      const original = new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      mockAudioContext.createBuffer.mockImplementation((_channels:number, length:number, sampleRate:number) => {
+        const data = new Float32Array(length);
+        return { duration:length/sampleRate,length,sampleRate,numberOfChannels:1,getChannelData:vi.fn(() => data) } as unknown as AudioBuffer;
+      });
+      const sourceBuffer = {duration:1,length:10,sampleRate:10,numberOfChannels:1,getChannelData:vi.fn(() => original)} as unknown as AudioBuffer;
+      await act(async () => {
+        await result.current.playWithADSR(sourceBuffer, 'trimmed', {
+          inFrame: 2, outFrame: 7, loopEnabled: true, loopOnRelease: false,
+          loopStart: 0.3, loopEnd: 0.5, reverse,
+          adsr: { attack: 0, decay: 0, sustain: 32767, release: 32767 },
+        });
+      });
+      expect(Array.from(mockSource.buffer!.getChannelData(0))).toEqual(expected);
+      expect(mockSource.loopStart).toBeCloseTo(loopStart);
+      expect(mockSource.loopEnd).toBeCloseTo(loopEnd);
+      act(() => result.current.releaseNote('trimmed'));
+      expect(mockSource.loop).toBe(false);
+      expect(mockSource.buffer!.length).toBe(5);
+      expect(Array.from(original)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
   });
-}); 
+});

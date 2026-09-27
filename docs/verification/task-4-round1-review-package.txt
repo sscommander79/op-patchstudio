@@ -1,0 +1,713 @@
+--- before/src/components/common/WaveformZoomModal.tsx
++++ src/components/common/WaveformZoomModal.tsx
+@@ -14,6 +14,17 @@
+ 
+ type Marker = 'in' | 'out' | 'loopStart' | 'loopEnd';
+ interface DraftBounds { sample: FrameRange; loop: FrameRange }
++interface PreviewClock {
++  startedAt: number;
++  startFrame: number;
++  sample: FrameRange;
++  loop: FrameRange;
++  loopEnabled: boolean;
++  loopOnRelease: boolean;
++  sampleRate: number;
++  playbackRate: number;
++  reverse: boolean;
++}
+ 
+ interface WaveformZoomModalProps {
+   isOpen: boolean;
+@@ -52,6 +63,7 @@
+   let copy: AudioBuffer;
+   try {
+     copy = new AudioBuffer({ length: source.length, numberOfChannels: source.numberOfChannels, sampleRate: source.sampleRate });
++    if (copy.length !== source.length || copy.numberOfChannels !== source.numberOfChannels) throw new Error('Unsupported AudioBuffer constructor');
+   } catch {
+     copy = new (AudioBuffer as unknown as new (channels: number, length: number, sampleRate: number) => AudioBuffer)(source.numberOfChannels, source.length, source.sampleRate);
+   }
+@@ -80,8 +92,9 @@
+   const animationFrameRef = useRef<number | null>(null);
+   const playRequestRef = useRef(0);
+   const playPendingRef = useRef(false);
+-  const previewStartedAtRef = useRef(0);
+-  const previewStartFrameRef = useRef(0);
++  const previewClockRef = useRef<PreviewClock | null>(null);
++  const playRef = useRef<() => Promise<void>>(async () => {});
++  const stopRef = useRef<() => void>(() => {});
+ 
+   const [draft, setDraftState] = useState<DraftBounds>({ sample: { start: 0, end: 1 }, loop: { start: 0, end: 1 } });
+   const [selectedMarker, setSelectedMarker] = useState<Marker>('in');
+@@ -133,8 +146,8 @@
+     playRequestRef.current += 1;
+     playPendingRef.current = false;
+     const noteId = currentNoteIdRef.current;
++    currentNoteIdRef.current = null;
+     if (noteId) releaseNote(noteId, force);
+-    currentNoteIdRef.current = null;
+     cancelAnimation();
+   }, [cancelAnimation, releaseNote]);
+ 
+@@ -252,19 +265,11 @@
+     if (!audioBuffer || (transport !== 'playing' && transport !== 'released')) return;
+     const currentTime = audioContextManager.getCurrentTime();
+     if (currentTime === null) return;
+-    const current = draftRef.current ?? draft;
+-    setPlayheadFrame(previewFrameAtTime({
+-      startedAt: previewStartedAtRef.current,
+-      startFrame: previewStartFrameRef.current,
+-      sample: current.sample,
+-      loop: current.loop,
+-      loopEnabled: transport === 'released' ? loopEnabled && loopOnRelease : loopEnabled,
+-      sampleRate: audioBuffer.sampleRate,
+-      playbackRate,
+-      reverse,
+-    }, currentTime));
++    const voiceClock = previewClockRef.current;
++    if (!voiceClock) return;
++    setPlayheadFrame(previewFrameAtTime(voiceClock, currentTime));
+     animationFrameRef.current = requestAnimationFrame(tickPlayhead);
+-  }, [audioBuffer, draft, loopEnabled, loopOnRelease, playbackRate, reverse, transport]);
++  }, [audioBuffer, transport]);
+   const play = useCallback(async () => {
+     if (!audioBuffer || currentNoteIdRef.current || playPendingRef.current) return;
+     const request = ++playRequestRef.current;
+@@ -272,23 +277,43 @@
+     const current = draftRef.current ?? draft;
+     const startFrame = transport === 'paused' ? playheadFrame : reverse ? current.sample.end : current.sample.start;
+     try {
+-      const requestedFrames = hasLoopPoints ? Math.round(crossfade.fraction * audioBuffer.length) : 0;
++      const requestedFrames = loopEnabled && hasLoopPoints ? Math.round(crossfade.fraction * audioBuffer.length) : 0;
+       const previewBuffer = makePreviewCopy(audioBuffer, current.loop, requestedFrames);
+       const requestedId = `waveform-preview-${Date.now()}`;
++      let ownedNoteId = requestedId;
+       const result = await playWithADSR(previewBuffer, requestedId, {
+-        inFrame: reverse ? current.sample.start : startFrame, outFrame: reverse ? startFrame : current.sample.end,
++        inFrame: current.sample.start,
++        outFrame: current.sample.end,
++        startTime: (reverse ? current.sample.end - startFrame : startFrame - current.sample.start) / audioBuffer.sampleRate,
+         loopEnabled, loopOnRelease, loopStart: framesToSeconds(current.loop.start, audioBuffer.sampleRate), loopEnd: framesToSeconds(current.loop.end, audioBuffer.sampleRate),
+         playbackRate, gain, reverse, adsr: ampEnvelope ?? { attack: 100, decay: 1000, sustain: 30000, release: 2000 }, velocity: 127,
+-        onEnded: () => { currentNoteIdRef.current = null; cancelAnimation(); setTransport('stopped'); setPlayheadFrame(reverse ? current.sample.end : current.sample.start); },
++        onEnded: () => {
++          if (request !== playRequestRef.current || currentNoteIdRef.current !== ownedNoteId) return;
++          currentNoteIdRef.current = null;
++          previewClockRef.current = null;
++          cancelAnimation();
++          setTransport('stopped');
++          setPlayheadFrame(reverse ? current.sample.end : current.sample.start);
++        },
+       });
+       const actualId = typeof result === 'string' ? result : requestedId;
++      ownedNoteId = actualId;
+       if (request !== playRequestRef.current) {
+         releaseNote(actualId, true);
+         return;
+       }
+       currentNoteIdRef.current = actualId;
+-      previewStartFrameRef.current = startFrame;
+-      previewStartedAtRef.current = audioContextManager.getCurrentTime() ?? 0;
++      previewClockRef.current = {
++        startedAt: audioContextManager.getCurrentTime() ?? 0,
++        startFrame,
++        sample: { ...current.sample },
++        loop: { ...current.loop },
++        loopEnabled,
++        loopOnRelease,
++        sampleRate: audioBuffer.sampleRate,
++        playbackRate,
++        reverse,
++      };
+       setTransport('playing');
+     } catch (error) {
+       console.error('Error playing waveform preview:', error);
+@@ -299,23 +324,33 @@
+   }, [ampEnvelope, audioBuffer, cancelAnimation, crossfade.fraction, draft, gain, hasLoopPoints, loopEnabled, loopOnRelease, playbackRate, playWithADSR, playheadFrame, releaseNote, reverse, transport]);
+   useEffect(() => { if ((transport === 'playing' || transport === 'released') && typeof requestAnimationFrame === 'function') animationFrameRef.current = requestAnimationFrame(tickPlayhead); return cancelAnimation; }, [cancelAnimation, tickPlayhead, transport]);
+   const pause = useCallback(() => { stopCurrentNote(true); setTransport('paused'); }, [stopCurrentNote]);
+-  const stop = useCallback(() => { stopCurrentNote(true); const current = draftRef.current ?? draft; setPlayheadFrame(reverse ? current.sample.end : current.sample.start); setTransport('stopped'); }, [draft, reverse, stopCurrentNote]);
++  const stop = useCallback(() => { stopCurrentNote(true); previewClockRef.current = null; const current = draftRef.current ?? draft; setPlayheadFrame(reverse ? current.sample.end : current.sample.start); setTransport('stopped'); }, [draft, reverse, stopCurrentNote]);
+   const release = useCallback(() => {
+     const noteId = currentNoteIdRef.current;
+     if (!noteId) return;
+     releaseNote(noteId, false);
+-    previewStartFrameRef.current = playheadFrame;
+-    previewStartedAtRef.current = audioContextManager.getCurrentTime() ?? previewStartedAtRef.current;
++    const voiceClock = previewClockRef.current;
++    if (voiceClock) {
++      previewClockRef.current = {
++        ...voiceClock,
++        startFrame: playheadFrame,
++        startedAt: audioContextManager.getCurrentTime() ?? voiceClock.startedAt,
++        loopEnabled: voiceClock.loopEnabled && voiceClock.loopOnRelease,
++      };
++    }
+     setTransport('released');
+   }, [playheadFrame, releaseNote]);
+ 
++  useEffect(() => { playRef.current = play; }, [play]);
++  useEffect(() => { stopRef.current = stop; }, [stop]);
++
+   useEffect(() => {
+     if (!isOpen) return;
+-    const keyDown = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && !previewHeldRef.current && !shouldIgnoreKeyboardKeyDown(event, { modalOwner: modalRef.current })) { event.preventDefault(); previewHeldRef.current = true; void play(); } };
+-    const keyUp = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && previewHeldRef.current) { event.preventDefault(); previewHeldRef.current = false; stop(); } };
++    const keyDown = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && !previewHeldRef.current && !shouldIgnoreKeyboardKeyDown(event, { modalOwner: modalRef.current })) { event.preventDefault(); previewHeldRef.current = true; void playRef.current(); } };
++    const keyUp = (event: KeyboardEvent) => { if ((event.key === 'p' || event.key === 'P') && previewHeldRef.current) { event.preventDefault(); previewHeldRef.current = false; stopRef.current(); } };
+     document.addEventListener('keydown', keyDown); document.addEventListener('keyup', keyUp);
+     return () => { document.removeEventListener('keydown', keyDown); document.removeEventListener('keyup', keyUp); previewHeldRef.current = false; };
+-  }, [isOpen, play, stop]);
++  }, [isOpen]);
+   useEffect(() => () => stopCurrentNote(true), [stopCurrentNote]);
+   useEffect(() => {
+     if (!isOpen) {
+@@ -358,7 +393,7 @@
+ 
+   return <div role="dialog" aria-modal="true" aria-labelledby="waveform-zoom-modal-title" ref={modalRef}
+     style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+-    onClick={(event) => { if (event.target === event.currentTarget) cancel(); }}>
++    onPointerDown={(event) => { if (event.target === event.currentTarget) cancel(); }}>
+     <div style={{ width: 'min(900px, 100%)', maxHeight: '100%', overflow: 'auto', background: c.bg, color: c.text, borderRadius: '6px', boxShadow: '0 8px 32px rgba(0,0,0,.15)' }}>
+       <header style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${c.border}` }}><h3 id="waveform-zoom-modal-title" style={{ margin: 0, fontWeight: 400 }}>zoom and edit</h3></header>
+       <main style={{ padding: '1rem 1.5rem' }}>
+--- before/src/components/drum/DrumSampleTable.tsx
++++ src/components/drum/DrumSampleTable.tsx
+@@ -485,6 +485,18 @@
+             );
+           })}
+         </div>
++        <WaveformZoomModal
++          isOpen={isZoomModalOpen}
++          onClose={closeZoomModal}
++          audioBuffer={selectedSample?.audioBuffer ?? null}
++          initialInPoint={selectedSample?.inPoint ?? 0}
++          initialOutPoint={selectedSample?.outPoint ?? 0}
++          reverse={selectedSample?.reverse ?? false}
++          playbackRate={2 ** ((selectedSample?.transpose ?? 0) / 12)}
++          gain={selectedSample?.gain ?? 0}
++          onSave={handleZoomSave}
++          onSaveForAll={handleSaveForAll}
++        />
+       </div>
+     );
+   }
+--- before/src/components/multisample/MultisampleSampleTable.tsx
++++ src/components/multisample/MultisampleSampleTable.tsx
+@@ -768,6 +768,24 @@
+             })}
+           </div>
+         )}
++        <WaveformZoomModal
++          isOpen={zoomModalOpen}
++          onClose={closeZoomModal}
++          audioBuffer={state.multisampleFiles[zoomSampleIndex]?.audioBuffer ?? null}
++          initialInPoint={state.multisampleFiles[zoomSampleIndex]?.inPoint ?? 0}
++          initialOutPoint={state.multisampleFiles[zoomSampleIndex]?.outPoint ?? state.multisampleFiles[zoomSampleIndex]?.audioBuffer?.duration ?? 0}
++          initialLoopStart={state.multisampleFiles[zoomSampleIndex]?.loopStart ?? 0}
++          initialLoopEnd={state.multisampleFiles[zoomSampleIndex]?.loopEnd ?? state.multisampleFiles[zoomSampleIndex]?.audioBuffer?.duration ?? 0}
++          initialCrossfade={state.multisampleFiles[zoomSampleIndex]?.loopCrossfade}
++          crossfadeNotice={importedCrossfadeNotice(state.multisampleFiles, state.importedMultisamplePreset)}
++          onSave={handleZoomSave}
++          loopEnabled={state.multisampleSettings.loopEnabled}
++          loopOnRelease={state.multisampleSettings.loopOnRelease}
++          ampEnvelope={state.multisampleSettings.ampEnvelope}
++          playbackRate={2 ** (state.multisampleSettings.transpose / 12)}
++          gain={state.multisampleSettings.gain}
++          onSaveForAll={handleSaveForAll}
++        />
+       </div>
+     );
+   }
+--- before/src/context/AppContext.tsx
++++ src/context/AppContext.tsx
+@@ -1410,7 +1410,23 @@
+         multisampleFiles: state.multisampleFiles.map(file => {
+           // Only update loaded files with valid audio data
+           if (file.isLoaded && file.audioBuffer) {
+-            return { ...file, ...action.payload };
++            const merged = { ...file, ...action.payload };
++            const normalized = normalizeSecondRanges(
++              file.audioBuffer.length,
++              file.audioBuffer.sampleRate,
++              { start: merged.inPoint, end: merged.outPoint },
++              { start: merged.loopStart, end: merged.loopEnd },
++            );
++            return {
++              ...merged,
++              inPoint: framesToSeconds(normalized.sample.start, file.audioBuffer.sampleRate),
++              outPoint: framesToSeconds(normalized.sample.end, file.audioBuffer.sampleRate),
++              loopStart: framesToSeconds(normalized.loop.start, file.audioBuffer.sampleRate),
++              loopEnd: framesToSeconds(normalized.loop.end, file.audioBuffer.sampleRate),
++              ...(action.payload.loopCrossfade ? {
++                loopCrossfade: { fraction: Math.max(0, Math.min(0.75, Number.isFinite(action.payload.loopCrossfade.fraction) ? action.payload.loopCrossfade.fraction : 0)) },
++              } : {}),
++            };
+           }
+           return file;
+         })
+@@ -1423,7 +1439,17 @@
+         drumSamples: state.drumSamples.map(sample => {
+           // Only update loaded samples with valid audio data
+           if (sample.isLoaded && sample.audioBuffer) {
+-            return { ...sample, ...action.payload };
++            const merged = { ...sample, ...action.payload };
++            const normalized = normalizeSecondRanges(
++              sample.audioBuffer.length,
++              sample.audioBuffer.sampleRate,
++              { start: merged.inPoint, end: merged.outPoint },
++            );
++            return {
++              ...merged,
++              inPoint: framesToSeconds(normalized.sample.start, sample.audioBuffer.sampleRate),
++              outPoint: framesToSeconds(normalized.sample.end, sample.audioBuffer.sampleRate),
++            };
+           }
+           return sample;
+         }),
+--- before/src/hooks/useAudioPlayer.ts
++++ src/hooks/useAudioPlayer.ts
+@@ -1,6 +1,7 @@
+ import { useCallback, useRef, useEffect } from 'react';
+ import { audioContextManager } from '../utils/audioContext';
+ import { AUDIO_CONSTANTS } from '../utils/constants';
++import { normalizeFrameRange } from '../utils/loopEditing';
+ 
+ // Firefox fallback constants
+ const FIREFOX_FALLBACK_CONSTANTS = {
+@@ -797,13 +798,23 @@
+       const gainNode = audioContext.createGain();
+       const panNode = audioContext.createStereoPanner();
+ 
++      const hasSelectedRange = options.inFrame !== undefined || options.outFrame !== undefined;
++      const selectedRange = hasSelectedRange
++        ? normalizeFrameRange(audioBuffer.length, { start: options.inFrame, end: options.outFrame })
++        : { start: 0, end: audioBuffer.length };
++      const selectedLength = selectedRange.end - selectedRange.start;
+       let playbackBuffer = audioBuffer;
+-      if (options.reverse) {
+-        playbackBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
++      if (hasSelectedRange || options.reverse) {
++        playbackBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, selectedLength, audioBuffer.sampleRate);
+         for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
+           const input = audioBuffer.getChannelData(channel);
+           const output = playbackBuffer.getChannelData(channel);
+-          for (let index = 0; index < input.length; index += 1) output[index] = input[input.length - 1 - index];
++          for (let index = 0; index < selectedLength; index += 1) {
++            const sourceIndex = options.reverse
++              ? selectedRange.end - 1 - index
++              : selectedRange.start + index;
++            output[index] = input[sourceIndex];
++          }
+         }
+       }
+ 
+@@ -814,10 +825,11 @@
+       // Configure looping if enabled
+       const loopEnabled = options.loopEnabled ?? false;
+       const loopOnRelease = options.loopOnRelease ?? false;
+-      const requestedLoopStart = options.loopStart ?? 0;
+-      const requestedLoopEnd = options.loopEnd ?? audioBuffer.duration;
+-      const loopStart = options.reverse ? audioBuffer.duration - requestedLoopEnd : requestedLoopStart;
+-      const loopEnd = options.reverse ? audioBuffer.duration - requestedLoopStart : requestedLoopEnd;
++      const selectionStartSeconds = selectedRange.start / audioBuffer.sampleRate;
++      const requestedLoopStart = (options.loopStart ?? selectionStartSeconds) - selectionStartSeconds;
++      const requestedLoopEnd = (options.loopEnd ?? (selectedRange.end / audioBuffer.sampleRate)) - selectionStartSeconds;
++      const loopStart = options.reverse ? playbackBuffer.duration - requestedLoopEnd : requestedLoopStart;
++      const loopEnd = options.reverse ? playbackBuffer.duration - requestedLoopStart : requestedLoopEnd;
+       source.loop = loopEnabled;
+ 
+       if (loopEnabled) {
+@@ -844,20 +856,12 @@
+ 
+       // Apply ADSR envelope
+       const startTime = audioContext.currentTime;
+-      const velocityScale = velocity / 127;
++      const velocityScale = (velocity / 127) * Math.pow(10, (options.gain ?? 0) / 20);
+       applyADSREnvelope(gainNode, adsr, startTime, velocityScale);
+ 
+       // Calculate timing
+-      let bufferStartTime = options.startTime ?? 0;
+-      let duration = options.duration ?? (audioBuffer.duration - bufferStartTime);
+-
+-      if (options.inFrame !== undefined && options.outFrame !== undefined) {
+-        const startFrame = options.reverse ? audioBuffer.length - options.outFrame : options.inFrame;
+-        const endFrame = options.reverse ? audioBuffer.length - options.inFrame : options.outFrame;
+-        bufferStartTime = startFrame / audioBuffer.sampleRate;
+-        const endTime = endFrame / audioBuffer.sampleRate;
+-        duration = endTime - bufferStartTime;
+-      }
++      const bufferStartTime = Math.max(0, Math.min(options.startTime ?? 0, playbackBuffer.duration));
++      const duration = options.duration ?? (playbackBuffer.duration - bufferStartTime);
+ 
+       // Start playback
+       if (loopEnabled) {
+@@ -877,7 +881,7 @@
+         gainNode,
+         envelopePhase: 'attack',
+         startTime,
+-        currentGain: velocity / 127,
++        currentGain: velocityScale,
+         adsr,
+         velocity,
+         loopEnabled,
+--- before/src/test/components/WaveformZoomModalEditing.test.tsx
++++ src/test/components/WaveformZoomModalEditing.test.tsx
+@@ -94,6 +94,11 @@
+ 
+   it('uses the audio clock for playhead, pause/resume, speed, reverse, and force stop', async () => {
+     let animationFrame: FrameRequestCallback | undefined;
++    const completions: Array<() => void> = [];
++    audio.playWithADSR.mockImplementation((_buffer, _noteId, options) => {
++      completions.push(options.onEnded);
++      return Promise.resolve('preview-note');
++    });
+     vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
+       animationFrame = callback;
+       return 1;
+@@ -111,9 +116,14 @@
+     expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
+     fireEvent.click(screen.getByRole('button', { name: 'pause' }));
+     expect(audio.releaseNote).toHaveBeenCalledWith('preview-note', true);
++    act(() => completions[0]());
++    expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
+     fireEvent.click(screen.getByRole('button', { name: 'play' }));
+     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
+-    expect(audio.playWithADSR.mock.calls[1][2]).toMatchObject({ inFrame: 0, outFrame: 50, reverse: true, playbackRate: 2 });
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    act(() => completions[0]());
++    expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled();
++    expect(audio.playWithADSR.mock.calls[1][2]).toMatchObject({ inFrame: 0, outFrame: 100, startTime: 0.5, reverse: true, playbackRate: 2 });
+     fireEvent.click(screen.getByRole('button', { name: 'stop' }));
+     expect(screen.getByText('Playhead: 100 frames')).toBeInTheDocument();
+   });
+@@ -191,4 +201,57 @@
+     expect(audio.releaseNote).toHaveBeenLastCalledWith('late-note', true);
+     expect(screen.getByRole('button', { name: 'pause' })).toBeDisabled();
+   });
++
++  it('keeps P-key ownership across the playback rerender until keyup', async () => {
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0.2} initialLoopEnd={0.4}
++      loopEnabled onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.keyDown(document, { key: 'p' });
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    fireEvent.keyUp(document, { key: 'p' });
++    expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', true);
++  });
++
++  it('keeps the modal open when an outside pointerup generates a backdrop click', () => {
++    const onClose = vi.fn();
++    render(<WaveformZoomModal isOpen onClose={onClose} audioBuffer={makeBuffer()}
++      initialInPoint={0.2} initialOutPoint={0.8} onSave={() => {}} onSaveForAll={() => {}} />);
++    const canvas = screen.getByLabelText(/waveform editor/i);
++    dispatchPointer(canvas, 'pointerdown', 17, 20, 190);
++    dispatchPointer(document, 'pointermove', 17, -100, 190);
++    dispatchPointer(document, 'pointerup', 17, -100, 190);
++    fireEvent.click(screen.getByRole('dialog', { name: 'zoom and edit' }));
++    expect(onClose).not.toHaveBeenCalled();
++    expect(screen.getByRole('dialog', { name: 'zoom and edit' })).toBeVisible();
++  });
++
++  it('uses an immutable voice clock when markers change during playback', async () => {
++    let animationFrame: FrameRequestCallback | undefined;
++    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { animationFrame = callback; return 1; }));
++    vi.stubGlobal('cancelAnimationFrame', vi.fn());
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0.2} initialLoopEnd={0.4}
++      loopEnabled onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    expect(audio.playWithADSR.mock.calls[0][2]).toMatchObject({ loopStart: 0.2, loopEnd: 0.4 });
++    fireEvent.change(screen.getByLabelText('Loop end frames'), { target: { value: '80' } });
++    clock.now = 0.5;
++    act(() => animationFrame?.(500));
++    expect(screen.getByText('Playhead: 30 frames')).toBeInTheDocument();
++  });
++
++  it('does not crossfade the playback copy while looping is disabled', async () => {
++    const buffer = makeBuffer();
++    const source = buffer.getChannelData(0);
++    source.set([-0.8, 0.6, -0.2, 0.9, -0.4, 0.2, 0.7, 1]);
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={buffer}
++      initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={0.08}
++      initialCrossfade={{ fraction: 0.04 }} loopEnabled={false}
++      onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
++    expect(Array.from(audio.playWithADSR.mock.calls[0][0].getChannelData(0))).toEqual(Array.from(source));
++  });
+ });
+--- before/src/test/context/projectHistory.test.tsx
++++ src/test/context/projectHistory.test.tsx
+@@ -1,6 +1,6 @@
+ import { act, renderHook } from '@testing-library/react';
+ import { describe, expect, it } from 'vitest';
+-import { AppContextProvider, useAppContext, useProjectHistory, type AppAction } from '../../context/AppContext';
++import { AppContextProvider, initialState, useAppContext, useProjectHistory, type AppAction } from '../../context/AppContext';
+ 
+ const wrapper = AppContextProvider;
+ describe('project history through the real context', () => {
+@@ -109,4 +109,26 @@
+     send({type:'REDO'});
+     expect(result.current.state.drumSamples[0].file?.name).toBe('a.wav');
+   });
++
++  it('normalizes Save for all per buffer and undoes the whole operation once', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    const makeSample = (name:string, frames:number, sampleRate:number) => {
++      const audioBuffer = new AudioContext().createBuffer(1,frames,sampleRate);
++      return {file:new File(['x'],name),audioBuffer,name,isLoaded:true,rootNote:60,note:'C4',
++        inPoint:0,outPoint:audioBuffer.duration,loopStart:0,loopEnd:audioBuffer.duration};
++    };
++    const restored = {...initialState,drumSamples:[],multisampleFiles:[makeSample('long.wav',100,100),makeSample('short.wav',10,40)]};
++    send({type:'RESTORE_SESSION',payload:restored});
++    send({type:'UPDATE_ALL_MULTI_SAMPLES',payload:{inPoint:0.1,outPoint:0.8,loopStart:0.2,loopEnd:0.7,
++      loopCrossfade:{fraction:0.5,importedRaw:50,importedFramecount:100,sourceIdentity:'long.wav'}}});
++    expect(result.current.state.multisampleFiles[0]).toMatchObject({inPoint:0.1,outPoint:0.8,loopStart:0.2,loopEnd:0.7,loopCrossfade:{fraction:0.5}});
++    expect(result.current.state.multisampleFiles[1]).toMatchObject({inPoint:0.1,outPoint:0.25,loopStart:0.2,loopEnd:0.25,loopCrossfade:{fraction:0.5}});
++    expect(result.current.state.multisampleFiles[1].loopCrossfade).toEqual({fraction:0.5});
++    send({type:'UNDO'});
++    expect(result.current.state.multisampleFiles[0]).toMatchObject({inPoint:0,outPoint:1,loopStart:0,loopEnd:1});
++    expect(result.current.state.multisampleFiles[1]).toMatchObject({inPoint:0,outPoint:0.25,loopStart:0,loopEnd:0.25});
++    send({type:'REDO'});
++    expect(result.current.state.multisampleFiles[1]).toMatchObject({inPoint:0.1,outPoint:0.25,loopStart:0.2,loopEnd:0.25});
++  });
+ });
+--- before/src/test/fixtures/task3LegacyArchive.ts
++++ src/test/fixtures/task3LegacyArchive.ts
+@@ -0,0 +1,8 @@
++/**
++ * Actual v1 archive emitted and accepted by the approved Task 3 implementation
++ * from /tmp/opstudio-before-task4/src. Generation evidence:
++ * /tmp/opstudio-task4-task3-fixture.log, SHA-256
++ * 2a8848a7d74ec1c932bc91b8a44f1fc14df829c3c408a79c3db5eec2055b94ec.
++ */
++export const TASK3_LEGACY_ARCHIVE_BASE64 =
++  'UEsDBAoAAAAAAPsGJV24Zt1WQAAAAEAAAAAZAAAAYXNzZXRzL2F1ZGlvLTAwMDAub3BmbG9hdE9QQVMBAAAAAQAAAAoAAAAAAAAAAHDnQAAAAADNzMw9zcxMPpqZmT7NzMw+AAAAP5qZGT8zMzM/zcxMP2ZmZj9QSwMECgAAAAAA+wYlXR2AvFUDAAAAAwAAABYAAABhc3NldHMvc291cmNlLTAwMDAuYmluAQIDUEsDBAoAAAAAAPsGJV0jjRxS2QYAANkGAAANAAAAbWFuaWZlc3QuanNvbnsiZm9ybWF0Ijoib3AtcGF0Y2hzdHVkaW8tcHJvamVjdCIsInZlcnNpb24iOjEsInByb2plY3QiOnsiZHJ1bVNldHRpbmdzIjp7InNhbXBsZVJhdGUiOjQ0MTAwLCJiaXREZXB0aCI6MTYsImNoYW5uZWxzIjoyLCJwcmVzZXROYW1lIjoiIiwibm9ybWFsaXplIjpmYWxzZSwibm9ybWFsaXplTGV2ZWwiOjAsImF1dG9aZXJvQ3Jvc3NpbmciOmZhbHNlLCJyZW5hbWVGaWxlcyI6ZmFsc2UsImZpbGVuYW1lU2VwYXJhdG9yIjoiICIsImF1ZGlvRm9ybWF0Ijoid2F2IiwicHJlc2V0U2V0dGluZ3MiOnsicGxheW1vZGUiOiJwb2x5IiwidHJhbnNwb3NlIjowLCJ2ZWxvY2l0eSI6MjAsInZvbHVtZSI6NjksIndpZHRoIjowfX0sIm11bHRpc2FtcGxlU2V0dGluZ3MiOnsic2FtcGxlUmF0ZSI6NDQxMDAsImJpdERlcHRoIjoxNiwiY2hhbm5lbHMiOjIsInByZXNldE5hbWUiOiIiLCJub3JtYWxpemUiOmZhbHNlLCJub3JtYWxpemVMZXZlbCI6MCwiYXV0b1plcm9Dcm9zc2luZyI6ZmFsc2UsImN1dEF0TG9vcEVuZCI6ZmFsc2UsImdhaW4iOjAsImxvb3BFbmFibGVkIjp0cnVlLCJsb29wT25SZWxlYXNlIjp0cnVlLCJyZW5hbWVGaWxlcyI6ZmFsc2UsImZpbGVuYW1lU2VwYXJhdG9yIjoiICIsImF1ZGlvRm9ybWF0Ijoid2F2IiwicGxheW1vZGUiOiJwb2x5IiwidHJhbnNwb3NlIjowLCJ2ZWxvY2l0eVNlbnNpdGl2aXR5IjoyMCwidm9sdW1lIjo2OSwid2lkdGgiOjAsImhpZ2hwYXNzIjowLCJwb3J0YW1lbnRvVHlwZSI6ImxpbmVhciIsInBvcnRhbWVudG9BbW91bnQiOjAsInR1bmluZ1Jvb3QiOjAsImFtcEVudmVsb3BlIjp7ImF0dGFjayI6NTAwLCJkZWNheSI6NjAwMCwic3VzdGFpbiI6MjIwMDAsInJlbGVhc2UiOjEyMDAwfSwiZmlsdGVyRW52ZWxvcGUiOnsiYXR0YWNrIjowLCJkZWNheSI6NTAwMCwic3VzdGFpbiI6MTgwMDAsInJlbGVhc2UiOjEwMDAwfX0sImRydW1TYW1wbGVzIjpbXSwibXVsdGlzYW1wbGVGaWxlcyI6W3sic2FtcGxlSWQiOiIwMDc5NTkwOC0xODJkLTQzZDUtOTUzMS0xY2Y1NThjODRiMjMtbXVsdGktMCIsIm5hbWUiOiJsZWdhY3ktQzQud2F2IiwiZmlsZU5hbWUiOiJsZWdhY3ktQzQud2F2Iiwicm9vdE5vdGUiOjYwLCJub3RlIjoiQzQiLCJpblBvaW50IjowLjAwMDAxMDQxNjY2NjY2NjY2NjY2Niwib3V0UG9pbnQiOjAuMDAwMTk3OTE2NjY2NjY2NjY2NjYsImxvb3BTdGFydCI6MCwibG9vcEVuZCI6MH1dLCJzZWxlY3RlZE11bHRpc2FtcGxlIjowLCJpc0RydW1LZXlib2FyZFBpbm5lZCI6ZmFsc2UsImlzTXVsdGlzYW1wbGVLZXlib2FyZFBpbm5lZCI6ZmFsc2UsImltcG9ydGVkRHJ1bVByZXNldCI6bnVsbCwiaW1wb3J0ZWRNdWx0aXNhbXBsZVByZXNldCI6bnVsbCwibWlkaU5vdGVNYXBwaW5nIjoiQzQifSwic2FtcGxlcyI6W3siaWQiOiIwMDc5NTkwOC0xODJkLTQzZDUtOTUzMS0xY2Y1NThjODRiMjMtbXVsdGktMCIsIm5hbWUiOiJsZWdhY3ktQzQud2F2IiwidHlwZSI6ImF1ZGlvL3dhdiIsInNpemUiOjMsInNvdXJjZUxhc3RNb2RpZmllZCI6MTIzLCJtZXRhZGF0YSI6eyJzYW1wbGVSYXRlIjo0ODAwMCwiY2hhbm5lbHMiOjEsImJpdERlcHRoIjoxNiwiZHVyYXRpb24iOjAuMDAwMjA4MzMzMzMzMzMzMzMzMzV9LCJhdWRpb1BhdGgiOiJhc3NldHMvYXVkaW8tMDAwMC5vcGZsb2F0Iiwic291cmNlUGF0aCI6ImFzc2V0cy9zb3VyY2UtMDAwMC5iaW4iLCJhdWRpbyI6eyJieXRlcyI6NjQsImNoYW5uZWxzIjoxLCJmcmFtZXMiOjEwLCJzYW1wbGVSYXRlIjo0ODAwMH19XX1QSwECFAAKAAAAAAD7BiVduGbdVkAAAABAAAAAGQAAAAAAAAAAAAAAAAAAAAAAYXNzZXRzL2F1ZGlvLTAwMDAub3BmbG9hdFBLAQIUAAoAAAAAAPsGJV0dgLxVAwAAAAMAAAAWAAAAAAAAAAAAAAAAAHcAAABhc3NldHMvc291cmNlLTAwMDAuYmluUEsBAhQACgAAAAAA+wYlXSONHFLZBgAA2QYAAA0AAAAAAAAAAAAAAAAArgAAAG1hbmlmZXN0Lmpzb25QSwUGAAAAAAMAAwDGAAAAsgcAAAAA';
+--- before/src/test/hooks/useAudioPlayer.test.ts
++++ src/test/hooks/useAudioPlayer.test.ts
+@@ -407,6 +407,23 @@
+       expect(mockGainParam.setValueCurveAtTime).toHaveBeenCalled();
+     });
+ 
++    it.each([-6, 6])('combines %s dB gain with velocity in the ADSR envelope and release', async (gain) => {
++      const { result } = renderHook(() => useAudioPlayer());
++      const expectedPeak = (64 / 127) * Math.pow(10, gain / 20);
++      await act(async () => {
++        await result.current.playWithADSR(mockBuffer, `gain-${gain}`, {
++          adsr: { attack: 0, decay: 0, sustain: 32767, release: 16384 },
++          velocity: 64,
++          gain,
++        });
++      });
++      expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(expectedPeak, 0);
++      mockGainParam.value = expectedPeak;
++      act(() => result.current.releaseNote(`gain-${gain}`));
++      const releaseCurve = mockGainParam.setValueCurveAtTime.mock.calls.at(-1)?.[0] as Float32Array;
++      expect(releaseCurve[0]).toBeCloseTo(expectedPeak, 5);
++    });
++
+     it('should handle zero ADSR values', async () => {
+       const { result } = renderHook(() => useAudioPlayer());
+       
+@@ -623,10 +640,10 @@
+     it('reverses a copied buffer and reports natural completion without mutating source', async () => {
+       const { result } = renderHook(() => useAudioPlayer());
+       const original = new Float32Array([1, 2, 3, 4]);
+-      const reversedData = new Float32Array(4);
++      const reversedData = new Float32Array(3);
+       const reversed = {
+-        duration: 4 / 100,
+-        length: 4,
++        duration: 3 / 100,
++        length: 3,
+         sampleRate: 100,
+         numberOfChannels: 1,
+         getChannelData: vi.fn(() => reversedData),
+@@ -650,10 +667,37 @@
+         });
+       });
+       expect(Array.from(original)).toEqual([1, 2, 3, 4]);
+-      expect(Array.from(reversed.getChannelData(0))).toEqual([4, 3, 2, 1]);
++      expect(Array.from(reversed.getChannelData(0))).toEqual([4, 3, 2]);
+       expect(mockSource.start).toHaveBeenCalledWith(0, 0, 0.03);
+       mockSource.onended();
+       expect(onEnded).toHaveBeenCalledTimes(1);
+     });
++
++    it.each([
++      { reverse: false, expected: [2, 3, 4, 5, 6], loopStart: 0.1, loopEnd: 0.3 },
++      { reverse: true, expected: [6, 5, 4, 3, 2], loopStart: 0.2, loopEnd: 0.4 },
++    ])('bounds a released trimmed voice to its selected tail with reverse=$reverse', async ({ reverse, expected, loopStart, loopEnd }) => {
++      const { result } = renderHook(() => useAudioPlayer());
++      const original = new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
++      mockAudioContext.createBuffer.mockImplementation((_channels:number, length:number, sampleRate:number) => {
++        const data = new Float32Array(length);
++        return { duration:length/sampleRate,length,sampleRate,numberOfChannels:1,getChannelData:vi.fn(() => data) } as unknown as AudioBuffer;
++      });
++      const sourceBuffer = {duration:1,length:10,sampleRate:10,numberOfChannels:1,getChannelData:vi.fn(() => original)} as unknown as AudioBuffer;
++      await act(async () => {
++        await result.current.playWithADSR(sourceBuffer, 'trimmed', {
++          inFrame: 2, outFrame: 7, loopEnabled: true, loopOnRelease: false,
++          loopStart: 0.3, loopEnd: 0.5, reverse,
++          adsr: { attack: 0, decay: 0, sustain: 32767, release: 32767 },
++        });
++      });
++      expect(Array.from(mockSource.buffer.getChannelData(0))).toEqual(expected);
++      expect(mockSource.loopStart).toBeCloseTo(loopStart);
++      expect(mockSource.loopEnd).toBeCloseTo(loopEnd);
++      act(() => result.current.releaseNote('trimmed'));
++      expect(mockSource.loop).toBe(false);
++      expect(mockSource.buffer.length).toBe(5);
++      expect(Array.from(original)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
++    });
+   });
+ });
+--- before/src/test/utils/durableStorage.test.ts
++++ src/test/utils/durableStorage.test.ts
+@@ -166,7 +166,8 @@
+ });
+ it('library reload restores only its instrument, retaining the other mode; broken audio rejects before an editor update', async () => {
+   const state = projectFixture();
+-  state.multisampleFiles=[{...state.drumSamples[5],rootNote:66,loopStart:0,loopEnd:0}];
++  state.multisampleFiles=[{...state.drumSamples[5],rootNote:66,loopStart:0,loopEnd:0,loopCrossfade:{fraction:0.25}}];
++  state.importedMultisamplePreset={fx:{delay:31},regions:[{sample:'source.aif',framecount:3,'loop.crossfade':3}]};
+   state.multisampleSettings={...state.multisampleSettings,transpose:19,portamentoAmount:63,ampEnvelope:{attack:1,decay:2,sustain:3,release:4},filterEnvelope:{attack:5,decay:6,sustain:7,release:8},audioFormat:'aiff',renameFiles:true};
+   await savePresetToLibrary(state,'multi','multisample');
+   const preset = (await db.getAllPresets())[0] as any;
+@@ -177,7 +178,8 @@
+   expect(editor.drumSamples).toBe(otherState.drumSamples);
+   expect(editor.multisampleSettings).toEqual(state.multisampleSettings);
+   expect(editor.multisampleFiles[0].loopEnd).toBe(1/editor.multisampleFiles[0].audioBuffer!.sampleRate);
+-  expect(editor.importedMultisamplePreset).toEqual({fx:{delay:31}});
++  expect(editor.multisampleFiles[0].loopCrossfade).toEqual({fraction:0.25});
++  expect(editor.importedMultisamplePreset).toEqual({fx:{delay:31},regions:[{sample:'source.aif',framecount:3,'loop.crossfade':3}]});
+   const before=editor;
+   preset.data.multisampleFiles[0].audioBlob = new Blob(['bad'],{type:STORED_AUDIO_TYPE});
+   await expect((async()=>{const project=await deserializeLibraryPreset(preset); editor=appReducer(editor,{type:'RESTORE_LIBRARY',payload:{mode:'multisample',project}});})()).rejects.toThrow();
+--- before/src/test/utils/importedCrossfade.test.ts
++++ src/test/utils/importedCrossfade.test.ts
+@@ -64,4 +64,16 @@
+     expect(result.notice).toMatch(/could not be interpreted.*original JSON/i);
+     expect(preset.regions[0]['loop.crossfade']).toBe('opaque');
+   });
++
++  it('keeps deliberate edits authoritative and removes stale imported provenance when identity becomes ambiguous', () => {
++    const preset = { regions: [{ sample: 'tone.wav', framecount: 100, 'loop.crossfade': 90 }] };
++    const edited = sample('tone.wav');
++    edited.loopCrossfade = { fraction: 0.25 };
++    expect(associateImportedCrossfades([edited, sample('other.wav')], preset).files[0].loopCrossfade).toEqual({ fraction: 0.25 });
++
++    const initiallyAssociated = associateImportedCrossfades([sample('tone.wav')], preset).files[0];
++    const ambiguous = associateImportedCrossfades([initiallyAssociated, sample('tone.wav')], preset);
++    expect(ambiguous.files.every((file) => file.loopCrossfade === undefined)).toBe(true);
++    expect(ambiguous.notice).toMatch(/ambiguous/i);
++  });
+ });
+--- before/src/test/utils/projectArchive.test.ts
++++ src/test/utils/projectArchive.test.ts
+@@ -8,6 +8,7 @@
+   exportProjectArchive,
+   importProjectArchive,
+ } from '../../utils/projectArchive';
++import { TASK3_LEGACY_ARCHIVE_BASE64 } from '../fixtures/task3LegacyArchive';
+ 
+ const bytes = async (blob:Blob) => new Uint8Array(await blob.arrayBuffer());
+ const PositionalAudioBuffer:any=globalThis.AudioBuffer;
+@@ -107,6 +108,27 @@
+     expect(restored.multisampleSettings).toMatchObject({sampleRate:0,bitDepth:0,channels:0});
+   });
+ 
++  it('loads an actual Task 3 v1 archive and normalizes its fractional and empty markers', async () => {
++    const legacy = new Blob([Buffer.from(TASK3_LEGACY_ARCHIVE_BASE64, 'base64')], { type: 'application/zip' });
++    const restored = await importProjectArchive(legacy);
++    const sample = restored.multisampleFiles[0];
++    expect(sample.inPoint).toBe(1 / 48_000);
++    expect(sample.outPoint).toBe(10 / 48_000);
++    expect(sample.loopStart).toBe(1 / 48_000);
++    expect(sample.loopEnd).toBe(2 / 48_000);
++  });
++
++  it('keeps a restored deliberate crossfade authoritative over matching imported JSON', async () => {
++    const state = projectState();
++    state.multisampleFiles[0].loopCrossfade = { fraction: 0.25 };
++    state.importedMultisamplePreset = {
++      regions: [{ sample: 'C4 source.aif', framecount: 3, 'loop.crossfade': 3 }],
++    };
++    const restored = await importProjectArchive(await exportProjectArchive(createProjectSnapshot(state)));
++    const editor = appReducer(initialState, { type: 'RESTORE_SESSION', payload: restored });
++    expect(editor.multisampleFiles[0].loopCrossfade).toEqual({ fraction: 0.25 });
++  });
++
+   it.each([
+     ['unsupported version',(m:any)=>{m.version=2}],
+     ['invalid settings',(m:any)=>{m.project.drumSettings.sampleRate='fast'}],
+@@ -114,8 +136,8 @@
+     ['invalid dimensions',(m:any)=>{m.project.drumSamples[0].originalIndex=513}],
+     ['nonfinite crossfade',(m:any)=>{m.project.multisampleFiles[0].loopCrossfade.fraction=Number.NaN}],
+     ['fractional imported frame count',(m:any)=>{m.project.multisampleFiles[0].loopCrossfade.importedFramecount=1.5}],
+-    ['fractional sample frame',(m:any)=>{m.project.multisampleFiles[0].loopStart=0.5/m.samples[2].audio.sampleRate}],
+-    ['empty loop range',(m:any)=>{m.project.multisampleFiles[0].loopEnd=m.project.multisampleFiles[0].loopStart}],
++    ['negative sample marker',(m:any)=>{m.project.multisampleFiles[0].inPoint=-1}],
++    ['sample marker beyond audio',(m:any)=>{m.project.multisampleFiles[0].outPoint=1}],
+   ])('rejects %s before returning a project', async (_name,change) => {
+     const archive=await rewriteManifest(await exportProjectArchive(createProjectSnapshot(projectState())),change);
+     await expect(importProjectArchive(archive)).rejects.toThrow();
+--- before/src/utils/importedCrossfade.ts
++++ src/utils/importedCrossfade.ts
+@@ -84,13 +84,20 @@
+     if (!identity) return { ...file };
+     if ((fileCounts.get(identity) ?? 0) !== 1 || (regionCounts.get(identity) ?? 0) > 1) {
+       if ((regionCounts.get(identity) ?? 0) > 0) ambiguous = true;
++      const existing = file.loopCrossfade;
++      if (existing?.importedRaw !== undefined && existing.sourceIdentity === identity) {
++        const withoutAssociation = { ...file };
++        delete withoutAssociation.loopCrossfade;
++        return withoutAssociation;
++      }
+       return { ...file };
+     }
+     const region = uniqueRegions.get(identity);
+     if (!region) return { ...file };
+     matched += 1;
+-    aboveNormalRange ||= region.crossfade.fraction > 0.75;
+-    return { ...file, loopCrossfade: { ...region.crossfade } };
++    const effective = file.loopCrossfade ?? region.crossfade;
++    aboveNormalRange ||= effective.fraction > 0.75;
++    return { ...file, loopCrossfade: { ...effective } };
+   });
+ 
+   const unmatched = regions.length - matched;
+--- before/src/utils/projectArchive.ts
++++ src/utils/projectArchive.ts
+@@ -157,10 +157,6 @@
+   return {channels,frames,sampleRate,duration:frames/sampleRate};
+ }
+ 
+-function isFrameBoundary(seconds:number,sampleRate:number):boolean {
+-  return Math.abs(seconds*sampleRate-Math.round(seconds*sampleRate))<1e-6;
+-}
+-
+ function validateDrumReference(value:unknown,sampleIds:Set<string>):asserts value is SessionData['drumSamples'][number] {
+   if(!isRecord(value)) throw new Error('Invalid drum sample reference');
+   requireSafeInteger(value.originalIndex,0,PROJECT_ARCHIVE_LIMITS.drumSlots-1,'drum sample index');
+@@ -308,13 +304,13 @@
+   const byId=new Map(manifest.samples.map(sample=>[sample.id,sample]));
+   for(const ref of manifest.project.drumSamples) {
+     const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
+-    if(ref.settings.inPoint<0 || ref.settings.outPoint<=ref.settings.inPoint || ref.settings.outPoint>info.duration ||
+-      !isFrameBoundary(ref.settings.inPoint,info.sampleRate) || !isFrameBoundary(ref.settings.outPoint,info.sampleRate)) throw new Error('Drum sample markers are not valid frame boundaries');
++    const legacyMaximum=info.duration+(1/info.sampleRate);
++    if(ref.settings.inPoint<0 || ref.settings.outPoint<0 || ref.settings.inPoint>legacyMaximum || ref.settings.outPoint>legacyMaximum) throw new Error('Drum sample markers are outside the audio bounds');
+   }
+   for(const ref of manifest.project.multisampleFiles) {
+     const info=inspectAudio(await extract(byId.get(ref.sampleId)!.audioPath),ref.sampleId);
+-    if(ref.inPoint<0 || ref.outPoint<=ref.inPoint || ref.outPoint>info.duration || ref.loopStart<ref.inPoint || ref.loopEnd<=ref.loopStart || ref.loopEnd>ref.outPoint ||
+-      ![ref.inPoint,ref.outPoint,ref.loopStart,ref.loopEnd].every(value=>isFrameBoundary(value,info.sampleRate))) throw new Error('Multisample markers are not valid frame boundaries');
++    const legacyMaximum=info.duration+(1/info.sampleRate);
++    if(![ref.inPoint,ref.outPoint,ref.loopStart,ref.loopEnd].every(value=>value>=0 && value<=legacyMaximum)) throw new Error('Multisample markers are outside the audio bounds');
+   }
+   const session:SessionData={id:'portable-project',timestamp:0,version:2,savedToLibrary:false,...manifest.project};
+   return deserializeProject(session,async id=>sampleMap.get(id)??null);

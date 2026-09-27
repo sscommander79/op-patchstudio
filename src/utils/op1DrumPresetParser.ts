@@ -5,9 +5,9 @@
 // No code was copied from proprietary or third-party sources.
 
 import { audioContextManager } from './audioContext';
-import { 
-  parseCommChunk, 
-  parseMarkChunk 
+import {
+  parseCommChunk,
+  parseMarkChunk
 } from './aifParser';
 import type { AudioMetadata } from './audioFormats';
 
@@ -35,10 +35,10 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
   try {
     const dataView = new DataView(arrayBuffer);
     const textDecoder = new TextDecoder('ascii');
-    
+
     // Extract base filename for sample naming (remove extension)
     const baseFilename = filename.replace(/\.(aif|aiff)$/i, '');
-    
+
     // Check FORM header
     const form = textDecoder.decode(new Uint8Array(arrayBuffer, 0, 4));
     if (form !== 'FORM') {
@@ -59,7 +59,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
     let sampleRate = 44100;
     let ssndOffset = 0;
     let isLittleEndian = false; // Track byte order for audio data
-    
+
     // Sample metadata from chunks
     const sampleMetadata: Array<{
       keyIndex: number;
@@ -73,7 +73,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
       const chunkId = textDecoder.decode(new Uint8Array(arrayBuffer, offset, 4));
       const chunkSize = dataView.getUint32(offset + 4, false);
       const chunkDataOffset = offset + 8;
-      
+
       // Parse COMM chunk for core audio properties
       if (chunkId === 'COMM') {
         const commChunk = parseCommChunk(dataView, arrayBuffer, chunkDataOffset, chunkSize, formatId);
@@ -83,57 +83,56 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
         sampleRate = commChunk.sampleRate;
         isLittleEndian = commChunk.isLittleEndian;
       }
-      
+
       // Parse SSND chunk for audio data location
       if (chunkId === 'SSND') {
         // SSND chunk structure: offset (4 bytes) + blockSize (4 bytes) + audio data
         ssndOffset = chunkDataOffset; // Store the SSND chunk start for reference
       }
-      
+
       // Parse custom OP-1 metadata chunks
       if (chunkId === 'OP1D' || chunkId === 'OP1F') {
         // OP-1 drum preset metadata chunk
         const numSamples = dataView.getUint16(chunkDataOffset, false);
         let sampleOffset = chunkDataOffset + 2;
-        
+
         for (let i = 0; i < numSamples; i++) {
           const keyIndex = dataView.getUint8(sampleOffset);
           const startSample = dataView.getUint32(sampleOffset + 1, false);
           const endSample = dataView.getUint32(sampleOffset + 5, false);
           const nameLength = dataView.getUint8(sampleOffset + 9);
-          
+
           // Parse sample name
           const nameBytes = new Uint8Array(arrayBuffer, sampleOffset + 10, nameLength);
           const name = textDecoder.decode(nameBytes);
-          
+
           sampleMetadata.push({
             keyIndex,
             startSample,
             endSample,
             name: name || `${baseFilename} sample ${i + 1}`
           });
-          
+
           sampleOffset += 10 + nameLength;
         }
       }
-      
+
       // Parse APPL chunk for OP-1 metadata
       if (chunkId === 'APPL' && sampleMetadata.length === 0) {
         try {
           const applData = new Uint8Array(arrayBuffer, chunkDataOffset, chunkSize);
           const applText = textDecoder.decode(applData);
-          
+
           // Check if this is OP-1 metadata
           if (applText.startsWith('op-1')) {
             const jsonStart = applText.indexOf('{');
             if (jsonStart !== -1) {
               let jsonStr = applText.substring(jsonStart);
-              
+
               // Clean the JSON string by removing null characters and other problematic characters
-              jsonStr = jsonStr.replace(/\0/g, ''); // Remove null characters
-              jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, ''); // Remove other control characters
+              jsonStr = removeControlCharacters(jsonStr);
               jsonStr = jsonStr.trim(); // Remove leading/trailing whitespace
-              
+
               // Try to find the end of the JSON object
               let braceCount = 0;
               let jsonEnd = -1;
@@ -148,20 +147,20 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
                   }
                 }
               }
-              
+
               // If we found a complete JSON object, use it
               if (jsonEnd > 0) {
                 jsonStr = jsonStr.substring(0, jsonEnd);
               }
-              
+
               const op1Metadata = JSON.parse(jsonStr);
-              
+
               // Check if this is a drum preset
               if (op1Metadata.type === 'drum' && op1Metadata.drum_version) {
                 // Extract sample positions from the metadata
                 if (op1Metadata.start && op1Metadata.end && Array.isArray(op1Metadata.start) && Array.isArray(op1Metadata.end)) {
                   const numSamples = Math.min(op1Metadata.start.length, op1Metadata.end.length, 24);
-                  
+
                   // Track unique samples to avoid duplicates
                   const uniqueSamples = new Map<string, number>();
                   const validSamples: Array<{
@@ -170,14 +169,14 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
                     endSample: number;
                     name: string;
                   }> = [];
-                  
+
                   for (let i = 0; i < numSamples; i++) {
                     const startSample = op1Metadata.start[i];
                     const endSample = op1Metadata.end[i];
-                    
+
                     if (startSample !== undefined && endSample !== undefined && endSample > startSample) {
                       const sampleKey = `${startSample}-${endSample}`;
-                      
+
                       // Only add if this is a unique sample
                       if (!uniqueSamples.has(sampleKey)) {
                         uniqueSamples.set(sampleKey, i);
@@ -190,7 +189,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
                       }
                     }
                   }
-                  
+
                   // Add the valid samples to metadata
                   sampleMetadata.push(...validSamples);
                 }
@@ -201,20 +200,20 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
           console.warn('Failed to parse APPL chunk:', error);
         }
       }
-      
+
       // Parse MARK chunk for marker-based sample positions (fallback)
       if (chunkId === 'MARK' && sampleMetadata.length === 0) {
         const markersList = parseMarkChunk(dataView, arrayBuffer, chunkDataOffset);
-        
+
         for (const marker of markersList) {
           // Try to extract key index from marker name or ID
           let keyIndex = extractKeyIndexFromMarker(marker.id, marker.name);
-          
+
           // If no key index found, use the marker index as key index (load in order found)
           if (keyIndex === null) {
             keyIndex = markersList.indexOf(marker);
           }
-          
+
           // Only add if we have a valid key index
           if (keyIndex >= 0 && keyIndex < 24) {
             sampleMetadata.push({
@@ -225,7 +224,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
             });
           }
         }
-        
+
         // Calculate end samples from start positions
         for (let i = 0; i < sampleMetadata.length; i++) {
           if (i < sampleMetadata.length - 1) {
@@ -235,7 +234,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
           }
         }
       }
-      
+
       offset += 8 + chunkSize + (chunkSize % 2 === 1 ? 1 : 0); // Account for padding
     }
 
@@ -290,7 +289,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
           // Ensure proper 2-byte alignment for 16-bit samples
           const rawStartByte = ssndDataStart + metadata.startSample;
           const rawEndByte = ssndDataStart + metadata.endSample;
-          
+
           sampleStartByte = rawStartByte + (rawStartByte % 2); // Round up to even
           sampleEndByte = rawEndByte + (rawEndByte % 2); // Round up to even
           sampleByteLength = sampleEndByte - sampleStartByte;
@@ -321,7 +320,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
             console.warn(`Skipping sample ${sampleIdx}: audioBuffer creation failed (sampleLength=${sampleLength}, channels=${channels}, sampleRate=${sampleRate})`);
             continue;
           }
-          
+
           const audioData = new Uint8Array(arrayBuffer, sampleStartByte, sampleByteLength);
           // Convert to float samples and copy to AudioBuffer
           if (bitDepth === 16) {
@@ -333,7 +332,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
                 // Read 16-bit sample in the appropriate byte order
                 const byte1 = audioData[sampleOffset];
                 const byte2 = audioData[sampleOffset + 1];
-                
+
                 let sample: number;
                 if (isLittleEndian) {
                   // Little-endian (sowt): low byte first, high byte second
@@ -342,11 +341,11 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
                   // Big-endian (standard AIFF): high byte first, low byte second
                   sample = (byte1 << 8) | byte2;
                 }
-                
+
                 // Convert to signed 16-bit integer
                 const signedSample = (sample & 0x8000) ? sample - 0x10000 : sample;
                 channelData[i] = signedSample / 32768.0;
-                
+
               }
             }
           } else if (bitDepth === 24) {
@@ -407,7 +406,7 @@ export async function parseOP1DrumPreset(arrayBuffer: ArrayBuffer, filename: str
 
   } catch (error) {
     console.error('Error parsing OP-1 drum preset:', error);
-    throw new Error(`Failed to parse OP-1 drum preset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to parse OP-1 drum preset: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -421,18 +420,18 @@ export function extractKeyIndexFromMarker(markerId: number, markerName: string):
       return keyIndex;
     }
   }
-  
+
   // Try to extract from marker ID
   if (markerId >= 0 && markerId < 24) {
     return markerId;
   }
-  
+
   // Handle OP-1 to OP-XY naming conversion
   let normalizedName = markerName.toLowerCase();
   if (normalizedName.includes('clave alt')) {
     normalizedName = normalizedName.replace('clave alt', 'wood stick');
   }
-  
+
   // Try to extract from common drum sample names
   const drumNameMap: { [key: string]: number } = {
     'kick': 0, 'kick alt': 1, 'snare': 2, 'snare alt': 3, 'rim': 4, 'hand clap': 5,
@@ -440,13 +439,13 @@ export function extractKeyIndexFromMarker(markerId: number, markerName: string):
     'low tom': 12, 'ride cymbal': 13, 'mid-tom': 14, 'crash cymbal': 15, 'hi-tom': 16, 'cowbell': 17,
     'triangle': 18, 'low tom alt': 19, 'low conga': 20, 'wood stick': 21, 'hi-conga': 22, 'guiro': 23
   };
-  
+
   for (const [drumName, index] of Object.entries(drumNameMap)) {
     if (normalizedName.includes(drumName)) {
       return index;
     }
   }
-  
+
   return null;
 }
 
@@ -454,49 +453,48 @@ export function extractKeyIndexFromMarker(markerId: number, markerName: string):
 export function isOP1DrumPreset(arrayBuffer: ArrayBuffer): boolean {
   try {
     const textDecoder = new TextDecoder('ascii');
-    
+
     // Check if it's an AIFF file
     const form = textDecoder.decode(new Uint8Array(arrayBuffer, 0, 4));
     if (form !== 'FORM') {
       return false;
     }
-    
+
     const formatId = textDecoder.decode(new Uint8Array(arrayBuffer, 8, 4));
     if (formatId !== 'AIFF' && formatId !== 'AIFC') {
       return false;
     }
-    
+
     // Check for OP-1 specific chunks or markers
     const dataView = new DataView(arrayBuffer);
     let offset = 12;
     let hasMarkers = false;
     let markerCount = 0;
-    
+
     while (offset + 8 < arrayBuffer.byteLength) {
       const chunkId = textDecoder.decode(new Uint8Array(arrayBuffer, offset, 4));
       const chunkSize = dataView.getUint32(offset + 4, false);
-      
+
       // Check for OP-1 drum preset metadata chunks
       if (chunkId === 'OP1D' || chunkId === 'OP1F') {
         return true;
       }
-      
+
       // Check for APPL chunk with OP-1 metadata
       if (chunkId === 'APPL') {
         try {
           const applData = new Uint8Array(arrayBuffer, offset + 8, chunkSize);
           const applText = textDecoder.decode(applData);
-          
+
           if (applText.startsWith('op-1')) {
             const jsonStart = applText.indexOf('{');
             if (jsonStart !== -1) {
               let jsonStr = applText.substring(jsonStart);
-              
+
               // Clean the JSON string by removing null characters and other problematic characters
-              jsonStr = jsonStr.replace(/\0/g, ''); // Remove null characters
-              jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, ''); // Remove other control characters
+              jsonStr = removeControlCharacters(jsonStr);
               jsonStr = jsonStr.trim(); // Remove leading/trailing whitespace
-              
+
               // Try to find the end of the JSON object
               let braceCount = 0;
               let jsonEnd = -1;
@@ -511,14 +509,14 @@ export function isOP1DrumPreset(arrayBuffer: ArrayBuffer): boolean {
                   }
                 }
               }
-              
+
               // If we found a complete JSON object, use it
               if (jsonEnd > 0) {
                 jsonStr = jsonStr.substring(0, jsonEnd);
               }
-              
+
               const op1Metadata = JSON.parse(jsonStr);
-              
+
               if (op1Metadata.type === 'drum' && op1Metadata.drum_version) {
                 // Check if there are any valid samples (not just duplicates)
                 if (op1Metadata.start && op1Metadata.end && Array.isArray(op1Metadata.start) && Array.isArray(op1Metadata.end)) {
@@ -537,11 +535,11 @@ export function isOP1DrumPreset(arrayBuffer: ArrayBuffer): boolean {
               }
             }
           }
-        } catch (error) {
+        } catch {
           // Ignore parsing errors
         }
       }
-      
+
       // Check for marker chunks that might indicate drum preset structure
       if (chunkId === 'MARK') {
         hasMarkers = true;
@@ -551,18 +549,23 @@ export function isOP1DrumPreset(arrayBuffer: ArrayBuffer): boolean {
           return true;
         }
       }
-      
+
       offset += 8 + chunkSize + (chunkSize % 2 === 1 ? 1 : 0);
     }
-    
+
     // If it's an AIFF file with markers, it might be a drum preset even without OP-1 specific chunks
     // This is more permissive to handle various OP-1 preset formats
     if (hasMarkers && markerCount > 0) {
       return true;
     }
-    
+
     return false;
   } catch {
     return false;
   }
-} 
+}
+const removeControlCharacters = (value: string): string =>
+  Array.from(value).filter((character) => {
+    const code = character.charCodeAt(0);
+    return code >= 32 && code !== 127;
+  }).join('');

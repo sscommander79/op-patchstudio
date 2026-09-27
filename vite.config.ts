@@ -3,31 +3,57 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'fs'
+import { randomUUID } from 'node:crypto'
+import type { Plugin } from 'vite'
+import { devStaleWorkerGuard } from './scripts/dev-stale-worker-guard.ts'
 
 // Read version from package.json
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const pwaBuildId = `${process.env.OPSTUDIO_BUILD_ID ?? process.env.GITHUB_SHA ?? `v${packageJson.version}`}-${Date.now().toString(36)}-${randomUUID()}`
+  .replace(/[^a-zA-Z0-9._-]/g, '-')
+const lifecycleAsset = `assets/pwa-cache-lifecycle-${pwaBuildId}.js`
+const lifecycleSource = readFileSync('./scripts/pwa-cache-lifecycle.js', 'utf-8')
+  .replace('__OPSTUDIO_PWA_BUILD_ID__', pwaBuildId)
+const pwaLifecycleAssetPlugin:Plugin = {
+  name: 'op-patchstudio-pwa-lifecycle-asset',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: lifecycleAsset, source: lifecycleSource })
+  },
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    pwaLifecycleAssetPlugin,
+    // Development only: expose this server's build identity and retire a production worker left on the origin.
+    devStaleWorkerGuard({
+      buildId: pwaBuildId,
+      version: packageJson.version,
+      retireWorkers: process.env.OPSTUDIO_DEV_SW_GUARD !== '0',
+      // Opt-in only: comma-separated non-loopback hostnames (for example a LAN name) that the guard may serve.
+      extraHosts: (process.env.OPSTUDIO_DEV_SW_GUARD_HOSTS ?? '').split(',').map(host => host.trim()).filter(Boolean),
+    }),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
+      includeManifestIcons: false,
       workbox: {
+        cacheId: `op-patchstudio-${pwaBuildId}`,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          }
-        ]
+        cleanupOutdatedCaches: false,
+        importScripts: [lifecycleAsset],
+        // Keep a content revision on public assets as well as Vite's hashed bundles.
+        // Icon and preview filenames are stable across releases, so URL-only cache
+        // keys could otherwise preserve stale pixels after an update.
+        dontCacheBustURLsMatching: /^$/,
+        runtimeCaching: [{
+          urlPattern: ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/assets/'),
+          handler: ({ request }) => (globalThis as typeof globalThis & {
+            __OPSTUDIO_FETCH_ASSET__: (request: Request) => Promise<Response>;
+          }).__OPSTUDIO_FETCH_ASSET__(request),
+        }],
       },
       manifest: {
         name: 'OP-PatchStudio',
@@ -36,7 +62,7 @@ export default defineConfig({
         theme_color: '#000000',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         scope: '/',
         start_url: '/',
         icons: [
@@ -86,10 +112,13 @@ export default defineConfig({
   ],
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
+    __APP_BUILD_ID__: JSON.stringify(pwaBuildId),
   },
   // @ts-expect-error - Vitest extends Vite config with test options
   test: {
     globals: true,
+    // Playwright suites live under tests/ and run through their own configs.
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/dev-origin/**', 'tests/visual/**'],
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     coverage: {

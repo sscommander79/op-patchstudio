@@ -36,7 +36,7 @@ describe('useFileUpload', () => {
     vi.clearAllMocks();
     
     // Mock the AppContext with complete multisample settings
-    (useAppContext as any).mockReturnValue({
+    vi.mocked(useAppContext).mockReturnValue({
       state: {
         currentTab: 'multisample',
         drumSamples: [],
@@ -59,6 +59,7 @@ describe('useFileUpload', () => {
           presetName: '',
           normalize: false,
           normalizeLevel: 0,
+          autoZeroCrossing: false,
           presetSettings: {
             playmode: 'poly' as const,
             transpose: 0,

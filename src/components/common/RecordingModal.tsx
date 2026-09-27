@@ -1,791 +1,121 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import captureWorkletUrl from '../../audio/recording/captureProcessor.ts?worker&url';
+import { CaptureSession, RECORDING_LIMITS, type CaptureStatus, type SessionTake } from '../../audio/recording/captureSession';
+import { prepareRecordingApplication, proposeUnusedRootNotes, type RecordingTarget } from '../../utils/recordingApplication';
+import { useAppContext } from '../../context/AppContext';
+import { useOwnedDialog } from '../../hooks/useOwnedDialog';
+import { AutoSamplingPanel, type GuidedSamplingStep } from './AutoSamplingPanel';
+import type { AutoCaptureCallbacks, AutoSampleResult } from '../../audio/recording/autoSampler';
 
-interface RecordingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (audioBuffer: AudioBuffer, filename: string) => void;
-  maxDuration?: number; // in seconds
-}
+export interface GuidedRecordingIntent {source:'hardware'|'software';requestId:number}
+interface Props {isOpen:boolean;onClose:()=>void;instrument:'drum'|'multisample';target:RecordingTarget;maxDuration?:number;guidedIntent?:GuidedRecordingIntent}
+interface ReviewTake extends SessionTake {name:string;selected:boolean;rootNote:number;warnings?:string[]}
+type Resolution=''|'replace'|'choose-empty'|'choose-free'|'cancel';
+const box:React.CSSProperties={border:'1px solid var(--color-border-medium, #bbb)',borderRadius:6,padding:10};
+const button:React.CSSProperties={minHeight:44,padding:'0.5rem 0.75rem',border:'1px solid var(--color-border-medium, #bbb)',borderRadius:4,background:'var(--color-bg-primary, #fff)',color:'inherit'};
 
-interface AudioDevice {
-  deviceId: string;
-  label: string;
-}
-
-export function RecordingModal({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  maxDuration = 20 
-}: RecordingModalProps) {
-  const [devices, setDevices] = useState<AudioDevice[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [recordedBuffer, setRecordedBuffer] = useState<AudioBuffer | null>(null);
-  const [error, setError] = useState<string>('');
-  const [filename, setFilename] = useState<string>('');
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationRef = useRef<number | null>(null);
-
-  // Get available audio input devices
-  const getAudioDevices = useCallback(async () => {
-    try {
-      // First request permission to get device labels
-      await navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-      });
-      
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices
-        .filter(device => device.kind === 'audioinput')
-        .map(device => ({
-          deviceId: device.deviceId,
-          label: device.label || `microphone ${device.deviceId.slice(0, 8)}`
-        }));
-      
-      setDevices(audioInputs);
-      if (audioInputs.length > 0 && !selectedDeviceId) {
-        setSelectedDeviceId(audioInputs[0].deviceId);
+export function RecordingModal({isOpen,onClose,instrument,target,maxDuration=20,guidedIntent}:Props) {
+  const {state,dispatch}=useAppContext();
+  const [devices,setDevices]=useState<Array<{deviceId:string;label:string}>>([]),[deviceId,setDeviceId]=useState(''),[audioSelectionVersion,setAudioSelectionVersion]=useState(0);
+  const [mode,setMode]=useState<'manual'|'sound'>('manual'),[thresholdDb,setThresholdDb]=useState(-30),[hysteresisDb,setHysteresisDb]=useState(6);
+  const [preRoll,setPreRoll]=useState(.25),[silenceStop,setSilenceStop]=useState(.5),[durationLimit,setDurationLimit]=useState(Math.min(20,maxDuration));
+  const [status,setStatus]=useState<CaptureStatus>({state:'idle'}),[error,setError]=useState(''),[feedback,setFeedback]=useState('');
+  const [takes,setTakes]=useState<ReviewTake[]>([]),takesRef=useRef<ReviewTake[]>([]);
+  const [resolution,setResolution]=useState<Resolution>(''),[applying,setApplying]=useState(false),[previewActive,setPreviewActive]=useState(false),[automaticActive,setAutomaticActive]=useState(false),[confirmDiscard,setConfirmDiscard]=useState(false);
+  const [guidedStep,setGuidedStep]=useState<GuidedSamplingStep>('connect'),[committedCount,setCommittedCount]=useState(0),[guidedAudioVersion,setGuidedAudioVersion]=useState(0);
+  const checkBytesRef=useRef(0),[,setCheckBytesState]=useState(0),setCheckBytes=useCallback((bytes:number)=>{checkBytesRef.current=bytes;setCheckBytesState(bytes);},[]),guidedIntentRef=useRef(guidedIntent);
+  guidedIntentRef.current=guidedIntent;
+  const sessionRef=useRef<CaptureSession|undefined>(undefined),previewRef=useRef<{context:AudioContext;source:AudioBufferSourceNode;id:string}|undefined>(undefined),operationRef=useRef<string|undefined>(undefined),generationRef=useRef(0),applyGenerationRef=useRef(0),applyAbortRef=useRef<AbortController|undefined>(undefined),previewGenerationRef=useRef(0),pendingPreviewContextsRef=useRef(new Set<AudioContext>()),stateRef=useRef(state);
+  const dialogRef=useRef<HTMLElement>(null),resumeRef=useRef<HTMLButtonElement>(null);
+  stateRef.current=state;
+  const updateTakes=useCallback((update:(current:ReviewTake[])=>ReviewTake[])=>{
+    const next=update(takesRef.current);takesRef.current=next;setTakes(next);
+  },[]);
+  const occupied=useMemo(()=>target.kind==='drum'&&target.padIndex!==undefined?state.drumSamples[target.padIndex]?.isLoaded:
+    target.kind==='multisample'&&target.rootNote!==undefined?state.multisampleFiles.some(file=>file.rootNote===target.rootNote):false,[state.drumSamples,state.multisampleFiles,target]);
+  const supported=!!navigator.mediaDevices?.getUserMedia&&typeof AudioContext!=='undefined'&&typeof AudioWorkletNode!=='undefined'&&window.isSecureContext!==false;
+  const releasePreview=useCallback(async(clearActive:boolean)=>{const owned=previewRef.current;previewRef.current=undefined;const pending=[...pendingPreviewContextsRef.current];pendingPreviewContextsRef.current.clear();if(clearActive)setPreviewActive(false);
+    if(owned){owned.source.onended=null;try{owned.source.stop();}catch{/* ended */}owned.source.disconnect();}
+    const closing=pending.map(context=>context.close().catch(()=>undefined));if(owned)closing.push(owned.context.close().catch(()=>undefined));await Promise.all(closing);},[]);
+  const stopPreview=useCallback(async()=>{previewGenerationRef.current+=1;await releasePreview(true);},[releasePreview]);
+  const dispose=useCallback(async()=>{const owned=sessionRef.current;sessionRef.current=undefined;await owned?.dispose();},[]);
+  const close=useCallback(()=>{generationRef.current+=1;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;setApplying(false);setAutomaticActive(false);setConfirmDiscard(false);void stopPreview();void dispose();onClose();},[dispose,onClose,stopPreview]);
+  const requestClose=useCallback(()=>{if(takesRef.current.length||automaticActive||['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state)){setConfirmDiscard(true);return;}close();},[automaticActive,close,status.state]);
+  useOwnedDialog({active:isOpen,dialogRef,onClose:requestClose});
+  useEffect(()=>{if(confirmDiscard)resumeRef.current?.focus();},[confirmDiscard]);
+  useEffect(()=>{if(!isOpen){applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;setApplying(false);setAutomaticActive(false);void dispose();void stopPreview();return;}const generation=++generationRef.current;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;takesRef.current=[];setTakes([]);setStatus({state:'idle'});setError('');setFeedback('');setResolution('');setApplying(false);setAutomaticActive(false);setConfirmDiscard(false);setGuidedStep('connect');setCommittedCount(0);setGuidedAudioVersion(0);
+    const refresh=()=>{void navigator.mediaDevices?.enumerateDevices?.().then(items=>{if(generation===generationRef.current)setDevices(items.filter(item=>item.kind==='audioinput').map((item,index)=>({deviceId:item.deviceId,label:item.label||'Input '+(index+1)})));}).catch(()=>{if(generation===generationRef.current)setDevices([]);});};
+    refresh();navigator.mediaDevices?.addEventListener?.('devicechange',refresh);
+    return()=>{generationRef.current+=1;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;navigator.mediaDevices?.removeEventListener?.('devicechange',refresh);void dispose();void stopPreview();};},[dispose,isOpen,stopPreview]);
+  useEffect(()=>{const receipt=state.recordingCommitResult;if(!operationRef.current||receipt?.operationId!==operationRef.current)return;operationRef.current=undefined;setApplying(false);
+    if(receipt.status==='rejected'){setError(receipt.error||'The project changed. No takes were added.');return;}
+    const appliedIds=new Set(receipt.appliedIds||[]);updateTakes(current=>current.filter(take=>!appliedIds.has(take.id)));
+    const appliedCount=receipt.appliedIds?.length||0,overflow=receipt.overflowCount||0,retained=receipt.retainedIds?.length||0;
+    setFeedback(`${appliedCount} take${appliedCount===1?'':'s'} added${instrument==='drum'&&overflow?`; ${overflow} kept unassigned`:''}${retained?`; ${retained} retained in review`:''}.`);
+    if(guidedIntentRef.current&&appliedCount>0){setCommittedCount(count=>count+appliedCount);const remaining=takesRef.current.filter(take=>!appliedIds.has(take.id));setGuidedStep(remaining.length?'review':'finish');}
+  },[instrument,state.recordingCommitResult,updateTakes]);
+  const usage=useCallback(()=>({count:takesRef.current.length,bytes:checkBytesRef.current+takesRef.current.reduce((sum,take)=>{const pcm=take.frames*take.channels*4;return sum+pcm+24+pcm;},0)}),[]);
+  const makeSession=(generation:number)=>new CaptureSession({mediaDevices:navigator.mediaDevices,workletUrl:captureWorkletUrl,
+    createContext:rate=>new AudioContext(rate?{sampleRate:rate}:undefined),createWorkletNode:(context,options)=>new AudioWorkletNode(context,'op-patchstudio-capture',options),
+    capture:{mode,thresholdDb,hysteresisDb,preRollSeconds:preRoll,silenceSeconds:silenceStop,rearmSeconds:.25,maxSeconds:durationLimit},getRetainedUsage:usage,
+    onStatus:value=>{if(generation===generationRef.current)setStatus(value);},onError:value=>{if(generation===generationRef.current)setError(value);},onTake:async take=>{if(generation!==generationRef.current)throw new DOMException('Recording closed','AbortError');const existing=takesRef.current;if(existing.length>=32)throw new Error('The review tray is full.');
+      let rootNote=60;
+      if(instrument==='multisample'){
+        const explicitRoot=target.kind==='multisample'&&target.rootNote!==undefined&&existing.length===0?target.rootNote:undefined,start=target.kind==='multisample'?(target.rootNote??60):60;
+        const proposed=explicitRoot??proposeUnusedRootNotes(stateRef.current.multisampleFiles,1,start,existing.map(item=>item.rootNote))[0];
+        if(proposed===undefined)throw new Error('All MIDI root notes are already reserved. Remove or apply a reviewed take before recording another.');rootNote=proposed;
       }
-    } catch (err) {
-      console.error('Error getting audio devices:', err);
-      setError('failed to access audio devices. please check permissions.');
-      // Set a default device even if we can't enumerate
-      setDevices([{ deviceId: 'default', label: 'default microphone' }]);
-      setSelectedDeviceId('default');
-    }
-  }, []);
-
-  // Initialize when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      resetRecording();
-      getAudioDevices();
-    } else {
-      cleanup();
-    }
-  }, [isOpen, getAudioDevices]);
-
-  // Generate default filename when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      const now = new Date();
-      const dateStr = now.getFullYear().toString() + 
-                     (now.getMonth() + 1).toString().padStart(2, '0') + 
-                     now.getDate().toString().padStart(2, '0');
-      const timeStr = now.getHours().toString().padStart(2, '0') + 
-                     now.getMinutes().toString().padStart(2, '0') + 
-                     now.getSeconds().toString().padStart(2, '0');
-      setFilename(`rec-sample-${dateStr}-${timeStr}-note`);
-    }
-  }, [isOpen]);
-
-  const cleanup = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current = null;
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
-  };
-
-  const resetRecording = () => {
-    setIsRecording(false);
-    setIsPlaying(false);
-    setRecordingTime(0);
-    setRecordedBuffer(null);
-    setError('');
-    audioChunksRef.current = [];
-    cleanup();
-  };
-
-  const startRecording = async () => {
-    try {
-      setError('');
-      console.log('Starting recording with device:', selectedDeviceId);
-      
-      // Request microphone access with selected device
-      const constraints: MediaStreamConstraints = {
-        audio: selectedDeviceId && selectedDeviceId !== 'default' 
-          ? { deviceId: { exact: selectedDeviceId } } 
-          : true
-      };
-      
-      streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      // Set up MediaRecorder
-      const options: MediaRecorderOptions = {};
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        options.mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-        options.mimeType = 'audio/webm';
-      }
-      
-      mediaRecorderRef.current = new MediaRecorder(streamRef.current, options);
-      
-      audioChunksRef.current = [];
-      
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { 
-          type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
-        });
-        await processRecordedAudio(audioBlob);
-      };
-      
-      // Set up real-time waveform visualization
-      setupWaveformVisualization();
-      
-      // Start recording
-      mediaRecorderRef.current.start(100);
-      setIsRecording(true);
-      
-      // Start timer
-      const startTime = Date.now();
-      timerRef.current = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        setRecordingTime(elapsed);
-        
-        // Auto-stop at max duration
-        if (elapsed >= maxDuration) {
-          stopRecording();
-        }
-      }, 100);
-      
-    } catch (err) {
-      console.error('Error starting recording:', err);
-      setError('failed to start recording. please check microphone permissions.');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-    }
-  };
-
-  const setupWaveformVisualization = () => {
-    if (!streamRef.current || !canvasRef.current) return;
-    
-    audioContextRef.current = new AudioContext();
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
-    source.connect(analyserRef.current);
-    
-    analyserRef.current.fftSize = 2048;
-    const bufferLength = analyserRef.current.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    
-    const draw = () => {
-      if (!analyserRef.current || !canvasRef.current) return;
-      
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      analyserRef.current.getByteTimeDomainData(dataArray);
-      
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = isRecording ? '#333' : '#666';
-      ctx.beginPath();
-      
-      const sliceWidth = canvas.width / bufferLength;
-      let x = 0;
-      
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * canvas.height / 2;
-        
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-        
-        x += sliceWidth;
-      }
-      
-      ctx.stroke();
-      
-      if (isRecording) {
-        animationRef.current = requestAnimationFrame(draw);
-      }
-    };
-    
-    draw();
-  };
-
-  const processRecordedAudio = async (audioBlob: Blob) => {
-    try {
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioContext = new AudioContext();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      setRecordedBuffer(audioBuffer);
-      
-      // Draw final waveform with high quality rendering
-      drawHighQualityWaveform(audioBuffer);
-    } catch (err) {
-      console.error('Error processing recorded audio:', err);
-      setError('failed to process recorded audio.');
-    }
-  };
-
-
-
-  const drawHighQualityWaveform = (audioBuffer: AudioBuffer) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const width = canvas.width;
-    const height = canvas.height;
-    const data = audioBuffer.getChannelData(0);
-    
-    // Clear canvas with background
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Use the same waveform rendering approach as WaveformEditor
-    const step = Math.ceil(data.length / width);
-    const amp = height / 2;
-    
-    ctx.fillStyle = '#333333';
-    ctx.beginPath();
-    
-    for (let i = 0; i < width; i++) {
-      let min = 1.0;
-      let max = -1.0;
-      
-      for (let j = 0; j < step; j++) {
-        const datum = data[(i * step) + j];
-        if (datum < min) min = datum;
-        if (datum > max) max = datum;
-      }
-      
-      // Draw a vertical line from min to max for each pixel column
-      ctx.rect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
-    }
-    
-    ctx.fill();
-  };
-
-  const playRecording = async () => {
-    if (!recordedBuffer) return;
-    
-    try {
-      const audioContext = new AudioContext();
-      const source = audioContext.createBufferSource();
-      source.buffer = recordedBuffer;
-      source.connect(audioContext.destination);
-      
-      setIsPlaying(true);
-      source.start();
-      
-      source.onended = () => {
-        setIsPlaying(false);
-      };
-      
-      // Auto-stop after duration
-      setTimeout(() => {
-        setIsPlaying(false);
-      }, recordedBuffer.duration * 1000);
-      
-    } catch (err) {
-      console.error('Error playing recording:', err);
-      setError('failed to play recording.');
-    }
-  };
-
-  const handleSave = () => {
-    if (recordedBuffer) {
-      onSave(recordedBuffer, filename);
-      onClose();
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        fontFamily: '"Montserrat", "Arial", sans-serif'
-      }}
-      onClick={onClose}
-    >
-      <div 
-        style={{
-          backgroundColor: '#fff',
-          borderRadius: '6px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-          maxWidth: '500px',
-          width: '90%',
-          margin: '0 1rem',
-          overflow: 'hidden'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{
-          padding: '1.5rem 1.5rem 1rem 1.5rem',
-          borderBottom: '1px solid #f0f0f0'
-        }}>
-          <h3 style={{
-            margin: '0',
-            fontSize: '1.25rem',
-            fontWeight: '300',
-            color: '#222',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            <i className="fas fa-microphone" style={{
-              color: 'var(--color-accent-primary)',
-              fontSize: '1.25rem'
-            }}></i>
-            record sample
-          </h3>
-        </div>
-
-        {/* Content */}
-        <div style={{
-          padding: '1.5rem',
-          color: '#555',
-          fontSize: '0.95rem',
-          lineHeight: '1.5'
-        }}>
-          {/* Input Device Selection */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '0.5rem', 
-              fontSize: '0.9rem',
-              color: '#333',
-              fontWeight: '500'
-            }}>
-              input device
-            </label>
-            <select
-              value={selectedDeviceId}
-              onChange={(e) => setSelectedDeviceId(e.target.value)}
-              disabled={isRecording}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '3px',
-                fontSize: '0.9rem',
-                backgroundColor: '#fff',
-                color: '#333'
-              }}
-            >
-              {devices.length === 0 ? (
-                <option value="">loading devices...</option>
-              ) : (
-                devices.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          {/* Filename Input */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '0.5rem', 
-              fontSize: '0.9rem',
-              color: '#333',
-              fontWeight: '500'
-            }}>
-              filename
-            </label>
-            <input
-              type="text"
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              disabled={isRecording}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '3px',
-                fontSize: '0.9rem',
-                backgroundColor: '#fff',
-                color: '#333',
-                boxSizing: 'border-box'
-              }}
-              placeholder="enter filename for the recording"
-            />
-          </div>
-
-          {/* Recording Status */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '1rem',
-            padding: '1rem',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '3px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {isRecording && (
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  backgroundColor: 'var(--color-accent-primary)',
-                  borderRadius: '50%',
-                  animation: 'pulse 1s infinite'
-                }} />
-              )}
-              <span style={{ fontSize: '1.1rem', color: isRecording ? 'var(--color-accent-primary)' : '#333' }}>
-                {isRecording ? 'recording...' : recordedBuffer ? 'recording complete' : 'ready to record'}
-              </span>
-            </div>
-            <div style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: 'bold', 
-              color: isRecording ? 'var(--color-accent-primary)' : '#333',
-              animation: isRecording ? 'pulse 1s infinite' : 'none',
-              minWidth: '60px',
-              textAlign: 'right',
-              paddingRight: '8px'
-            }}>
-              {formatTime(recordingTime)}
-            </div>
-          </div>
-
-          {/* Recording Controls */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '0.75rem', 
-            justifyContent: 'center',
-            marginBottom: '0.5rem'
-          }}>
-            {!isRecording && !recordedBuffer && (
-              <button
-                onClick={startRecording}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  border: 'none',
-                  borderRadius: '3px',
-                  backgroundColor: 'var(--color-accent-primary)',
-                  color: '#fff',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-accent-primary)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-accent-primary)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <i className="fas fa-microphone" style={{ color: '#fff' }}></i>
-                start recording
-              </button>
-            )}
-            
-            {isRecording && (
-              <button
-                onClick={stopRecording}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '3px',
-                  backgroundColor: '#fff',
-                  color: '#6b7280',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f9fafb';
-                  e.currentTarget.style.borderColor = '#9ca3af';
-                  e.currentTarget.style.color = '#374151';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fff';
-                  e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.color = '#6b7280';
-                }}
-              >
-                <i className="fas fa-stop"></i>
-                stop recording
-              </button>
-            )}
-            
-            {recordedBuffer && (
-              <>
-                <button
-                  onClick={playRecording}
-                  disabled={isPlaying}
-                  style={{
-                    padding: '0.625rem 1.25rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '3px',
-                    backgroundColor: '#fff',
-                    color: isPlaying ? '#9ca3af' : '#6b7280',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: isPlaying ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    opacity: isPlaying ? 0.6 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isPlaying) {
-                      e.currentTarget.style.backgroundColor = '#f9fafb';
-                      e.currentTarget.style.borderColor = '#9ca3af';
-                      e.currentTarget.style.color = '#374151';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isPlaying) {
-                      e.currentTarget.style.backgroundColor = '#fff';
-                      e.currentTarget.style.borderColor = '#d1d5db';
-                      e.currentTarget.style.color = '#6b7280';
-                    }
-                  }}
-                >
-                  <i className={`fas fa-${isPlaying ? 'pause' : 'play'}`}></i>
-                  {isPlaying ? 'playing...' : 'play'}
-                </button>
-                <button
-                  onClick={resetRecording}
-                  style={{
-                    padding: '0.625rem 1.25rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '3px',
-                    backgroundColor: '#fff',
-                    color: '#6b7280',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                    e.currentTarget.style.borderColor = '#9ca3af';
-                    e.currentTarget.style.color = '#374151';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#fff';
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                    e.currentTarget.style.color = '#6b7280';
-                  }}
-                >
-                  <i className="fas fa-redo"></i>
-                  retake
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Maximum Recording Time Info */}
-          {!isRecording && !recordedBuffer && (
-            <div style={{ 
-              fontSize: '0.8rem', 
-              color: '#666',
-              textAlign: 'center',
-              marginBottom: '1.5rem'
-            }}>
-              maximum recording time: {maxDuration}s
-            </div>
-          )}
-
-          {/* Waveform Display */}
-          <div style={{ marginBottom: '1rem' }}>
-            <canvas
-              ref={canvasRef}
-              width={400}
-              height={80}
-              style={{
-                width: '100%',
-                height: '80px',
-                border: '1px solid #e0e0e0',
-                borderRadius: '3px',
-                backgroundColor: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f5f5f5',
-              border: '1px solid #ccc',
-              borderRadius: '3px',
-              color: '#333',
-              fontSize: '0.9rem',
-              marginBottom: '1rem'
-            }}>
-              {error}
-            </div>
-          )}
-
-
-        </div>
-
-        {/* Actions */}
-        <div style={{
-          padding: '1rem 1.5rem 1.5rem 1.5rem',
-          display: 'flex',
-          gap: '0.75rem',
-          justifyContent: 'flex-end'
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.625rem 1.25rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '3px',
-              backgroundColor: '#fff',
-              color: '#6b7280',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              fontFamily: 'inherit',
-              minWidth: '80px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb';
-              e.currentTarget.style.borderColor = '#9ca3af';
-              e.currentTarget.style.color = '#374151';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#fff';
-              e.currentTarget.style.borderColor = '#d1d5db';
-              e.currentTarget.style.color = '#6b7280';
-            }}
-          >
-            cancel
-          </button>
-          {recordedBuffer && (
-            <button
-              onClick={handleSave}
-              style={{
-                padding: '0.625rem 1.25rem',
-                border: 'none',
-                borderRadius: '3px',
-                backgroundColor: '#333',
-                color: '#fff',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontFamily: 'inherit',
-                minWidth: '80px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#555';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#333';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              save
-            </button>
-          )}
-        </div>
+      if(generation===generationRef.current)updateTakes(current=>[...current,{...take,name:'Take '+(current.length+1),selected:true,rootNote,warnings:[]}]);}});
+  const makeAutomaticCapture=useCallback((callbacks:AutoCaptureCallbacks)=>{const generation=generationRef.current;return new CaptureSession({mediaDevices:navigator.mediaDevices,workletUrl:captureWorkletUrl,
+    createContext:rate=>new AudioContext(rate?{sampleRate:rate}:undefined),createWorkletNode:(context,options)=>new AudioWorkletNode(context,'op-patchstudio-capture',options),
+    capture:{mode:'manual',preRollSeconds:0,maxSeconds:20},getRetainedUsage:usage,onStatus:value=>{callbacks.onStatus(value);if(generation===generationRef.current)setStatus(value);},onError:value=>{callbacks.onError(value);if(generation===generationRef.current)setError(value);},onTake:callbacks.onTake});},[usage]);
+  const retainAutomaticTake=useCallback((result:AutoSampleResult,replaceRoot:boolean)=>{if(generationRef.current<1)return;updateTakes(current=>{const review:ReviewTake={...result.take,name:`MIDI ${result.rootNote}`,rootNote:result.rootNote,selected:result.selected,warnings:result.warnings};if(replaceRoot){const existing=current.findIndex(take=>take.rootNote===result.rootNote);if(existing>=0){const next=[...current];next[existing]=review;return next;}}return[...current,review];});},[updateTakes]);
+  const enable=async()=>{if(!supported){setError('Recording requires a supported browser on HTTPS; import an audio file instead.');return;}const generation=generationRef.current;setError('');await stopPreview();if(generation!==generationRef.current)return;await dispose();if(generation!==generationRef.current)return;
+    const session=makeSession(generation);sessionRef.current=session;const enabled=await session.enableInput(deviceId);if(generation!==generationRef.current){await session.dispose();if(sessionRef.current===session)sessionRef.current=undefined;return;}if(enabled){const found=await session.enumerateInputs();if(generation===generationRef.current&&found.length)setDevices(found);}};
+  const start=async(kind:'start'|'arm')=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(!sessionRef.current)await enable();if(generation!==generationRef.current)return;try{if(kind==='arm')sessionRef.current?.arm();else sessionRef.current?.start();}catch(reason){setError(reason instanceof Error?reason.message:'Recording could not start.');}};
+  const stop=async()=>{const owned=sessionRef.current;if(!owned)return;await owned.stop();if(sessionRef.current===owned)sessionRef.current=undefined;};
+  const auditionBuffer=async(audioBuffer:AudioBuffer,id:string)=>{const generation=generationRef.current,previewGeneration=++previewGenerationRef.current;setPreviewActive(true);await releasePreview(false);if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;if(sessionRef.current&&['armed','recording','waiting-for-quiet'].includes(sessionRef.current.status.state))await stop();if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;
+    const context=new AudioContext();pendingPreviewContextsRef.current.add(context);
+    try{await context.resume();pendingPreviewContextsRef.current.delete(context);if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current){await context.close().catch(()=>undefined);return;}const source=context.createBufferSource();source.buffer=audioBuffer;source.connect(context.destination);const owned={context,source,id};previewRef.current=owned;source.onended=()=>{if(previewRef.current!==owned)return;previewRef.current=undefined;source.onended=null;source.disconnect();setPreviewActive(false);void context.close().catch(()=>undefined);};source.start();}catch(reason){pendingPreviewContextsRef.current.delete(context);await context.close().catch(()=>undefined);if(generation===generationRef.current&&previewGeneration===previewGenerationRef.current)setError(reason instanceof Error?reason.message:'Preview could not start.');setPreviewActive(!!previewRef.current||pendingPreviewContextsRef.current.size>0);}};
+  const audition=(take:ReviewTake)=>auditionBuffer(take.audioBuffer,take.id);
+  const apply=async()=>{if(automaticActive)return;if(occupied&&!resolution){setError('Choose how to resolve the occupied recording target.');return;}if(resolution==='cancel')return;const generation=generationRef.current,applyGeneration=++applyGenerationRef.current;applyAbortRef.current?.abort();const controller=new AbortController();applyAbortRef.current=controller;setApplying(true);await stopPreview();if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;await stop();if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;const selected=takesRef.current.filter(take=>take.selected);if(!selected.length){if(applyGeneration===applyGenerationRef.current){applyAbortRef.current=undefined;setApplying(false);}return;}
+    const effective:RecordingTarget=target.kind==='drum'?(resolution==='choose-empty'?{kind:'drum',decision:'choose-empty'}:{...target,decision:resolution==='replace'?'replace':target.decision}):{...target,decision:resolution==='replace'?'replace':resolution==='choose-free'?'choose-free':target.decision};
+    setError('');try{const prepared=await prepareRecordingApplication({instrument,takes:selected.map((take,index)=>({id:take.id,name:take.name,audioBuffer:take.audioBuffer,rootNote:effective.kind==='multisample'&&effective.decision==='replace'&&index===0&&effective.rootNote!==undefined?effective.rootNote:take.rootNote})),state:stateRef.current,target:effective,signal:controller.signal});
+      if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;applyAbortRef.current=undefined;const operationId=crypto.randomUUID();operationRef.current=operationId;dispatch({type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId,prepared}});
+    }catch(reason){if(generation===generationRef.current&&applyGeneration===applyGenerationRef.current){applyAbortRef.current=undefined;setApplying(false);setError(reason instanceof Error?reason.message:'Takes could not be prepared.');}}};
+  if(!isOpen)return null;
+  const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current,used=usage(),guided=instrument==='multisample'&&!!guidedIntent;
+  return <div onMouseDown={event=>{if(event.target===event.currentTarget)requestClose();}} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',display:'grid',placeItems:'center',padding:16}}>
+    <section ref={dialogRef} data-recording-modal="true" role="dialog" aria-modal="true" aria-labelledby="record-takes-title" tabIndex={-1} style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',overflow:'auto',padding:20,borderRadius:8}}>
+      <div style={{display:'flex',justifyContent:'space-between',gap:8}}><h2 id="record-takes-title">Record takes</h2><div style={{display:'flex',gap:8}}><button type="button" onClick={event=>{event.currentTarget.focus();window.dispatchEvent(new CustomEvent('opstudio-open-help',{detail:'capture'}));}} style={button}>Recording help</button><button aria-label="Close" onClick={requestClose} style={button}>Close</button></div></div>
+      {confirmDiscard&&<div role="alertdialog" aria-label="Discard recording work" style={{...box,marginBottom:12,borderColor:'var(--studio-warning)'}}><strong>Discard recording work?</strong><p>Recording will stop and any takes still in review will be lost. Added takes stay in the project.</p><div style={{display:'flex',gap:8}}><button ref={resumeRef} type="button" onClick={()=>setConfirmDiscard(false)} style={button}>Resume recording</button><button type="button" onClick={close} style={button}>Stop and discard</button></div></div>}
+      {guided&&<><p>Guided {guidedIntent.source} instrument capture</p><nav className="studio-guided-steps" aria-label="Automatic multisampling steps">{(['connect','capture','review','finish'] as GuidedSamplingStep[]).map((step,index)=><span key={step} aria-current={guidedStep===step?'step':undefined} data-complete={(step==='connect'&&guidedStep!=='connect')||(step==='capture'&&(guidedStep==='review'||guidedStep==='finish'))||(step==='review'&&guidedStep==='finish')}>{index+1}. {step==='connect'?'Connect and check':step==='capture'?'Capture range':step==='review'?'Review':'Finish'}</span>)}</nav></>}
+      {!guided&&<p>Browser-delivered mono/stereo PCM. Input processing is requested off; actual settings appear after permission. Maximum take: {durationLimit} seconds.</p>}
+      {!supported&&<p role="alert">Recording requires a supported browser on HTTPS; import an audio file instead.</p>}
+      <div hidden={guided} style={{...box,display:guided?'none':'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:10}}>
+        <label>Input device<select aria-label="Input device" value={deviceId} disabled={configured||automaticActive} onChange={e=>{setDeviceId(e.target.value);setAudioSelectionVersion(value=>value+1);}} style={{...button,width:'100%'}}><option value="">Default input</option>{devices.map(device=><option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}</select></label>
+        <label>Capture mode<select data-initial-focus={!guided?'true':undefined} aria-label="Capture mode" value={mode} disabled={configured||automaticActive} onChange={e=>setMode(e.target.value as 'manual'|'sound')} style={{...button,width:'100%'}}><option value="manual">Manual</option><option value="sound">Sound triggered</option></select></label>
+        <Numeric label="Maximum take length" value={durationLimit} min={1} max={20} step={1} disabled={configured||automaticActive} set={setDurationLimit}/>
+        {mode==='sound'&&<><Numeric label="Trigger threshold" value={thresholdDb} min={-72} max={-6} step={1} disabled={configured||automaticActive} set={setThresholdDb}/><Numeric label="Trigger hysteresis" value={hysteresisDb} min={3} max={24} step={1} disabled={configured||automaticActive} set={setHysteresisDb}/><Numeric label="Pre-roll" value={preRoll} min={0} max={2} step={.05} disabled={configured||automaticActive} set={setPreRoll}/><Numeric label="Silence stop" value={silenceStop} min={.1} max={5} step={.1} disabled={configured||automaticActive} set={setSilenceStop}/></>}
       </div>
+      {!guided&&<><p aria-live="polite"><strong>State:</strong> {status.state}. {status.sampleRate?status.sampleRate+' Hz, '+(status.channels||'unknown')+' channels. '+(status.settingsReported?'Input rate reported by the browser. ':'Input rate was not reported; capture context rate shown. '):''}Level {Math.round(Math.max(0,...(status.peaks||[0]))*100)}%. Take time {((status.elapsedFrames||0)/(status.sampleRate||1)).toFixed(2)} s.</p>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>void enable()} disabled={!supported||active||automaticActive} style={button}>Enable input</button><button onClick={()=>void start('start')} disabled={automaticActive||mode!=='manual'||status.state==='recording'} style={button}>Start recording</button><button onClick={()=>void start('arm')} disabled={automaticActive||mode!=='sound'||active} style={button}>Arm sound trigger</button><button onClick={()=>void stop()} disabled={!sessionRef.current||automaticActive} style={button}>Stop recording</button><button onClick={()=>void stopPreview()} disabled={!previewActive||automaticActive} style={button}>Stop preview</button></div></>}
+      {instrument==='multisample'&&<AutoSamplingPanel initialFocus={guided} audioDeviceId={deviceId} audioDevices={devices} audioSelectionVersion={audioSelectionVersion+guidedAudioVersion} onAudioDeviceChange={setDeviceId} onExplicitAudioDeviceChange={id=>{setDeviceId(id);setGuidedAudioVersion(value=>value+1);}} disabled={!supported||active||configured||applying} retainedCount={used.count} retainedBytes={used.bytes} existingRoots={[...state.multisampleFiles.map(file=>file.rootNote),...takes.map(take=>take.rootNote)]} createCapture={makeAutomaticCapture} onTake={retainAutomaticTake} onRunningChange={setAutomaticActive} guidedStep={guided?guidedStep:undefined} onGuidedStepChange={setGuidedStep} onCaptureReview={()=>setGuidedStep('review')} onAuditionCheck={buffer=>void auditionBuffer(buffer,'guided-check')} onStopAudition={stopPreview} onCheckBytesChange={setCheckBytes} previewActive={previewActive}/>}
+      {error&&<p role="alert">{error}</p>}{feedback&&<p role="status">{feedback}</p>}
+      <section hidden={guided&&guidedStep!=='review'} className={guided?'studio-guided-review':undefined}><div className="studio-tray-heading"><h3>Review tray</h3>{guided&&<button type="button" onClick={()=>void stopPreview()} disabled={!previewActive||automaticActive} style={button}>Stop preview</button>}</div><p>{takes.length}/{RECORDING_LIMITS.takes} takes · {Math.min(100,Math.round(used.bytes/RECORDING_LIMITS.ownedBytes*100))}% of 256 MiB</p>
+      {!takes.length?<p>No takes yet. The project changes only after Add selected takes.</p>:takes.map(take=><div key={take.id} role="group" aria-label={'Take '+take.name+' '+take.id} style={{...box,marginBottom:8,display:'flex',gap:8,alignItems:'end',flexWrap:'wrap'}}>
+        <label><input aria-label={'Select take '+take.id} type="checkbox" disabled={applying||automaticActive} checked={take.selected} onChange={e=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,selected:e.target.checked}:item))}/> Select</label>
+        <label>Name<input aria-label={'Name for take '+take.id} disabled={applying||automaticActive} value={take.name} onChange={e=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,name:e.target.value}:item))} style={button}/></label>
+        {instrument==='multisample'&&<Numeric label={'Root note for take '+take.id} value={take.rootNote} min={0} max={127} step={1} disabled={applying||automaticActive} set={value=>updateTakes(current=>current.map(item=>item.id===take.id?{...item,rootNote:value}:item))}/>}
+        <button aria-label={'Audition take '+take.id} disabled={applying||automaticActive} onClick={()=>void audition(take)} style={button}>Audition</button><button aria-label={'Remove take '+take.id} disabled={applying||automaticActive} onClick={()=>{void stopPreview();updateTakes(current=>current.filter(item=>item.id!==take.id));}} style={button}>Remove</button>{take.warnings?.map(warning=><span key={warning} role="alert">{warning} Retry this MIDI note before selecting it.</span>)}
+      </div>)}
+      {occupied&&<fieldset disabled={automaticActive||applying}><legend>Occupied target</legend><p>Replacement approval is bound to the current target sample.</p><label><input type="radio" name="resolution" onChange={()=>{setResolution('replace');if(target.kind==='multisample'&&target.rootNote!==undefined)updateTakes(current=>{const first=current.find(item=>item.selected);return first?current.map(take=>take.id===first.id?{...take,rootNote:target.rootNote!}:take):current;});}}/> Replace</label>{' '}<label><input type="radio" name="resolution" onChange={()=>{setResolution(target.kind==='drum'?'choose-empty':'choose-free');if(target.kind==='multisample'){updateTakes(current=>{const first=current.find(item=>item.selected);if(!first)return current;const reserved=current.filter(item=>item.id!==first.id).map(item=>item.rootNote),note=proposeUnusedRootNotes(stateRef.current.multisampleFiles,1,target.rootNote??60,reserved)[0];if(note===undefined){setError('All MIDI root notes are already reserved. Remove a reviewed take or choose Replace.');return current;}return current.map(take=>take.id===first.id?{...take,rootNote:note}:take);});}}}/> Choose {target.kind==='drum'?'empty pad':'free note'}</label>{' '}<label><input type="radio" name="resolution" onChange={()=>setResolution('cancel')}/> Cancel</label></fieldset>}
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14}}><button onClick={requestClose} style={button}>{guided?'Continue editing':'Cancel'}</button><button onClick={()=>void apply()} disabled={automaticActive||applying||!takes.some(take=>take.selected)||resolution==='cancel'} style={button}>{applying?'Preparing takes…':'Add selected takes'}</button></div></section>
+      {guided&&guidedStep==='finish'&&<section className="studio-guided-finish"><p className="studio-eyebrow">Capture committed</p><h3>{committedCount} take{committedCount===1?'':'s'} added to this multisample instrument</h3><p>Your project now contains the committed takes. Saving to the library and exporting an OP-XY preset remain separate actions.</p><div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={close}>Continue editing</button><button type="button" className="studio-button-secondary" onClick={()=>{close();requestAnimationFrame(()=>window.dispatchEvent(new Event('opstudio-save-library')));}}>Save to library</button><button type="button" className="studio-button-secondary" onClick={()=>{close();requestAnimationFrame(()=>window.dispatchEvent(new Event('opstudio-open-export')));}}>Review OP-XY export</button></div></section>}
+    </section></div>;
+}
 
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.3; }
-          100% { opacity: 1; }
-        }
-      `}</style>
-    </div>
-  );
-} 
+function Numeric({label,value,min,max,step,set,disabled=false}:{label:string;value:number;min:number;max:number;step:number;set:(value:number)=>void;disabled?:boolean}) {
+  return <label>{label}<input aria-label={label} type="number" value={value} min={min} max={max} step={step} disabled={disabled} onChange={event=>set(Number(event.target.value))} style={{...button,width:'100%',boxSizing:'border-box'}}/></label>;
+}
+export type {RecordingTarget};

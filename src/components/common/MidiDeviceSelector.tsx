@@ -51,7 +51,7 @@ interface MidiDeviceSelectorProps {
   onChannelChange?: (channel: number) => void;
 }
 
-export function MidiDeviceSelector({ 
+export function MidiDeviceSelector({
   className = '',
   showInputsOnly = false,
   showOutputsOnly = false,
@@ -65,7 +65,7 @@ export function MidiDeviceSelector({
       alert('WebMIDI is not supported in this browser. Please use Chrome, Edge, or another Chromium-based browser.');
       return;
     }
-    
+
     await initialize();
     // Force refresh devices after initialization to catch any immediate connections
     setTimeout(() => {
@@ -92,7 +92,7 @@ export function MidiDeviceSelector({
         border: '1px solid var(--color-border-light)',
         textAlign: 'center'
       }}>
-        <div style={{ 
+        <div style={{
           color: 'var(--color-text-secondary)',
           fontSize: '0.875rem'
         }}>
@@ -128,7 +128,7 @@ export function MidiDeviceSelector({
             color: 'var(--color-text-primary)',
             flexShrink: 0
           }}>
-            <i className="fas fa-music" style={{ fontSize: '0.75rem' }}></i>
+            <i aria-hidden="true" className="fas fa-music" style={{ fontSize: '0.75rem' }}></i>
             midi devices
           </div>
 
@@ -139,7 +139,7 @@ export function MidiDeviceSelector({
               disabled={state.isConnecting}
               style={{
                 background: 'var(--color-interactive-focus)',
-                color: 'var(--color-white)',
+                color: 'var(--studio-accent-text)',
                 border: 'none',
                 borderRadius: '6px',
                 padding: '0.5rem 1rem',
@@ -226,8 +226,8 @@ export function MidiDeviceSelector({
             <i className="fas fa-music" style={{ fontSize: '0.75rem' }}></i>
             midi devices
           </div>
-          
-          <MidiChannelSelector 
+
+          <MidiChannelSelector
             selectedChannel={selectedChannel}
             onChannelChange={(channel) => {
               setSelectedChannel(channel);
@@ -268,8 +268,8 @@ export function MidiDeviceSelector({
               if (!state.isConnecting) e.currentTarget.style.color = 'var(--color-text-secondary)';
             }}
           >
-            {state.isConnecting 
-              ? <i className="fas fa-spinner fa-spin"></i> 
+            {state.isConnecting
+              ? <i className="fas fa-spinner fa-spin"></i>
               : <i className="fas fa-sync-alt"></i>}
           </button>
         </div>
@@ -286,9 +286,9 @@ export function MidiDeviceSelector({
               no midi devices detected
             </div>
           ) : (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
               gap: '0.5rem',
               flexWrap: 'wrap'
             }}>
@@ -336,7 +336,7 @@ export function MidiDeviceSelector({
 // Compact device item component for single-row layout
 function CompactDeviceItem({ device }: { device: import('../../utils/midi').MidiDevice }) {
   const isConnected = device.state === 'connected';
-  
+
   return (
     <div style={{
       display: 'flex',
@@ -385,4 +385,4 @@ function CompactDeviceItem({ device }: { device: import('../../utils/midi').Midi
   );
 }
 
- 
+

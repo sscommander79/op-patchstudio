@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { InlineLoading } from '@carbon/react';
 import { useAppContext } from '../../context/AppContext';
 import { calculatePatchSize, formatFileSize, getPatchSizeWarning } from '../../utils/audio';
@@ -15,9 +15,10 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
 
 
   // Get relevant audio buffers and settings based on type
-  const audioBuffers = type === 'drum' 
+  const audioBuffers = useMemo(() => type === 'drum'
     ? state.drumSamples.filter(s => s && s.audioBuffer).map(s => s!.audioBuffer!)
-    : state.multisampleFiles.filter(f => f && f.audioBuffer).map(f => f!.audioBuffer!);
+    : state.multisampleFiles.filter(f => f && f.audioBuffer).map(f => f!.audioBuffer!),
+  [state.drumSamples, state.multisampleFiles, type]);
 
   const settings = type === 'drum' ? state.drumSettings : state.multisampleSettings;
 
@@ -46,7 +47,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
     };
 
     calculateSize();
-  }, [audioBuffers.length, settings.sampleRate, settings.bitDepth, settings.channels]);
+  }, [audioBuffers, settings.sampleRate, settings.bitDepth, settings.channels]);
 
   // Calculate percentage and get warning
   const maxSize = 8 * 1024 * 1024; // 8mb limit
@@ -58,24 +59,24 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
   // Always show the indicator, even with 0 samples
 
   return (
-    <div className={`preset-size-indicator ${className}`} style={{ 
+    <div className={`preset-size-indicator ${className}`} style={{
       marginBottom: '1rem',
       width: '100%' // Full width of its container (which is now 50%)
     }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: '0.5rem'
       }}>
-        <span style={{ 
-          fontSize: '0.9rem', 
+        <span style={{
+          fontSize: '0.9rem',
           fontWeight: '500',
           color: 'var(--color-text-primary)'
         }}>
           preset size estimate
         </span>
-        <span style={{ 
+        <span style={{
           fontSize: '0.9rem',
           color: 'var(--color-text-secondary)'
         }}>
@@ -88,7 +89,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
       </div>
 
       {/* Custom progress bar with fixed 8mb indicator */}
-      <div style={{ 
+      <div style={{
         marginBottom: '0.5rem',
         position: 'relative'
       }}>
@@ -109,7 +110,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
             borderRadius: '4px',
             transition: 'width 0.3s ease'
           }} />
-          
+
           {/* 8mb limit indicator line */}
           <div style={{
             position: 'absolute',
@@ -121,7 +122,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
             zIndex: 1
           }} />
         </div>
-        
+
         {/* Scale labels */}
         <div style={{
           display: 'flex',
@@ -132,10 +133,10 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
         }}>
           <span>0 mb</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <i 
-              className="fas fa-info-circle" 
-              style={{ 
-                fontSize: '0.6rem', 
+            <i
+              className="fas fa-info-circle"
+              style={{
+                fontSize: '0.6rem',
                 color: 'var(--color-text-info)',
                 cursor: 'help'
               }}

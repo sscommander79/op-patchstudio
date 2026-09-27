@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppContext, type DrumSample } from '../../context/AppContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { EnhancedWaveformEditor } from '../common/EnhancedWaveformEditor';
 import { Slider } from '@carbon/react';
 import React from 'react';
 import { WaveformZoomModal } from '../common/WaveformZoomModal';
+import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 
 interface DrumSampleSettingsModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface SampleSettings {
 export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSampleSettingsModalProps) {
   const { state, dispatch } = useAppContext();
   const { play, stopCurrentPlayback } = useAudioPlayer();
+  const dialogRef=useRef<HTMLDivElement>(null);
   const sample = state.drumSamples[sampleIndex];
   
   const [settings, setSettings] = useState<SampleSettings>({
@@ -53,7 +55,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
       
       // Set local marker state to actual sample marker positions
       const actualInPoint = sample.inPoint !== undefined ? sample.inPoint : 0;
-      const actualOutPoint = sample.outPoint !== undefined ? sample.outPoint : (sample.audioBuffer?.duration || 0);
+      const actualOutPoint = sample.outPoint !== undefined ? sample.outPoint : (sample.audioBuffer?.duration ?? 0);
       
       setLocalInPoint(actualInPoint);
       setLocalOutPoint(actualOutPoint);
@@ -77,12 +79,12 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
   // Use local marker state for sample index calculations
   const getInPointSampleIndex = () => {
     if (!sample?.audioBuffer) return 0;
-    return Math.floor(((localInPoint !== null ? localInPoint : sample.inPoint || 0) * sample.audioBuffer.sampleRate));
+    return Math.round(((localInPoint !== null ? localInPoint : sample.inPoint ?? 0) * sample.audioBuffer.sampleRate));
   };
 
   const getOutPointSampleIndex = () => {
     if (!sample?.audioBuffer) return 0;
-    return Math.floor(((localOutPoint !== null ? localOutPoint : sample.outPoint || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate));
+    return Math.round(((localOutPoint !== null ? localOutPoint : sample.outPoint ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate));
   };
 
   // Convert sample indices back to time values
@@ -187,6 +189,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
 
   // Add keyboard handler for 'p' key
   useDrumSampleSettingsKeyboard(isOpen, handlePlaySample, handleStopSample, settings.playmode);
+  useOwnedDialog({active:isOpen,dialogRef,onClose:handleCancel});
 
   if (!isOpen) return null;
 
@@ -225,6 +228,11 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
       }}
     >
       <div 
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drum-sample-options-title"
+        tabIndex={-1}
         className="drum-sample-settings-modal"
         style={{
           background: c.bg,
@@ -251,8 +259,8 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
           gap: '0.5rem',
           flexShrink: 0,
         }}>
-          <i className="fas fa-cog" style={{ color: c.textSecondary, fontSize: '1.25rem' }}></i>
-          <h3 style={{
+          <i aria-hidden="true" className="fas fa-cog" style={{ color: c.textSecondary, fontSize: '1.25rem' }}></i>
+          <h3 id="drum-sample-options-title" style={{
             margin: 0,
             fontSize: '1.1rem',
             fontWeight: 500,
@@ -299,7 +307,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                 minHeight: '44px',
               }}
               value={settings.playmode}
-              onChange={(e) => setSettings({ ...settings, playmode: e.target.value as any })}
+              onChange={(e) => setSettings({ ...settings, playmode: e.target.value as DrumSample['playmode'] })}
             >
               <option value="oneshot">oneshot - play whole sample</option>
               <option value="group">mute group - choke when another sample plays</option>
@@ -322,9 +330,9 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             <button
               type="button"
               style={{
-                background: c.textSecondary,
-                color: c.white,
-                border: 'none',
+                background: c.bgAlt,
+                color: c.text,
+                border: `1px solid ${c.border}`,
                 minWidth: '90px',
                 padding: '0.5rem',
                 borderRadius: '6px',
@@ -339,9 +347,9 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               }}
               onClick={() => setSettings({ ...settings, reverse: !settings.reverse })}
             >
-              <i
+                <i aria-hidden="true"
                 className="fa fa-play"
-                style={{ transform: settings.reverse ? 'scaleX(-1)' : '', color: c.white }}
+                style={{ transform: settings.reverse ? 'scaleX(-1)' : '', color: c.text }}
               ></i>
               <span style={{ marginLeft: '0.5rem', textTransform: 'lowercase' }}>{settings.reverse ? 'reverse' : 'forward'}</span>
             </button>
@@ -390,7 +398,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                 }}
                 onClick={() => setShowZoomModal(true)}
               >
-                <i className="fa fa-search-plus" />
+                <i aria-hidden="true" className="fa fa-search-plus" />
               </button>
               {state.drumSettings.autoZeroCrossing && (
                 <button
@@ -401,7 +409,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                     border: 'none',
                     borderRadius: '6px',
                     background: c.action,
-                    color: c.white,
+                    color: 'var(--studio-accent-text)',
                     fontSize: '0.9rem',
                     fontWeight: 500,
                     cursor: 'pointer',
@@ -412,7 +420,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                   }}
                   onClick={() => dispatch({ type: 'APPLY_ZERO_CROSSING_TO_DRUM_SAMPLE', payload: sampleIndex })}
                 >
-                  <i className="fas fa-wave-square" style={{ fontSize: '1rem' }}></i>
+                  <i aria-hidden="true" className="fas fa-wave-square" style={{ fontSize: '1rem' }}></i>
                   apply zero crossing
                 </button>
               )}
@@ -421,8 +429,11 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                   isOpen={showZoomModal}
                   onClose={() => setShowZoomModal(false)}
                   audioBuffer={sample.audioBuffer}
-                  initialInPoint={localInPoint !== null ? localInPoint : sample.inPoint || 0}
-                  initialOutPoint={localOutPoint !== null ? localOutPoint : sample.outPoint || (sample.audioBuffer.duration || 0)}
+                  initialInPoint={localInPoint !== null ? localInPoint : sample.inPoint ?? 0}
+                  initialOutPoint={localOutPoint !== null ? localOutPoint : sample.outPoint ?? sample.audioBuffer.duration}
+                  reverse={settings.reverse}
+                  playbackRate={2 ** (settings.transpose / 12)}
+                  gain={settings.gain}
                   onSave={(inPoint, outPoint) => {
                     setLocalInPoint(inPoint);
                     setLocalOutPoint(outPoint);
@@ -520,6 +531,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
           flexWrap: 'wrap',
         }}>
           <button
+            data-initial-focus="true"
             type="button"
             style={{
               padding: '0.625rem 1rem',
@@ -550,17 +562,17 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               e.currentTarget.style.color = c.textSecondary;
             }}
           >
-            <i className="fas fa-times" style={{ marginRight: '0.25rem' }}></i>
+            <i aria-hidden="true" className="fas fa-times" style={{ marginRight: '0.25rem' }}></i>
             cancel
           </button>
           <button
             type="button"
             style={{
               padding: '0.625rem 1rem',
-              border: 'none',
+              border: `1px solid ${c.border}`,
               borderRadius: '6px',
-              backgroundColor: c.text,
-              color: c.white,
+              backgroundColor: c.bgAlt,
+              color: c.text,
               fontSize: '0.875rem',
               fontWeight: '500',
               cursor: 'pointer',
@@ -592,12 +604,11 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               }
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = c.textSecondary;
               e.currentTarget.style.transform = 'translateY(-1px)';
               e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = c.text;
+              e.currentTarget.style.backgroundColor = c.bgAlt;
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = 'none';
               // Stop playback if mouse leaves button in gate mode
@@ -606,7 +617,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               }
             }}
           >
-            <i className="fa fa-play" style={{ marginRight: '0.25rem' }}></i>
+            <i aria-hidden="true" className="fa fa-play" style={{ marginRight: '0.25rem' }}></i>
             play (P)
           </button>
           <button
@@ -616,7 +627,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               border: 'none',
               borderRadius: '6px',
               backgroundColor: c.action,
-              color: c.white,
+              color: 'var(--studio-accent-text)',
               fontSize: '0.875rem',
               fontWeight: 500,
               cursor: 'pointer',
@@ -640,7 +651,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <i className="fa fa-save" style={{ marginRight: '0.25rem' }}></i>
+            <i aria-hidden="true" className="fa fa-save" style={{ marginRight: '0.25rem' }}></i>
             save
           </button>
         </div>
@@ -691,4 +702,4 @@ export function useDrumSampleSettingsKeyboard(isOpen: boolean, onPlay: () => voi
       }
     };
   }, [isOpen, onPlay, onStop, playmode]);
-} 
+}

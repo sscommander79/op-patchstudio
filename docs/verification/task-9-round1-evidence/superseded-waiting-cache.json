@@ -1,0 +1,23 @@
+{
+  "browser": "153.0.8010.12",
+  "generations": [
+    {
+      "waiting": "b",
+      "activeBuild": "A",
+      "caches": [
+        "op-patchstudio-v0.16.0-mtoh83dc-precache-v2-http://127.0.0.1:5188/",
+        "op-patchstudio-v0.16.0-mtoh83df-precache-v2-http://127.0.0.1:5188/"
+      ]
+    },
+    {
+      "waiting": "c",
+      "activeBuild": "A",
+      "caches": [
+        "op-patchstudio-v0.16.0-mtoh83dc-precache-v2-http://127.0.0.1:5188/",
+        "op-patchstudio-v0.16.0-mtoh83df-precache-v2-http://127.0.0.1:5188/",
+        "op-patchstudio-v0.16.0-mtohbjsg-precache-v2-http://127.0.0.1:5188/"
+      ]
+    }
+  ],
+  "status": "UNBOUNDED_SUPERSEDED_WAITING_CACHE_CONFIRMED"
+}

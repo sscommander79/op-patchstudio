@@ -1,0 +1,157 @@
+Task6 round3 uncommitted bounded diff.
+--- before/src/audio/recording/captureCore.ts
++++ after/src/audio/recording/captureCore.ts
+@@ -131,20 +131,27 @@
+     const supplied = replacement ?? Array.from({ length: this.options.channels }, () => new Float32Array(this.options.maxFrames));
+     if (supplied.length !== this.options.channels || supplied.some(channel => channel.length !== this.options.maxFrames)) {
+       throw new Error('Replacement take buffer has invalid dimensions');
+     }
+     this.active = supplied;
+     this.pendingTake = false;
+     if (this.state === 'waiting-for-quiet' && this.rearmQuietFrames >= this.options.rearmFrames) this.state = 'armed';
+   }
+ 
+   acknowledgeMeter() { this.meterOutstanding = false; }
++
++  invalidateMonitoringTimeline() {
++    if (this.state !== 'monitoring') throw new Error('Only idle monitoring can discard an input timeline');
++    this.expectedFrame = null;
++    this.ringWrite = 0;
++    this.ringLength = 0;
++  }
+ 
+   process(channels: readonly Float32Array[], firstFrame: number): CaptureProcessResult {
+     if (this.state === 'closed' || this.state === 'stopped' || this.state === 'error') return { takes: [], state: this.state };
+     if (channels.length !== this.options.channels || channels.some(channel => channel.length !== channels[0]?.length)) {
+       throw new Error('Capture channel dimensions changed');
+     }
+     if (!Number.isSafeInteger(firstFrame) || firstFrame < 0) throw new Error('Invalid capture frame');
+     if (this.expectedFrame !== null && firstFrame !== this.expectedFrame) throw new Error(`Capture frame discontinuity: expected ${this.expectedFrame}, received ${firstFrame}`);
+     const length = channels[0]?.length ?? 0;
+     if (length === 0) return { takes: [], state: this.state };
+--- before/src/audio/recording/captureProcessor.ts
++++ after/src/audio/recording/captureProcessor.ts
+@@ -31,21 +31,22 @@
+         } else if(event.data.type==='close'){this.core?.close();this.port.close();}
+       } catch(error){this.port.postMessage({type:'error',message:error instanceof Error?error.message:'Capture processor failed'});}
+     };
+   }
+ 
+   process(inputs:Float32Array[][],outputs:Float32Array[][]) {
+     for(const output of outputs)for(const channel of output)channel.fill(0);
+     const input=inputs[0];
+     if(!input?.length || !input[0]?.length){
+       this.missingFrames+=outputs[0]?.[0]?.length??128;
+-      const active=this.core&&this.core.state!=='monitoring'&&this.core.state!=='stopped';
++      const active=this.requested!=='monitoring'||!!this.core&&this.core.state!=='monitoring'&&this.core.state!=='stopped';
++      if(!active&&this.core?.state==='monitoring')this.core.invalidateMonitoringTimeline();
+       if(!this.failed&&(active||this.missingFrames>Math.round(sampleRate*.5))){this.failed=true;this.core?.close();this.port.postMessage({type:'error',message:active?'Audio input was interrupted during capture.':'The selected input produced no audio frames.'});}
+       return true;
+     }
+     this.missingFrames=0;
+     try {
+       if(!this.core){
+         // Some browsers omit channelCount settings. This one-time startup
+         // allocation discovers the delivered format; per-take completion never allocates.
+         this.core=new CaptureCore({...this.config,sampleRate,channels:input.length});
+         if(this.requested==='armed')this.core.arm(); else if(this.requested==='recording')this.core.startManual();
+--- before/src/test/audio/recording/captureProcessor.test.ts
++++ after/src/test/audio/recording/captureProcessor.test.ts
+@@ -3,20 +3,24 @@
+ interface Posted {message:Record<string,unknown>;transfer?:Transferable[]}
+ class FakePort {
+   onmessage:((event:MessageEvent<{type:string}>)=>void)|null=null;
+   posted:Posted[]=[];
+   postMessage(message:Record<string,unknown>,transfer?:Transferable[]){this.posted.push({message,transfer})}
+   close=vi.fn();
+ }
+ type ProcessorInstance={port:FakePort;process:(inputs:Float32Array[][],outputs:Float32Array[][])=>boolean};
+ type ProcessorConstructor=new(options?:{processorOptions?:Record<string,unknown>})=>ProcessorInstance;
+ let Registered:ProcessorConstructor;
++
++function setCurrentFrame(frame:number){Object.defineProperty(globalThis,'currentFrame',{value:frame,writable:true,configurable:true});}
++function processAt(processor:ProcessorInstance,frame:number,input:Float32Array[]){setCurrentFrame(frame);processor.process([input],[[new Float32Array(128)]]);}
++function errors(processor:ProcessorInstance){return processor.port.posted.filter(item=>item.message.type==='error').map(item=>item.message.message);}
+ 
+ async function loadProcessor(){
+   vi.resetModules();
+   class Base {port=new FakePort()}
+   Object.defineProperty(globalThis,'AudioWorkletProcessor',{value:Base,configurable:true});
+   Object.defineProperty(globalThis,'sampleRate',{value:48_000,configurable:true});
+   Object.defineProperty(globalThis,'currentFrame',{value:0,writable:true,configurable:true});
+   Object.defineProperty(globalThis,'registerProcessor',{value:(_name:string,ctor:ProcessorConstructor)=>{Registered=ctor},configurable:true});
+   await import('../../../audio/recording/captureProcessor');
+ }
+@@ -31,19 +35,72 @@
+     const errors=processor.port.posted.filter(item=>item.message.type==='error');expect(errors).toHaveLength(1);expect(errors[0].message.message).toMatch(/no audio frames/i);
+   });
+ 
+   it('aborts an active take on its first missing input quantum',()=>{
+     const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}});
+     processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
+     processor.process([[]],[[new Float32Array(128)]]);
+     expect(processor.port.posted.find(item=>item.message.type==='error')?.message.message).toMatch(/interrupted/i);
+   });
+ 
++  it('starts at the first recovered frame after an observed idle monitoring gap',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),valid=new Float32Array(128).fill(.25);
++    processAt(processor,0,[valid]);
++    for(const frame of [128,256,384,512])processAt(processor,frame,[]);
++    setCurrentFrame(640);processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);processAt(processor,640,[valid]);
++    processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
++    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {startFrame:number;frames:number}|undefined;
++    expect(errors(processor)).toEqual([]);expect(take).toMatchObject({startFrame:640,frames:128});
++  });
++
++  it('resumes pure monitoring after an observed gap and remains idle',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),quiet=new Float32Array(128).fill(.01);
++    processAt(processor,0,[quiet]);processAt(processor,128,[]);processAt(processor,640,[quiet]);processAt(processor,768,[quiet]);
++    expect(errors(processor)).toEqual([]);expect(processor.port.posted.filter(item=>item.message.type==='take')).toHaveLength(0);
++  });
++
++  it('still rejects an observed gap while armed',()=>{
++    const processor=new Registered({processorOptions:{mode:'sound',maxSeconds:1}});
++    processor.port.onmessage?.({data:{type:'arm'}} as MessageEvent<{type:string}>);processAt(processor,0,[]);
++    expect(errors(processor)).toEqual(['Audio input was interrupted during capture.']);
++  });
++
++  it('still rejects an observed gap while waiting for quiet',()=>{
++    const processor=new Registered({processorOptions:{mode:'sound',channels:1,maxSeconds:1,preRollSeconds:0,silenceSeconds:.1,thresholdDb:-20}}),trigger=new Float32Array(4_801);trigger[0]=.5;
++    processor.port.onmessage?.({data:{type:'arm'}} as MessageEvent<{type:string}>);processAt(processor,0,[trigger]);processAt(processor,4_801,[]);
++    expect(processor.port.posted.some(item=>item.message.type==='take')).toBe(true);expect(errors(processor)).toEqual(['Audio input was interrupted during capture.']);
++  });
++
++  it('still rejects an unseen frame jump with no observed empty callback',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),valid=new Float32Array(128);
++    processAt(processor,0,[valid]);processAt(processor,640,[valid]);
++    expect(errors(processor)).toEqual(['Capture frame discontinuity: expected 128, received 640']);
++  });
++
++  it('anchors Start before the first delivered input to that first frame',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),valid=new Float32Array(128).fill(.25);
++    setCurrentFrame(640);processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);processAt(processor,640,[valid]);processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
++    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {startFrame:number}|undefined;
++    expect(errors(processor)).toEqual([]);expect(take?.startFrame).toBe(640);
++  });
++
++  it('rejects an empty callback after Start before the format is known',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',maxSeconds:1}});
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);processAt(processor,0,[]);
++    expect(errors(processor)).toEqual(['Audio input was interrupted during capture.']);
++  });
++
++  it('stops cleanly during an observed idle monitoring gap',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),valid=new Float32Array(128);
++    processAt(processor,0,[valid]);processAt(processor,128,[]);setCurrentFrame(256);processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
++    expect(errors(processor)).toEqual([]);expect(processor.port.posted.filter(item=>item.message.type==='take')).toHaveLength(0);expect(processor.port.posted.at(-1)?.message.type).toBe('stopped');
++  });
++
+   it('hands off the full owned buffer before stopped without slicing in the audio callback',()=>{
+     const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),input=Float32Array.from({length:128},(_,index)=>index?Math.fround(index/256):0);
+     processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);processor.process([[input]],[[new Float32Array(128)]]);processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
+     const takeIndex=processor.port.posted.findIndex(item=>item.message.type==='take'),stoppedIndex=processor.port.posted.findIndex(item=>item.message.type==='stopped');
+     expect(takeIndex).toBeGreaterThanOrEqual(0);expect(stoppedIndex).toBeGreaterThan(takeIndex);
+     const take=processor.port.posted[takeIndex].message.take as {frames:number;channels:Float32Array[]};expect(take.frames).toBe(128);expect(take.channels[0].length).toBe(48_000);
+     expect(processor.port.posted[takeIndex].transfer).toEqual([take.channels[0].buffer]);
+   });
+ });

@@ -1,0 +1,2016 @@
+--- before/.gitignore
++++ after/.gitignore
+@@ -0,0 +1,31 @@
++# Logs
++logs
++*.log
++npm-debug.log*
++yarn-debug.log*
++yarn-error.log*
++pnpm-debug.log*
++lerna-debug.log*
++
++node_modules
++dist
++dist-ssr
++*.local
++
++# Editor directories and files
++.vscode/*
++!.vscode/extensions.json
++.idea
++.DS_Store
++*.suo
++*.ntvs*
++*.njsproj
++*.sln
++*.sw?
++
++coverage/*
++# Local browser verification artifacts
++.playwright-cli/
++playwright-report/
++test-results/
++.superpowers/
+--- before/BUGS.md
++++ after/BUGS.md
+@@ -0,0 +1,85 @@
++# OP-PatchStudio Bug Tracker
++
++Last updated: 2026-01-17
++
++> Historical upstream tracker snapshot. The statuses below describe the upstream project as of the date above and are not current acceptance results for this fork. See [`docs/verification/acceptance-matrix.md`](docs/verification/acceptance-matrix.md) for the current automated evidence and [`docs/verification/device-validation-checklist.md`](docs/verification/device-validation-checklist.md) for checks that still require browsers, assistive technology, listening, or physical devices.
++
++## Fixed - Pending User Confirmation
++
++### 1. Envelope/ADSR Settings Not Written to Preset
++- **Source**: GitHub #103, Feedback Form (7/27/2025)
++- **Status**: ✅ Fixed - Pending User Confirmation
++- **Description**: Amp envelope/ADSR settings configured in the UI don't get written to the downloaded preset file. Additionally, the Envelopes and Filters tab curves reset to default and don't respond to user input.
++- **Impact**: High - Users cannot configure envelopes, core feature broken
++- **Reproduction**: Touch any knob or curve point in Envelopes and Filters tab
++- **Fix**:
++  - Updated UI to persist envelope changes to preset format
++  - Added envelope settings application in patch generation
++  - Modified files: `MultisamplePresetSettings.tsx`, `patchGeneration.ts`
++
++### 2. Drum Tool Start Points Not Written to patch.json
++- **Source**: GitHub #101
++- **Status**: ✅ Fixed - Pending User Confirmation
++- **Description**: Start point settings for drum samples don't get written to the patch.json file
++- **Impact**: High - Sample playback won't respect configured start points on device
++- **Reproduction**: Set start points in drum tool, download preset, check patch.json
++- **Fix**:
++  - Updated patch generation to use inPoint/outPoint from state instead of hardcoded values
++  - Modified files: `patchGeneration.ts`
++
++### 3. Multisample Keyboard Mapping Broken
++- **Source**: Feedback Form (7/21/2025)
++- **Status**: ✅ Fixed - Pending User Confirmation
++- **Description**:
++  - Manually placing a sample on a keyboard note transposes it across all keys
++  - Previous placed samples get ignored/overwritten
++  - Batch import only applies the last (highest tone) sample across entire keyboard
++- **Impact**: Critical - Multisample tool essentially non-functional
++- **Reproduction**:
++  1. Place sample on C3
++  2. Place second sample on C4
++  3. C3 sample gets replaced/ignored
++- **Reporter**: via Forms
++- **Fix**:
++  - Added automatic MIDI note collision detection
++  - Samples now auto-assign to nearest available MIDI note when collision detected
++  - Modified files: `AppContext.tsx`
++
++## Open Bugs
++
++### 4. Drum Tool Keyboard Pinning Not Working on Mobile
++- **Source**: GitHub #43
++- **Status**: Open
++- **Description**: Keyboard pinning feature doesn't work on mobile devices
++- **Impact**: Medium - UX issue on mobile
++- **Platform**: Mobile only
++
++### 5. Can't Swipe Keyboard Octaves on Mobile
++- **Source**: GitHub #42
++- **Status**: Open
++- **Description**: Unable to swipe to change keyboard octaves on mobile devices
++- **Impact**: Medium - Navigation issue on mobile
++- **Platform**: Mobile only
++
++### 6. PWA Won't Load When Offline
++- **Source**: Feedback Form (11/10/2025)
++- **Status**: Open
++- **Description**: Chrome PWA just displays "You're offline" message and doesn't load the app when offline, despite being a PWA
++- **Impact**: Medium - Breaks offline-first promise of PWA
++- **Platform**: Chrome PWA
++- **Reporter**: via Forms
++
++### 7. Unable to Load Some OP-1 Drum Presets
++- **Source**: Feedback Form (7/19/2025)
++- **Status**: Open
++- **Description**: Error "import failed: the file does not appear to be a valid OP-1 drum preset" for files that work fine on actual OP-1 device
++- **Impact**: Medium - Import compatibility issue
++- **Reporter**: via Forms
++- **Note**: Need sample files to reproduce
++
++---
++
++## Notes
++- Focus on critical bugs affecting core preset generation first (#1, #2, #3)
++- Multisample keyboard mapping (#3) may be related to envelope issues (#1)
++- Need to request sample files from ... for issue #7
+--- before/CHANGELOG.md
++++ after/CHANGELOG.md
+@@ -0,0 +1,407 @@
++# changelog
++
++all notable changes to this project will be documented in this file.
++
++the format is based on [keep a changelog](https://keepachangelog.com/en/1.0.0/).
++
++## [Unreleased] - local 0.16.0 candidate
++
++### Added
++
++- Project toolbar with visible save state, retry, undo/redo, library save, versioned `.opstudio` backup and validated project reopen.
++- Non-destructive drum slicing, manual chop markers, overflow handling and retained source provenance.
++- Batch recording with input selection, manual or sound-triggered capture, pre-roll, stop conditions and take review.
++- Unified file/folder/drop intake with signature validation, reviewable assignments and bounded decode preparation.
++- Focus workspaces, generated demo kit, first-preset guide, export preflight, themes and keyboard help.
++- Prompted PWA updates with a sole-open-tab activation gate, deterministic offline cache validation, Chromium CI and scheduled/manual browser-matrix CI.
++
++### Changed
++
++- Library and recovery storage now preserve exact editable audio/settings with serialized atomic writes and actionable save status.
++- Export planning uses exact sample identities, frame bounds and settings; duplicate filenames no longer collide.
++- Startup Carbon CSS is selectively loaded and secondary pages are lazy-loaded.
++- Current supported dependency releases replace vulnerable or unused packages; the local candidate's production dependency audit reports no known advisories at this verification gate.
++- Public documentation now distinguishes device exports, editable backups, local storage, browser permissions and unperformed hardware checks.
++
++### Fixed
++
++- Patreon post content is rendered as plain text with validated Patreon HTTPS links; oversized responses are cancelled while streaming.
++- Stable public PWA assets retain content revisions, duplicate manifest/icon precache entries are rejected, and updates wait for per-tab user action instead of silently reloading another tab's editor.
++- Automatic MIDI permission is attempted once per document, with explicit retry retained, and drum-pad DOM identity remains stable through parent and pressed-state renders.
++- Feedback and Patreon panels show explicit network-unavailable states.
++- Test doubles now model native AudioBuffer copy and constructor behavior and no longer test mocked versions of the component under test.
++
++### Validation boundary
++
++- Completed local unit and production-build checks cover the fixtures recorded in `docs/verification`; browser and offline results remain pending in the Task 9 report. Human listening, assistive-technology sessions and physical OP-XY import/playback have not been performed for this local candidate.
++
++## [0.15.5] - 2025-09-22
++
++### fixed
++- fixed issue with file name parsing for note values
++
++### added
++- drum tool multi select samples (thanks ish!)
++- save for all button to waveform edit dialog (thanks ish!)
++
++## [0.15.4] - 2025-08-07
++
++### fixed
++- fixed issue with exported wave loop start was off by 1 frame
++
++## [0.15.3] - 2025-07-29
++
++### fixed
++- fixed issue with play looping in sample management table action button play
++
++## [0.15.2] - 2025-07-28
++
++### fixed
++- issue 81, fixed issue on firefox with loop release
++
++## [0.15.1] - 2025-07-28
++
++### fixed
++- fixed bug where adsr release phase was not working correctly when loop on release is enabled - now properly applies release envelope and stops after release time completes
++- improved loop on release implementation to continue playing from current position and only loop when reaching loop end, creating seamless playback
++
++## [0.15.0] - 2025-07-28
++
++### added
++- proper looping implemention
++
++### fixed
++- issue 79, bug with only playing selection in zoom and edit modal
++- while working on above, i noticed the adsr was broken. this was working so i had to fix this regression.
++- issue with adsr not being load from saved preset, issue with session restore persists - logged issue 82
++
++## [0.14.10] - 2025-07-27
++
++### fixed
++- issue 79 fixed issue with amp/filter env component
++
++## [0.14.9] - 2025-07-27
++
++### fixed
++- issue 77 fixed issue with drum tool aif export
++
++## [0.14.8] - 2025-07-25
++
++### fixed
++- issue 73 fixed some normalization bugs
++
++## [0.14.7] - 2025-07-23
++
++### added
++- added sustain preset to multisample adsr component
++
++## [0.14.6] - 2025-07-23
++
++### fixed
++- issue 59 drum tool OP-1 preset import issue
++
++## [0.14.5] - 2025-07-22
++
++### fixed
++- issue 66 drum tool tuning and transpose not working correctly
++- issue 65 drum tool export, missing gain and pan, tune, transpose not applying to patch.json
++- issue 63 incorrect sample assignment
++- issue 62 drum keyboard incorrect layout
++
++## [0.14.4] - 2025-07-22
++
++### changed
++- envelope tool in multisample adsr now defaults to 'keys' preset values instead of generating random values when empty
++
++### fixed
++- issue with multisample tool sample zone mapping that caused c4 samples to be incorrectly assigned to all lower notes
++- changed default adsr in multisample preset from 'random' to 'keys' in multisample tool for more consistent, musical starting point
++- preset name is now always reset to empty string on page reload while preserving other user preferences
++
++## [0.14.3] - 2025-07-19
++
++### fixed
++- fixed small regression with main tabs focus
++
++## [0.14.2] - 2025-07-19
++
++### fixed
++- fixed some duplicate page issues
++- additional accessibility for main tabs
++- css fixes
++
++## [0.14.1] - 2025-07-18
++
++### fixed
++- fixed some small ui issues
++
++## [0.14.0] - 2025-07-17
++
++### added
++- 12 and 8-bit export options
++- aiff file export
++
++### fixed
++- fixed clicks on loops
++
++## [0.13.3] - 2025-07-16
++
++### added
++- option to always try and snap markers to zero crossings on import
++
++### fixed
++- fixed -dbfs limiter being applied to samples on export
++
++## [0.13.2] - 2025-07-16
++
++### added
++- drag and drop support to drum sample management table
++
++### fixed
++- fixed loading of drum samples allowing more than 24 to be loaded
++
++## [0.13.1] - 2025-07-16
++
++### fixed
++- fixed aif metadata parsing issue causing incorrect loop points to be loaded
++
++## [0.13.0] - 2025-07-15
++
++### added
++- import OP-1 and OP-1 field drum presets (.preset.zip files) with automatic parsing and sample extraction
++- new op1DrumPresetParser utility for reading and parsing OP-1/OP-1 field preset files
++- support for importing existing drum presets to use as starting points for new patches
++
++### fixed
++- fixed advanced preset settings not saving to defaults in multisample tool
++- restored proper component styling and structure for multisample preset settings
++- fixed synchronization between local component state and global app state for preset settings
++
++## [0.12.1] - 2025-07-15
++
++### fixed
++- fixed bug in the declineSessionRestoration function
++
++## [0.12.0] - 2025-07-15
++
++### added
++- multisample and drum patch export now supports importing audio in multiple formats (mp3, ogg, flac, aif, wav, etc.)
++- all imported audio formats are automatically converted to wav on export, ensuring consistent patch compatibility
++
++### fixed
++- fixed an issue where original file extensions could be preserved in exports; all exported files now use the .wav extension
++
++### changed
++- improved test coverage for patch export logic to guarantee only wav files are included in exported patches
++
++## [0.11.1] - 2025-07-15
++
++### fixed
++- fixed: root note and loop points are now properly saved in output wav files for both drum and multisample tools
++- enhanced wav generation to include smpl chunks with metadata (root note, loop start/end points)
++- multisample wav files now include smpl metadata even when no audio conversion is needed
++- fixed multiple critical bugs: drum sample loading limit logic, unused parameters, regex escape characters, variable declarations, case statement scoping, react hook dependencies, typescript comments, and cleaned up all debugging console messages for production readiness
++
++## [0.11.0] - 2025-07-15
++
++### added
++- users can now save all patch settings (including adsr envelope, filter, and hidden/imported settings) as their personal defaults for both drum and multisample tools
++- default settings are now stored in cookies with a new structure that preserves both ui and imported preset data
++- new utility functions for saving/loading/clearing default settings, including support for advanced and hidden parameters
++- new test coverage for default settings logic and backward compatibility
++- version update script is now fully non-interactive and can be run in ci/cd
++
++### changed
++- default settings system now loads all saved parameters, including those not visible in the ui, on app startup
++- app context and tool components updated to support new default settings structure
++- changelog and version update workflow improved for automation
++
++### fixed
++- fixed: default settings now persist all advanced and imported parameters, not just visible ui fields
++- fixed: type errors and test coverage for new default settings logic
++
++## [0.10.1] - 2025-07-14
++
++### added
++- n/a
++
++### changed
++- n/a
++
++### fixed
++- improved desktop layout: reduced max-width from 1400px to 1000px to keep content more compact and proportional to drum tool keyboard size
++
++## [0.10.0] - 2025-07-14
++
++### added
++- file renaming feature for generated presets: users can now choose to rename all exported sample files with the preset name
++- filename separator options: choose between space ' ' or hyphen '-' for generated filenames
++- drum sample filenames now use short drum key labels (e.g., kd1, clp, tri) for OP-XY compatibility
++- ui controls for file renaming and separator selection, with responsive layout for desktop and mobile
++
++### changed
++- all generated filenames are now fully OP-XY compliant: only a-z, 0-9, space, #, -, (, ), and dot are allowed; underscores are no longer supported
++- all internal separators in preset names are normalized to the selected separator
++- improved layout and alignment of the "generate preset" section for better usability
++
++### fixed
++- type errors and test coverage for new file renaming logic and state
++- ensured all test mocks and state objects include new file renaming properties
++
++## [0.9.0] - 2025-07-13
++
++### changed
++- switched all audio normalization from rms to peak normalization for more consistent results
++- transparent limiter is now always applied by default to prevent clipping in all exported audio
++
++### fixed
++- prevented all possible output clipping by enforcing limiter in the audio processing pipeline
++
++## [0.8.0] - 2025-07-11
++
++### added
++- version number display in footer with link to changelog
++- changelog.md file for tracking changes
++- version management utility (`src/utils/version.ts`)
++- version management rule for consistent updates
++- dynamic version loading from manifest.json
++- comprehensive version update script for automated version management
++
++### changed
++- updated manifest.json to include version field
++- enhanced footer with version information
++
++### fixed
++- n/a
++
++## [0.7.0] - 2025-07-10
++
++### added
++- midi device integration with web midi api
++- adsr envelope controls for real-time parameter adjustment
++- configurable midi note mapping (c3=60 or c4=60)
++- real-time audio parameter adjustment while playing
++
++### changed
++- enhanced audio playback with new audio player system
++- improved midi keyboard interaction
++
++### fixed
++- double preset loading bug
++- mobile keyboard interaction issues
++- default midi channel configuration
++- midi mapping bugs
++
++## [0.6.0] - 2025-07-09
++
++### added
++- complete library system for preset management
++- bulk operations for drum samples (edit, clear)
++- preset saving and loading with indexeddb storage
++- library pagination and filtering
++- preset favorites and search functionality
++- preset download and export capabilities
++
++### changed
++- enhanced ui with improved tables and tooltips
++- better mobile experience with scrolling tabs
++- updated library page with comprehensive preset management
++
++### fixed
++- library saving and loading bugs
++- gain calculation issues
++- string.prototype.substr deprecation warnings
++
++## [0.5.0] - 2025-07-08
++
++### added
++- session restoration with 12-hour persistence
++- rms normalization for audio samples
++- cut at loop end functionality for multisample presets
++- load confirmation prompts for session safety
++
++### changed
++- enhanced session management with automatic restoration
++- updated preset generation with normalization support
++
++### fixed
++- restore session bugs
++- loop point calculation issues
++
++## [0.4.0] - 2025-07-07
++
++### added
++- pwa (progressive web app) support with offline functionality
++- feedback page for bug reports
++- loop point editing and management
++- mobile rotation overlay for better ux
++
++### changed
++- enhanced mobile experience with proper rotation handling
++- improved offline app installation prompts
++- better session persistence across browser sessions
++
++### fixed
++- pwa rotation issues
++- offline install prompt behavior
++
++## [0.3.0] - 2025-07-06
++
++### added
++- new audio player system with playmode support
++- enhanced preset export functionality
++- pre-commit hooks for testing and build validation
++- enhanced test coverage and build process
++
++### changed
++- improved audio processing pipeline
++- better preset generation workflow
++- updated build process with comprehensive testing
++- enhanced code quality with automated validation
++
++### fixed
++- preset export bugs
++- audio context management issues
++- recording modal bugs
++- typescript compilation errors
++- build process issues
++- test coverage reporting
++
++## [0.2.0] - 2025-07-05
++
++### added
++- enhanced waveform editor with zoom and pan functionality
++- advanced sample editing capabilities
++- real-time audio playback controls
++- improved mobile keyboard interface
++- complete ui overhaul with modern interface
++
++### changed
++- enhanced mobile responsiveness
++- improved waveform visualization
++- better ui consistency across components
++- enhanced mobile experience
++
++### fixed
++- waveform rendering issues
++- mobile keyboard bugs
++- audio playback problems
++- ui layout inconsistencies
++- theme and color issues
++- file import bugs
++
++## [0.1.0] - 2025-07-01
++
++### added
++- forked from [buba447/opxy-drum-tool](https://github.com/buba447/opxy-drum-tool) by zeitgeese
++- basic drum preset creation tool (24 slots)
++- basic multisample preset creation tool
++- drag-and-drop sample loading
++- OP-XY preset generation (.opxydrum and .opxymulti files)
++- advanced preset settings and configuration
++
++### changed
++- n/a
++
++### fixed
++- n/a
+--- before/LICENSE
++++ after/LICENSE
+@@ -0,0 +1,22 @@
++MIT License
++
++Copyright (c) 2025 Joseph Holland
++Portions Copyright (c) 2025 Brandon Withrow
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.--- before/README.md
++++ after/README.md
+@@ -0,0 +1,107 @@
++# OP-PatchStudio
++
++OP-PatchStudio is a free, open-source browser studio for building drum and multisample presets for the Teenage Engineering OP-XY. This repository is the [`sscommander79/op-patchstudio`](https://github.com/sscommander79/op-patchstudio) fork of [Joseph Holland's original project](https://github.com/joseph-holland/op-patchstudio).
++
++![OP-PatchStudio drum workspace](public/assets/preview-image.png)
++
++![OP-PatchStudio multisample workspace](public/assets/preview-image-2.png)
++
++The project is unofficial and is not affiliated with, endorsed by, or hardware-certified by Teenage Engineering.
++
++## What the studio does
++
++- Builds OP-XY drum kits with 24 mapped pads plus an unassigned-sample tray.
++- Builds multisample instruments with filename note detection, editable root notes and zone mapping.
++- Imports WAV, AIFF, MP3, M4A, OGG and FLAC audio when the browser can decode the format. WAV and uncompressed AIFF have built-in metadata readers; compressed-format support depends on the browser.
++- Imports compatible `patch.json` settings and OP-1 drum presets.
++- Edits exact in/out and loop frames, supports zero-crossing adjustment, non-destructive slicing, gain, normalization, channel/rate conversion and WAV or AIFF output.
++- Records from a browser audio input after permission is granted, with manual or sound-triggered capture, pre-roll and take review.
++- Saves editable presets in a browser-local library and keeps a recoverable working session.
++- Provides bounded undo/redo, keyboard controls, light/dark/device themes and responsive Focus and Table views.
++- Exports a device preset ZIP and a separate, versioned `.opstudio` project backup.
++
++The waveform, envelope, pitch, loop-crossfade and processed-audio previews are browser approximations. Exported frame ranges and stored settings are authoritative; preview timing and sound are not calibrated against OP-XY hardware.
++
++## Device preset export and project backup
++
++These downloads have different purposes:
++
++- **Device preset export** downloads `<name>.preset.zip`, containing `patch.json` and the exported audio files. This is the package intended for transfer to an OP-XY.
++- **Project backup** downloads `<name>.opstudio`. Version 1 preserves editable settings, exact Float32 working audio, source bytes when available, assignments and imported metadata so the project can be reopened in this studio. It is not a device preset.
++
++The local library and recovery session use IndexedDB in the current browser profile. They do not sync across browsers, profiles or devices. Private-browsing policies, site-data clearing, storage eviction and quota limits can remove or prevent local saves. Keep `.opstudio` backups for work you need to retain. A failed save is reported in the app and can be retried; it does not make cloud or account backups.
++
++The current archive reader accepts `.opstudio` format version 1. It validates the complete manifest and referenced audio before replacing the open project. Future archive versions may require a newer build.
++
++## Transfer to OP-XY
++
++1. Generate and download the device preset ZIP.
++2. Extract it without changing the contents. Keep `patch.json` and its audio files together in the extracted `<name>.preset` folder.
++3. Connect the OP-XY to the computer. On the device, press **COM**, then **M4** to enter MTP mode. Teenage Engineering directs Mac users to its Fieldkit transfer app.
++4. Copy the extracted `.preset` folder into the OP-XY's root `presets` folder.
++5. Eject with **M4**, then load and verify the preset on the device.
++
++See Teenage Engineering's current [OP-XY COM guide](https://teenage.engineering/guides/op-xy/com) and [OP-XY how-to guide](https://teenage.engineering/guides/op-xy/how-to). Firmware behavior can change. Automated browser checks verify the downloaded archive, but physical-device import, playback and timing remain an unperformed release check.
++
++## Offline use and updates
++
++The production build is an installable progressive web app. After a successful online visit has populated its cache, the core studio, local import/edit flows, recording code, project backups and preset export are designed to work offline. A first-ever visit cannot work offline. Live Patreon posts, support links, the hosted feedback form and other external pages need a network connection; the app shows an offline fallback instead of an empty hosted form.
++
++When a new build is ready, the app presents **Update now** and **Later**. Choosing Later leaves the current editor running so an active recording or unsaved draft is not silently reloaded. Save or back up important work and close other OP-PatchStudio tabs before choosing Update now. If another Studio tab is still open, the update stays waiting and the app asks you to close it before retrying. The current and previous application caches are retained as bounded update/reload protection; older application caches are retired after a later update, while unrelated origin caches are left alone.
++
++## Browser permissions and limits
++
++- Recording requires a secure context and microphone/audio-input permission. Available inputs, labels, sample rates and channel counts come from the browser and operating system.
++- MIDI control requires Web MIDI support and permission. Unsupported browsers can still use pointer and computer-keyboard controls.
++- Audio decoding varies by browser and operating system, especially for compressed formats. Rejected files remain listed with a reason during import review.
++- A project can contain at most 256 audio assets. Individual source, decoded-audio, archive and manifest limits are enforced before commit; the UI reports the applicable limit.
++- The studio does not upload library or project audio to an application server. Opening external feedback, donation, documentation or issue links leaves the app.
++
++## Local development
++
++Use Node.js 22 or a newer supported LTS release and npm.
++
++```bash
++git clone https://github.com/sscommander79/op-patchstudio.git
++cd op-patchstudio
++npm ci
++npm run dev
++```
++
++Build and verification commands:
++
++```bash
++npm run typecheck          # TypeScript project check
++npm run lint               # ESLint for source, tests and configuration
++npm test                   # Unit/component suite once
++npm run build              # Typecheck, production build and PWA precache integrity
++npm run check              # All four checks above
++```
++
++Browser checks require matching Playwright browsers:
++
++```bash
++npx playwright install chromium firefox webkit
++npm run test:e2e                          # configured browser matrix against dev
++npm run test:e2e:production               # configured browser matrix against dist
++npm run test:e2e:production -- --project=chromium
++npm run test:e2e:recording                 # deterministic Chromium fake-input gate
++```
++
++The recording command generates and uses an explicit synthetic WAV fixture. It does not access real recording hardware. CI runs clean install, typecheck, lint, unit tests, production build, Chromium E2E and the deterministic recording gate for changes. Manual and scheduled CI runs add the configured Chromium, Firefox, WebKit and mobile-emulation matrix.
++
++## Verification and release evidence
++
++- [Upgrade acceptance matrix](docs/verification/acceptance-matrix.md)
++- [Task 9 quality and offline report](docs/verification/task-9-report.md)
++- [Offline production checklist](docs/verification/task-9-offline-browser-checklist.md)
++- [Device validation checklist](docs/verification/device-validation-checklist.md)
++- [Release notes](CHANGELOG.md)
++
++Automated results demonstrate the specific fixtures and browsers named in those records. They are not claims of human listening quality, assistive-technology validation or physical OP-XY acceptance.
++
++## Attribution and license
++
++OP-PatchStudio was created by [Joseph Holland](https://github.com/joseph-holland). This fork retains the original project's authorship and support links while maintaining its changes at [`sscommander79/op-patchstudio`](https://github.com/sscommander79/op-patchstudio). The project was inspired by Brandon Withrow's [opxy-drum-tool](https://buba447.github.io/opxy-drum-tool/).
++
++The source is licensed under the [MIT License](LICENSE), which retains the Joseph Holland and Brandon Withrow copyright notices. OP-XY, OP-1 and OP-Z are trademarks of Teenage Engineering.
+--- before/public/pwa-cache-lifecycle.js
++++ after/public/pwa-cache-lifecycle.js
+@@ -0,0 +1,24 @@
++/* Keep the current and immediately previous app precaches as bounded
++ * activation/reload protection. Updates cannot activate while another app
++ * window is open. CacheStorage preserves creation order, so a third build
++ * retires the oldest app precache while unrelated origin caches are untouched. */
++self.addEventListener('message', (event) => {
++  if (event.data?.type !== 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') return;
++  event.waitUntil((async () => {
++    const openWindows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
++    if (openWindows.length <= 1) {
++      await self.skipWaiting();
++      return;
++    }
++    event.source?.postMessage({ type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' });
++  })());
++});
++
++self.addEventListener('activate', (event) => {
++  event.waitUntil((async () => {
++    const appPrecaches = (await caches.keys()).filter((name) =>
++      name.startsWith('op-patchstudio-') && name.includes('-precache-'));
++    const expired = appPrecaches.slice(0, -2);
++    await Promise.all(expired.map((name) => caches.delete(name)));
++  })());
++});
+--- before/scripts/verify-pwa-build.mjs
++++ after/scripts/verify-pwa-build.mjs
+@@ -1,6 +1,21 @@
+ import { readFile } from 'node:fs/promises'
+ 
+ const worker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8')
++const lifecycle = await readFile(new URL('../dist/pwa-cache-lifecycle.js', import.meta.url), 'utf8')
++
++if (!worker.includes('pwa-cache-lifecycle.js')) {
++  throw new Error('Generated service worker does not import the bounded app-cache lifecycle')
++}
++if (!worker.includes('op-patchstudio-') || !worker.includes('-precache-')) {
++  throw new Error('Generated service worker does not contain the prior-build asset fallback')
++}
++if (!lifecycle.includes('OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') ||
++    !lifecycle.includes('OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS')) {
++  throw new Error('Generated lifecycle does not enforce the explicit sole-window update gate')
++}
++if (!lifecycle.includes('slice(0, -2)')) {
++  throw new Error('Generated lifecycle does not retain exactly two app precache generations')
++}
+ const matches = [...worker.matchAll(/\{url:"([^"]+)",revision:(null|"[^"]+")\}/g)]
+ 
+ if (matches.length === 0) {
+--- before/src/components/common/DonatePage.tsx
++++ after/src/components/common/DonatePage.tsx
+@@ -82,8 +82,8 @@
+               marginBottom: '2rem'
+             }}>
+               OP-PatchStudio is a 100% free and <a href="https://github.com/sscommander79/op-patchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>open-source</a> tool for creating and editing drum and multisample presets for the OP-XY.<br/><br/>
+-              most features have come from community ideas and requests. by joining the <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>project patreon</a>, you'll get behind-the-scenes updates, voting rights on roadmap features, priority support, exclusive content, tutorials and early access to preview features.<br/><br/>
+-              your support helps cover the cost of coding tools and services that make rapid development of new features and support possible.
++              most features have come from community ideas and requests. Joseph Holland's <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>project Patreon</a> shares behind-the-scenes updates, roadmap voting, priority support, exclusive content, tutorials and early access to preview features.<br/><br/>
++              these support links benefit the original project's creator, Joseph Holland, and help fund his continued project work.
+             </p>
+ 
+             <div style={{
+@@ -150,7 +150,7 @@
+                 }}
+               >
+                 <i className="fas fa-coffee" style={{ fontSize: '1.2rem' }}></i>
+-                buy me a coffee
++                buy Joseph a coffee
+               </a>
+             </div>
+           </div>
+--- before/src/components/common/PWAUpdatePrompt.tsx
++++ after/src/components/common/PWAUpdatePrompt.tsx
+@@ -1,16 +1,32 @@
+ import { useEffect, useRef, useState } from 'react';
+ import { registerSW } from 'virtual:pwa-register';
+ 
+-export function PWAUpdatePrompt() {
+-  const [notice, setNotice] = useState<'update' | 'offline' | null>(null);
+-  const updateServiceWorker = useRef<ReturnType<typeof registerSW> | null>(null);
++const reloadCurrentPage = () => window.location.reload();
++
++export function PWAUpdatePrompt({ reloadPage = reloadCurrentPage }: { reloadPage?: () => void }) {
++  const [notice, setNotice] = useState<'update' | 'offline' | 'blocked' | null>(null);
++  const registration = useRef<ServiceWorkerRegistration | undefined>(undefined);
++  const reloadConsent = useRef(false);
+ 
+   useEffect(() => {
+-    updateServiceWorker.current = registerSW({
++    const handleWorkerMessage = (event: MessageEvent) => {
++      if (event.data?.type !== 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS') return;
++      reloadConsent.current = false;
++      setNotice('blocked');
++    };
++    navigator.serviceWorker?.addEventListener('message', handleWorkerMessage);
++    registerSW({
+       onNeedRefresh: () => setNotice('update'),
+       onOfflineReady: () => setNotice('offline'),
++      onRegisteredSW: (_url, currentRegistration) => {
++        registration.current = currentRegistration;
++      },
++      onNeedReload: () => {
++        if (reloadConsent.current) reloadPage();
++      },
+     });
+-  }, []);
++    return () => navigator.serviceWorker?.removeEventListener('message', handleWorkerMessage);
++  }, [reloadPage]);
+ 
+   if (!notice) return null;
+ 
+@@ -19,11 +35,22 @@
+       <p>
+         {notice === 'update'
+           ? 'An update is ready. Save or back up your project before updating.'
++          : notice === 'blocked'
++            ? 'Close other OP-PatchStudio tabs before updating, then choose Update now again.'
+           : 'The studio is ready to work offline.'}
+       </p>
+       <div className="studio-pwa-notice__actions">
+-        {notice === 'update' && (
+-          <button type="button" onClick={() => void updateServiceWorker.current?.(true)}>
++        {(notice === 'update' || notice === 'blocked') && (
++          <button type="button" onClick={() => {
++            const waitingWorker = registration.current?.waiting;
++            if (!waitingWorker) {
++              reloadConsent.current = false;
++              setNotice('blocked');
++              return;
++            }
++            reloadConsent.current = true;
++            waitingWorker.postMessage({ type: 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT' });
++          }}>
+             Update now
+           </button>
+         )}
+--- before/src/components/drum/DrumKeyboard.tsx
++++ after/src/components/drum/DrumKeyboard.tsx
+@@ -318,7 +318,7 @@
+     createKeyProps(keyChar, octave, true, circleOffset);
+ 
+   // OP-XY key component with exact 1:1 and 1:1.5 ratios
+-  const OPXYKey = ({
++  const renderOPXYKey = ({
+     keyChar,
+     mapping,
+     octave, // Add octave to the props
+@@ -411,7 +411,7 @@
+     }
+ 
+     return (
+-      <div style={{
++      <div key={`${octave}-${keyChar}`} style={{
+         display: 'flex',
+         flexDirection: 'column',
+         alignItems: 'center',
+@@ -707,11 +707,11 @@
+               justifyContent: 'center',
+               overflow: 'hidden'
+             }}>
+-              <OPXYKey {...createLargeKeyProps('W', 0, 'right')} />
+-              <OPXYKey {...createStandardKeyProps('E', 0)} />
+-              <OPXYKey {...createLargeKeyProps('R', 0, 'left')} />
+-              <OPXYKey {...createLargeKeyProps('Y', 0, 'right')} />
+-              <OPXYKey {...createLargeKeyProps('U', 0, 'left')} />
++              {renderOPXYKey(createLargeKeyProps('W', 0, 'right'))}
++              {renderOPXYKey(createStandardKeyProps('E', 0))}
++              {renderOPXYKey(createLargeKeyProps('R', 0, 'left'))}
++              {renderOPXYKey(createLargeKeyProps('Y', 0, 'right'))}
++              {renderOPXYKey(createLargeKeyProps('U', 0, 'left'))}
+             </div>
+ 
+             {/* Bottom row */}
+@@ -724,12 +724,8 @@
+               justifyContent: 'center',
+               overflow: 'hidden'
+             }}>
+-              {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map(key => (
+-                <OPXYKey
+-                  key={`octave0-${key}`}
+-                  {...createStandardKeyProps(key, 0)}
+-                />
+-              ))}
++              {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map(key =>
++                renderOPXYKey(createStandardKeyProps(key, 0)))}
+             </div>
+           </div>
+ 
+@@ -756,11 +752,11 @@
+               justifyContent: 'center',
+               overflow: 'hidden'
+             }}>
+-              <OPXYKey {...createLargeKeyProps('W', 1, 'right')} />
+-              <OPXYKey {...createStandardKeyProps('E', 1)} />
+-              <OPXYKey {...createLargeKeyProps('R', 1, 'left')} />
+-              <OPXYKey {...createLargeKeyProps('Y', 1, 'right')} />
+-              <OPXYKey {...createLargeKeyProps('U', 1, 'left')} />
++              {renderOPXYKey(createLargeKeyProps('W', 1, 'right'))}
++              {renderOPXYKey(createStandardKeyProps('E', 1))}
++              {renderOPXYKey(createLargeKeyProps('R', 1, 'left'))}
++              {renderOPXYKey(createLargeKeyProps('Y', 1, 'right'))}
++              {renderOPXYKey(createLargeKeyProps('U', 1, 'left'))}
+             </div>
+ 
+             {/* Bottom row */}
+@@ -773,12 +769,8 @@
+               justifyContent: 'center',
+               overflow: 'hidden'
+             }}>
+-              {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map(key => (
+-                <OPXYKey
+-                  key={`octave1-${key}`}
+-                  {...createStandardKeyProps(key, 1)}
+-                />
+-              ))}
++              {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map(key =>
++                renderOPXYKey(createStandardKeyProps(key, 1)))}
+             </div>
+           </div>
+           </div>
+--- before/src/components/drum/DrumKeyboardContainer.tsx
++++ after/src/components/drum/DrumKeyboardContainer.tsx
+@@ -56,10 +56,10 @@
+ 
+   // Auto-initialize MIDI if not already initialized
+   useEffect(() => {
+-    if (!midiState.isInitialized && !midiState.isConnecting) {
+-      initialize();
++    if (midiState.isSupported && !midiState.isInitialized && !midiState.isConnecting && !midiState.error) {
++      void initialize({ automatic: true });
+     }
+-  }, [midiState.isInitialized, midiState.isConnecting, initialize]);
++  }, [midiState.error, midiState.isInitialized, midiState.isConnecting, midiState.isSupported, initialize]);
+ 
+   // Refresh MIDI devices when tab becomes visible (helps with device detection)
+   useEffect(() => {
+--- before/src/components/multisample/VirtualMidiKeyboard.tsx
++++ after/src/components/multisample/VirtualMidiKeyboard.tsx
+@@ -67,10 +67,10 @@
+ 
+   // Auto-initialize MIDI if not already initialized
+   useEffect(() => {
+-    if (!midiState.isInitialized && !midiState.isConnecting) {
+-      initialize();
++    if (midiState.isSupported && !midiState.isInitialized && !midiState.isConnecting && !midiState.error) {
++      void initialize({ automatic: true });
+     }
+-  }, [midiState.isInitialized, midiState.isConnecting, initialize]);
++  }, [midiState.error, midiState.isInitialized, midiState.isConnecting, midiState.isSupported, initialize]);
+ 
+   // Refresh MIDI devices when tab becomes visible (helps with device detection)
+   useEffect(() => {
+--- before/src/hooks/useStudioCanvasTheme.ts
++++ after/src/hooks/useStudioCanvasTheme.ts
+@@ -1,4 +1,4 @@
+-import { useEffect, useState } from 'react';
++import { useEffect, useMemo, useState } from 'react';
+ 
+ export interface StudioCanvasColors {
+   outside:string;
+@@ -35,6 +35,9 @@
+ }
+ 
+ export function useStudioCanvasColors(): StudioCanvasColors {
+-  useStudioCanvasThemeRevision();
+-  return readStudioCanvasColors();
++  const revision=useStudioCanvasThemeRevision();
++  return useMemo(()=>{
++    void revision;
++    return readStudioCanvasColors();
++  },[revision]);
+ }
+--- before/src/hooks/useWebMidi.ts
++++ after/src/hooks/useWebMidi.ts
+@@ -16,7 +16,7 @@
+ 
+ export interface WebMidiHookReturn {
+   state: WebMidiState;
+-  initialize: () => Promise<boolean>;
++  initialize: (options?: { automatic?: boolean }) => Promise<boolean>;
+   refreshDevices: () => void;
+   onMidiEvent: (callback: (event: MidiEvent) => void, channel?: number) => () => void;
+   offMidiEvent: () => void;
+@@ -26,6 +26,11 @@
+ }
+ // Note: All channel parameters use 1-16 numbering (MIDI standard), not 0-15
+ 
++// Multiple instrument surfaces mount their own hook. Only one of them may ask
++// for permission automatically during a document lifetime; explicit Retry
++// actions still call initialize() without the automatic flag.
++let automaticInitializationAttempted = false;
++
+ export function useWebMidi(): WebMidiHookReturn {
+   const [state, setState] = useState<WebMidiState>({
+     isSupported: WebMidi.supported,
+@@ -44,7 +49,11 @@
+   }, []);
+ 
+   // Initialize WebMIDI
+-  const initialize = useCallback(async (): Promise<boolean> => {
++  const initialize = useCallback(async (options?: { automatic?: boolean }): Promise<boolean> => {
++    if (options?.automatic) {
++      if (!WebMidi.supported || automaticInitializationAttempted) return false;
++      automaticInitializationAttempted = true;
++    }
+     setState(prev => ({ ...prev, isConnecting: true, error: null }));
+ 
+     try {
+@@ -77,7 +86,11 @@
+ 
+       return true;
+     } catch (error) {
+-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
++      let errorMessage = 'Unknown error';
++      if (error instanceof Error) errorMessage = error.message;
++      else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
++        errorMessage = error.message;
++      }
+       setState(prev => ({
+         ...prev,
+         isConnecting: false,
+--- before/src/styles/studio.css
++++ after/src/styles/studio.css
+@@ -76,10 +76,10 @@
+ .studio-app-header { margin-bottom: 2rem; min-width: 0; }
+ .studio-brand-heading { position: relative; display: inline-block; font-size: 2.8rem; letter-spacing: -.05em; font-family: "NimbusSansL",Arial,sans-serif; font-weight: 200; color: var(--studio-text); margin: 0; line-height: 1; }
+ .studio-unofficial-badge { position: absolute; left: calc(100% + 16px); bottom: 40%; font-family: "NimbusSansL","Helvetica Neue",Arial,sans-serif; letter-spacing: -.008em; font-size: .9rem; font-weight: 400; padding: .15rem .5rem; color: var(--studio-text); border: 1px solid var(--studio-text); border-radius: 4px; line-height: 1; white-space: nowrap; }
+-.studio-pwa-notice { position: fixed; right: 1rem; bottom: 1rem; z-index: 10020; max-width: 24rem; padding: 1rem; border: 1px solid var(--studio-border); border-radius: 8px; background: var(--studio-surface); color: var(--studio-text); box-shadow: 0 8px 24px var(--color-shadow-primary); }
++.studio-pwa-notice { position: fixed; right: 1rem; bottom: 1rem; z-index: 9000; max-width: 24rem; padding: 1rem; border: 1px solid var(--studio-border); border-radius: 8px; background: var(--studio-panel); color: var(--studio-text); box-shadow: 0 8px 24px var(--color-shadow-primary); }
+ .studio-pwa-notice p { margin: 0 0 .75rem; }
+ .studio-pwa-notice__actions { display: flex; justify-content: flex-end; gap: .5rem; }
+-.studio-pwa-notice__actions button { min-height: 2.25rem; padding: .4rem .8rem; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-surface-raised); color: var(--studio-text); cursor: pointer; }
++.studio-pwa-notice__actions button { min-height: 2.25rem; padding: .4rem .8rem; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-recess); color: var(--studio-text); cursor: pointer; }
+ .studio-theme-picker { display: grid; gap: .25rem; color: var(--studio-muted); font-size: .8rem; }
+ .studio-theme-picker select { min-width: 110px; color: var(--studio-text); background: var(--studio-panel); border: 1px solid var(--studio-border); padding: 0 .75rem; }
+ .studio-toolbar { position: sticky; top: .5rem; z-index: 30; margin-bottom: .75rem; padding: .75rem; background: var(--studio-panel); border: 1px solid var(--studio-border); border-radius: 10px; box-shadow: 0 2px 12px var(--studio-shadow); }
+--- before/src/test/components/DonatePage.test.tsx
++++ after/src/test/components/DonatePage.test.tsx
+@@ -85,8 +85,9 @@
+     const githubLink = screen.getByText('open-source');
+     expect(githubLink).toHaveAttribute('href', 'https://github.com/sscommander79/op-patchstudio');
+ 
+-    const patreonLink = screen.getByText('project patreon');
++    const patreonLink = screen.getByRole('link', { name: /project patreon/i });
+     expect(patreonLink).toHaveAttribute('href', 'https://www.patreon.com/c/oppatchstudio');
++    expect(screen.getByText(/support links benefit the original project's creator, Joseph Holland/)).toBeInTheDocument();
+   });
+ 
+   it('should render support buttons', () => {
+@@ -95,7 +96,7 @@
+     const patreonButton = screen.getByText('support on patreon');
+     expect(patreonButton).toHaveAttribute('href', 'https://www.patreon.com/c/oppatchstudio');
+ 
+-    const coffeeButton = screen.getByText('buy me a coffee');
++    const coffeeButton = screen.getByRole('link', { name: 'buy Joseph a coffee' });
+     expect(coffeeButton).toHaveAttribute('href', 'https://buymeacoffee.com/jxavierh');
+   });
+ 
+--- before/src/test/components/DrumKeyboard.test.tsx
++++ after/src/test/components/DrumKeyboard.test.tsx
+@@ -1,14 +1,21 @@
+ import { describe, it, expect, vi } from 'vitest';
+ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+ import { DrumKeyboard } from '../../components/drum/DrumKeyboard';
++import { DrumKeyboardContainer } from '../../components/drum/DrumKeyboardContainer';
+ import { AppContextProvider, useAppContext } from '../../context/AppContext';
+ 
+-const { play } = vi.hoisted(() => ({ play: vi.fn().mockResolvedValue(undefined) }));
++const { play, midi } = vi.hoisted(() => ({
++  play: vi.fn().mockResolvedValue(undefined),
++  midi: {
++    initialize: vi.fn().mockResolvedValue(false),
++    state: { isSupported: true, isInitialized: true, isConnecting: false, devices: [], error: null as string | null },
++  },
++}));
+ vi.mock('../../hooks/useAudioPlayer', () => ({ useAudioPlayer: () => ({ play }) }));
+ vi.mock('../../hooks/useWebMidi', () => ({ useWebMidi: () => ({
+   onMidiEvent: vi.fn(() => vi.fn()),
+-  state: { isInitialized: true, isConnecting: false, devices: [] },
+-  initialize: vi.fn(),
++  state: midi.state,
++  initialize: midi.initialize,
+   refreshDevices: vi.fn(),
+ }) }));
+ 
+@@ -64,6 +71,39 @@
+ ];
+ 
+ describe('DrumKeyboard', () => {
++  it('keeps the focused pad node through pressed-state rerenders', () => {
++    const {container}=render(<AppContextProvider><DrumKeyboard /></AppContextProvider>);
++    const before=container.querySelector<HTMLButtonElement>('[data-drum-pad="0"]')!;
++    before.focus();
++
++    const pointerDown=new Event('pointerdown',{bubbles:true});
++    Object.defineProperty(pointerDown,'pointerType',{value:'mouse'});
++    fireEvent(before,pointerDown);
++
++    const after=container.querySelector<HTMLButtonElement>('[data-drum-pad="0"]')!;
++    expect(after).toBe(before);
++    expect(document.activeElement).toBe(before);
++    expect(after).toHaveAttribute('aria-pressed','true');
++    const pointerUp=new Event('pointerup',{bubbles:true});
++    Object.defineProperty(pointerUp,'pointerType',{value:'mouse'});
++    fireEvent(after,pointerUp);
++    expect(after).toHaveAttribute('aria-pressed','false');
++  });
++
++  it('does not repeat automatic MIDI permission after a denied attempt', async () => {
++    midi.initialize.mockClear();
++    Object.assign(midi.state,{isInitialized:false,isConnecting:false,error:null});
++    const props={isOrganizeMode:false,setIsOrganizeMode:vi.fn()};
++    const view=render(<AppContextProvider><DrumKeyboardContainer {...props}/></AppContextProvider>);
++    await waitFor(()=>expect(midi.initialize).toHaveBeenCalledTimes(1));
++    expect(midi.initialize).toHaveBeenCalledWith({automatic:true});
++
++    Object.assign(midi.state,{isConnecting:true});view.rerender(<AppContextProvider><DrumKeyboardContainer {...props}/></AppContextProvider>);
++    Object.assign(midi.state,{isConnecting:false,error:'permission denied'});view.rerender(<AppContextProvider><DrumKeyboardContainer {...props}/></AppContextProvider>);
++    expect(midi.initialize).toHaveBeenCalledTimes(1);
++    Object.assign(midi.state,{isInitialized:true,isConnecting:false,error:null});
++  });
++
+   it('should render without crashing', () => {
+     render(
+       <AppContextProvider>
+--- before/src/test/components/LibraryPage.test.tsx
++++ after/src/test/components/LibraryPage.test.tsx
+@@ -8,6 +8,7 @@
+ import { AUDIO_CONSTANTS } from '../../utils/constants';
+ 
+ const stableDispatch = vi.hoisted(() => vi.fn());
++let sessionInProgress = false;
+ 
+ // Mock dependencies
+ vi.mock('../../utils/indexedDB', () => ({
+@@ -75,7 +76,7 @@
+         renameFiles: false,
+         filenameSeparator: ' '
+       },
+-      drumSamples: [],
++      drumSamples: sessionInProgress ? [{ isLoaded: true }] : [],
+       multisampleFiles: [],
+       selectedMultisample: null,
+       isDrumKeyboardPinned: false,
+@@ -178,6 +179,7 @@
+ 
+   beforeEach(() => {
+     vi.clearAllMocks();
++    sessionInProgress = false;
+     mockIndexedDB.getAll.mockResolvedValue(mockPresets);
+     mockSessionStorage.markSessionAsSavedToLibrary.mockResolvedValue(undefined);
+     mockGenerateDrumPatch.mockResolvedValue(new Blob());
+@@ -225,6 +227,32 @@
+       expect(screen.queryByText('Drum Kit 1')).not.toBeInTheDocument();
+     });
+ 
++    it('keeps the selected Load confirmation owned through a background refresh', async () => {
++      sessionInProgress = true;
++      let resolveRefresh!: (value: LibraryPreset[]) => void;
++      mockIndexedDB.getAll
++        .mockResolvedValueOnce(mockPresets)
++        .mockReturnValueOnce(new Promise(resolve => { resolveRefresh = resolve; }));
++      render(<LibraryPage />);
++      await screen.findByText('Drum Kit 1');
++
++      const row=screen.getByText('Drum Kit 1').closest('tr');
++      if(!row)throw new Error('Drum Kit 1 row was not rendered');
++      fireEvent.click(within(row).getByRole('button',{name:'load preset'}));
++      expect(screen.getByRole('dialog')).toHaveTextContent('Drum Kit 1');
++      act(() => window.dispatchEvent(new Event('library-refresh')));
++      expect(screen.getByRole('dialog')).toHaveTextContent('Drum Kit 1');
++
++      await act(async()=>resolveRefresh([{...mockPresets[1],id:'replacement',name:'Refreshed preset'}]));
++      expect(screen.getByRole('dialog')).toHaveTextContent('Drum Kit 1');
++      expect(screen.getByText('Refreshed preset')).toBeInTheDocument();
++
++      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'ok'}));
++      await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
++        type:'RESTORE_LIBRARY',payload:expect.objectContaining({mode:'drum'}),
++      })));
++    });
++
+     it('should load presets successfully on mount', async () => {
+       render(<LibraryPage />);
+ 
+@@ -352,12 +380,9 @@
+ 
+       await waitFor(() => {
+         const presetNames = screen.getAllByText(/Drum Kit|Multisample/);
+-        // Check that the presets are sorted (the exact order depends on the mock data)
+-        expect(presetNames.length).toBe(3);
+-        // The order should be consistent after sorting
+-        expect(presetNames[0]).toHaveTextContent(/Drum Kit|Multisample/);
+-        expect(presetNames[1]).toHaveTextContent(/Drum Kit|Multisample/);
+-        expect(presetNames[2]).toHaveTextContent(/Drum Kit|Multisample/);
++        expect(presetNames.map(element=>element.textContent)).toEqual([
++          'Drum Kit 2','Drum Kit 1','Multisample 1',
++        ]);
+       });
+     });
+   });
+@@ -519,33 +544,27 @@
+ 
+   describe('Error Handling', () => {
+     it('should handle audio context creation failure', async () => {
+-      // Mock AudioContext to throw an error
+       const originalAudioContext = window.AudioContext;
+-      window.AudioContext = vi.fn(() => {
++      const ThrowingAudioContext = function () {
+         throw new Error('AudioContext not supported');
+-      }) as unknown as typeof AudioContext;
+-
+-      render(<LibraryPage />);
+-      await waitFor(() => {
+-        expect(screen.queryByText('loading...')).not.toBeInTheDocument();
+-      });
+-      await waitFor(() => {
+-        expect(screen.getByText('Drum Kit 1')).toBeInTheDocument();
+-      });
+-
+-      // Check if load buttons are rendered (they should be in the table)
+-      const buttons = screen.getAllByRole('button');
+-      const loadButtons = buttons.filter(button =>
+-        button.textContent?.toLowerCase().includes('load')
+-      );
+-
+-      // If no load buttons found, that's okay - the test is about error handling
+-      if (loadButtons.length > 0) {
+-        fireEvent.click(loadButtons[0]);
++      } as unknown as typeof AudioContext;
++      window.AudioContext = ThrowingAudioContext;
++      mockIndexedDB.getAll.mockResolvedValue([{...mockPresets[0],data:{
++        ...mockPresets[0].data,
++        drumSamples:[{name:'legacy.wav',originalIndex:0,audioBlob:new Blob([new Uint8Array([1,2,3])],{type:'audio/wav'})}],
++      }}]);
++
++      try {
++        render(<LibraryPage />);
++        await screen.findByText('Drum Kit 1');
++        fireEvent.click(screen.getByRole('button',{name:'load preset'}));
++        await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
++          type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error',message:'failed to load preset'}),
++        })));
++        expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
++      } finally {
++        window.AudioContext = originalAudioContext;
+       }
+-
+-      // Restore original AudioContext
+-      window.AudioContext = originalAudioContext;
+     });
+   });
+ });
+--- before/src/test/components/PWAUpdatePrompt.test.tsx
++++ after/src/test/components/PWAUpdatePrompt.test.tsx
+@@ -6,39 +6,79 @@
+ const pwa = vi.hoisted(() => ({
+   options: undefined as RegisterSWOptions | undefined,
+   update: vi.fn(async () => undefined),
++  postMessage: vi.fn(),
+ }));
+ 
+ vi.mock('virtual:pwa-register', () => ({
+   registerSW: (options: RegisterSWOptions) => {
+     pwa.options = options;
++    options.onRegisteredSW?.('/sw.js', {
++      waiting: { postMessage: pwa.postMessage },
++    } as unknown as ServiceWorkerRegistration);
+     return pwa.update;
+   },
+ }));
+ 
+ describe('PWAUpdatePrompt', () => {
+   beforeEach(() => {
++    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: new EventTarget() });
+     pwa.options = undefined;
+     pwa.update.mockClear();
++    pwa.postMessage.mockClear();
+   });
+ 
+   it('waits for explicit user action before activating an available update', async () => {
+-    render(<PWAUpdatePrompt />);
++    const reloadPage = vi.fn();
++    render(<PWAUpdatePrompt reloadPage={reloadPage} />);
+ 
+     act(() => pwa.options?.onNeedRefresh?.());
+     expect(screen.getByRole('status')).toHaveTextContent('An update is ready');
+-    expect(pwa.update).not.toHaveBeenCalled();
++    expect(pwa.postMessage).not.toHaveBeenCalled();
+ 
+     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update now' })));
+-    expect(pwa.update).toHaveBeenCalledWith(true);
++    expect(pwa.postMessage).toHaveBeenCalledWith({ type: 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT' });
++    act(() => pwa.options?.onNeedReload?.());
++    expect(reloadPage).toHaveBeenCalledOnce();
+   });
+ 
+   it('allows the update prompt to be deferred without changing the current session', () => {
+-    render(<PWAUpdatePrompt />);
++    const reloadPage = vi.fn();
++    render(<PWAUpdatePrompt reloadPage={reloadPage} />);
+     act(() => pwa.options?.onNeedRefresh?.());
+ 
+     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+ 
+     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+-    expect(pwa.update).not.toHaveBeenCalled();
++    expect(pwa.postMessage).not.toHaveBeenCalled();
++    act(() => pwa.options?.onNeedReload?.());
++    expect(reloadPage).not.toHaveBeenCalled();
++  });
++
++  it('does not reload this tab when another tab activates an update', () => {
++    const reloadPage = vi.fn();
++    render(<PWAUpdatePrompt reloadPage={reloadPage} />);
++    act(() => pwa.options?.onNeedRefresh?.());
++
++    act(() => pwa.options?.onNeedReload?.());
++
++    expect(reloadPage).not.toHaveBeenCalled();
++    expect(screen.getByRole('status')).toHaveTextContent('An update is ready');
++  });
++
++  it('keeps the worker waiting when another studio tab is open and allows a retry', async () => {
++    const reloadPage = vi.fn();
++    render(<PWAUpdatePrompt reloadPage={reloadPage} />);
++    act(() => pwa.options?.onNeedRefresh?.());
++    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update now' })));
++
++    act(() => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {
++      data: { type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' },
++    })));
++
++    expect(screen.getByRole('status')).toHaveTextContent('Close other OP-PatchStudio tabs');
++    act(() => pwa.options?.onNeedReload?.());
++    expect(reloadPage).not.toHaveBeenCalled();
++    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update now' })));
++    expect(pwa.postMessage).toHaveBeenCalledTimes(2);
+   });
+ });
+--- before/src/test/hooks/usePatchGeneration.test.ts
++++ after/src/test/hooks/usePatchGeneration.test.ts
+@@ -3,8 +3,6 @@
+ import { usePatchGeneration } from '../../hooks/usePatchGeneration';
+ import { useAppContext } from '../../context/AppContext';
+ import { createCompleteMultisampleSettings } from '../utils/testHelpers';
+-import { baseDrumJson } from '../../components/drum/baseDrumJson';
+-import { baseMultisampleJson } from '../../components/multisample/baseMultisampleJson';
+ import type { AppState } from '../../context/AppContext';
+ 
+ // Mock the AppContext
+@@ -44,31 +42,6 @@
+   copyToChannel: () => {},
+   // Add any other required AudioBuffer methods as no-ops
+ } as unknown as AudioBuffer;
+-
+-// Helper function to get all keys in dot notation
+-function getAllKeys(obj: Record<string, unknown>, prefix = ''): string[] {
+-  let keys: string[] = [];
+-  for (const key in obj) {
+-    if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+-    const value = obj[key];
+-    const fullKey = prefix ? `${prefix}.${key}` : key;
+-    if (value && typeof value === 'object' && !Array.isArray(value)) {
+-      keys = keys.concat(getAllKeys(value as Record<string, unknown>, fullKey));
+-    } else {
+-      keys.push(fullKey);
+-    }
+-  }
+-  return keys;
+-}
+-
+-type CapturedPatchJson = {
+-  engine: Record<string, string | number>;
+-  envelope: {
+-    amp: Record<string, number>;
+-    filter: Record<string, number>;
+-  };
+-  regions: unknown[];
+-};
+ 
+ describe('usePatchGeneration', () => {
+   const mockDispatch = vi.fn();
+@@ -372,452 +345,4 @@
+     expect(importedPreset.envelope.amp.sustain).toBe(22000);
+     expect(importedPreset.envelope.amp.release).toBe(12000);
+   })
+-
+-  it('should verify that envelope values from UI are automatically included in exported preset', async () => {
+-    // Mock the actual patch generation to capture the final JSON
+-    let capturedPatchJson!: CapturedPatchJson;
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (state, _patchName) => {
+-      // Simulate what the actual patch generation does - merge imported preset with base JSON
+-      const baseJson = {
+-        engine: { playmode: 'poly', volume: 16466 },
+-        envelope: { amp: { attack: 0, decay: 0, sustain: 32767, release: 32767 }, filter: { attack: 0, decay: 0, sustain: 32767, release: 32767 } },
+-        regions: [] as unknown[]
+-      };
+-      
+-      // Merge the imported preset (which contains our UI settings)
+-      if (state.importedMultisamplePreset) {
+-        if (state.importedMultisamplePreset.engine) {
+-          Object.assign(baseJson.engine, state.importedMultisamplePreset.engine);
+-        }
+-        if (state.importedMultisamplePreset.envelope) {
+-          Object.assign(baseJson.envelope, state.importedMultisamplePreset.envelope);
+-        }
+-      }
+-      
+-      capturedPatchJson = baseJson;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    // Mock state with imported multisample preset that includes envelope values from UI
+-    vi.mocked(useAppContext).mockReturnValue({
+-      ...defaultMockState,
+-      state: {
+-        ...defaultMockState.state,
+-        importedMultisamplePreset: {
+-          engine: {
+-            playmode: 'poly',
+-            transpose: 0,
+-            'velocity.sensitivity': 10240,
+-            volume: 16466,
+-            width: 0,
+-            highpass: 0,
+-            'portamento.amount': 0,
+-            'portamento.type': 32767,
+-            'tuning.root': 0,
+-          },
+-          envelope: {
+-            amp: {
+-              attack: 1000,  // Custom UI value
+-              decay: 8000,   // Custom UI value
+-              sustain: 25000, // Custom UI value
+-              release: 15000, // Custom UI value
+-            },
+-            filter: {
+-              attack: 200,   // Custom UI value
+-              decay: 4000,   // Custom UI value
+-              sustain: 20000, // Custom UI value
+-              release: 12000, // Custom UI value
+-            },
+-          },
+-          regions: []
+-        }
+-      }
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration())
+-    
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample')
+-    })
+-    
+-    // Verify that the final patch JSON contains the envelope values from the UI
+-    expect(capturedPatchJson).toBeDefined();
+-    expect(capturedPatchJson.envelope).toBeDefined();
+-    expect(capturedPatchJson.envelope.amp).toBeDefined();
+-    expect(capturedPatchJson.envelope.filter).toBeDefined();
+-    
+-    // Verify that the custom UI envelope values are in the final exported preset
+-    expect(capturedPatchJson.envelope.amp.attack).toBe(1000);
+-    expect(capturedPatchJson.envelope.amp.decay).toBe(8000);
+-    expect(capturedPatchJson.envelope.amp.sustain).toBe(25000);
+-    expect(capturedPatchJson.envelope.amp.release).toBe(15000);
+-    
+-    expect(capturedPatchJson.envelope.filter.attack).toBe(200);
+-    expect(capturedPatchJson.envelope.filter.decay).toBe(4000);
+-    expect(capturedPatchJson.envelope.filter.sustain).toBe(20000);
+-    expect(capturedPatchJson.envelope.filter.release).toBe(12000);
+-  })
+-
+-  it('should verify that 100% envelope values (32767) are correctly exported', async () => {
+-    // Mock the actual patch generation to capture the final JSON
+-    let capturedPatchJson!: CapturedPatchJson;
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (state, _patchName) => {
+-      // Simulate what the actual patch generation does - merge imported preset with base JSON
+-      const baseJson = {
+-        engine: { playmode: 'poly', volume: 16466 },
+-        envelope: { amp: { attack: 0, decay: 0, sustain: 32767, release: 32767 }, filter: { attack: 0, decay: 0, sustain: 32767, release: 32767 } },
+-        regions: [] as unknown[]
+-      };
+-      
+-      // Merge the imported preset (which contains our UI settings)
+-      if (state.importedMultisamplePreset) {
+-        if (state.importedMultisamplePreset.engine) {
+-          Object.assign(baseJson.engine, state.importedMultisamplePreset.engine);
+-        }
+-        if (state.importedMultisamplePreset.envelope) {
+-          Object.assign(baseJson.envelope, state.importedMultisamplePreset.envelope);
+-        }
+-      }
+-      
+-      capturedPatchJson = baseJson;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    // Mock state with imported multisample preset that includes 100% envelope values (32767)
+-    vi.mocked(useAppContext).mockReturnValue({
+-      ...defaultMockState,
+-      state: {
+-        ...defaultMockState.state,
+-        importedMultisamplePreset: {
+-          engine: {
+-            playmode: 'poly',
+-            transpose: 0,
+-            'velocity.sensitivity': 32767, // 100%
+-            volume: 32767, // 100%
+-            width: 32767, // 100%
+-            highpass: 32767, // 100%
+-            'portamento.amount': 32767, // 100%
+-            'portamento.type': 32767,
+-            'tuning.root': 0,
+-          },
+-          envelope: {
+-            amp: {
+-              attack: 32767,  // 100%
+-              decay: 32767,   // 100%
+-              sustain: 32767, // 100%
+-              release: 32767, // 100%
+-            },
+-            filter: {
+-              attack: 32767,  // 100%
+-              decay: 32767,   // 100%
+-              sustain: 32767, // 100%
+-              release: 32767, // 100%
+-            },
+-          },
+-          regions: []
+-        }
+-      }
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration())
+-    
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample')
+-    })
+-    
+-    // Verify that the final patch JSON contains the 100% envelope values (32767)
+-    expect(capturedPatchJson).toBeDefined();
+-    expect(capturedPatchJson.envelope).toBeDefined();
+-    expect(capturedPatchJson.envelope.amp).toBeDefined();
+-    expect(capturedPatchJson.envelope.filter).toBeDefined();
+-    
+-    // Verify that all envelope values are 32767 (100%)
+-    expect(capturedPatchJson.envelope.amp.attack).toBe(32767);
+-    expect(capturedPatchJson.envelope.amp.decay).toBe(32767);
+-    expect(capturedPatchJson.envelope.amp.sustain).toBe(32767);
+-    expect(capturedPatchJson.envelope.amp.release).toBe(32767);
+-    
+-    // Also verify engine values are 32767 (100%)
+-    expect(capturedPatchJson.engine.volume).toBe(32767);
+-    expect(capturedPatchJson.engine.width).toBe(32767);
+-    expect(capturedPatchJson.engine.highpass).toBe(32767);
+-    expect(capturedPatchJson.engine['velocity.sensitivity']).toBe(32767);
+-    expect(capturedPatchJson.engine['portamento.amount']).toBe(32767);
+-  })
+-
+-  it('should verify envelope values are included in actual exported ZIP file (integration test)', async () => {
+-    // Mock the actual patch generation to use real logic but capture the ZIP
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (state, patchName) => {
+-      // Import the real modules for this integration test
+-      const JSZip = (await import('jszip')).default;
+-      const { baseMultisampleJson } = await import('../../components/multisample/baseMultisampleJson');
+-      const { mergeImportedMultisampleSettings } = await import('../../utils/jsonImport');
+-      
+-      const zip = new JSZip();
+-      const sanitizedName = patchName || 'multisample_patch';
+-      
+-      // Deep copy base multisample JSON
+-      const patchJson = JSON.parse(JSON.stringify(baseMultisampleJson));
+-      patchJson.name = sanitizedName;
+-      patchJson.regions = [];
+-
+-      // Merge imported preset settings if they exist
+-      mergeImportedMultisampleSettings(patchJson, state.importedMultisamplePreset);
+-
+-      // Add patch.json to ZIP
+-      zip.file("patch.json", JSON.stringify(patchJson, null, 2));
+-
+-      // Generate ZIP
+-      return await zip.generateAsync({ type: 'blob' });
+-    });
+-
+-    // Mock state with imported multisample preset that includes envelope values
+-    vi.mocked(useAppContext).mockReturnValue({
+-      ...defaultMockState,
+-      state: {
+-        ...defaultMockState.state,
+-        multisampleFiles: [
+-          {
+-            file: new File(['mock audio'], 'test.wav', { type: 'audio/wav' }),
+-            audioBuffer: mockAudioBuffer,
+-            name: 'test.wav',
+-            isLoaded: true,
+-            rootNote: 60,
+-            inPoint: 0,
+-            outPoint: 1,
+-            loopStart: 0,
+-            loopEnd: 1
+-          }
+-        ],
+-        importedMultisamplePreset: {
+-          engine: {
+-            playmode: 'poly',
+-            transpose: 0,
+-            'velocity.sensitivity': 32767, // 100%
+-            volume: 32767, // 100%
+-            width: 32767, // 100%
+-            highpass: 32767, // 100%
+-            'portamento.amount': 32767, // 100%
+-            'portamento.type': 32767,
+-            'tuning.root': 0,
+-          },
+-          envelope: {
+-            amp: {
+-              attack: 32767,  // 100%
+-              decay: 32767,   // 100%
+-              sustain: 32767, // 100%
+-              release: 32767, // 100%
+-            },
+-            filter: {
+-              attack: 32767,  // 100%
+-              decay: 32767,   // 100%
+-              sustain: 32767, // 100%
+-              release: 32767, // 100%
+-            },
+-          },
+-          regions: []
+-        }
+-      }
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration())
+-    
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample')
+-    })
+-    
+-    // Verify that the patch generation was called
+-    expect(vi.mocked(generateMultisamplePatch)).toHaveBeenCalled();
+-    
+-    // The real test is that the mock implementation above uses the actual merge logic
+-    // and should include the envelope values in the generated ZIP
+-  })
+-
+-  it('should verify that envelope values are NOT included when no preset is imported (regression test)', async () => {
+-    // Mock the actual patch generation to capture the final JSON
+-    let capturedPatchJson!: CapturedPatchJson;
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (state, _patchName) => {
+-      // Simulate what the actual patch generation does - merge imported preset with base JSON
+-      const baseJson = {
+-        engine: { playmode: 'poly', volume: 16466 },
+-        envelope: { amp: { attack: 0, decay: 0, sustain: 32767, release: 32767 }, filter: { attack: 0, decay: 0, sustain: 32767, release: 32767 } },
+-        regions: []
+-      };
+-      
+-      // Merge the imported preset (which contains our UI settings)
+-      if (state.importedMultisamplePreset) {
+-        if (state.importedMultisamplePreset.engine) {
+-          Object.assign(baseJson.engine, state.importedMultisamplePreset.engine);
+-        }
+-        if (state.importedMultisamplePreset.envelope) {
+-          Object.assign(baseJson.envelope, state.importedMultisamplePreset.envelope);
+-        }
+-      }
+-      
+-      capturedPatchJson = baseJson;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    // Mock state with NO imported multisample preset (null)
+-    vi.mocked(useAppContext).mockReturnValue({
+-      ...defaultMockState,
+-      state: {
+-        ...defaultMockState.state,
+-        importedMultisamplePreset: null, // No preset imported
+-        isSessionRestorationModalOpen: false,
+-        sessionInfo: null,
+-        midiNoteMapping: 'C3' as const
+-      }
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration())
+-    
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample')
+-    })
+-    
+-    // Verify that the final patch JSON contains the default envelope values (NOT 32767)
+-    expect(capturedPatchJson).toBeDefined();
+-    expect(capturedPatchJson.envelope).toBeDefined();
+-    expect(capturedPatchJson.envelope.amp).toBeDefined();
+-    
+-    // Verify that envelope values are NOT 32767 (should be defaults)
+-    expect(capturedPatchJson.envelope.amp.attack).toBe(0);
+-    expect(capturedPatchJson.envelope.amp.decay).toBe(0);
+-    expect(capturedPatchJson.envelope.amp.sustain).toBe(32767);
+-    expect(capturedPatchJson.envelope.amp.release).toBe(32767);
+-    
+-    // Verify that engine values are also defaults (NOT 32767)
+-    expect(capturedPatchJson.engine.volume).toBe(16466);
+-  })
+-
+-  it('should export all updated values (engine, envelope, etc.) in the patch JSON', async () => {
+-    let capturedPatchJson!: CapturedPatchJson;
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (state, _patchName) => {
+-      // Simulate patch generation and capture the merged JSON
+-      const baseJson = {
+-        engine: { playmode: 'poly', volume: 16466, width: 0, highpass: 0, transpose: 0, 'velocity.sensitivity': 0, 'portamento.amount': 0, 'portamento.type': 0, 'tuning.root': 0 },
+-        envelope: {
+-          amp: { attack: 0, decay: 0, sustain: 32767, release: 32767 },
+-          filter: { attack: 0, decay: 0, sustain: 32767, release: 32767 }
+-        },
+-        regions: [] as unknown[]
+-      };
+-      if (state.importedMultisamplePreset) {
+-        if (state.importedMultisamplePreset.engine) {
+-          Object.assign(baseJson.engine, state.importedMultisamplePreset.engine);
+-        }
+-        if (state.importedMultisamplePreset.envelope) {
+-          Object.assign(baseJson.envelope, state.importedMultisamplePreset.envelope);
+-        }
+-        if (Array.isArray(state.importedMultisamplePreset.regions)) {
+-          baseJson.regions = state.importedMultisamplePreset.regions;
+-        }
+-      }
+-      capturedPatchJson = baseJson;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    // Set all fields to non-default values
+-    const updatedEngine = {
+-      playmode: 'mono',
+-      volume: 12345,
+-      width: 23456,
+-      highpass: 3456,
+-      transpose: 7,
+-      'velocity.sensitivity': 22222,
+-      'portamento.amount': 11111,
+-      'portamento.type': 1,
+-      'tuning.root': 42,
+-    };
+-    const updatedEnvelope = {
+-      amp: { attack: 1111, decay: 2222, sustain: 3333, release: 4444 },
+-      filter: { attack: 5555, decay: 6666, sustain: 7777, release: 8888 }
+-    };
+-    const updatedRegions = [
+-      { root: 60, lo: 60, hi: 60, file: 'sample1.wav' },
+-      { root: 61, lo: 61, hi: 61, file: 'sample2.wav' }
+-    ];
+-
+-    vi.mocked(useAppContext).mockReturnValue({
+-      ...defaultMockState,
+-      state: {
+-        ...defaultMockState.state,
+-        importedMultisamplePreset: {
+-          engine: updatedEngine,
+-          envelope: updatedEnvelope,
+-          regions: updatedRegions
+-        }
+-      }
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration())
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample')
+-    })
+-
+-    // Assert all updated values are present in the exported JSON
+-    expect(capturedPatchJson).toBeDefined();
+-    expect(capturedPatchJson.engine).toMatchObject(updatedEngine);
+-    expect(capturedPatchJson.envelope.amp).toMatchObject(updatedEnvelope.amp);
+-    expect(capturedPatchJson.envelope.filter).toMatchObject(updatedEnvelope.filter);
+-    expect(capturedPatchJson.regions).toEqual(updatedRegions);
+-  })
+ })
+-
+-describe('patch export structure', () => {
+-  it('should include all required fields from baseDrumJson in exported drum patch', async () => {
+-    let capturedPatchJson!: Record<string, unknown>;
+-    const { generateDrumPatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateDrumPatch).mockImplementation(async (_state, _patchName) => {
+-      // Simulate patch generation and capture the merged JSON
+-      const base = JSON.parse(JSON.stringify(baseDrumJson));
+-      // Simulate merge logic if needed (for now, just use base)
+-      capturedPatchJson = base;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration());
+-    await act(async () => {
+-      await result.current.generateDrumPatchFile('Test Drum Kit');
+-    });
+-
+-    // Compare structure
+-    const baseKeys = getAllKeys(baseDrumJson);
+-    const exportedKeys = getAllKeys(capturedPatchJson ?? {});
+-    for (const key of baseKeys) {
+-      expect(exportedKeys).toContain(key);
+-    }
+-  });
+-
+-  it('should include all required fields from baseMultisampleJson in exported multisample patch', async () => {
+-    let capturedPatchJson!: Record<string, unknown>;
+-    const { generateMultisamplePatch } = await import('../../utils/patchGeneration');
+-    vi.mocked(generateMultisamplePatch).mockImplementation(async (_state, _patchName) => {
+-      // Simulate patch generation and capture the merged JSON
+-      const base = JSON.parse(JSON.stringify(baseMultisampleJson));
+-      // Simulate merge logic if needed (for now, just use base)
+-      capturedPatchJson = base;
+-      return new Blob(['mock patch'], { type: 'application/zip' });
+-    });
+-
+-    const { result } = renderHook(() => usePatchGeneration());
+-    await act(async () => {
+-      await result.current.generateMultisamplePatchFile('Test Multisample');
+-    });
+-
+-    // Compare structure
+-    const baseKeys = getAllKeys(baseMultisampleJson);
+-    const exportedKeys = getAllKeys(capturedPatchJson ?? {});
+-    for (const key of baseKeys) {
+-      expect(exportedKeys).toContain(key);
+-    }
+-  });
+-
+-
+-});
+--- before/src/test/hooks/useWebMidi.test.ts
++++ after/src/test/hooks/useWebMidi.test.ts
+@@ -0,0 +1,26 @@
++import { act, renderHook } from '@testing-library/react';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { useWebMidi } from '../../hooks/useWebMidi';
++
++const midi=vi.hoisted(()=>({
++  supported:true,enabled:false,inputs:[],outputs:[],
++  enable:vi.fn(async()=>{throw new DOMException('permission denied','NotAllowedError');}),
++  addListener:vi.fn(),removeListener:vi.fn(),
++}));
++vi.mock('webmidi',()=>({WebMidi:midi,Input:class{},Output:class{}}));
++
++describe('useWebMidi initialization ownership',()=>{
++  beforeEach(()=>{midi.enabled=false;midi.enable.mockClear();});
++
++  it('allows one automatic permission attempt across hook instances and preserves explicit retry',async()=>{
++    const first=renderHook(()=>useWebMidi()),second=renderHook(()=>useWebMidi());
++    await act(async()=>{expect(await first.result.current.initialize({automatic:true})).toBe(false);});
++    await act(async()=>{expect(await second.result.current.initialize({automatic:true})).toBe(false);});
++    expect(midi.enable).toHaveBeenCalledOnce();
++    expect(first.result.current.state.error).toBe('permission denied');
++
++    await act(async()=>{expect(await second.result.current.initialize()).toBe(false);});
++    expect(midi.enable).toHaveBeenCalledTimes(2);
++    first.unmount();second.unmount();
++  });
++});
+--- before/src/test/utils/pwaCacheLifecycle.test.ts
++++ after/src/test/utils/pwaCacheLifecycle.test.ts
+@@ -0,0 +1,48 @@
++import { readFileSync } from 'node:fs';
++import { describe, expect, it, vi } from 'vitest';
++
++type WorkerListener = (event: {
++  data?: {type?:string};
++  source?: {postMessage:(message:unknown)=>void};
++  waitUntil:(promise:Promise<unknown>)=>void;
++}) => void;
++
++function loadLifecycle(windowCount:number,cacheNames:string[]) {
++  const listeners=new Map<string,WorkerListener>();
++  const deleted:string[]=[];
++  const skipWaiting=vi.fn(async()=>undefined),postMessage=vi.fn();
++  const worker={
++    clients:{matchAll:vi.fn(async()=>Array.from({length:windowCount},()=>({})))},
++    skipWaiting,
++    addEventListener:(type:string,listener:WorkerListener)=>listeners.set(type,listener),
++  };
++  const cacheStorage={keys:vi.fn(async()=>cacheNames),delete:vi.fn(async(name:string)=>{deleted.push(name);return true;})};
++  const source=readFileSync(`${process.cwd()}/public/pwa-cache-lifecycle.js`,'utf8');
++  Function('self','caches',source)(worker,cacheStorage);
++  const dispatch=async(type:string,data?:{type:string})=>{
++    let work:Promise<unknown>=Promise.resolve();
++    listeners.get(type)?.({data,source:{postMessage},waitUntil:promise=>{work=Promise.resolve(promise);}});
++    await work;
++  };
++  return {dispatch,deleted,postMessage,skipWaiting};
++}
++
++describe('PWA cache lifecycle',()=>{
++  it('keeps an update waiting while another app window is open',async()=>{
++    const worker=loadLifecycle(2,[]);
++    await worker.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'});
++    expect(worker.skipWaiting).not.toHaveBeenCalled();
++    expect(worker.postMessage).toHaveBeenCalledWith({type:'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS'});
++  });
++
++  it('activates for a sole app window and retains only two app precaches',async()=>{
++    const worker=loadLifecycle(1,[
++      'op-patchstudio-A-precache-v2-scope','unrelated-cache',
++      'op-patchstudio-B-precache-v2-scope','op-patchstudio-C-precache-v2-scope',
++    ]);
++    await worker.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'});
++    await worker.dispatch('activate');
++    expect(worker.skipWaiting).toHaveBeenCalledOnce();
++    expect(worker.deleted).toEqual(['op-patchstudio-A-precache-v2-scope']);
++  });
++});
+--- before/tests/e2e/audio-import.spec.ts
++++ after/tests/e2e/audio-import.spec.ts
+@@ -8,13 +8,13 @@
+ async function downloadedBytes(download:Download){expect(await download.failure()).toBeNull();const saved=await download.path();if(!saved)throw new Error('Project download produced no file');return readFile(saved);}
+ async function inspectProject(bytes:Buffer){const zip=await JSZip.loadAsync(bytes),entry=zip.file('manifest.json');if(!entry)throw new Error('Project backup has no manifest');return {zip,manifest:JSON.parse(await entry.async('string')) as {samples:Array<{name:string;sourcePath?:string;metadata:Record<string,unknown>;audio:{frames:number;sampleRate:number;channels:number}}>}};}
+ 
+-test('actual codec files stay truthful through chooser review, one Apply, and Undo',async({page,browserName})=>{
++test('actual codec files stay truthful through chooser review, one Apply, and Undo',async({page})=>{
+   await page.goto('/',{waitUntil:'domcontentloaded'});
+   const names=['original.wav','original-44100.wav','sample.aiff','sample.mp3','sample-44100.mp3','sample.flac','sample.m4a','sample.ogg','sample-vorbis.ogg'];
+   await page.getByLabel('choose drum audio files').setInputFiles(names.map(fixture));
+   const dialog=page.getByRole('dialog',{name:'Import audio'});await expect(dialog).toBeVisible();
+-  const expectedPrepared=browserName==='chromium'?8:9;await expect(dialog.getByLabel(/^Include /)).toHaveCount(expectedPrepared);
+-  if(browserName==='chromium')await expect(dialog).toContainText(/sample\.m4a:.*(decode|encoding)/i);
++  const expectedPrepared=9;await expect(dialog.getByLabel(/^Include /)).toHaveCount(expectedPrepared);
++  await expect(dialog.getByLabel('Include sample.m4a')).toBeVisible();
+   const compressed=dialog.getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li');
+   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(/decoded 48000 Hz/);
+   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
+--- before/tsconfig.app.json
++++ after/tsconfig.app.json
+@@ -0,0 +1,27 @@
++{
++  "compilerOptions": {
++    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
++    "target": "ES2022",
++    "useDefineForClassFields": true,
++    "lib": ["ES2022", "DOM", "DOM.Iterable"],
++    "module": "ESNext",
++    "skipLibCheck": true,
++
++    /* Bundler mode */
++    "moduleResolution": "bundler",
++    "allowImportingTsExtensions": true,
++    "verbatimModuleSyntax": true,
++    "moduleDetection": "force",
++    "noEmit": true,
++    "jsx": "react-jsx",
++
++    /* Linting */
++    "strict": true,
++    "noUnusedLocals": true,
++    "noUnusedParameters": true,
++    "erasableSyntaxOnly": true,
++    "noFallthroughCasesInSwitch": true,
++    "noUncheckedSideEffectImports": true
++  },
++  "include": ["src"]
++}
+--- before/tsconfig.json
++++ after/tsconfig.json
+@@ -0,0 +1,7 @@
++{
++  "files": [],
++  "references": [
++    { "path": "./tsconfig.app.json" },
++    { "path": "./tsconfig.node.json" }
++  ]
++}
+--- before/tsconfig.node.json
++++ after/tsconfig.node.json
+@@ -0,0 +1,25 @@
++{
++  "compilerOptions": {
++    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
++    "target": "ES2023",
++    "lib": ["ES2023"],
++    "module": "ESNext",
++    "skipLibCheck": true,
++
++    /* Bundler mode */
++    "moduleResolution": "bundler",
++    "allowImportingTsExtensions": true,
++    "verbatimModuleSyntax": true,
++    "moduleDetection": "force",
++    "noEmit": true,
++
++    /* Linting */
++    "strict": true,
++    "noUnusedLocals": true,
++    "noUnusedParameters": true,
++    "erasableSyntaxOnly": true,
++    "noFallthroughCasesInSwitch": true,
++    "noUncheckedSideEffectImports": true
++  },
++  "include": ["vite.config.ts"]
++}
+--- before/vite.config.ts
++++ after/vite.config.ts
+@@ -6,6 +6,8 @@
+ 
+ // Read version from package.json
+ const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
++const pwaBuildId = `${process.env.OPSTUDIO_BUILD_ID ?? process.env.GITHUB_SHA ?? `v${packageJson.version}`}-${Date.now().toString(36)}`
++  .replace(/[^a-zA-Z0-9._-]/g, '-')
+ 
+ // https://vite.dev/config/
+ export default defineConfig({
+@@ -16,12 +18,32 @@
+       injectRegister: false,
+       includeManifestIcons: false,
+       workbox: {
++        cacheId: `op-patchstudio-${pwaBuildId}`,
+         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+-        cleanupOutdatedCaches: true,
++        cleanupOutdatedCaches: false,
++        importScripts: ['pwa-cache-lifecycle.js'],
+         // Keep a content revision on public assets as well as Vite's hashed bundles.
+         // Icon and preview filenames are stable across releases, so URL-only cache
+         // keys could otherwise preserve stale pixels after an update.
+         dontCacheBustURLsMatching: /^$/,
++        runtimeCaching: [{
++          urlPattern: ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/assets/'),
++          handler: async ({ request }) => {
++            const workerCaches = (globalThis as unknown as { caches: {
++              keys: () => Promise<string[]>;
++              open: (name: string) => Promise<{
++                match: (request: Request, options: { ignoreSearch: boolean }) => Promise<Awaited<ReturnType<typeof fetch>> | undefined>;
++              }>;
++            } }).caches;
++            const appPrecaches = (await workerCaches.keys()).filter((name) =>
++              name.startsWith('op-patchstudio-') && name.includes('-precache-'));
++            for (const name of appPrecaches.reverse()) {
++              const response = await (await workerCaches.open(name)).match(request, { ignoreSearch: true });
++              if (response) return response;
++            }
++            return fetch(request);
++          },
++        }],
+       },
+       manifest: {
+         name: 'OP-PatchStudio',

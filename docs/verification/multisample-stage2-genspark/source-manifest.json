@@ -1,0 +1,26 @@
+[
+  {
+    "path": "src/components/common/AutoSamplingPanel.tsx",
+    "sha256": "2a939bc84ded21122b45accedd7df061f3bf8fdfed84cee4cf9e8ebf2906cc60"
+  },
+  {
+    "path": "src/components/common/RecordingModal.tsx",
+    "sha256": "fc68d7de26bfe88c94bc5e117d1c4b68e0422694237393d18a9b492acda78b28"
+  },
+  {
+    "path": "src/components/common/StudioShell.tsx",
+    "sha256": "28c689539ec5f604aa363d62715a90b1f0263c743c1630735add4ba969d75b69"
+  },
+  {
+    "path": "src/components/common/ProjectToolbar.tsx",
+    "sha256": "52107b6241c3ecadcfcbea701b2171dd00177ea248ba045de22eecc5c54076c4"
+  },
+  {
+    "path": "src/audio/recording/autoSampler.ts",
+    "sha256": "f18771d49b789add2ed4c596f81c8c9248f6fc9b1c5123343a07dcc7b6df5d13"
+  },
+  {
+    "path": "src/hooks/useOwnedDialog.ts",
+    "sha256": "9a17ccb9b3ab7149a803391a1f6026a410b31d62517398a7bda69a84f6ed1f38"
+  }
+]

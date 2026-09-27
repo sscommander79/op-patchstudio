@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { generateDrumPatch, generateMultisamplePatch, downloadBlob } from '../utils/patchGeneration';
+import { isMappedDrumSample } from '../utils/deviceExportPreflight';
 
 export function usePatchGeneration() {
   const { state, dispatch } = useAppContext();
 
-  const generateDrumPatchFile = useCallback(async (patchName?: string) => {
+  const generateDrumPatchFile = useCallback(async (patchName?: string,options:{includeUnassigned?:boolean}={}) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -22,8 +23,12 @@ export function usePatchGeneration() {
       const targetBitDepth = state.drumSettings.bitDepth || undefined;
       const targetChannels = state.drumSettings.channels === 1 ? "mono" : "keep";
       
+      const exportState=options.includeUnassigned===false?{...state,drumSamples:state.drumSamples.map((sample,index)=>{
+        const mapped=sample.isLoaded&&isMappedDrumSample(sample,index);
+        return mapped?sample:{...sample,isLoaded:false};
+      })}:state;
       const patchBlob = await generateDrumPatch(
-        state, 
+        exportState,
         finalPatchName,
         targetSampleRate,
         targetBitDepth,
@@ -31,16 +36,20 @@ export function usePatchGeneration() {
         state.drumSettings.audioFormat
       );
       
-      downloadBlob(patchBlob, `${finalPatchName}.preset.zip`);
+      const filename=`${finalPatchName}.preset.zip`;
+      downloadBlob(patchBlob, filename);
+      return {ok:true as const,filename};
       
       // Show success message (could be enhanced with a proper notification system)
       
     } catch (error) {
       console.error('Error generating drum patch:', error);
+      const message=error instanceof Error ? error.message : 'Failed to generate patch';
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Failed to generate patch' 
+        payload: message
       });
+      return {ok:false as const,error:message};
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -73,16 +82,20 @@ export function usePatchGeneration() {
         state.multisampleSettings.audioFormat
       );
       
-      downloadBlob(patchBlob, `${finalPatchName}.preset.zip`);
+      const filename=`${finalPatchName}.preset.zip`;
+      downloadBlob(patchBlob, filename);
+      return {ok:true as const,filename};
       
       // Show success message
       
     } catch (error) {
       console.error('Error generating multisample patch:', error);
+      const message=error instanceof Error ? error.message : 'Failed to generate patch';
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Failed to generate patch' 
+        payload: message
       });
+      return {ok:false as const,error:message};
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

@@ -11,6 +11,9 @@ interface DrumKeyboardContainerProps {
   onFileUpload?: (index: number, file: File) => void;
   isOrganizeMode: boolean;
   setIsOrganizeMode: (value: boolean) => void;
+  selectedSampleIndex?: number | null;
+  onSelectSample?: (index: number) => void;
+  onPlaySample?: (index: number) => void;
 }
 
 /**
@@ -18,7 +21,7 @@ interface DrumKeyboardContainerProps {
  * provides identical pin / sticky behaviour while keeping the existing
  * DrumKeyboard component unchanged.
  */
-export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ onFileUpload, isOrganizeMode, setIsOrganizeMode }) => {
+export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ onFileUpload, isOrganizeMode, setIsOrganizeMode, selectedSampleIndex, onSelectSample, onPlaySample }) => {
   const { state } = useAppContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
@@ -48,15 +51,8 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
   });
 
   // MIDI event handling
-  const { onMidiEvent, state: midiState, initialize, refreshDevices } = useWebMidi();
+  const { onMidiEvent, state: midiState, refreshDevices } = useWebMidi();
   const [isMidiSelectorVisible, setIsMidiSelectorVisible] = useState(false);
-
-  // Auto-initialize MIDI if not already initialized
-  useEffect(() => {
-    if (!midiState.isInitialized && !midiState.isConnecting) {
-      initialize();
-    }
-  }, [midiState.isInitialized, midiState.isConnecting, initialize]);
 
   // Refresh MIDI devices when tab becomes visible (helps with device detection)
   useEffect(() => {
@@ -95,12 +91,13 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
     return () => cleanup();
   }, [onMidiEvent]);
 
-  const loadedSamplesCount = state.drumSamples.filter(sample => sample && sample.isLoaded).length;
+  // Indices 24+ hold the unassigned review tray, which is not a pad.
+  const loadedSamplesCount = state.drumSamples.slice(0, 24).filter(sample => sample && sample.isLoaded).length;
 
   const togglePin = () => {
     const newPinnedState = !isDrumKeyboardPinned;
     setIsDrumKeyboardPinned(newPinnedState);
-    
+
     // If unpinning while stuck, reset stuck state without scrolling
     if (!newPinnedState && isStuck) {
       setDynamicStyles({});
@@ -122,14 +119,14 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
   const tooltipContent = isMobile ? (
     <>
       <h3>keyboard controls</h3>
-      <p><strong>load:</strong> tap empty keys to browse and select files</p>
+      <p><strong>load:</strong> select an empty pad, then use Add sounds nearby</p>
       <p><strong>play:</strong> tap keys to play loaded samples</p>
       <p><strong>pin:</strong> use the pin icon to keep the keyboard at the top of the screen</p>
     </>
   ) : (
     <>
       <h3>keyboard controls</h3>
-      <p><strong>load:</strong> click empty keys to browse files or drag and drop audio files directly onto any key</p>
+      <p><strong>load:</strong> select an empty pad and use Add sounds, or drag audio directly onto a pad</p>
       <p><strong>play:</strong> use keyboard keys (<strong>A-J, W, E, R, Y, U</strong>) to trigger samples and <strong>Z</strong> / <strong>X</strong> to switch octaves</p>
       <p><strong>pin:</strong> use the pin icon to keep the keyboard at the top of the screen</p>
     </>
@@ -185,12 +182,8 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Surface colours and borders live in studio.css; only pinning geometry stays inline.
   const combinedStyles: React.CSSProperties = {
-    border: '1px solid var(--color-border-subtle)',
-    borderRadius: '15px',
-    backgroundColor: 'var(--color-bg-primary)',
-    boxShadow: '0 2px 8px var(--color-shadow-primary)',
-    overflow: 'hidden',
     position: isStuck ? 'fixed' : 'relative',
     top: isStuck ? '10px' : undefined,
     zIndex: isStuck ? 1000 : undefined,
@@ -202,36 +195,22 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
       {/* Placeholder to avoid layout shift */}
       <div
         ref={placeholderRef}
-        style={{ display: isStuck ? 'block' : 'none', height: `${placeholderHeight}px`, background: '#fff' }}
+        style={{ display: isStuck ? 'block' : 'none', height: `${placeholderHeight}px`, background: 'var(--color-bg-primary)' }}
       />
 
       {/* Actual Keyboard Container */}
       <div
         ref={containerRef}
-        className={`virtual-midi-keyboard ${isDrumKeyboardPinned ? 'pinned' : ''}`}
+        className={`virtual-midi-keyboard studio-performance-surface studio-drum-surface ${isDrumKeyboardPinned ? 'pinned' : ''}`}
+        role="region"
+        aria-label={`Drum pad instrument, ${loadedSamplesCount} of 24 loaded`}
         style={combinedStyles}
       >
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: isMobile ? '0.5rem 1rem 0.5rem 1rem' : '0.7rem 1rem 0.5rem 1rem',
-            borderBottom: '1px solid var(--color-border-medium)',
-            backgroundColor: 'var(--color-bg-secondary)',
-          }}
-        >
+        <div className="studio-performance-header">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <h3
-              style={{
-                margin: 0,
-                color: '#222',
-                fontSize: '1.25rem',
-                fontWeight: 300,
-              }}
-            >
-              load and play samples
+            <h3>
+              drum pads
             </h3>
             <EnhancedTooltip
               isVisible={isTooltipVisible}
@@ -246,10 +225,10 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                 onMouseEnter={() => setIsTooltipVisible(true)}
                 onMouseLeave={() => setIsTooltipVisible(false)}
               >
-                <i 
-                  className="fas fa-question-circle" 
-                  style={{ 
-                    fontSize: iconSize, 
+                <i aria-hidden="true"
+                  className="fas fa-question-circle"
+                  style={{
+                    fontSize: iconSize,
                     color: 'var(--color-text-secondary)',
                     cursor: 'help'
                   }}
@@ -268,22 +247,16 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
           >
             {!isMobile && (
               <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontWeight: 500,
-                  }}
-                >
-                  <i className="fas fa-check-circle" style={{ color: 'var(--color-text-secondary)', fontSize: iconSize }}></i>
+                {/* A neutral count: the check icon appears only once something is loaded. */}
+                <div className="studio-drum-loaded-count" data-loaded-count={loadedSamplesCount}>
+                  {loadedSamplesCount > 0 && <i aria-hidden="true" className="fas fa-check-circle" style={{ fontSize: iconSize }}></i>}
                   {loadedSamplesCount} / 24 loaded
                 </div>
                 <button
                   onClick={() => setIsOrganizeMode(!isOrganizeMode)}
                   style={{
-                    background: isOrganizeMode ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    border: 'none',
+                    background: isOrganizeMode ? 'var(--studio-system-graphite)' : 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border-medium)',
                     cursor: 'pointer',
                     padding: '0.25rem 0.5rem',
                     borderRadius: '3px',
@@ -291,24 +264,16 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     alignItems: 'center',
                     gap: '0.25rem',
                     fontSize: '0.875rem',
-                    color: 'var(--color-white)',
+                    color: isOrganizeMode ? 'var(--studio-system-panel)' : 'var(--color-text-primary)',
                     transition: 'all 0.2s ease',
                     fontFamily: '"Montserrat", "Arial", sans-serif',
                     fontWeight: 500,
                     minHeight: '32px',
                   }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-text-primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = isOrganizeMode
-                      ? 'var(--color-text-primary)'
-                      : 'var(--color-text-secondary)';
-                  }}
                   title="Organize mode: bulk load samples by keyboard row"
                   aria-pressed={isOrganizeMode}
                 >
-                  <i className="fas fa-layer-group" style={{ fontSize: '0.75rem' }}></i>
+                  <i aria-hidden="true" className="fas fa-layer-group" style={{ fontSize: '0.75rem' }}></i>
                   <span>organize</span>
                 </button>
                 <button
@@ -320,12 +285,10 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     }
                   }}
                   style={{
-                    background: isMidiSelectorVisible 
-                      ? 'var(--color-interactive-focus)' 
-                      : midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0
-                        ? 'var(--color-text-primary)'
-                        : 'var(--color-text-secondary)',
-                    border: 'none',
+                    background: isMidiSelectorVisible
+                      ? 'var(--studio-system-graphite)'
+                      : 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border-medium)',
                     cursor: 'pointer',
                     padding: '0.25rem 0.5rem',
                     borderRadius: '3px',
@@ -333,31 +296,15 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     alignItems: 'center',
                     gap: '0.25rem',
                     fontSize: '0.875rem',
-                    color: 'var(--color-white)',
+                    color: isMidiSelectorVisible ? 'var(--studio-system-panel)' : 'var(--color-text-primary)',
                     transition: 'all 0.2s ease',
                     fontFamily: '"Montserrat", "Arial", sans-serif',
                     fontWeight: 500,
                     minHeight: '32px'
                   }}
-                  onMouseEnter={e => {
-                    const hasConnectedDevices = midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0;
-                    e.currentTarget.style.backgroundColor = isMidiSelectorVisible 
-                      ? 'var(--color-interactive-dark)' 
-                      : hasConnectedDevices
-                        ? 'var(--color-interactive-focus)'
-                        : 'var(--color-interactive-focus)';
-                  }}
-                  onMouseLeave={e => {
-                    const hasConnectedDevices = midiState.devices.filter(d => d.type === 'input' && d.state === 'connected').length > 0;
-                    e.currentTarget.style.backgroundColor = isMidiSelectorVisible 
-                      ? 'var(--color-interactive-focus)' 
-                      : hasConnectedDevices
-                        ? 'var(--color-text-primary)'
-                        : 'var(--color-text-secondary)';
-                  }}
                   title="connect midi devices"
                 >
-                  <i className="fas fa-plug" style={{ fontSize: '0.75rem' }}></i>
+                  <i aria-hidden="true" className="fas fa-plug" style={{ fontSize: '0.75rem' }}></i>
                   <span>midi</span>
                 </button>
               </>
@@ -378,7 +325,7 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
               }}
               title={isDrumKeyboardPinned ? 'Unpin keyboard' : 'Pin keyboard to top'}
             >
-              <i className="fas fa-thumbtack" style={{ 
+              <i aria-hidden="true" className="fas fa-thumbtack" style={{
                 fontSize: iconSize,
               }}></i>
             </button>
@@ -388,9 +335,9 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
 
 
         {/* MIDI Device Selector (Hidden by default) */}
-        <div 
+        <div
           className="midi-device-selector"
-          style={{ 
+          style={{
             display: isMidiSelectorVisible ? 'block' : 'none',
             padding: '0.75rem 1rem',
             backgroundColor: 'var(--color-bg-primary)',
@@ -414,6 +361,9 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
           midiState={midiState}
           onMidiEventExternal={onMidiEvent}
           isOrganizeMode={isOrganizeMode}
+          selectedSampleIndex={selectedSampleIndex}
+          onSelectSample={onSelectSample}
+          onPlaySample={onPlaySample}
         />
 
         {/* Organize Mode Drop Zones */}
@@ -430,6 +380,8 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
             <div
               role="region"
               aria-label="Drop zone for lower row samples (LO1-LO14)"
+              data-audio-import="drum"
+              data-drum-pads="0,2,4,6,7,9,11,12,14,16,18,19,21,23"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -479,7 +431,7 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                 minHeight: '120px',
               }}
             >
-              <i
+              <i aria-hidden="true"
                 className="fas fa-file-audio"
                 style={{ fontSize: '2rem', color: 'var(--color-text-secondary)' }}
               ></i>
@@ -510,6 +462,8 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
             <div
               role="region"
               aria-label="Drop zone for upper row samples (UP1-UP10)"
+              data-audio-import="drum"
+              data-drum-pads="1,3,5,8,10,13,15,17,20,22"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -559,7 +513,7 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                 minHeight: '120px',
               }}
             >
-              <i
+              <i aria-hidden="true"
                 className="fas fa-file-audio"
                 style={{ fontSize: '2rem', color: 'var(--color-text-secondary)' }}
               ></i>
@@ -590,4 +544,4 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
       </div>
     </>
   );
-}; 
+};

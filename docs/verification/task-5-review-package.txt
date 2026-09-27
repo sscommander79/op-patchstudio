@@ -1,0 +1,1399 @@
+--- before/src/components/drum/DrumSampleTable.tsx
++++ src/components/drum/DrumSampleTable.tsx
+@@ -17,6 +17,7 @@
+   onClearSample: (index: number) => void;
+   onRecordSample?: (index: number) => void;
+   isOrganizeMode?: boolean;
++  onSliceSample?: (index:number)=>void;
+ }
+ 
+ // Full drum names from OP-XY documentation - all lowercase
+@@ -52,7 +53,7 @@
+ // Default indices (0-23)
+ const defaultIndices = Array.from({ length: 24 }, (_, i) => i);
+ 
+-export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, isOrganizeMode = false }: DrumSampleTableProps) {
++export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, onSliceSample, isOrganizeMode = false }: DrumSampleTableProps) {
+   const { state, dispatch } = useAppContext();
+   const { play } = useAudioPlayer();
+   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+@@ -375,6 +376,13 @@
+                          color="var(--color-accent-primary)"
+                        />
+                        <IconButton
++                         icon="fas fa-cut"
++                         onClick={() => onSliceSample?.(index)}
++                         title="slice this sample"
++                         color={isLoaded ? c.action : c.textSecondary}
++                         disabled={!isLoaded}
++                       />
++                       <IconButton
+                          icon="fas fa-cog"
+                          onClick={() => openSettingsModal(index)}
+                          title="settings"
+@@ -764,6 +772,13 @@
+                     color="var(--color-accent-primary)"
+                   />
+                   <IconButton
++                    icon="fas fa-cut"
++                    onClick={() => onSliceSample?.(index)}
++                    title="slice this sample"
++                    color={isLoaded ? c.action : c.textSecondary}
++                    disabled={!isLoaded}
++                  />
++                  <IconButton
+                     icon="fas fa-cog"
+                     onClick={() => openSettingsModal(index)}
+                     title="settings"
+--- before/src/components/drum/DrumTool.tsx
++++ src/components/drum/DrumTool.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import { useAppContext } from '../../context/AppContext';
+ import { ConfirmationModal } from '../common/ConfirmationModal';
+ import { RecordingModal } from '../common/RecordingModal';
+@@ -18,6 +18,8 @@
+ import { saveDrumSettingsAsDefault } from '../../utils/defaultSettings';
+ import { parseOP1DrumPreset, isOP1DrumPreset } from '../../utils/op1DrumPresetParser';
+ import { AUDIO_CONSTANTS } from '../../utils/constants';
++import { SliceAudioModal, type SliceSourceRequest } from './SliceAudioModal';
++import type { AppAction } from '../../context/AppContext';
+ 
+ export function DrumTool() {
+   const { state, dispatch } = useAppContext();
+@@ -35,6 +37,8 @@
+   }>({ isOpen: false, targetIndex: null });
+   const [bulkEditModal, setBulkEditModal] = useState(false);
+   const [isOrganizeMode, setIsOrganizeMode] = useState(false);
++  const [sliceRequest, setSliceRequest] = useState<SliceSourceRequest | null>(null);
++  const sliceSourceInputRef = useRef<HTMLInputElement>(null);
+ 
+   // Detect mobile screen size
+   useEffect(() => {
+@@ -235,6 +239,25 @@
+     } finally {
+       dispatch({ type: 'SET_LOADING', payload: false });
+     }
++  };
++
++  const openExistingSlicer = (index: number) => {
++    const sample = state.drumSamples[index];
++    if (!sample?.isLoaded || !sample.audioBuffer || !sample.file) return;
++    const extension = sample.file.name.toLowerCase().split('.').pop();
++    setSliceRequest({kind:'existing',source:{
++      audioBuffer:sample.audioBuffer,file:sample.file,existingIndex:index,
++      metadata:{format:extension==='aif'?'aif':extension==='aiff'?'aiff':'wav',sampleRate:sample.originalSampleRate??sample.audioBuffer.sampleRate,
++        bitDepth:sample.originalBitDepth??32,channels:sample.originalChannels??sample.audioBuffer.numberOfChannels,duration:sample.duration??sample.audioBuffer.duration,
++        audioBuffer:sample.audioBuffer,fileSize:sample.fileSize??sample.file.size,midiNote:60,loopStart:0,loopEnd:sample.audioBuffer.duration,hasLoopData:false,isFloat:sample.isFloat},
++    }});
++  };
++
++  const applyPreparedSlices = (actions:AppAction[],summary:{assignedCount:number;overflowCount:number}) => {
++    dispatch({type:'BATCH_EDIT',payload:actions});
++    void sessionStorageIndexedDB.resetSavedToLibraryFlag();
++    dispatch({type:'ADD_NOTIFICATION',payload:{id:crypto.randomUUID(),type:'success',title:'slices applied',
++      message:`${summary.assignedCount} assigned to empty pads${summary.overflowCount?`; ${summary.overflowCount} kept unassigned`:''}`}});
+   };
+ 
+ 
+@@ -500,6 +523,7 @@
+               onClearSample={handleClearSample}
+               onRecordSample={handleOpenRecording}
+               isOrganizeMode={isOrganizeMode}
++              onSliceSample={openExistingSlicer}
+             />
+             {/* Action Buttons Below Table - RESTORED */}
+             <div style={{
+@@ -550,6 +574,9 @@
+                   }
+                 }}
+               />
++              <input ref={sliceSourceInputRef} aria-label="choose audio to slice" type="file" accept=".wav,.aif,.aiff,audio/wav,audio/aiff" style={{display:'none'}} onChange={event=>{
++                const file=event.target.files?.[0];if(file)setSliceRequest({kind:'file',file});event.target.value='';
++              }}/>
+               <button
+                 onClick={handleClearAll}
+                 disabled={!hasLoadedSamples}
+@@ -622,6 +649,10 @@
+                 <i className="fas fa-upload" style={{ fontSize: '1rem' }}></i>
+                 import OP-1 preset
+               </button>
++              <button
++                onClick={() => sliceSourceInputRef.current?.click()}
++                style={{minHeight:'44px',minWidth:'44px',padding:'0.75rem 1.5rem',border:'none',borderRadius:'6px',backgroundColor:'var(--color-interactive-focus)',color:'var(--color-white)',fontSize:'0.9rem',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.75rem',width:isMobile?'100%':'auto'}}
++              ><i className="fas fa-cut" aria-hidden="true"/>slice audio</button>
+               <button
+                 onClick={() => setBulkEditModal(true)}
+                 disabled={!hasMultipleLoadedSamples}
+@@ -779,6 +810,8 @@
+         isOpen={bulkEditModal}
+         onClose={() => setBulkEditModal(false)}
+       />
++      <SliceAudioModal isOpen={sliceRequest!==null} request={sliceRequest} existingSamples={state.drumSamples} midiNoteMapping={state.midiNoteMapping}
++        onClose={()=>setSliceRequest(null)} onApply={applyPreparedSlices}/>
+     </div>
+   );
+ }
+--- before/src/components/drum/SliceAudioModal.tsx
++++ src/components/drum/SliceAudioModal.tsx
+@@ -0,0 +1,154 @@
++import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
++import type { AppAction, DrumSample } from '../../context/AppContext';
++import { useAudioPlayer } from '../../hooks/useAudioPlayer';
++import { readAudioMetadataFromArrayBuffer } from '../../utils/audioFormats';
++import { audioContextManager } from '../../utils/audioContext';
++import {
++  SLICE_LIMITS,
++  analyzeSlices,
++  buildSliceRanges,
++  inspectSliceSource,
++  normalizeSliceMarkers,
++  planSliceApplication,
++  prepareSliceApplication,
++  type SliceSource,
++} from '../../utils/audioSlicing';
++import { previewFrameAtTime, type FrameRange } from '../../utils/loopEditing';
++import { shouldIgnoreKeyboardKeyDown } from '../../utils/keyboardOwnership';
++
++export type SliceSourceRequest = { kind:'existing'; source:SliceSource } | { kind:'file'; file:File };
++
++interface Props {
++  isOpen:boolean;
++  onClose:()=>void;
++  request:SliceSourceRequest | null;
++  existingSamples:readonly DrumSample[];
++  midiNoteMapping:'C3'|'C4';
++  onApply:(actions:AppAction[],summary:{assignedCount:number;overflowCount:number;sourceIdentity:string})=>void;
++}
++
++const colors={bg:'var(--color-bg-primary)',alt:'var(--color-bg-secondary)',border:'var(--color-border-medium)',text:'var(--color-text-primary)',action:'var(--color-interactive-focus)'};
++const buttonStyle={minHeight:'44px',padding:'.6rem 1rem',border:`1px solid ${colors.border}`,borderRadius:'4px',font:'inherit',cursor:'pointer'} as const;
++
++export function SliceAudioModal({isOpen,onClose,request,existingSamples,midiNoteMapping,onApply}:Props) {
++  const modalRef=useRef<HTMLDivElement>(null),canvasRef=useRef<HTMLCanvasElement>(null),firstButtonRef=useRef<HTMLButtonElement>(null);
++  const abortRef=useRef<AbortController|null>(null),generationRef=useRef(0),dragRef=useRef<{index:number;pointerId:number;before:number[]}|null>(null);
++  const noteRef=useRef<string|null>(null),playRequestRef=useRef(0),clockRef=useRef<{startedAt:number;startFrame:number;sample:FrameRange;loop:FrameRange;loopEnabled:boolean;sampleRate:number;playbackRate:number;reverse:boolean}|null>(null);
++  const sourceRef=useRef<SliceSource|null>(null),markersRef=useRef<number[]>([]),transportRef=useRef<'stopped'|'playing'>('stopped');
++  const {playWithADSR,releaseNote}=useAudioPlayer();
++  const [source,setSourceState]=useState<SliceSource|null>(null),[mode,setMode]=useState<'auto'|'manual'>('auto');
++  const [markers,setMarkersState]=useState<number[]>([]),[selected,setSelected]=useState(0),[transport,setTransportState]=useState<'stopped'|'playing'>('stopped');
++  const [sliceEnd,setSliceEnd]=useState(1);
++  const [sensitivity,setSensitivity]=useState(.5),[spacingMs,setSpacingMs]=useState(20),[busy,setBusy]=useState(''),[progress,setProgress]=useState(0),[error,setError]=useState('');
++
++  const setSource=(value:SliceSource|null)=>{sourceRef.current=value;setSourceState(value);};
++  const setMarkers=useCallback((value:number[]|((current:number[])=>number[]))=>setMarkersState(current=>{const next=typeof value==='function'?value(current):value;markersRef.current=next;return next;}),[]);
++  const setTransport=(value:'stopped'|'playing')=>{transportRef.current=value;setTransportState(value);};
++  const stop=useCallback(()=>{playRequestRef.current+=1;const note=noteRef.current;noteRef.current=null;if(note)releaseNote(note,true);clockRef.current=null;setTransport('stopped');},[releaseNote]);
++
++  const runAnalysis=useCallback(async (loaded:SliceSource,controller:AbortController)=>{
++    setBusy('Analyzing onsets…');setError('');setProgress(0);
++    try {
++      const result=await analyzeSlices(loaded.audioBuffer,{sensitivity,minimumSpacingFrames:Math.max(1,Math.round(spacingMs*loaded.audioBuffer.sampleRate/1000))},{signal:controller.signal,onProgress:setProgress});
++      if(controller.signal.aborted||sourceRef.current!==loaded)return;
++      setMarkers(result.onsets);setSelected(0);
++      setSliceEnd(result.ranges[result.ranges.length-1]?.end??loaded.audioBuffer.length);
++      if(result.reason==='no-onsets')setError('No meaningful onsets found. Try higher sensitivity or use manual mode.');
++    } catch(reason) {
++      if((reason as Error).name!=='AbortError'&&!controller.signal.aborted)setError(reason instanceof Error?reason.message:'Slice analysis failed');
++    } finally {if(!controller.signal.aborted)setBusy('');}
++  },[sensitivity,setMarkers,spacingMs]);
++
++  useEffect(()=>{
++    if(!isOpen||!request)return;
++    const generation=++generationRef.current;abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;
++    stop();setSource(null);setMarkers([]);setSliceEnd(1);setError('');setMode('auto');setBusy(request.kind==='file'?'Reading source…':'');setProgress(0);
++    const load=async()=>{
++      try {
++        let loaded:SliceSource;
++        if(request.kind==='existing') loaded=request.source;
++        else {
++          if(!request.file.size||request.file.size>SLICE_LIMITS.sourceFileBytes)throw new Error('Slice source must be a nonempty WAV or AIFF no larger than 64 MiB');
++          const bytes=await request.file.arrayBuffer();if(controller.signal.aborted||generation!==generationRef.current)return;
++          const dimensions=inspectSliceSource(bytes,request.file.name);
++          const contextRate=audioContextManager.getSampleRate();
++          const projectedFrames=Math.ceil(dimensions.frames*contextRate/dimensions.sampleRate);
++          if(projectedFrames*dimensions.channels*4>SLICE_LIMITS.decodedSourceBytes)throw new Error('Decoded source exceeds the 64 MiB slicing limit at the browser audio rate');
++          setBusy('Decoding source…');
++          const metadata=await readAudioMetadataFromArrayBuffer(bytes,request.file.name,request.file.size,midiNoteMapping);
++          if(controller.signal.aborted||generation!==generationRef.current)return;
++          loaded={audioBuffer:metadata.audioBuffer,file:request.file,metadata,existingIndex:null};
++        }
++        planSliceApplication({source:loaded.audioBuffer,ranges:[{start:0,end:loaded.audioBuffer.length}],existingSamples,retainExternalSource:loaded.existingIndex===null,sourceFileBytes:loaded.file.size});
++        if(controller.signal.aborted||generation!==generationRef.current)return;
++        setSource(loaded);await runAnalysis(loaded,controller);
++      } catch(reason){if(!controller.signal.aborted&&generation===generationRef.current){setBusy('');setError(reason instanceof Error?reason.message:'Could not load slicing source');}}
++    };
++    void load();return()=>controller.abort();
++  // A request identifies the source snapshot. Live project edits do not restart decode/analysis.
++  // eslint-disable-next-line react-hooks/exhaustive-deps
++  },[isOpen,request,midiNoteMapping]);
++
++  useEffect(()=>()=>{abortRef.current?.abort();stop();},[stop]);
++  useLayoutEffect(()=>{if(isOpen){const timer=setTimeout(()=>firstButtonRef.current?.focus(),0);return()=>clearTimeout(timer);}},[isOpen]);
++
++  const ranges=source?buildSliceRanges(source.audioBuffer.length,markers,sliceEnd):[];
++  const emptyPads=existingSamples.slice(0,24).filter(sample=>!sample?.isLoaded).length;
++  const assignedCount=Math.min(emptyPads,ranges.length),overflowCount=Math.max(0,ranges.length-assignedCount);
++  const longCount=source?ranges.filter(range=>(range.end-range.start)/source.audioBuffer.sampleRate>20).length:0;
++
++  const draw=useCallback(()=>{
++    const canvas=canvasRef.current;if(!canvas||!source)return;const context=canvas.getContext('2d');if(!context)return;
++    const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width||640));canvas.height=180;
++    context.clearRect(0,0,canvas.width,canvas.height);context.fillStyle='#f4f4f4';context.fillRect(0,0,canvas.width,canvas.height);
++    const channels=Array.from({length:source.audioBuffer.numberOfChannels},(_,channel)=>source.audioBuffer.getChannelData(channel));
++    const step=Math.max(1,Math.ceil(source.audioBuffer.length/canvas.width)),stride=Math.max(1,Math.ceil(step/64));context.fillStyle='#333';
++    for(let pixel=0;pixel<canvas.width;pixel+=1){let peak=0;for(let offset=0;offset<step;offset+=stride){const frame=pixel*step+offset;if(frame>=source.audioBuffer.length)break;for(const channel of channels)peak=Math.max(peak,Math.abs(channel[frame]));}context.fillRect(pixel,(1-peak)*canvas.height/2,1,Math.max(1,peak*canvas.height));}
++    markers.forEach((frame,index)=>{const x=frame/source.audioBuffer.length*canvas.width;context.strokeStyle=index===selected?'#d97706':'#2563eb';context.lineWidth=index===selected?3:1;context.beginPath();context.moveTo(x,0);context.lineTo(x,canvas.height);context.stroke();});
++  },[markers,selected,source]);
++  useEffect(()=>{if(!isOpen)return;draw();window.addEventListener('resize',draw);return()=>window.removeEventListener('resize',draw);},[draw,isOpen]);
++
++  const frameFromPointer=useCallback((clientX:number)=>{const canvas=canvasRef.current;if(!canvas||!source)return 0;const rect=canvas.getBoundingClientRect();return Math.max(0,Math.min(source.audioBuffer.length-1,Math.round((clientX-rect.left)/(rect.width||1)*source.audioBuffer.length)));},[source]);
++  const updateMarker=useCallback((index:number,frame:number)=>{if(!source||transportRef.current!=='stopped')return;setMarkers(current=>normalizeSliceMarkers(source.audioBuffer.length,current.map((value,item)=>item===index?frame:value)));},[setMarkers,source]);
++  const onPointerDown=(event:React.PointerEvent<HTMLCanvasElement>)=>{if(!source||mode!=='manual'||transport!=='stopped'||!markers.length)return;const frame=frameFromPointer(event.clientX);const index=markers.reduce((best,value,item)=>Math.abs(value-frame)<Math.abs(markers[best]-frame)?item:best,0);setSelected(index);dragRef.current={index,pointerId:event.pointerId,before:[...markers]};event.currentTarget.setPointerCapture?.(event.pointerId);updateMarker(index,frame);event.preventDefault();};
++  useEffect(()=>{if(!isOpen)return;const move=(event:PointerEvent)=>{const drag=dragRef.current;if(drag?.pointerId===event.pointerId){updateMarker(drag.index,frameFromPointer(event.clientX));event.preventDefault();}};const end=(event:PointerEvent)=>{if(dragRef.current?.pointerId===event.pointerId)dragRef.current=null;};const cancel=(event:PointerEvent)=>{const drag=dragRef.current;if(drag?.pointerId===event.pointerId){setMarkers(drag.before);dragRef.current=null;}};document.addEventListener('pointermove',move);document.addEventListener('pointerup',end);document.addEventListener('pointercancel',cancel);return()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',end);document.removeEventListener('pointercancel',cancel);};},[frameFromPointer,isOpen,setMarkers,updateMarker]);
++
++  const playRange=useCallback(async (range:FrameRange,clock=false)=>{
++    if(!source)return;stop();const requestId=++playRequestRef.current,requested=`slice-preview-${Date.now()}-${requestId}`;let owned=requested;
++    const result=await playWithADSR(source.audioBuffer,requested,{inFrame:range.start,outFrame:range.end,adsr:{attack:0,decay:0,sustain:32767,release:0},onEnded:()=>{if(requestId!==playRequestRef.current||noteRef.current!==owned)return;noteRef.current=null;clockRef.current=null;setTransport('stopped');}});
++    owned=typeof result==='string'?result:requested;if(requestId!==playRequestRef.current){releaseNote(owned,true);return;}noteRef.current=owned;
++    if(clock){clockRef.current={startedAt:audioContextManager.getCurrentTime()??0,startFrame:range.start,sample:{...range},loop:{...range},loopEnabled:false,sampleRate:source.audioBuffer.sampleRate,playbackRate:1,reverse:false};setTransport('playing');}
++  },[playWithADSR,releaseNote,source,stop]);
++  const mark=useCallback(()=>{const clock=clockRef.current;if(!source||transportRef.current!=='playing'||!clock)return;const now=audioContextManager.getCurrentTime();if(now===null)return;const frame=Math.min(source.audioBuffer.length-1,previewFrameAtTime(clock,now));setMarkers(current=>normalizeSliceMarkers(source.audioBuffer.length,[...current,frame]));},[setMarkers,source]);
++  useEffect(()=>{if(!isOpen)return;const key=(event:KeyboardEvent)=>{if(event.key.toLowerCase()!=='m'||!modalRef.current?.contains(document.activeElement)||shouldIgnoreKeyboardKeyDown(event,{modalOwner:modalRef.current}))return;event.preventDefault();mark();};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[isOpen,mark]);
++
++  const analyze=()=>{if(!source)return;abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;void runAnalysis(source,controller);};
++  const canAddMarker=transport==='stopped'&&ranges.some(range=>range.end-range.start>1)&&markers.length<SLICE_LIMITS.sliceCount;
++  const addMarker=()=>{if(!source||!canAddMarker)return;const widest=ranges.reduce((best,range)=>range.end-range.start>best.end-best.start?range:best,ranges[0]);const frame=widest.start+Math.floor((widest.end-widest.start)/2);setMarkers(current=>normalizeSliceMarkers(source.audioBuffer.length,[...current,frame]));};
++  const apply=async()=>{if(!source||!ranges.length||busy)return;const controller=new AbortController();abortRef.current=controller;setBusy('Materializing lossless slices…');setProgress(0);setError('');try{const prepared=await prepareSliceApplication({source,ranges,existingSamples,signal:controller.signal,onProgress:setProgress});if(controller.signal.aborted)return;onApply(prepared.actions,{assignedCount:prepared.assignedCount,overflowCount:prepared.overflowCount,sourceIdentity:prepared.sourceIdentity});onClose();}catch(reason){if((reason as Error).name!=='AbortError')setError(reason instanceof Error?reason.message:'Could not apply slices');}finally{if(!controller.signal.aborted)setBusy('');}};
++  const cancel=()=>{abortRef.current?.abort();stop();onClose();};
++  if(!isOpen)return null;
++
++  return <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="slice-audio-title" style={{position:'fixed',inset:0,zIndex:10000,background:'rgba(0,0,0,.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}} onPointerDown={event=>{if(event.target===event.currentTarget)cancel();}}>
++    <div style={{width:'min(920px,100%)',maxHeight:'100%',overflow:'auto',background:colors.bg,color:colors.text,borderRadius:'6px'}}>
++      <header style={{padding:'1rem 1.5rem',borderBottom:`1px solid ${colors.border}`}}><h3 id="slice-audio-title" style={{margin:0,fontWeight:400}}>slice audio</h3></header>
++      <main style={{padding:'1rem 1.5rem'}}>
++        {busy&&<p role="status" aria-live="polite">{busy} {Math.round(progress*100)}%</p>}{error&&<p role="alert">{error}</p>}
++        {source&&<>
++          <p><strong>{source.file.name}</strong> · {source.audioBuffer.length} frames · {source.audioBuffer.sampleRate} Hz</p>
++          <div role="group" aria-label="slice mode" style={{display:'flex',gap:'.5rem',marginBottom:'.75rem'}}><button ref={firstButtonRef} type="button" aria-label="auto mode" aria-pressed={mode==='auto'} onClick={()=>setMode('auto')} style={buttonStyle}>auto</button><button type="button" aria-label="manual mode" aria-pressed={mode==='manual'} onClick={()=>{stop();setMode('manual');setMarkers([0]);setSliceEnd(source.audioBuffer.length);setSelected(0);setError('');}} style={buttonStyle}>manual</button></div>
++          {mode==='auto'&&<section style={{display:'flex',gap:'1rem',alignItems:'end',flexWrap:'wrap'}}><label>sensitivity <input aria-label="sensitivity" type="range" min="0" max="100" value={sensitivity*100} onChange={event=>setSensitivity(Number(event.target.value)/100)}/></label><label>minimum slice spacing milliseconds <input aria-label="minimum slice spacing milliseconds" type="number" min="1" max="5000" value={spacingMs} onChange={event=>setSpacingMs(Math.max(1,Number(event.target.value)||1))}/></label><button type="button" onClick={analyze} disabled={Boolean(busy)} style={buttonStyle}>analyze onsets</button></section>}
++          {mode==='manual'&&<section><p>Play the source, then use Mark slice or press M while this dialog owns focus. Marker timing uses the audio clock. While stopped, Add marker splits the widest current slice.</p><div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}><button type="button" onClick={()=>void playRange({start:0,end:source.audioBuffer.length},true)} disabled={transport==='playing'} style={buttonStyle}>play source</button><button type="button" onClick={stop} disabled={transport==='stopped'} style={buttonStyle}>stop source</button><button type="button" onClick={mark} disabled={transport!=='playing'} style={buttonStyle}>mark slice</button><button type="button" onClick={addMarker} disabled={!canAddMarker} style={buttonStyle}>add marker</button></div></section>}
++          <canvas ref={canvasRef} aria-label="slice waveform markers" tabIndex={0} onPointerDown={onPointerDown} onKeyDown={event=>{if(mode!=='manual'||transport!=='stopped'||markers[selected]===undefined)return;const change=event.key==='ArrowLeft'?-1:event.key==='ArrowRight'?1:0;if(change){event.preventDefault();updateMarker(selected,markers[selected]+change*(event.shiftKey?10:1));}}} style={{display:'block',width:'100%',height:'180px',marginTop:'1rem',border:`1px solid ${colors.border}`,touchAction:'none'}}/>
++          <p aria-live="polite">{ranges.length} {ranges.length===1?'slice':'slices'}</p>
++          {mode==='manual'&&<div>{markers.map((frame,index)=><div key={`${index}-${frame}`} style={{display:'flex',gap:'.5rem',alignItems:'center',margin:'.35rem 0'}}><label>slice {index+1} start frame <input aria-label={`slice ${index+1} start frame`} type="number" min="0" max={source.audioBuffer.length-1} value={frame} disabled={transport!=='stopped'} onFocus={()=>setSelected(index)} onChange={event=>updateMarker(index,Number(event.target.value))}/></label><button type="button" aria-label={`delete slice ${index+1} marker`} disabled={transport!=='stopped'||markers.length===1} onClick={()=>{setMarkers(current=>current.filter((_,item)=>item!==index));setSelected(0);}}>delete marker</button></div>)}</div>}
++          <section aria-label="slice previews">{ranges.map((range,index)=><button key={`${range.start}-${range.end}`} type="button" aria-label={`audition slice ${index+1}`} onClick={()=>void playRange(range)} style={{...buttonStyle,margin:'.25rem'}}>audition {index+1} ({range.start}–{range.end})</button>)}</section>
++          <p role="status">{assignedCount} available pads, {overflowCount} overflow {overflowCount===1?'slice':'slices'} kept unassigned.</p>
++          {longCount>0&&<p role="alert">{longCount} output {longCount===1?'region is':'regions are'} longer than 20 seconds. Device export preflight will require handling before download.</p>}
++          <p>This onset detector is a tested amplitude-rise heuristic. Complex, sustained, or heavily compressed material may need manual markers.</p>
++        </>}
++      </main>
++      <footer style={{display:'flex',justifyContent:'flex-end',gap:'.75rem',padding:'1rem 1.5rem',borderTop:`1px solid ${colors.border}`,background:colors.alt}}><button type="button" onClick={cancel} style={buttonStyle}>cancel</button><button type="button" onClick={()=>void apply()} disabled={!source||!ranges.length||Boolean(busy)} style={{...buttonStyle,background:colors.action,color:'#fff'}}>apply slices</button></footer>
++    </div>
++  </div>;
++}
+--- before/src/context/AppContext.tsx
++++ src/context/AppContext.tsx
+@@ -42,6 +42,18 @@
+   // Assignment status - for unassigned samples beyond the 24 drum keys
+   isAssigned: boolean; // true if assigned to a drum key (0-23), false if unassigned
+   assignedKey?: number; // the drum key index this sample is assigned to (0-23)
++  /** Stable identity of an unedited source retained in the project. */
++  sourceIdentity?: string;
++  /** Original source coordinates; these are not relative to the derived slice buffer. */
++  sliceProvenance?: {
++    sourceIdentity: string;
++    sourceName: string;
++    startFrame: number;
++    endFrame: number;
++    sourceFrameCount: number;
++    sourceSampleRate: number;
++    sourceChannels: number;
++  };
+ }
+ 
+ export interface MultisampleFile {
+@@ -227,6 +239,7 @@
+   | { type: 'REORDER_DRUM_SAMPLES'; payload: { fromIndex: number; toIndex: number } }
+   | { type: 'SWAP_DRUM_SAMPLES'; payload: { fromIndex: number; toIndex: number } }
+   | { type: 'ADD_UNASSIGNED_DRUM_SAMPLE'; payload: { file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata } }
++  | { type: 'STORE_DRUM_SAMPLE_ASSET'; payload: { sample: DrumSample; targetKeyIndex: number | null } }
+   | { type: 'ASSIGN_DRUM_SAMPLE'; payload: { sampleIndex: number; targetKeyIndex: number } }
+   | { type: 'UNASSIGN_DRUM_SAMPLE'; payload: number }
+   | { type: 'IMPORT_OP1_DRUM_PRESET'; payload: { samples: Array<{ keyIndex: number; file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata; name: string }>; presetName: string } }
+@@ -928,6 +941,18 @@
+       };
+       
+       return { ...state, drumSamples: [...state.drumSamples, newUnassignedSample] };
++    }
++
++    case 'STORE_DRUM_SAMPLE_ASSET': {
++      const { sample, targetKeyIndex } = action.payload;
++      if (!sample.isLoaded || !sample.audioBuffer || !sample.file || sample.audioBuffer.length < 1) return state;
++      if (targetKeyIndex === null) {
++        return { ...state, drumSamples: [...state.drumSamples, { ...sample, isAssigned: false, assignedKey: undefined }] };
++      }
++      if (!Number.isInteger(targetKeyIndex) || targetKeyIndex < 0 || targetKeyIndex >= 24 || state.drumSamples[targetKeyIndex]?.isLoaded) return state;
++      const drumSamples = [...state.drumSamples];
++      drumSamples[targetKeyIndex] = { ...sample, isAssigned: true, assignedKey: targetKeyIndex };
++      return { ...state, drumSamples };
+     }
+     
+     case 'ASSIGN_DRUM_SAMPLE': {
+--- before/src/test/components/DrumTool.test.tsx
++++ src/test/components/DrumTool.test.tsx
+@@ -1,4 +1,5 @@
+ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
+ import { describe, it, expect, vi, beforeEach } from 'vitest';
+ import { DrumTool } from '../../components/drum/DrumTool';
+ import { useAppContext } from '../../context/AppContext';
+@@ -113,13 +114,20 @@
+ }));
+ 
+ vi.mock('../../components/drum/DrumSampleTable', () => ({
+-  DrumSampleTable: ({ onFileUpload, onClearSample, onRecordSample }: any) => (
++  DrumSampleTable: ({ onFileUpload, onClearSample, onRecordSample, onSliceSample }: any) => (
+     <div data-testid="drum-sample-table">
+       <button onClick={() => onFileUpload(0, new File([''], 'test.wav'))}>upload sample</button>
+       <button onClick={() => onClearSample(0)}>clear sample</button>
+       <button onClick={() => onRecordSample(0)}>record sample</button>
++      <button onClick={() => onSliceSample(0)}>slice loaded sample</button>
+     </div>
+   ),
++}));
++
++vi.mock('../../components/drum/SliceAudioModal', () => ({
++  SliceAudioModal: ({isOpen,request,onApply,onClose}:any) => isOpen ? <div data-testid="slice-audio-modal">
++    <span>{request.kind}</span><button onClick={()=>{onApply([{type:'SET_DRUM_PRESET_NAME',payload:'sliced'}],{assignedCount:1,overflowCount:0,sourceIdentity:'source'});onClose();}}>apply mocked slices</button>
++  </div> : null,
+ }));
+ 
+ vi.mock('../../components/drum/DrumPresetSettings', () => ({
+@@ -244,6 +252,17 @@
+     expect(screen.getByTestId('generate-preset-section')).toBeInTheDocument();
+   });
+ 
++  it('opens the shared slicer for an existing sample and dispatches its one prepared batch', async () => {
++    const source=new AudioContext().createBuffer(1,100,48000);
++    const loaded={...defaultState.drumSamples[0],file:new File(['x'],'break.wav',{type:'audio/wav'}),audioBuffer:source,name:'break.wav',isLoaded:true,duration:source.duration,fileSize:1};
++    (useAppContext as any).mockReturnValue({state:{...defaultState,drumSamples:[loaded,...defaultState.drumSamples.slice(1)]},dispatch:mockDispatch});
++    render(<DrumTool/>);
++    await userEvent.click(screen.getByRole('button',{name:'slice loaded sample'}));
++    expect(screen.getByTestId('slice-audio-modal')).toHaveTextContent('existing');
++    await userEvent.click(screen.getByRole('button',{name:'apply mocked slices'}));
++    expect(mockDispatch).toHaveBeenCalledWith({type:'BATCH_EDIT',payload:[{type:'SET_DRUM_PRESET_NAME',payload:'sliced'}]});
++  });
++
+   it('should show hasChangesFromDefaults as false when no changes from defaults', () => {
+     render(<DrumTool />);
+ 
+--- before/src/test/components/SliceAudioModal.test.tsx
++++ src/test/components/SliceAudioModal.test.tsx
+@@ -0,0 +1,188 @@
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
++import { SliceAudioModal } from '../../components/drum/SliceAudioModal';
++import type { AppAction, DrumSample } from '../../context/AppContext';
++
++const audioFormatMocks=vi.hoisted(()=>({read:vi.fn()}));
++vi.mock('../../utils/audioFormats',()=>({readAudioMetadataFromArrayBuffer:audioFormatMocks.read}));
++
++const playWithADSR = vi.fn(async (_audio:AudioBuffer,id:string) => id);
++const releaseNote = vi.fn();
++vi.mock('../../hooks/useAudioPlayer', () => ({ useAudioPlayer: () => ({ playWithADSR, releaseNote }) }));
++
++let audioClock = 10;
++vi.mock('../../utils/audioContext', () => ({ audioContextManager: { getCurrentTime: () => audioClock, getSampleRate:()=>10_000 } }));
++
++const PositionalAudioBuffer=globalThis.AudioBuffer as unknown as new(numberOfChannels:number,length:number,sampleRate:number)=>AudioBuffer;
++beforeAll(()=>vi.stubGlobal('AudioBuffer',class extends PositionalAudioBuffer { constructor(options:AudioBufferOptions){super(options.numberOfChannels??1,options.length??1,options.sampleRate);} }));
++afterAll(()=>vi.unstubAllGlobals());
++
++function audio(frames = 1000, sampleRate = 10000) {
++  const value = new AudioContext().createBuffer(1, frames, sampleRate);
++  value.getChannelData(0)[100] = 1;
++  value.getChannelData(0)[500] = .8;
++  return value;
++}
++
++function wavBytes(frames=1000) {
++  const bytes=new Uint8Array(44+frames*2),view=new DataView(bytes.buffer);
++  bytes.set(new TextEncoder().encode('RIFF'),0);view.setUint32(4,bytes.length-8,true);
++  bytes.set(new TextEncoder().encode('WAVEfmt '),8);view.setUint32(16,16,true);
++  view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,10_000,true);
++  view.setUint32(28,20_000,true);view.setUint16(32,2,true);view.setUint16(34,16,true);
++  bytes.set(new TextEncoder().encode('data'),36);view.setUint32(40,frames*2,true);
++  return bytes.buffer;
++}
++
++function wavFile(name:string,frames=1000) {
++  return new File([wavBytes(frames)],name,{type:'audio/wav'});
++}
++
++function deferred<T>() {
++  let resolve!:(value:T)=>void;
++  const promise=new Promise<T>(done=>{resolve=done;});
++  return {promise,resolve};
++}
++
++function dispatchPointer(target:Document|Element,type:string,pointerId:number,clientX:number) {
++  const event=new Event(type,{bubbles:true,cancelable:true});
++  Object.defineProperties(event,{pointerId:{value:pointerId},clientX:{value:clientX}});
++  fireEvent(target,event);
++}
++
++function sample(audioBuffer: AudioBuffer): DrumSample {
++  return { file:new File(['source'],'break.wav',{type:'audio/wav'}),audioBuffer,name:'break.wav',isLoaded:true,
++    inPoint:0,outPoint:audioBuffer.duration,playmode:'oneshot',reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,
++    isAssigned:true,assignedKey:0,originalBitDepth:16,originalSampleRate:48000,originalChannels:1,fileSize:6,duration:audioBuffer.duration,isFloat:false };
++}
++
++function props() {
++  const sourceBuffer=audio(), sourceSample=sample(sourceBuffer);
++  const existingSamples=Array.from({length:24},(_,index)=>index===0?sourceSample:{...sample(sourceBuffer),file:null,audioBuffer:null,name:'',isLoaded:false,isAssigned:true,assignedKey:index});
++  return {isOpen:true,onClose:vi.fn(),onApply:vi.fn(),existingSamples,
++    request:{kind:'existing' as const,source:{audioBuffer:sourceBuffer,file:sourceSample.file!,metadata:{format:'wav' as const,sampleRate:48000,bitDepth:16,channels:1,duration:sourceBuffer.duration,audioBuffer:sourceBuffer,fileSize:6,midiNote:60,loopStart:0,loopEnd:sourceBuffer.duration,hasLoopData:false},existingIndex:0}},midiNoteMapping:'C3' as const};
++}
++
++describe('SliceAudioModal real controls', () => {
++  beforeEach(() => { vi.clearAllMocks(); audioClock=10; });
++
++  it('analyzes known onsets, previews each slice, and exposes destination and long-slice preflight', async () => {
++    const input=props();
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    expect(screen.getByText(/2 available pads, 0 overflow/i)).toBeInTheDocument();
++    await userEvent.click(screen.getByRole('button',{name:'audition slice 2'}));
++    expect(playWithADSR).toHaveBeenLastCalledWith(input.request.source.audioBuffer,expect.any(String),expect.objectContaining({inFrame:500,outFrame:501}));
++    fireEvent.change(screen.getByLabelText('sensitivity'),{target:{value:'90'}});
++    fireEvent.change(screen.getByLabelText('minimum slice spacing milliseconds'),{target:{value:'2'}});
++    await userEvent.click(screen.getByRole('button',{name:'analyze onsets'}));
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++  });
++
++  it('captures a manual marker from the AudioContext clock, edits only while stopped, and applies one prepared batch', async () => {
++    const input=props();
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    await userEvent.click(screen.getByRole('button',{name:'manual mode'}));
++    await userEvent.click(screen.getByRole('button',{name:'play source'}));
++    const firstInput=screen.getByLabelText('slice 1 start frame');
++    expect(firstInput).toBeDisabled();
++    audioClock=10.004;
++    await userEvent.click(screen.getByRole('button',{name:'mark slice'}));
++    expect(screen.getByLabelText('slice 2 start frame')).toHaveValue(40);
++    await userEvent.click(screen.getByRole('button',{name:'stop source'}));
++    fireEvent.change(screen.getByLabelText('slice 2 start frame'),{target:{value:'45'}});
++    expect(screen.getByLabelText('slice 2 start frame')).toHaveValue(45);
++    await userEvent.click(screen.getByRole('button',{name:'apply slices'}));
++    await waitFor(()=>expect(input.onApply).toHaveBeenCalledTimes(1));
++    const [actions,summary]=input.onApply.mock.calls[0];
++    expect(actions[0]).toMatchObject({type:'UPDATE_DRUM_SAMPLE',payload:{index:0}});
++    expect(actions.filter((action:AppAction)=>action.type==='STORE_DRUM_SAMPLE_ASSET')).toHaveLength(2);
++    expect(summary).toMatchObject({assignedCount:2,overflowCount:0});
++  });
++
++  it('owns the M shortcut only while focused and Cancel changes no project state', async () => {
++    const input=props();
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    await userEvent.click(screen.getByRole('button',{name:'manual mode'}));
++    await userEvent.click(screen.getByRole('button',{name:'play source'}));
++    audioClock=10.003;
++    fireEvent.keyDown(document,{key:'m'});
++    expect(screen.getByLabelText('slice 2 start frame')).toHaveValue(30);
++    fireEvent.keyDown(screen.getByLabelText('slice 1 start frame'),{key:'m'});
++    expect(screen.getAllByLabelText(/slice \d+ start frame/)).toHaveLength(2);
++    await userEvent.click(screen.getByRole('button',{name:'cancel'}));
++    expect(input.onApply).not.toHaveBeenCalled();
++    expect(input.onClose).toHaveBeenCalledTimes(1);
++  });
++
++  it('shows a clear no-onsets state for silence', async () => {
++    const input=props(), silent=audio(); silent.getChannelData(0).fill(0);
++    input.request.source.audioBuffer=silent; input.request.source.metadata.audioBuffer=silent;
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText(/no meaningful onsets found/i)).toBeInTheDocument());
++    expect(screen.getByRole('button',{name:'apply slices'})).toBeDisabled();
++  });
++
++  it('moves a frame-zero marker by keyboard, rolls a canceled pointer drag back, and ignores outside pointerup', async () => {
++    const input=props();
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    await userEvent.click(screen.getByRole('button',{name:'manual mode'}));
++    const canvas=screen.getByLabelText('slice waveform markers');
++    Object.defineProperty(canvas,'getBoundingClientRect',{value:()=>({left:0,width:1000,top:0,height:180,right:1000,bottom:180,x:0,y:0,toJSON:()=>({})})});
++
++    fireEvent.keyDown(canvas,{key:'ArrowRight'});
++    expect(screen.getByLabelText('slice 1 start frame')).toHaveValue(1);
++    dispatchPointer(canvas,'pointerdown',7,400);
++    expect(screen.getByLabelText('slice 1 start frame')).toHaveValue(400);
++    dispatchPointer(document,'pointermove',7,700);
++    expect(screen.getByLabelText('slice 1 start frame')).toHaveValue(700);
++    dispatchPointer(document,'pointercancel',7,700);
++    expect(screen.getByLabelText('slice 1 start frame')).toHaveValue(1);
++    dispatchPointer(document,'pointerup',7,700);
++    expect(input.onClose).not.toHaveBeenCalled();
++  });
++
++  it('does not let a stale external-file read replace the newer selected source', async () => {
++    const input=props(),oldRead=deferred<ArrayBuffer>(),newRead=deferred<ArrayBuffer>();
++    const oldFile=wavFile('old.wav'),newFile=wavFile('new.wav');
++    Object.defineProperty(oldFile,'arrayBuffer',{value:vi.fn(()=>oldRead.promise)});
++    Object.defineProperty(newFile,'arrayBuffer',{value:vi.fn(()=>newRead.promise)});
++    audioFormatMocks.read.mockImplementation(async (_bytes:ArrayBuffer,name:string,size:number)=>{
++      const decoded=audio(name==='new.wav'?900:800);
++      return {format:'wav',sampleRate:10_000,bitDepth:16,channels:1,duration:decoded.duration,audioBuffer:decoded,fileSize:size,midiNote:60,loopStart:0,loopEnd:decoded.duration,hasLoopData:false};
++    });
++    const view=render(<SliceAudioModal {...input} request={{kind:'file',file:oldFile}}/>);
++    view.rerender(<SliceAudioModal {...input} request={{kind:'file',file:newFile}}/>);
++    newRead.resolve(wavBytes());
++    await waitFor(()=>expect(screen.getByText('new.wav',{exact:false})).toBeInTheDocument());
++    oldRead.resolve(wavBytes());
++    await Promise.resolve();
++    expect(screen.queryByText('old.wav',{exact:false})).not.toBeInTheDocument();
++  });
++
++  it('warns before applying any output region longer than twenty seconds', async () => {
++    const input=props(),longAudio=audio(200_001);
++    input.request.source.audioBuffer=longAudio;input.request.source.metadata.audioBuffer=longAudio;
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    await userEvent.click(screen.getByRole('button',{name:'manual mode'}));
++    expect(screen.getByRole('alert')).toHaveTextContent(/longer than 20 seconds/i);
++  });
++
++  it('adds and deletes nonempty manual markers while playback is stopped', async () => {
++    const input=props();
++    render(<SliceAudioModal {...input}/>);
++    await waitFor(()=>expect(screen.getByText('2 slices')).toBeInTheDocument());
++    await userEvent.click(screen.getByRole('button',{name:'manual mode'}));
++    await userEvent.click(screen.getByRole('button',{name:'add marker'}));
++    expect(screen.getByLabelText('slice 2 start frame')).toHaveValue(500);
++    expect(screen.getByText('2 slices',{exact:true})).toBeInTheDocument();
++    await userEvent.click(screen.getByRole('button',{name:'delete slice 2 marker'}));
++    expect(screen.queryByLabelText('slice 2 start frame')).not.toBeInTheDocument();
++    expect(screen.getByText('1 slice',{exact:true})).toBeInTheDocument();
++  });
++});
+--- before/src/test/context/audioSlicingApplication.test.ts
++++ src/test/context/audioSlicingApplication.test.ts
+@@ -0,0 +1,136 @@
++import { act, renderHook } from '@testing-library/react';
++import { describe, expect, it } from 'vitest';
++import JSZip from 'jszip';
++import { AppContextProvider, useAppContext, useProjectHistory, type AppAction } from '../../context/AppContext';
++import { prepareSliceApplication } from '../../utils/audioSlicing';
++import { generateDrumPatch } from '../../utils/patchGeneration';
++
++function sourceAudio(frames = 30) {
++  const audio = new AudioContext().createBuffer(2, frames, 10000);
++  for (let frame = 0; frame < frames; frame += 1) {
++    audio.getChannelData(0)[frame] = frame / 100;
++    audio.getChannelData(1)[frame] = -frame / 100;
++  }
++  return audio;
++}
++
++const metadata = (audioBuffer: AudioBuffer) => ({
++  format: 'wav' as const, sampleRate: 48000, bitDepth: 24, channels: 2,
++  duration: audioBuffer.duration, fileSize: 4, isFloat: false, audioBuffer,
++  midiNote: 60, loopStart: 0, loopEnd: audioBuffer.duration, hasLoopData: false,
++});
++
++async function blobBytes(blob:Blob):Promise<Uint8Array> {
++  return new Uint8Array(await new Promise<ArrayBuffer>((resolve,reject)=>{
++    const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(reader.result as ArrayBuffer);reader.readAsArrayBuffer(blob);
++  }));
++}
++
++function wavDataFrames(bytes:Uint8Array) {
++  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
++  let channels=0,bits=0;
++  for(let offset=12;offset+8<=bytes.length;) {
++    const id=new TextDecoder().decode(bytes.subarray(offset,offset+4)),size=view.getUint32(offset+4,true);
++    if(id==='fmt '){channels=view.getUint16(offset+10,true);bits=view.getUint16(offset+22,true);}
++    if(id==='data')return size/(channels*(bits/8));
++    offset+=8+size+(size%2);
++  }
++  throw new Error('WAV data chunk missing');
++}
++
++describe('atomic slice application through project history', () => {
++  it('keeps an existing source in place, fills only ascending empty pads, retains overflow, and undoes once', async () => {
++    const { result } = renderHook(() => ({ ...useAppContext(), ...useProjectHistory() }), { wrapper: AppContextProvider });
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    const source = sourceAudio();
++    const sourceFile = new File([new Uint8Array([1, 2, 3, 4])], 'break.wav', { type: 'audio/wav' });
++    send({ type: 'LOAD_DRUM_SAMPLE', payload: { index: 0, file: sourceFile, audioBuffer: source, metadata: metadata(source) } });
++    send({ type: 'UPDATE_DRUM_SAMPLE', payload: { index: 0, updates: { gain: 7, pan: -12 } } });
++    const occupied = sourceAudio(2);
++    const occupiedFile = new File(['keep'], 'keep.wav', { type: 'audio/wav' });
++    for (let index = 2; index < 24; index += 1) send({ type: 'LOAD_DRUM_SAMPLE', payload: { index, file: occupiedFile, audioBuffer: occupied, metadata: metadata(occupied) } });
++    const beforeSourceBuffer = result.current.state.drumSamples[0].audioBuffer;
++    const beforeSourceFile = result.current.state.drumSamples[0].file;
++    const beforeOccupied = result.current.state.drumSamples[2].audioBuffer;
++
++    const prepared = await prepareSliceApplication({
++      source: { audioBuffer: source, file: sourceFile, metadata: metadata(source), existingIndex: 0 },
++      ranges: [{ start: 3, end: 9 }, { start: 9, end: 15 }, { start: 15, end: 30 }],
++      existingSamples: result.current.state.drumSamples,
++      allocator: (channels, frames, sampleRate) => new AudioContext().createBuffer(channels, frames, sampleRate),
++    });
++    expect(prepared).toMatchObject({ assignedCount: 1, overflowCount: 2, targetKeys: [1] });
++    send({ type: 'BATCH_EDIT', payload: prepared.actions });
++
++    const state = result.current.state;
++    expect(state.drumSamples[0]).toMatchObject({ gain: 7, pan: -12, sourceIdentity: prepared.sourceIdentity });
++    expect(state.drumSamples[0].audioBuffer).toBe(beforeSourceBuffer);
++    expect(state.drumSamples[0].file).toBe(beforeSourceFile);
++    expect(state.drumSamples[1]).toMatchObject({sourceIdentity:prepared.sourceIdentity,sliceProvenance:{ sourceIdentity: prepared.sourceIdentity, startFrame: 3, endFrame: 9, sourceFrameCount: 30, sourceSampleRate: 10000, sourceChannels: 2 }});
++    expect(state.drumSamples[1].audioBuffer?.length).toBe(6);
++    expect(state.drumSamples[2].audioBuffer).toBe(beforeOccupied);
++    expect(state.drumSamples.slice(24).map(sample => sample.sliceProvenance?.startFrame)).toEqual([9, 15]);
++
++    send({ type: 'UNDO' });
++    expect(result.current.state.drumSamples).toHaveLength(24);
++    expect(result.current.state.drumSamples[0].sourceIdentity).toBeUndefined();
++    expect(result.current.state.drumSamples[0]).toMatchObject({ gain: 7, pan: -12 });
++    expect(result.current.state.drumSamples[0].audioBuffer).toBe(beforeSourceBuffer);
++    send({ type: 'REDO' });
++    expect(result.current.state.drumSamples[1].sliceProvenance?.startFrame).toBe(3);
++  });
++
++  it('retains a new external source exactly once as unassigned and gives slices stable unique lossless names', async () => {
++    const { result } = renderHook(() => useAppContext(), { wrapper: AppContextProvider });
++    const source = sourceAudio(12);
++    const file = new File([new Uint8Array([9, 8, 7, 6])], 'break.wav', { type: 'audio/wav' });
++    const prepared = await prepareSliceApplication({
++      source: { audioBuffer: source, file, metadata: metadata(source), existingIndex: null },
++      ranges: [{ start: 0, end: 4 }, { start: 4, end: 12 }],
++      existingSamples: result.current.state.drumSamples,
++      allocator: (channels, frames, sampleRate) => new AudioContext().createBuffer(channels, frames, sampleRate),
++    });
++    act(() => result.current.dispatch({ type: 'BATCH_EDIT', payload: prepared.actions }));
++    const loaded = result.current.state.drumSamples.filter(sample => sample.isLoaded);
++    const originals = loaded.filter(sample => sample.sourceIdentity === prepared.sourceIdentity && !sample.sliceProvenance);
++    const slices = loaded.filter(sample => sample.sliceProvenance?.sourceIdentity === prepared.sourceIdentity);
++    expect(originals).toHaveLength(1);
++    expect(originals[0]).toMatchObject({ isAssigned: false, file });
++    expect(slices.map(sample => sample.file?.name)).toEqual(['break slice 01.opfloat', 'break slice 02.opfloat']);
++    expect(new Set(slices.map(sample => sample.file?.name)).size).toBe(2);
++  });
++
++  it('keeps original-source frame coordinates when an existing derived slice is sliced again', async () => {
++    const source=sourceAudio(30),file=new File(['derived'],'break slice 01.opfloat',{type:'application/vnd.op-patchstudio.float32'});
++    const sourceIdentity='original-break-source';
++    const existing={
++      file,audioBuffer:source,name:file.name,isLoaded:true,inPoint:0,outPoint:source.duration,
++      originalBitDepth:24,originalSampleRate:48000,originalChannels:2,fileSize:file.size,duration:source.duration,isFloat:true,
++      playmode:'oneshot' as const,reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:0,
++      sourceIdentity,sliceProvenance:{sourceIdentity,sourceName:'original-break.wav',startFrame:1000,endFrame:1030,sourceFrameCount:5000,sourceSampleRate:10000,sourceChannels:2},
++    };
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:0},
++      ranges:[{start:3,end:9}],existingSamples:[existing],
++      allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});
++    const derived=prepared.actions.find(action=>action.type==='STORE_DRUM_SAMPLE_ASSET');
++    expect(derived?.type).toBe('STORE_DRUM_SAMPLE_ASSET');
++    if(derived?.type!=='STORE_DRUM_SAMPLE_ASSET')throw new Error('Derived slice action missing');
++    expect(derived.payload.sample.sliceProvenance).toEqual({sourceIdentity,sourceName:'original-break.wav',startFrame:1003,endFrame:1009,sourceFrameCount:5000,sourceSampleRate:10000,sourceChannels:2});
++  });
++
++  it('writes each assigned derived WAV with its exact half-open slice frame count', async () => {
++    const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});
++    const source=sourceAudio(12),file=new File([new Uint8Array([1,2,3,4])],'break.wav',{type:'audio/wav'});
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},
++      ranges:[{start:1,end:5},{start:5,end:12}],existingSamples:result.current.state.drumSamples,
++      allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});
++    act(()=>result.current.dispatch({type:'BATCH_EDIT',payload:prepared.actions}));
++    const zip=await JSZip.loadAsync(await blobBytes(await generateDrumPatch(result.current.state,'slice export')));
++    const patch=JSON.parse(await zip.file('patch.json')!.async('string')) as {regions:Array<{sample:string;framecount:number}>};
++    expect(patch.regions.map(region=>region.framecount)).toEqual([4,7]);
++    for(const region of patch.regions) {
++      const bytes=await zip.file(region.sample)!.async('uint8array');
++      expect(wavDataFrames(bytes)).toBe(region.framecount);
++    }
++  });
++});
+--- before/src/test/utils/audioSlicing.test.ts
++++ src/test/utils/audioSlicing.test.ts
+@@ -0,0 +1,149 @@
++import { describe, expect, it, vi } from 'vitest';
++import {
++  SLICE_LIMITS,
++  analyzeSlices,
++  buildSliceRanges,
++  inspectSliceSource,
++  materializeSlice,
++  normalizeSliceMarkers,
++  planSliceApplication,
++} from '../../utils/audioSlicing';
++
++function buffer(channels: number[][], sampleRate = 1000): AudioBuffer {
++  const audio = new AudioContext().createBuffer(channels.length, channels[0].length, sampleRate);
++  channels.forEach((values, channel) => audio.getChannelData(channel).set(values));
++  return audio;
++}
++
++function impulses(length: number, values: Array<[number, number]>) {
++  const result = new Array<number>(length).fill(0);
++  for (const [frame, value] of values) result[frame] = value;
++  return result;
++}
++
++describe('automatic audio slicing', () => {
++  it('finds hand-authored transient boundaries and excludes leading and trailing silence', async () => {
++    const source = buffer([impulses(64, [[8, 1], [24, .8], [40, .9]])]);
++    const result = await analyzeSlices(source, { sensitivity: .5, minimumSpacingFrames: 4 });
++    expect(result.onsets).toEqual([8, 24, 40]);
++    expect(result.ranges).toEqual([{ start: 8, end: 24 }, { start: 24, end: 40 }, { start: 40, end: 41 }]);
++  });
++
++  it('uses channel energy without opposite-polarity cancellation', async () => {
++    const left = impulses(48, [[7, 1], [30, .7]]);
++    const right = left.map(value => -value);
++    const result = await analyzeSlices(buffer([left, right]), { sensitivity: .5, minimumSpacingFrames: 4 });
++    expect(result.onsets).toEqual([7, 30]);
++  });
++
++  it('reports silence and stationary low noise as no onsets', async () => {
++    const silence = await analyzeSlices(buffer([new Array(32).fill(0)]), { sensitivity: 1, minimumSpacingFrames: 1 });
++    const noise = await analyzeSlices(buffer([Array.from({ length: 96 }, (_, i) => (i % 2 ? .004 : -.004))]), { sensitivity: 1, minimumSpacingFrames: 1 });
++    expect(silence).toMatchObject({ onsets: [], ranges: [], reason: 'no-onsets' });
++    expect(noise).toMatchObject({ onsets: [], ranges: [], reason: 'no-onsets' });
++  });
++
++  it('makes sensitivity meaningful and enforces minimum spacing between adjacent attacks', async () => {
++    const source = buffer([impulses(64, [[8, 1], [24, .14], [40, .8], [42, .9]])]);
++    const conservative = await analyzeSlices(source, { sensitivity: .2, minimumSpacingFrames: 4 });
++    const sensitive = await analyzeSlices(source, { sensitivity: 1, minimumSpacingFrames: 4 });
++    expect(conservative.onsets).toEqual([8, 42]);
++    expect(sensitive.onsets).toEqual([8, 24, 42]);
++  });
++
++  it('treats each damped tonal or noise-like drum burst as one attack instead of retriggering on its ringing tail', async () => {
++    const values=new Array<number>(1000).fill(0);
++    for(let frame=0;frame<220;frame+=1) values[100+frame]=Math.cos(2*Math.PI*frame/20)*Math.exp(-frame/65);
++    for(let frame=0;frame<220;frame+=1) {
++      const noise=((frame*37)%23)/22*.6+.4;
++      values[600+frame]=(frame%2?-1:1)*noise*.85*Math.exp(-frame/60);
++    }
++    const result=await analyzeSlices(buffer([values]),{sensitivity:.5,minimumSpacingFrames:20});
++    expect(result.onsets).toEqual([100,600]);
++    expect(result.ranges).toEqual([{start:100,end:600},{start:600,end:820}]);
++  });
++
++  it('handles one-frame and short inputs without empty ranges', async () => {
++    const one = await analyzeSlices(buffer([[.75]]), { sensitivity: .5, minimumSpacingFrames: 1 });
++    const short = await analyzeSlices(buffer([[0, .8, 0]]), { sensitivity: .5, minimumSpacingFrames: 1 });
++    expect(one.ranges).toEqual([{ start: 0, end: 1 }]);
++    expect(short.ranges).toEqual([{ start: 1, end: 2 }]);
++    for (const range of [...one.ranges, ...short.ranges]) expect(range.end).toBeGreaterThan(range.start);
++  });
++
++  it('yields during long analysis, reports progress, and honors cancellation', async () => {
++    const source = buffer([impulses(20000, [[100, 1], [19000, 1]])], 48000);
++    const progress: number[] = [];
++    const controller = new AbortController();
++    const yieldControl = vi.fn(async () => { if (progress.length >= 2) controller.abort(); });
++    await expect(analyzeSlices(source, { sensitivity: .5, minimumSpacingFrames: 10 }, {
++      signal: controller.signal, onProgress: value => progress.push(value), yieldEveryFrames: 1000, yieldControl,
++    })).rejects.toMatchObject({ name: 'AbortError' });
++    expect(yieldControl).toHaveBeenCalled();
++    expect(progress[0]).toBeGreaterThan(0);
++  });
++
++  it('bounds adversarial dense-onset output instead of retaining or silently dropping candidates', async () => {
++    const dense = Array.from({ length: 900 }, (_, frame) => frame % 3 === 0 ? 1 : 0);
++    await expect(analyzeSlices(buffer([dense]), { sensitivity: 1, minimumSpacingFrames: 1 })).rejects.toThrow(/more than 128 onsets/i);
++  });
++});
++
++describe('manual markers and lossless slice assets', () => {
++  it('normalizes stopped edits into stable unique starts and half-open nonempty ranges', () => {
++    expect(normalizeSliceMarkers(10, [7, 0, 7, 12, -1, 4.4])).toEqual([0, 4, 7, 9]);
++    expect(buildSliceRanges(10, [7, 0, 7, 12, -1, 4.4])).toEqual([
++      { start: 0, end: 4 }, { start: 4, end: 7 }, { start: 7, end: 9 }, { start: 9, end: 10 },
++    ]);
++  });
++
++  it('materializes exactly [start,end) while leaving every source channel bitwise unchanged', () => {
++    const source = buffer([[.1, .2, .3, .4, .5], [-.1, -.2, -.3, -.4, -.5]], 48000);
++    const before = Array.from({ length: 2 }, (_, channel) => new Float32Array(source.getChannelData(channel)));
++    const sliced = materializeSlice(source, { start: 1, end: 4 }, (channels, frames, sampleRate) => new AudioContext().createBuffer(channels, frames, sampleRate));
++    expect(sliced.length).toBe(3);
++    expect([...sliced.getChannelData(0)]).toEqual([...before[0].slice(1, 4)]);
++    expect([...sliced.getChannelData(1)]).toEqual([...before[1].slice(1, 4)]);
++    expect(source.getChannelData(0)).toEqual(before[0]);
++    expect(source.getChannelData(1)).toEqual(before[1]);
++  });
++});
++
++describe('slice resource preflight', () => {
++  it('reads WAV dimensions before decode and rejects malformed or over-budget sources', () => {
++    const wav = new ArrayBuffer(4044);
++    const bytes = new Uint8Array(wav); bytes.set(new TextEncoder().encode('RIFF'), 0); bytes.set(new TextEncoder().encode('WAVEfmt '), 8);
++    const view = new DataView(wav); view.setUint32(4,wav.byteLength-8,true);view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 2, true);
++    view.setUint32(24, 48000, true); view.setUint32(28, 192000, true); view.setUint16(32, 4, true); view.setUint16(34, 16, true);
++    bytes.set(new TextEncoder().encode('data'), 36); view.setUint32(40, 4000, true);
++    expect(inspectSliceSource(wav, 'source.wav')).toEqual({ channels: 2, frames: 1000, sampleRate: 48000, decodedBytes: 8000 });
++    const oversized = new ArrayBuffer(44 + SLICE_LIMITS.decodedSourceBytes / 4 + 1);
++    const bigBytes = new Uint8Array(oversized); bigBytes.set(new TextEncoder().encode('RIFF'), 0); bigBytes.set(new TextEncoder().encode('WAVEfmt '), 8);
++    const bigView = new DataView(oversized);bigView.setUint32(4,oversized.byteLength-8,true); bigView.setUint32(16, 16, true); bigView.setUint16(20, 1, true); bigView.setUint16(22, 1, true);
++    bigView.setUint32(24, 48000, true); bigView.setUint32(28, 48000, true); bigView.setUint16(32, 1, true); bigView.setUint16(34, 8, true);
++    bigBytes.set(new TextEncoder().encode('data'), 36); bigView.setUint32(40, SLICE_LIMITS.decodedSourceBytes / 4 + 1, true);
++    expect(() => inspectSliceSource(oversized, 'source.wav')).toThrow(/decoded source exceeds/i);
++  });
++
++  it('rejects dishonest PCM dimensions and compressed sources before browser decode', () => {
++    const wav = new ArrayBuffer(4044);
++    const bytes=new Uint8Array(wav),view=new DataView(wav);
++    bytes.set(new TextEncoder().encode('RIFF'),0);view.setUint32(4,wav.byteLength-8,true);bytes.set(new TextEncoder().encode('WAVEfmt '),8);
++    view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,2,true);view.setUint32(24,48_000,true);
++    view.setUint32(28,48_000,true);view.setUint16(32,1,true);view.setUint16(34,16,true);
++    bytes.set(new TextEncoder().encode('data'),36);view.setUint32(40,4000,true);
++    expect(()=>inspectSliceSource(wav,'dishonest.wav')).toThrow(/block alignment/i);
++
++    view.setUint16(20,6,true);view.setUint16(32,4,true);
++    expect(()=>inspectSliceSource(wav,'compressed.wav')).toThrow(/compressed WAV/i);
++    const aifc=new Uint8Array(12);aifc.set(new TextEncoder().encode('FORM'),0);aifc.set(new TextEncoder().encode('AIFC'),8);
++    expect(()=>inspectSliceSource(aifc.buffer,'compressed.aif')).toThrow(/compressed AIFF-C/i);
++  });
++
++  it('accounts for existing project audio, sample count, source retention, and derived buffers before allocation', () => {
++    const audio = buffer([new Array(10).fill(0)], 1000);
++    const existing = [{ audioBuffer: audio, file: new File(['1234'], 'existing.wav'), isLoaded: true }];
++    expect(planSliceApplication({ source: audio, ranges: [{ start: 0, end: 5 }, { start: 5, end: 10 }], existingSamples: existing, retainExternalSource: true, sourceFileBytes: 4 })).toMatchObject({ additionalSamples: 3, derivedDecodedBytes: 40 });
++    expect(() => planSliceApplication({ source: audio, ranges: Array.from({ length: SLICE_LIMITS.sliceCount + 1 }, () => ({ start: 0, end: 1 })), existingSamples: existing, retainExternalSource: false, sourceFileBytes: 0 })).toThrow(/128 slices/i);
++  });
++});
+--- before/src/test/utils/libraryUtils.test.ts
++++ src/test/utils/libraryUtils.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+-import { savePresetToLibrary, resetAllSettings, type LibraryPreset } from '../../utils/libraryUtils';
++import { savePresetToLibrary, resetAllSettings, restoreLibrarySamples, type LibraryPreset } from '../../utils/libraryUtils';
+ import { indexedDB, STORES } from '../../utils/indexedDB';
+ import { sessionStorageIndexedDB } from '../../utils/sessionStorageIndexedDB';
+ import type { AppState } from '../../context/AppContext';
+@@ -193,6 +193,26 @@
+   });
+ 
+   describe('savePresetToLibrary', () => {
++    it('round trips slice source identity and original-frame provenance through library storage', async () => {
++      vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
++      const sourceIdentity='source-library-1';
++      const sliceProvenance={sourceIdentity,sourceName:'break.wav',startFrame:1200,endFrame:2400,sourceFrameCount:48000,sourceSampleRate:48000,sourceChannels:1};
++      const state={...mockAppState,drumSamples:[{...mockAppState.drumSamples![0],sourceIdentity,sliceProvenance}]} as AppState;
++      const result=await savePresetToLibrary(state,'Sliced library kit','drum');
++      expect(result.success).toBe(true);
++      const saved=vi.mocked(indexedDB.add).mock.calls.at(-1)?.[1] as LibraryPreset;
++      const stored=saved.data.drumSamples[0];
++      expect(stored).toMatchObject({sourceIdentity,sliceProvenance});
++      const storedBytes=await new Promise<ArrayBuffer>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(reader.result as ArrayBuffer);reader.readAsArrayBuffer(stored.audioBlob);});
++      Object.defineProperty(stored.audioBlob,'arrayBuffer',{value:async()=>storedBytes});
++      const PositionalAudioBuffer=globalThis.AudioBuffer as unknown as new(numberOfChannels:number,length:number,sampleRate:number)=>AudioBuffer;
++      vi.stubGlobal('AudioBuffer',class extends PositionalAudioBuffer {constructor(options:AudioBufferOptions){super(options.numberOfChannels ?? 1,options.length ?? 1,options.sampleRate);}});
++      try {
++        const [restored]=await restoreLibrarySamples([stored],'drum',new AudioContext());
++        expect(restored).toMatchObject({sourceIdentity,sliceProvenance});
++      } finally {vi.unstubAllGlobals();}
++    });
++
+     it('should successfully save a drum preset to library', async () => {
+       vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
+       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
+@@ -341,7 +361,7 @@
+       // This test documents the current behavior and can be updated when reset logic is implemented
+     });
+   });
+-}); 
++});
+ 
+ // Test for drum sample index preservation
+ describe('Drum Sample Index Preservation', () => {
+@@ -782,4 +802,4 @@
+ 
+     console.log('✅ Multisample loop points preservation test passed');
+   });
+-}); +});
+--- before/src/test/utils/projectArchive.test.ts
++++ src/test/utils/projectArchive.test.ts
+@@ -108,6 +108,23 @@
+     expect(restored.multisampleSettings).toMatchObject({sampleRate:0,bitDepth:0,channels:0});
+   });
+ 
++  it('round trips original-frame slice provenance without archiving a redundant derived source file', async () => {
++    const state=projectState();
++    const derived=state.drumSamples[5];
++    derived.sourceIdentity='source-123';
++    derived.sliceProvenance={sourceIdentity:'source-123',sourceName:'long-break.wav',startFrame:1200,endFrame:1203,
++      sourceFrameCount:96000,sourceSampleRate:48000,sourceChannels:2};
++    const archive=await exportProjectArchive(createProjectSnapshot(state));
++    const zip=await JSZip.loadAsync(await bytes(archive));
++    const manifest=JSON.parse(await zip.file(PROJECT_ARCHIVE_MANIFEST)!.async('string'));
++    const ref=manifest.project.drumSamples.find((sample:any)=>sample.originalIndex===5);
++    const asset=manifest.samples.find((sample:any)=>sample.id===ref.sampleId);
++    expect(asset.sourcePath).toBeUndefined();
++    const restored=await importProjectArchive(archive);
++    expect(restored.drumSamples.find(sample=>sample.originalIndex===5)?.sliceProvenance).toEqual(derived.sliceProvenance);
++    expect(restored.drumSamples.find(sample=>sample.originalIndex===5)?.audioBuffer?.length).toBe(3);
++  });
++
+   it('loads an actual Task 3 v1 archive and normalizes its fractional and empty markers', async () => {
+     const legacy = new Blob([Buffer.from(TASK3_LEGACY_ARCHIVE_BASE64, 'base64')], { type: 'application/zip' });
+     const restored = await importProjectArchive(legacy);
+@@ -138,6 +155,7 @@
+     ['fractional imported frame count',(m:any)=>{m.project.multisampleFiles[0].loopCrossfade.importedFramecount=1.5}],
+     ['negative sample marker',(m:any)=>{m.project.multisampleFiles[0].inPoint=-1}],
+     ['sample marker beyond audio',(m:any)=>{m.project.multisampleFiles[0].outPoint=1}],
++    ['slice provenance beyond its original source',(m:any)=>{m.project.drumSamples[0].sliceProvenance={sourceIdentity:'x',sourceName:'x.wav',startFrame:2,endFrame:5,sourceFrameCount:3,sourceSampleRate:48000,sourceChannels:1}}],
+   ])('rejects %s before returning a project', async (_name,change) => {
+     const archive=await rewriteManifest(await exportProjectArchive(createProjectSnapshot(projectState())),change);
+     await expect(importProjectArchive(archive)).rejects.toThrow();
+--- before/src/utils/audioSlicing.ts
++++ src/utils/audioSlicing.ts
+@@ -0,0 +1,369 @@
++import type { DrumSample } from '../context/AppContext';
++import type { AppAction } from '../context/AppContext';
++import type { AudioMetadata } from './audioFormats';
++import { normalizeFrameRange, type FrameRange } from './loopEditing';
++import { encodeStoredAudio, STORED_AUDIO_TYPE } from './storedAudio';
++
++export const SLICE_LIMITS = {
++  sourceFileBytes: 64 * 1024 * 1024,
++  decodedSourceBytes: 64 * 1024 * 1024,
++  derivedDecodedBytes: 64 * 1024 * 1024,
++  projectDecodedBytes: 128 * 1024 * 1024,
++  projectStoredBytes: 256 * 1024 * 1024,
++  projectSamples: 256,
++  sliceCount: 128,
++} as const;
++
++export interface SliceAnalysis {
++  onsets: number[];
++  ranges: FrameRange[];
++  reason?: 'no-onsets';
++}
++
++export interface SliceAnalysisOptions {
++  sensitivity: number;
++  minimumSpacingFrames: number;
++}
++
++interface AsyncAnalysisOptions {
++  signal?: AbortSignal;
++  onProgress?: (progress: number) => void;
++  yieldEveryFrames?: number;
++  yieldControl?: () => Promise<void>;
++}
++
++function abortError(): DOMException {
++  return new DOMException('Slice analysis canceled', 'AbortError');
++}
++
++function assertAudioDimensions(audio: AudioBuffer) {
++  const decodedBytes = audio.length * audio.numberOfChannels * 4;
++  if (!Number.isSafeInteger(decodedBytes) || audio.length < 1 || audio.numberOfChannels < 1) {
++    throw new Error('Slice source has invalid audio dimensions');
++  }
++  if (decodedBytes > SLICE_LIMITS.decodedSourceBytes) {
++    throw new Error('Decoded source exceeds the 64 MiB slicing limit');
++  }
++  return decodedBytes;
++}
++
++function amplitudeAt(channels: readonly Float32Array[], frame: number): number {
++  let peak = 0;
++  for (let channel = 0; channel < channels.length; channel += 1) {
++    peak = Math.max(peak, Math.abs(channels[channel][frame] ?? 0));
++  }
++  return peak;
++}
++
++/**
++ * Tested transient heuristic: channel-wise peak energy, an adaptive noise floor,
++ * a sensitivity-scaled rise threshold, local peak selection, a short quiet-period
++ * rearm and minimum spacing.
++ * It deliberately does not claim instrument or beat understanding.
++ */
++export async function analyzeSlices(
++  audio: AudioBuffer,
++  options: SliceAnalysisOptions,
++  asyncOptions: AsyncAnalysisOptions = {},
++): Promise<SliceAnalysis> {
++  assertAudioDimensions(audio);
++  if (asyncOptions.signal?.aborted) throw abortError();
++  const channels = Array.from({ length: audio.numberOfChannels }, (_, channel) => audio.getChannelData(channel));
++  const signal = asyncOptions.signal;
++  const yieldEvery = Math.max(256, Math.floor(asyncOptions.yieldEveryFrames ?? 32768));
++  const yieldControl = asyncOptions.yieldControl ?? (() => new Promise<void>(resolve => setTimeout(resolve, 0)));
++  const checkpoint = async (frame: number, phase: number) => {
++    if (signal?.aborted) throw abortError();
++    asyncOptions.onProgress?.(Math.min(.99, phase + (frame / audio.length) * .45));
++    await yieldControl();
++    if (signal?.aborted) throw abortError();
++  };
++
++  const sampleCount = Math.min(audio.length, 8192);
++  const distribution: number[] = [];
++  let peak = 0;
++  for (let frame = 0; frame < audio.length; frame += 1) {
++    const amplitude = amplitudeAt(channels, frame);
++    peak = Math.max(peak, amplitude);
++    if (frame % Math.max(1, Math.floor(audio.length / sampleCount)) === 0 && distribution.length < sampleCount) distribution.push(amplitude);
++    if (frame > 0 && frame % yieldEvery === 0) await checkpoint(frame, 0);
++  }
++  distribution.sort((a, b) => a - b);
++  const noiseFloor = distribution[Math.floor(distribution.length * .5)] ?? 0;
++  if (audio.length === 1) {
++    asyncOptions.onProgress?.(1);
++    return peak >= 1e-5 ? { onsets: [0], ranges: [{ start: 0, end: 1 }] } : { onsets: [], ranges: [], reason: 'no-onsets' };
++  }
++  if (peak < 1e-5 || peak <= Math.max(1e-5, noiseFloor * 1.5)) {
++    asyncOptions.onProgress?.(1);
++    return { onsets: [], ranges: [], reason: 'no-onsets' };
++  }
++
++  const sensitivity = Math.max(0, Math.min(1, Number.isFinite(options.sensitivity) ? options.sensitivity : .5));
++  const threshold = noiseFloor + (peak - noiseFloor) * (.62 - sensitivity * .52);
++  const spacing = Math.max(1, Math.round(options.minimumSpacingFrames || 1));
++  const accepted: Array<{ frame: number; peakFrame: number; strength: number }> = [];
++  const activityThreshold = Math.max(1e-5, noiseFloor * 3, peak * .001);
++  const quietThreshold = Math.max(activityThreshold, threshold * .1);
++  const rearmFrames = Math.max(1, Math.min(spacing, Math.round(audio.sampleRate * .005)));
++  const attackLookback = Math.max(1, Math.min(spacing, Math.round(audio.sampleRate * .05)));
++  let lastActiveFrame = -1;
++  let baseline = noiseFloor;
++  let armed = true;
++  let quietFrames = rearmFrames;
++  for (let frame = 0; frame < audio.length; frame += 1) {
++    const amplitude = amplitudeAt(channels, frame);
++    const previous = frame > 0 ? amplitudeAt(channels, frame - 1) : 0;
++    const next = frame + 1 < audio.length ? amplitudeAt(channels, frame + 1) : 0;
++    if (amplitude > activityThreshold) lastActiveFrame = frame;
++    if (amplitude <= quietThreshold) quietFrames += 1;
++    else quietFrames = 0;
++    if (quietFrames >= rearmFrames) armed = true;
++    const rise = amplitude - Math.max(baseline, previous * .35);
++    if (amplitude >= threshold && rise >= threshold * .45 && amplitude >= previous && amplitude >= next) {
++      const prior = accepted[accepted.length - 1];
++      const withinPriorSpacing = !!prior && frame - prior.peakFrame < spacing;
++      if (armed || !prior || withinPriorSpacing) {
++        let attackFrame = frame;
++        const earliest = Math.max(0, frame - attackLookback);
++        while (attackFrame > earliest && amplitudeAt(channels, attackFrame - 1) > activityThreshold) attackFrame -= 1;
++        const candidate = { frame: attackFrame, peakFrame: frame, strength: amplitude };
++        if (!prior || candidate.frame - prior.frame >= spacing) accepted.push(candidate);
++        else if (candidate.strength > prior.strength) accepted[accepted.length - 1] = candidate;
++        armed = false;
++        quietFrames = 0;
++      }
++      if (accepted.length > SLICE_LIMITS.sliceCount) {
++        throw new Error(`Analysis found more than ${SLICE_LIMITS.sliceCount} onsets; increase minimum spacing or reduce sensitivity`);
++      }
++    }
++    baseline = baseline * .995 + amplitude * .005;
++    if (frame > 0 && frame % yieldEvery === 0) await checkpoint(frame, .5);
++  }
++  if (!accepted.length) {
++    asyncOptions.onProgress?.(1);
++    return { onsets: [], ranges: [], reason: 'no-onsets' };
++  }
++
++  const contentEnd = Math.max(accepted[accepted.length - 1].frame + 1, lastActiveFrame + 1);
++  const onsets = accepted.map(candidate => candidate.frame).filter(frame => frame < contentEnd);
++  const ranges = onsets.map((start, index) => ({ start, end: index + 1 < onsets.length ? onsets[index + 1] : contentEnd }))
++    .filter(range => range.end > range.start);
++  asyncOptions.onProgress?.(1);
++  return ranges.length ? { onsets: ranges.map(range => range.start), ranges } : { onsets: [], ranges: [], reason: 'no-onsets' };
++}
++
++export function normalizeSliceMarkers(frameCount: number, markers: readonly number[]): number[] {
++  if (!Number.isInteger(frameCount) || frameCount < 1) throw new RangeError('Frame count must be a positive integer');
++  return [...new Set(markers.map(value => Math.max(0, Math.min(frameCount - 1, Math.round(Number.isFinite(value) ? value : 0)))))]
++    .sort((a, b) => a - b);
++}
++
++export function buildSliceRanges(frameCount: number, markers: readonly number[], requestedEnd = frameCount): FrameRange[] {
++  const endFrame = Math.max(1, Math.min(frameCount, Math.round(requestedEnd)));
++  const starts = normalizeSliceMarkers(frameCount, markers).filter(start => start < endFrame);
++  return starts.map((start, index) => ({ start, end: starts[index + 1] ?? endFrame })).filter(range => range.end > range.start);
++}
++
++function createAudioBuffer(channels: number, frames: number, sampleRate: number): AudioBuffer {
++  return new AudioBuffer({ numberOfChannels: channels, length: frames, sampleRate });
++}
++
++export function materializeSlice(source: AudioBuffer, requested: FrameRange, allocator = createAudioBuffer): AudioBuffer {
++  assertAudioDimensions(source);
++  const range = normalizeFrameRange(source.length, requested);
++  const output = allocator(source.numberOfChannels, range.end - range.start, source.sampleRate);
++  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
++    const view = source.getChannelData(channel).subarray(range.start, range.end);
++    if (typeof output.copyToChannel === 'function') output.copyToChannel(view, channel);
++    else output.getChannelData(channel).set(view);
++  }
++  return output;
++}
++
++function fourCC(bytes: Uint8Array, offset: number): string {
++  return String.fromCharCode(bytes[offset] ?? 0, bytes[offset + 1] ?? 0, bytes[offset + 2] ?? 0, bytes[offset + 3] ?? 0);
++}
++
++export interface SliceSourceDimensions { channels: number; frames: number; sampleRate: number; decodedBytes: number }
++
++export function inspectSliceSource(arrayBuffer: ArrayBuffer, name: string): SliceSourceDimensions {
++  if (arrayBuffer.byteLength < 12 || arrayBuffer.byteLength > SLICE_LIMITS.sourceFileBytes) throw new Error('Slice source file must be a nonempty WAV or AIFF no larger than 64 MiB');
++  const bytes = new Uint8Array(arrayBuffer), view = new DataView(arrayBuffer);
++  let channels = 0, frames = 0, sampleRate = 0;
++  if (fourCC(bytes, 0) === 'RIFF' && fourCC(bytes, 8) === 'WAVE') {
++    const riffBytes=view.getUint32(4,true)+8;
++    if(riffBytes<12 || riffBytes>bytes.length)throw new Error(`${name} has a truncated RIFF body`);
++    let blockAlign = 0, dataBytes = 0, audioFormat = 0, bitDepth=0;
++    for (let offset = 12; offset + 8 <= bytes.length;) {
++      const id = fourCC(bytes, offset), size = view.getUint32(offset + 4, true), body = offset + 8;
++      if (!Number.isSafeInteger(body + size) || body + size > bytes.length) throw new Error(`${name} has a truncated WAV chunk`);
++      if (id === 'fmt ' && size >= 16 && body + 16 <= bytes.length) {
++        audioFormat = view.getUint16(body, true); channels = view.getUint16(body + 2, true); sampleRate = view.getUint32(body + 4, true); blockAlign = view.getUint16(body + 12, true); bitDepth=view.getUint16(body+14,true);
++      } else if (id === 'data') dataBytes = size;
++      const next = body + size + (size % 2);
++      if (next <= offset) throw new Error('Invalid WAV chunk dimensions');
++      if (dataBytes && blockAlign) break;
++      offset = next;
++    }
++    if (audioFormat !== 1 && audioFormat !== 3) throw new Error(`${name} uses compressed WAV audio; the slicing source chooser accepts PCM or IEEE-float WAV`);
++    const supportedDepth=audioFormat===1?[8,16,24,32].includes(bitDepth):[32,64].includes(bitDepth);
++    if(!supportedDepth || blockAlign!==channels*Math.ceil(bitDepth/8))throw new Error(`${name} has invalid PCM block alignment or sample width`);
++    if (blockAlign > 0 && dataBytes % blockAlign === 0) frames = dataBytes / blockAlign;
++  } else if (fourCC(bytes, 0) === 'FORM' && fourCC(bytes, 8) === 'AIFF') {
++    const formBytes=view.getUint32(4,false)+8;
++    if(formBytes<12 || formBytes>bytes.length)throw new Error(`${name} has a truncated FORM body`);
++    let bitDepth = 0, soundBytes = 0;
++    for (let offset = 12; offset + 8 <= bytes.length;) {
++      const id = fourCC(bytes, offset), size = view.getUint32(offset + 4, false), body = offset + 8;
++      if (!Number.isSafeInteger(body + size) || body + size > bytes.length) throw new Error(`${name} has a truncated AIFF chunk`);
++      if (id === 'COMM' && size >= 18 && body + 18 <= bytes.length) {
++        channels = view.getUint16(body, false); frames = view.getUint32(body + 2, false); bitDepth = view.getUint16(body + 6, false);
++        // 80-bit extended parsing is already validated by the full AIFF reader; use a finite coarse decode here.
++        const exponent = view.getUint16(body + 8, false) & 0x7fff;
++        const high = view.getUint32(body + 10, false), low = view.getUint32(body + 14, false);
++        sampleRate = exponent === 0 ? 0 : Math.round((high * 2 ** 32 + low) * 2 ** (exponent - 16383 - 63));
++      } else if (id === 'SSND' && size >= 8) {
++        const audioOffset=view.getUint32(body,false);
++        if(audioOffset>size-8)throw new Error(`${name} has an invalid AIFF sound offset`);
++        soundBytes = size - 8 - audioOffset;
++      }
++      const next = body + size + (size % 2); if (next <= offset) throw new Error('Invalid AIFF chunk dimensions'); offset = next;
++    }
++    const requiredBytes = frames * channels * Math.ceil(bitDepth / 8);
++    if (!Number.isSafeInteger(requiredBytes) || requiredBytes > soundBytes) throw new Error(`${name} has truncated AIFF sample data`);
++  } else if (fourCC(bytes, 0) === 'FORM' && fourCC(bytes, 8) === 'AIFC') {
++    throw new Error(`${name} uses compressed AIFF-C audio; the slicing source chooser accepts uncompressed AIFF`);
++  } else throw new Error(`${name} is not a supported WAV or AIFF slicing source`);
++  const decodedBytes = channels * frames * 4;
++  if (!Number.isInteger(channels) || channels < 1 || channels > 32 || !Number.isInteger(frames) || frames < 1 || !Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 768000 || !Number.isSafeInteger(decodedBytes)) {
++    throw new Error(`${name} has invalid or unsupported audio dimensions`);
++  }
++  if (decodedBytes > SLICE_LIMITS.decodedSourceBytes) throw new Error('Decoded source exceeds the 64 MiB slicing limit');
++  return { channels, frames, sampleRate, decodedBytes };
++}
++
++type ProjectSample = Pick<DrumSample, 'audioBuffer' | 'file' | 'isLoaded'> | { audioBuffer?: AudioBuffer | null; file?: File | null; isLoaded?: boolean };
++
++export function planSliceApplication({ source, ranges, existingSamples, retainExternalSource, sourceFileBytes }: {
++  source: AudioBuffer; ranges: readonly FrameRange[]; existingSamples: readonly ProjectSample[];
++  retainExternalSource: boolean; sourceFileBytes: number;
++}) {
++  const sourceDecodedBytes = assertAudioDimensions(source);
++  if (!ranges.length) throw new Error('Add at least one nonempty slice before applying');
++  if (ranges.length > SLICE_LIMITS.sliceCount) throw new Error(`A source can create at most ${SLICE_LIMITS.sliceCount} slices`);
++  let derivedDecodedBytes = 0;
++  for (const requested of ranges) {
++    const range = normalizeFrameRange(source.length, requested);
++    if (range.start !== requested.start || range.end !== requested.end) throw new Error('Slice boundaries must be canonical half-open source frames');
++    derivedDecodedBytes += (range.end - range.start) * source.numberOfChannels * 4;
++  }
++  if (derivedDecodedBytes > SLICE_LIMITS.derivedDecodedBytes) throw new Error('Materialized slices exceed the 64 MiB derived-audio limit');
++  const loaded = existingSamples.filter(sample => sample.isLoaded && sample.audioBuffer);
++  const existingDecodedBytes = loaded.reduce((sum, sample) => sum + sample.audioBuffer!.length * sample.audioBuffer!.numberOfChannels * 4, 0);
++  const existingStoredBytes = loaded.reduce((sum, sample) => sum + sample.audioBuffer!.length * sample.audioBuffer!.numberOfChannels * 4 + (sample.file?.size ?? 0), 0);
++  const retainedDecodedBytes = retainExternalSource ? sourceDecodedBytes : 0;
++  const projectedDecodedBytes = existingDecodedBytes + retainedDecodedBytes + derivedDecodedBytes;
++  const projectedStoredBytes = existingStoredBytes + retainedDecodedBytes + derivedDecodedBytes + (retainExternalSource ? sourceFileBytes : 0);
++  const additionalSamples = ranges.length + (retainExternalSource ? 1 : 0);
++  if (loaded.length + additionalSamples > SLICE_LIMITS.projectSamples) throw new Error('Applying these slices would exceed the 256-sample project limit');
++  if (projectedDecodedBytes > SLICE_LIMITS.projectDecodedBytes) throw new Error('Applying these slices would exceed the 128 MiB decoded-project limit');
++  if (projectedStoredBytes > SLICE_LIMITS.projectStoredBytes) throw new Error('Applying these slices would exceed the portable project size limit');
++  return { additionalSamples, sourceDecodedBytes, derivedDecodedBytes, projectedDecodedBytes, projectedStoredBytes };
++}
++
++export interface SliceSource {
++  audioBuffer: AudioBuffer;
++  file: File;
++  metadata: AudioMetadata;
++  existingIndex: number | null;
++}
++
++interface PrepareOptions {
++  source: SliceSource;
++  ranges: readonly FrameRange[];
++  existingSamples: readonly DrumSample[];
++  signal?: AbortSignal;
++  onProgress?: (progress: number) => void;
++  allocator?: (channels: number, frames: number, sampleRate: number) => AudioBuffer;
++  yieldControl?: () => Promise<void>;
++}
++
++function uniqueSliceName(sourceName: string, ordinal: number, names: Set<string>): string {
++  const base = sourceName.replace(/\.[^.]*$/, '') || 'slice';
++  const stem = `${base} slice ${String(ordinal).padStart(2, '0')}`;
++  let name = `${stem}.opfloat`, duplicate = 2;
++  while (names.has(name.toLocaleLowerCase('en-US'))) name = `${stem}-${duplicate++}.opfloat`;
++  names.add(name.toLocaleLowerCase('en-US'));
++  return name;
++}
++
++function baseSample(file: File, audioBuffer: AudioBuffer, metadata: AudioMetadata): DrumSample {
++  return {
++    file, audioBuffer, name: file.name, isLoaded: true, inPoint: 0, outPoint: audioBuffer.duration,
++    originalBitDepth: metadata.bitDepth, originalSampleRate: metadata.sampleRate, originalChannels: metadata.channels,
++    fileSize: file.size, duration: audioBuffer.duration, isFloat: metadata.isFloat,
++    playmode: 'oneshot', reverse: false, transpose: 0, pan: 0, gain: 0, hasBeenEdited: false,
++    isAssigned: false, assignedKey: undefined,
++  };
++}
++
++/** Prepare every immutable asset before returning the single history BATCH. */
++export async function prepareSliceApplication(options: PrepareOptions) {
++  const { source, ranges, existingSamples } = options;
++  planSliceApplication({
++    source: source.audioBuffer, ranges, existingSamples,
++    retainExternalSource: source.existingIndex === null, sourceFileBytes: source.file.size,
++  });
++  const canonicalRanges = ranges.map(range => normalizeFrameRange(source.audioBuffer.length, range));
++  if (options.signal?.aborted) throw abortError();
++  const sourceIdentity = source.existingIndex === null
++    ? crypto.randomUUID()
++    : existingSamples[source.existingIndex]?.sourceIdentity ?? crypto.randomUUID();
++  const actions: AppAction[] = [];
++  if (source.existingIndex === null) {
++    actions.push({ type: 'STORE_DRUM_SAMPLE_ASSET', payload: { sample: { ...baseSample(source.file, source.audioBuffer, source.metadata), sourceIdentity }, targetKeyIndex: null } });
++  } else if (!existingSamples[source.existingIndex]?.sourceIdentity) {
++    actions.push({ type: 'UPDATE_DRUM_SAMPLE', payload: { index: source.existingIndex, updates: { sourceIdentity } } });
++  }
++  const emptyKeys = existingSamples.slice(0, 24).flatMap((sample, index) => sample?.isLoaded ? [] : [index]);
++  const names = new Set(existingSamples.filter(sample => sample?.isLoaded).map(sample => sample.name.toLocaleLowerCase('en-US')));
++  const targetKeys: number[] = [];
++  const parentProvenance = source.existingIndex === null ? undefined : existingSamples[source.existingIndex]?.sliceProvenance;
++  const yieldControl = options.yieldControl ?? (() => new Promise<void>(resolve => setTimeout(resolve, 0)));
++  for (let index = 0; index < canonicalRanges.length; index += 1) {
++    if (options.signal?.aborted) throw abortError();
++    const range = canonicalRanges[index];
++    const audioBuffer = materializeSlice(source.audioBuffer, range, options.allocator);
++    const name = uniqueSliceName(source.file.name, index + 1, names);
++    const payload = encodeStoredAudio(audioBuffer);
++    const file = new File([payload], name, { type: STORED_AUDIO_TYPE, lastModified: source.file.lastModified });
++    const sliceProvenance = parentProvenance ? {
++      ...parentProvenance,
++      sourceIdentity,
++      startFrame: parentProvenance.startFrame + Math.floor(range.start * (parentProvenance.endFrame - parentProvenance.startFrame) / source.audioBuffer.length),
++      endFrame: parentProvenance.startFrame + Math.ceil(range.end * (parentProvenance.endFrame - parentProvenance.startFrame) / source.audioBuffer.length),
++    } : {
++      sourceIdentity, sourceName: source.file.name, startFrame: range.start, endFrame: range.end,
++      sourceFrameCount: source.audioBuffer.length, sourceSampleRate: source.audioBuffer.sampleRate,
++      sourceChannels: source.audioBuffer.numberOfChannels,
++    };
++    const slice = {
++      ...baseSample(file, audioBuffer, source.metadata),
++      name,
++      fileSize: payload.size,
++      isFloat: true,
++      sourceIdentity,
++      sliceProvenance,
++    };
++    const targetKeyIndex = emptyKeys[index] ?? null;
++    if (targetKeyIndex !== null) targetKeys.push(targetKeyIndex);
++    actions.push({ type: 'STORE_DRUM_SAMPLE_ASSET', payload: { sample: slice, targetKeyIndex } });
++    options.onProgress?.((index + 1) / canonicalRanges.length);
++    if (index + 1 < canonicalRanges.length) await yieldControl();
++  }
++  return {
++    actions, sourceIdentity, targetKeys, assignedCount: targetKeys.length,
++    overflowCount: canonicalRanges.length - targetKeys.length,
++  };
++}
+--- before/src/utils/indexedDB.ts
++++ src/utils/indexedDB.ts
+@@ -1,4 +1,4 @@
+-import type { AppState, MultisampleFile } from '../context/AppContext';
++import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
+ 
+ // Store bytes rather than Blob/File objects: some WebKit runtimes abort Blob writes.
+ // Public reads still return Blobs/Files; existing native Blob records remain readable.
+@@ -57,6 +57,8 @@
+     sampleId: string; // Reference to samples store
+     isAssigned: boolean; // Assignment status
+     assignedKey?: number; // Assigned drum key (0-23) if assigned
++    sourceIdentity?: string;
++    sliceProvenance?: DrumSample['sliceProvenance'];
+     settings: {
+       inPoint: number;
+       outPoint: number;
+--- before/src/utils/projectArchive.ts
++++ src/utils/projectArchive.ts
+@@ -163,6 +163,20 @@
+   const id=requireString(value.sampleId,'drum sample ID'); if(!sampleIds.has(id)) throw new Error(`Missing sample reference: ${id}`);
+   if(typeof value.isAssigned!=='boolean' || !isRecord(value.settings)) throw new Error('Invalid drum sample assignment or settings');
+   if(value.assignedKey!==undefined) requireSafeInteger(value.assignedKey,0,23,'assigned drum key');
++  if(value.sourceIdentity!==undefined) requireString(value.sourceIdentity,'slice source identity',256);
++  if(value.sliceProvenance!==undefined) {
++    if(!isRecord(value.sliceProvenance)) throw new Error('Invalid slice provenance');
++    const provenance=value.sliceProvenance;
++    const sourceIdentity=requireString(provenance.sourceIdentity,'slice provenance source identity',256);
++    requireString(provenance.sourceName,'slice provenance source name',1024);
++    const sourceFrameCount=requireSafeInteger(provenance.sourceFrameCount,1,0xffffffff,'slice provenance source frame count');
++    const startFrame=requireSafeInteger(provenance.startFrame,0,sourceFrameCount-1,'slice provenance start frame');
++    requireSafeInteger(provenance.endFrame,startFrame+1,sourceFrameCount,'slice provenance end frame');
++    const sourceSampleRate=requireFinite(provenance.sourceSampleRate,'slice provenance source sample rate');
++    if(sourceSampleRate<8000 || sourceSampleRate>768000) throw new Error('Invalid slice provenance source sample rate');
++    requireSafeInteger(provenance.sourceChannels,1,32,'slice provenance source channels');
++    if(value.sourceIdentity!==undefined && value.sourceIdentity!==sourceIdentity) throw new Error('Mismatched slice source identity');
++  }
+   const settings=value.settings;
+   for(const key of ['inPoint','outPoint','transpose','pan','gain']) requireFinite(settings[key],`drum sample ${key}`);
+   if(typeof settings.reverse!=='boolean' || typeof settings.hasBeenEdited!=='boolean' || !['oneshot','group','loop','gate'].includes(String(settings.playmode))) throw new Error('Invalid drum sample settings');
+--- before/src/utils/projectSerialization.ts
++++ src/utils/projectSerialization.ts
+@@ -26,8 +26,9 @@
+     if (!sample.audioBuffer) throw new Error('A loaded sample has no audio');
+     const sampleId = `${snapshotId}-${mode}-${index}`;
+     const audio = sample.audioBuffer;
++    const derivedSlice = 'sliceProvenance' in sample && Boolean(sample.sliceProvenance);
+     samples.push({id: sampleId, name: sample.file?.name ?? sample.name, type: sample.file?.type ?? '', size: sample.fileSize ?? sample.file?.size ?? 0,
+-      sourceFile: sample.file ?? undefined, sourceLastModified: sample.file?.lastModified,
++      sourceFile: derivedSlice ? undefined : sample.file ?? undefined, sourceLastModified: sample.file?.lastModified,
+       data: encodeStoredAudio(audio), createdAt: timestamp,
+       metadata: {sampleRate: sample.originalSampleRate ?? audio.sampleRate, channels: sample.originalChannels ?? audio.numberOfChannels,
+         bitDepth: sample.originalBitDepth ?? 32, isFloat: sample.isFloat, duration: sample.duration ?? audio.duration}});
+@@ -37,6 +38,7 @@
+   state.drumSamples.forEach((s, index) => { if (s?.isLoaded && s.audioBuffer) {
+     const bounds=normalizeSecondRanges(s.audioBuffer.length,s.audioBuffer.sampleRate,{start:s.inPoint,end:s.outPoint});
+     drumSamples.push({originalIndex: index, name: s.name, sampleId: store(s, index, 'drum'), isAssigned: s.isAssigned, assignedKey: s.assignedKey,
++      sourceIdentity:s.sourceIdentity,sliceProvenance:s.sliceProvenance ? {...s.sliceProvenance} : undefined,
+       settings: {inPoint:framesToSeconds(bounds.sample.start,s.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,s.audioBuffer.sampleRate),playmode:s.playmode, reverse:s.reverse, transpose:s.transpose, pan:s.pan, gain:s.gain, hasBeenEdited:s.hasBeenEdited}});
+   } });
+   const multisampleFiles: SessionData['multisampleFiles'] = [];
+@@ -86,7 +88,8 @@
+     seen.add(s.originalIndex);
+     const decoded = await load(s.sampleId);
+     const bounds=normalizeSecondRanges(decoded.audioBuffer.length,decoded.audioBuffer.sampleRate,{start:s.settings.inPoint,end:s.settings.outPoint});
+-    return {...decoded,...s.settings,inPoint:framesToSeconds(bounds.sample.start,decoded.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,decoded.audioBuffer.sampleRate),name:s.name ?? decoded.file.name, originalIndex:s.originalIndex,isAssigned:s.isAssigned,assignedKey:s.assignedKey};
++    return {...decoded,...s.settings,inPoint:framesToSeconds(bounds.sample.start,decoded.audioBuffer.sampleRate),outPoint:framesToSeconds(bounds.sample.end,decoded.audioBuffer.sampleRate),name:s.name ?? decoded.file.name, originalIndex:s.originalIndex,isAssigned:s.isAssigned,assignedKey:s.assignedKey,
++      sourceIdentity:s.sourceIdentity,sliceProvenance:s.sliceProvenance ? {...s.sliceProvenance} : undefined};
+   }));
+   const multisampleFiles = await Promise.all(session.multisampleFiles.map(async s => {
+     const decoded = await load(s.sampleId);

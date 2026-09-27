@@ -1,0 +1,93 @@
+
+> op-patchstudio@0.16.0 test
+> vitest --run src/test/context/finalCandidateAdmission.test.ts src/test/context/audioImportApplication.test.ts
+
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+ ❯ src/test/context/audioImportApplication.test.ts (11 tests | 1 failed) 25ms
+     × rejects a final imported crossfade that becomes invalid only after audio association without changing project, history, or review 5ms
+ ❯ src/test/context/finalCandidateAdmission.test.ts (2 tests | 2 failed) 90ms
+     × rejects a recording that pushes an exactly admitted manifest over the limit without changing project, history, or review assets 48ms
+     × rejects slices that push an exactly admitted manifest over the limit without changing project, history, or prepared assets 41ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/context/audioImportApplication.test.ts > reviewed audio import application > rejects a final imported crossfade that becomes invalid only after audio association without changing project, history, or review
+AssertionError: expected { …(6) } to match object { …(3) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "error": StringMatching /imported crossfade value/i,
+    "operationId": "fractional-crossfade",
+-   "status": "rejected",
++   "status": "committed",
+  }
+
+ ❯ src/test/context/audioImportApplication.test.ts:133:48
+    131|     const history=reduceHistory(createHistory(before),{type:'COMMIT_PR…
+    132|
+    133|     expect(history.present.importCommitResult).toMatchObject({operatio…
+       |                                                ^
+    134|     expect(history.present.drumSamples).toBe(before.drumSamples);
+    135|     expect(history.present.multisampleFiles).toBe(before.multisampleFi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/test/context/finalCandidateAdmission.test.ts > final portable-project admission > rejects a recording that pushes an exactly admitted manifest over the limit without changing project, history, or review assets
+AssertionError: expected { …(6) } to match object { …(3) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "error": StringMatching /manifest.*large/i,
+    "operationId": "manifest-recording",
+-   "status": "rejected",
++   "status": "committed",
+  }
+
+ ❯ src/test/context/finalCandidateAdmission.test.ts:53:51
+     51|     const history=reduceHistory(createHistory(before),{type:'COMMIT_PR…
+     52|
+     53|     expect(history.present.recordingCommitResult).toMatchObject({opera…
+       |                                                   ^
+     54|     expect(history.present.drumSamples).toBe(before.drumSamples);
+     55|     expect(history.present.multisampleFiles).toBe(before.multisampleFi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/test/context/finalCandidateAdmission.test.ts > final portable-project admission > rejects slices that push an exactly admitted manifest over the limit without changing project, history, or prepared assets
+AssertionError: expected { operationId: 'manifest-slice', …(3) } to match object { operationId: 'manifest-slice', …(2) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "error": StringMatching /manifest.*large/i,
+    "operationId": "manifest-slice",
+-   "status": "rejected",
++   "status": "committed",
+  }
+
+ ❯ src/test/context/finalCandidateAdmission.test.ts:82:47
+     80|     const history=reduceHistory(createHistory(before),{type:'COMMIT_PR…
+     81|
+     82|     expect(history.present.sliceCommitResult).toMatchObject({operation…
+       |                                               ^
+     83|     expect(history.present.drumSamples).toBe(before.drumSamples);
+     84|     expect(history.present.multisampleFiles).toBe(before.multisampleFi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 10 passed (13)
+   Start at  08:16:14
+   Duration  630ms (transform 305ms, setup 131ms, import 365ms, tests 115ms, environment 410ms)
+

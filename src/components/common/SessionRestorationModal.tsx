@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 interface SessionRestorationModalProps {
   isOpen: boolean;
   onLoadSession: () => void;
+  pending?: boolean;
+  error?: string | null;
   onStartNew: () => Promise<void>;
   sessionInfo?: {
     timestamp: number;
@@ -11,11 +13,13 @@ interface SessionRestorationModalProps {
   } | null;
 }
 
-export function SessionRestorationModal({ 
-  isOpen, 
-  onLoadSession, 
+export function SessionRestorationModal({
+  isOpen,
+  onLoadSession,
   onStartNew,
-  sessionInfo 
+  sessionInfo,
+  pending = false,
+  error
 }: SessionRestorationModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const firstButtonRef = useRef<HTMLButtonElement>(null);
@@ -26,10 +30,10 @@ export function SessionRestorationModal({
     if (isOpen) {
       // Focus the first button when modal opens
       firstButtonRef.current?.focus();
-      
+
       // Prevent body scroll
       document.body.style.overflow = 'hidden';
-      
+
       return () => {
         document.body.style.overflow = '';
       };
@@ -43,9 +47,7 @@ export function SessionRestorationModal({
 
       switch (event.key) {
         case 'Escape':
-          onStartNew().catch(error => {
-            console.error('Failed to start new session:', error);
-          });
+          event.preventDefault();
           break;
         case 'Tab':
           // Trap focus within the modal
@@ -74,11 +76,11 @@ export function SessionRestorationModal({
 
   const formatSessionInfo = () => {
     if (!sessionInfo) return '';
-    
+
     const date = new Date(sessionInfo.timestamp).toLocaleString();
     const drumCount = sessionInfo.drumSamplesCount;
     const multisampleCount = sessionInfo.multisampleFilesCount;
-    
+
     return `from ${date} with ${drumCount} drum samples and ${multisampleCount} multisample files`;
   };
 
@@ -135,7 +137,7 @@ export function SessionRestorationModal({
           }
         }
       `}</style>
-      <div 
+      <div
         className="session-modal-container"
         role="dialog"
         aria-modal="true"
@@ -157,7 +159,7 @@ export function SessionRestorationModal({
           padding: 0,
         }}
       >
-        <div 
+        <div
           className="session-modal"
           style={{
             backgroundColor: 'var(--color-bg-primary)',
@@ -178,7 +180,7 @@ export function SessionRestorationModal({
             padding: '1.5rem 1.5rem 1rem 1.5rem',
             borderBottom: '1px solid var(--color-border-light)'
           }}>
-            <h3 
+            <h3
               id="session-restoration-title"
               style={{
                 margin: '0',
@@ -190,11 +192,11 @@ export function SessionRestorationModal({
                 gap: '0.5rem'
               }}
             >
-              <i 
-                className="fas fa-clock-rotate-left" 
-                style={{ 
-                  color: 'var(--color-text-primary)', 
-                  fontSize: '1.25rem' 
+              <i
+                className="fas fa-clock-rotate-left"
+                style={{
+                  color: 'var(--color-text-primary)',
+                  fontSize: '1.25rem'
                 }}
                 aria-hidden="true"
               ></i>
@@ -203,7 +205,7 @@ export function SessionRestorationModal({
           </div>
 
           {/* Content */}
-          <div 
+          <div
             className="session-modal-content"
             id="session-restoration-description"
             style={{
@@ -221,6 +223,7 @@ export function SessionRestorationModal({
             </p>
           </div>
 
+          {error && <p role="alert" style={{padding: "0 1.5rem"}}>{error}</p>}
           {/* Actions */}
           <div className="session-modal-actions" style={{
             padding: '1rem 1.5rem 1.5rem 1.5rem',
@@ -230,6 +233,7 @@ export function SessionRestorationModal({
           }}>
             <button
               ref={firstButtonRef}
+              disabled={pending}
               onClick={async () => {
                 try {
                   await onStartNew();
@@ -266,13 +270,14 @@ export function SessionRestorationModal({
             </button>
             <button
               ref={lastButtonRef}
+              disabled={pending}
               onClick={onLoadSession}
               style={{
                 padding: '0.625rem 1.25rem',
                 border: 'none',
                 borderRadius: '6px',
                 backgroundColor: 'var(--color-interactive-focus)',
-                color: 'var(--color-white)',
+                color: 'var(--studio-accent-text)',
                 fontSize: '0.875rem',
                 fontWeight: '500',
                 cursor: 'pointer',
@@ -299,4 +304,4 @@ export function SessionRestorationModal({
       </div>
     </>
   );
-} 
+}

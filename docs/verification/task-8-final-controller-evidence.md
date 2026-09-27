@@ -1,0 +1,13 @@
+# Task 8 final controller evidence
+
+The frozen implementation passed 774 unit tests in 73 files, focused correction tests, TypeScript/production build and scoped lint. The full browser run then returned 116 passes, seven failures and two explicit desktop-only skips out of 125 configured cases. The seven failures came from two stale accessible-name selectors, not seven distinct runtime defects. Sol changed only those two browser definitions. Both affected cases subsequently passed in every profile: 10/10 in 18.4 seconds. The complete 125-case matrix was not repeated after that E2E-only change.
+
+Logs: `/tmp/opstudio-task8-round1-full-browser.log`, `/tmp/opstudio-task8-round2-browser.log`, `/tmp/opstudio-task8-round1-demo-proof.log`, `/tmp/opstudio-task8-round1-focus-proof.log`. Browser failure snapshots were preserved before reruns under `/tmp/opstudio-task8-before-round1` and `/tmp/opstudio-task8-before-round2`.
+
+Production demo verification in Chromium 139.0.7258.5, Firefox 140.0.2 and WebKit 26.0 checked all 134,505 exported samples per engine, exact format/frame counts, physical mappings, repeated source bytes, and source backup restoration. Cross-engine Float32 difference was zero in this run; the design tolerance remains 1e-6. Retained artifacts and machine-readable results are in demo-audio/. Reproducible harnesses are in harnesses/.
+
+Production Focus proof in the same engines verified silent arrow selection, automatic selected-asset identity through root sorting, rejection of root128 with root48 preserved in the downloaded backup, actual AudioBufferSource looping at .02–.06 seconds, and source cleanup on Stop and Table navigation. See task-8-focus-browser-proof.json. The stopped=false value in previewLoop is the snapshot at playback start; stopAndViewCleanup=true records subsequent stop assertions.
+
+Rendered Chromium verification established 320px page width without overflow, 84.94×66.5px mobile pads, un-clipped desktop/intermediate Focus controls, nested dialog Tab/Escape/focus return, and a static toolbar in 844×390 short landscape. Notification title/body contrast measured 14.80:1/6.11:1 in light and 13.90:1/8.28:1 in dark; screenshots are images/task8-round1-toast-light.png and images/task8-round1-toast-dark.png. System theme switching changed an already-mounted waveform bitmap after the resolved theme changed. Earlier visual findings and corrections are retained in the three visual/browser review reports.
+
+These checks establish the exercised software behavior. Human listening, real assistive technology, physical input fidelity and OP device transfer/playback remain unperformed. Task9 quality/offline gates and Task10 whole-upgrade review are separate prerequisites for final delivery.

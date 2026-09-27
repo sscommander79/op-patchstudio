@@ -1,0 +1,164 @@
+[
+  {
+    "path": ".gitignore",
+    "beforeBytes": 0,
+    "afterBytes": 368,
+    "sha256": "1fb997f7d761aaa0c3b5c7b0258456e18e8f238f932610254ad7cc65a6da56dd"
+  },
+  {
+    "path": "BUGS.md",
+    "beforeBytes": 0,
+    "afterBytes": 4054,
+    "sha256": "db9ae3e3c67056517272dfbc3321db2b120d8a6dbe54b449bca21c0008497ba8"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "beforeBytes": 0,
+    "afterBytes": 14279,
+    "sha256": "549696a6fc39be76f55f89212834f9586c985388f146ffe9caacc5a9c1b1fd82"
+  },
+  {
+    "path": "LICENSE",
+    "beforeBytes": 0,
+    "afterBytes": 1114,
+    "sha256": "66beaa5bca7e570f7db4ff1931e45114649c184be14e44a60b54c0710420d0c1"
+  },
+  {
+    "path": "README.md",
+    "beforeBytes": 0,
+    "afterBytes": 8317,
+    "sha256": "9bd93e4aa0d7afbaa8b0c9394b249a9137a2a69e5c004bacc1f2193daf4a2207"
+  },
+  {
+    "path": "public/pwa-cache-lifecycle.js",
+    "beforeBytes": 0,
+    "afterBytes": 1077,
+    "sha256": "ca525d17c3bef8be49b620be3c9721fb5de5f669c79463d6016f813651f4c1aa"
+  },
+  {
+    "path": "scripts/verify-pwa-build.mjs",
+    "beforeBytes": 1261,
+    "afterBytes": 2045,
+    "sha256": "dc4b8df285a068c1f329e5bd7d0c91d5d978e216ae5dcd5400657b7b32e14f18"
+  },
+  {
+    "path": "src/components/common/DonatePage.tsx",
+    "beforeBytes": 12151,
+    "afterBytes": 12122,
+    "sha256": "ba01703d65cafcf96059cca9ac8433708268d0731c606369d8d33c9860c021d6"
+  },
+  {
+    "path": "src/components/common/PWAUpdatePrompt.tsx",
+    "beforeBytes": 1119,
+    "afterBytes": 2324,
+    "sha256": "d7676153799c35e712bafd73850cde1189b021f351b9ee781a127810cda31639"
+  },
+  {
+    "path": "src/components/drum/DrumKeyboard.tsx",
+    "beforeBytes": 30614,
+    "afterBytes": 30459,
+    "sha256": "b72a2e20872cec881e8b01ca60a97d57821a766a8a4eb5b7661b77300f6b9de0"
+  },
+  {
+    "path": "src/components/drum/DrumKeyboardContainer.tsx",
+    "beforeBytes": 21588,
+    "afterBytes": 21697,
+    "sha256": "1dd4ace99bf6282063513b0de4b672abe70af3a106a039dadeaf26c0be40ee94"
+  },
+  {
+    "path": "src/components/multisample/VirtualMidiKeyboard.tsx",
+    "beforeBytes": 49010,
+    "afterBytes": 49119,
+    "sha256": "c41a8436badcaf647e1312934385fb1112b1d621b300a7b7635d9f3a2b5995be"
+  },
+  {
+    "path": "src/hooks/useStudioCanvasTheme.ts",
+    "beforeBytes": 1259,
+    "afterBytes": 1344,
+    "sha256": "d4d9ed1c3bd73028caeed2f76697074187e16ad498d6f965e3f4bbc44f2c3973"
+  },
+  {
+    "path": "src/hooks/useWebMidi.ts",
+    "beforeBytes": 10926,
+    "afterBytes": 11607,
+    "sha256": "3e49f80eeaa5847b2a153dc23926ceacc613af23d95b2f79515b61896bb4b554"
+  },
+  {
+    "path": "src/styles/studio.css",
+    "beforeBytes": 19042,
+    "afterBytes": 19031,
+    "sha256": "7692eacd4281b649dbf827547a568d1f805bafe824c9cc97600d3eac9e6c71e9"
+  },
+  {
+    "path": "src/test/components/DonatePage.test.tsx",
+    "beforeBytes": 5320,
+    "afterBytes": 5483,
+    "sha256": "73201ba244d75a986045dbf984d40d25544fd8de91b41bf9640ad1cdd9a971f7"
+  },
+  {
+    "path": "src/test/components/DrumKeyboard.test.tsx",
+    "beforeBytes": 10596,
+    "afterBytes": 12690,
+    "sha256": "63196b4ba4523ec40cffdcfd990469d91f98fc4ac4cf8d07883d2758938c3f9d"
+  },
+  {
+    "path": "src/test/components/LibraryPage.test.tsx",
+    "beforeBytes": 18543,
+    "afterBytes": 19832,
+    "sha256": "27d7048c4d10ccd680b76b93b23444b333a58b9ed4ecd91a10c6179fda9031a4"
+  },
+  {
+    "path": "src/test/components/PWAUpdatePrompt.test.tsx",
+    "beforeBytes": 1500,
+    "afterBytes": 3375,
+    "sha256": "777f27377650d987a4243c33aa66baba14e2a2172f9a7db66fd11101279cbe00"
+  },
+  {
+    "path": "src/test/hooks/usePatchGeneration.test.ts",
+    "beforeBytes": 29965,
+    "afterBytes": 11234,
+    "sha256": "49cf7588866b6962763d43f4896e6db9d6ac75a422c431aedfe398edd4782b01"
+  },
+  {
+    "path": "src/test/hooks/useWebMidi.test.ts",
+    "beforeBytes": 0,
+    "afterBytes": 1297,
+    "sha256": "901dda0d150586dbbf75a8b65653be01b48cf1b5938e13779b9150dcc70b9eaf"
+  },
+  {
+    "path": "src/test/utils/pwaCacheLifecycle.test.ts",
+    "beforeBytes": 0,
+    "afterBytes": 2162,
+    "sha256": "56d58023e9326ce95886d54a463bf387aa54a211fbe48301fc80bb07b739a482"
+  },
+  {
+    "path": "tests/e2e/audio-import.spec.ts",
+    "beforeBytes": 8266,
+    "afterBytes": 8196,
+    "sha256": "357550ba1e96136bad6d3ebf99aa2a06e493865a5e411169d4e7763366797e26"
+  },
+  {
+    "path": "tsconfig.app.json",
+    "beforeBytes": 0,
+    "afterBytes": 702,
+    "sha256": "7852d040a820ba680aae219f3cfe771e7ad33bb26e9d1578e3ee21c70fad5acc"
+  },
+  {
+    "path": "tsconfig.json",
+    "beforeBytes": 0,
+    "afterBytes": 119,
+    "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808"
+  },
+  {
+    "path": "tsconfig.node.json",
+    "beforeBytes": 0,
+    "afterBytes": 630,
+    "sha256": "dbece770acebd1448ab84fbdae194dc23670ee2e91ebcb1b534cace99cd0bea6"
+  },
+  {
+    "path": "vite.config.ts",
+    "beforeBytes": 2819,
+    "afterBytes": 4061,
+    "sha256": "4453f155611fe02b695eea04fc8711351f0b9c1b1c24e1561d3a1e229c9429ed"
+  }
+]

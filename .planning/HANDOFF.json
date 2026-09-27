@@ -1,0 +1,274 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-09-27",
+  "timezone_note": "Local date as verified at handoff time",
+  "project": "OP-PatchStudio (unofficial, TE-inspired but original visual identity)",
+  "repo_path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved",
+  "branch": "codex/studio-upgrade",
+  "head_commit": "b669b7c",
+  "phase": null,
+  "phase_name": null,
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "gsd_milestone": null,
+  "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
+  "status": "paused",
+  "release_ready": false,
+  "design_approved": false,
+  "working_tree": {
+    "state": "HEAVILY DIRTY, UNCOMMITTED WIP",
+    "status_entries_before_handoff": 222,
+    "status_entries_added_by_handoff": "1 (untracked `?? .planning/` containing HANDOFF.json and .continue-here.md); expected total 223",
+    "user_owned_changes_must_be_preserved": true,
+    "forbidden_without_explicit_user_authorization": [
+      "git commit",
+      "git push",
+      "deploy",
+      "git stash / reset / checkout / clean or any command that discards or moves working-tree changes",
+      "npm install or dependency changes"
+    ],
+    "commit_note": "The GSD pause-work skill normally commits the handoff. Not done here: this repo's instructions require separate, explicit commit authorization, and the user has not given it."
+  },
+  "background_processes": {
+    "dev_server_5191": "NOT RUNNING at handoff (verified: no TCP listener on 5191)",
+    "other": "None started by the handoff session",
+    "instruction": "Check that the dev server is running (and restart it if needed) before any browser work. Do not assume it is running."
+  },
+  "key_docs": {
+    "design_spec": "docs/superpowers/specs/2026-09-22-studio-system-visual-design.md",
+    "visual_plan": "docs/superpowers/plans/2026-09-22-studio-system-visual-redesign.md",
+    "hardware_acceptance": "docs/verification/nina-devices-hardware-acceptance.md",
+    "when_you_return": "docs/verification/when-you-return.md",
+    "docs_caveat": "Check the current app state before relying on older docs."
+  },
+  "visual_identity": {
+    "palette": "warm off-white / graphite",
+    "cyan": "loaded / connected",
+    "orange": "selected / capture",
+    "red": "errors",
+    "drum_workbench_desktop": "Lower and upper pad banks stacked in the left dark tray; selected-pad editor on the right",
+    "status": "NOT approved/final. The user explicitly dislikes the current graphic key treatment but chose to defer subjective restyling."
+  },
+  "completed_tasks": [
+    {
+      "id": "devices-route",
+      "name": "Devices route confirmation and cancellation: channel/output/profile/setup revocation stops CCs not yet passed to output.send; already-dispatched bytes cannot be recalled",
+      "status": "done"
+    },
+    {
+      "id": "lease-text",
+      "name": "Removed false lease text",
+      "status": "done"
+    },
+    {
+      "id": "editor-h1-focus",
+      "name": "Editor h1 and focus handling",
+      "status": "done"
+    },
+    {
+      "id": "library-retry",
+      "name": "Library load-error Retry and hidden-selection safety",
+      "status": "done"
+    },
+    {
+      "id": "aria-roles",
+      "name": "ARIA roles fixes",
+      "status": "done"
+    },
+    {
+      "id": "nav-targets",
+      "name": "44px nav targets and narrow-width scroll cue",
+      "status": "done"
+    },
+    {
+      "id": "contrast",
+      "name": "Contrast fixes",
+      "status": "done"
+    },
+    {
+      "id": "drum-count",
+      "name": "Bounded drum loaded count",
+      "status": "done"
+    },
+    {
+      "id": "selected-empty",
+      "name": "Selected-empty copy/status",
+      "status": "done"
+    },
+    {
+      "id": "transfer-labels",
+      "name": "Transfer labels",
+      "status": "done"
+    }
+  ],
+  "verification_evidence": {
+    "implementer": "Claude Opus 5.5 (backend CLI)",
+    "npm_run_check": "Passed per final Claude report: typecheck, lint, 97 unit test files / 1033 tests, production build",
+    "e2e": "Prior affected E2E run was 40/40, BEFORE the final transport timing fix. E2E not re-run after that fix.",
+    "independent_review": "Genspark Sol 5.6 read-only review of src/components/devices/useDevicesWorkspace.ts, src/midi/browserSession.ts and tests (src/test/midi/browserSession.test.ts): NO material findings on cancellation timing. Reviewer did NOT execute tests.",
+    "handoff_session_ran_tests": false,
+    "tests_do_not_prove_hardware": true
+  },
+  "unverified": [
+    "Physical MIDI CC response",
+    "NINA / other synth routing",
+    "OP-XY recording / export / transfer",
+    "Browser / OS MIDI driver behavior",
+    "Audio hardware"
+  ],
+  "remaining_tasks": [
+    {
+      "id": "hw-acceptance",
+      "name": "Manual hardware acceptance (user must be present)",
+      "status": "not_started",
+      "priority": "user-choice"
+    },
+    {
+      "id": "a11y-library-sort",
+      "name": "Library name sort keyboard access",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "a11y-drum-aria-pressed",
+      "name": "Momentary drum pad aria-pressed semantics",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "a11y-virtual-midi-keys",
+      "name": "Virtual MIDI keys implemented as divs",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "a11y-devices-alerts",
+      "name": "All Devices statuses announced as alerts (should differentiate)",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "ux-hw-test-wording",
+      "name": "Hardware test wording",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "ux-pad-hold-double",
+      "name": "Possible pad press-and-hold double trigger (unconfirmed)",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "ux-dragover-stale",
+      "name": "Possible drag-over stale highlight (unconfirmed)",
+      "status": "not_started",
+      "priority": "low"
+    },
+    {
+      "id": "preexisting-import-routing-e2e",
+      "name": "audio-import.spec.ts:11 and slicing.spec.ts:61 route sounds to the unassigned tray (fails at pre-task baseline too)",
+      "status": "not_started",
+      "priority": "medium"
+    }
+  ],
+  "deferred_by_user_decision": [
+    "Key graphic treatment (user dislikes it; restyle deferred)",
+    "Semantic color dilution / density",
+    "Editor nav current-state indication / product choice"
+  ],
+  "deferred_rule": "Do not re-open deferred design items automatically. Review code and prior user decisions before any change.",
+  "blockers": [
+    {
+      "description": "Hardware acceptance requires the user to be physically present with devices",
+      "type": "human_action",
+      "workaround": "Do only code/a11y work until the user is present"
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Choose next priority: physical hardware test OR remaining low-priority UX/accessibility debt",
+      "context": "First question for the new session",
+      "blocking": true
+    },
+    {
+      "action": "Explicitly authorize any commit/push/deploy separately if desired",
+      "context": "Nothing committed; 222+ dirty entries",
+      "blocking": false
+    }
+  ],
+  "engine_routing": {
+    "policy": "User explicitly authorized switching to Codex and Genspark after Claude session limit (2026-09-26/27). Codex may edit; Genspark Sol 5.6 through OpenCode proxy remains read-only reviewer. Keep scope and usage minimal; never expose proxy credentials; no overlapping writers.",
+    "claude_cli": {
+      "path": "/Users/stevencommander/.local/bin/claude",
+      "version_at_verification": "2.1.283",
+      "read_only": "claude -p 'TASK' --model claude-opus-5-5 --effort high --permission-mode plan --strict-mcp-config --no-chrome --output-format text",
+      "edits": "claude -p 'TASK' --model claude-opus-5-5 --effort high --permission-mode acceptEdits --allowedTools Read,Glob,Grep,Bash,Edit,Write --strict-mcp-config --no-chrome --output-format text",
+      "notes": [
+        "In every edit prompt, explicitly forbid commit, push, and deploy.",
+        "--strict-mcp-config --no-chrome avoids an observed optional-MCP startup hang.",
+        "Print output is buffered until completion (no streaming).",
+        "Do NOT use --bare: it requires API-key auth, which breaks normal subscription OAuth."
+      ]
+    },
+    "genspark_cli": {
+      "installed": "genspark / gsk, plus OpenCode",
+      "do_not_use": "genspark task create super_agent (does not guarantee model selection)",
+      "setup_once": "gsk_cfg_dir=$(mktemp -d); genspark init-opencode -o \"$gsk_cfg_dir/opencode.json\" >/dev/null",
+      "per_run": "gsk_run_data=$(mktemp -d); XDG_DATA_HOME=\"$gsk_run_data/data\" XDG_STATE_HOME=\"$gsk_run_data/state\" OPENCODE_CONFIG_CONTENT=\"$(jq -c 'del(.genspark)' \"$gsk_cfg_dir/opencode.json\")\" opencode run --model genspark-llm-proxy/gpt-5.6-sol --agent plan --dir /Users/stevencommander/Desktop/AI/op-patchstudio-improved 'READ-ONLY TASK'",
+      "confirm_routing": "Output must show: plan \u00b7 gpt-5.6-sol",
+      "notes": [
+        "The generated opencode.json contains an API key: NEVER print, cat, echo, log, or share it.",
+        "del(.genspark) is required because the installed stock OpenCode rejects the generated extra key.",
+        "Fresh XDG dirs per run avoid an observed local SQLite replacement_seq schema mismatch.",
+        "Genspark is read-only reviewer only."
+      ]
+    }
+  },
+  "next_action": "Read .planning/.continue-here.md and .planning/HANDOFF.json, run `git status --porcelain | wc -l` and `git branch --show-current` to confirm state, then ASK the user whether to prioritize the physical hardware test or the remaining low-priority UX/accessibility debt. Do not perform physical-device actions without the user present. Make no edits before the user answers.",
+  "resume_file": ".planning/.continue-here.md",
+  "latest_pass": {
+    "name": "Studio restoration (unified launch, direct Open kit, drum compaction, semantic colour, dev stale-worker guard, regression gates)",
+    "report": "docs/verification/studio-restoration-2026-09-27.md",
+    "contract": "docs/design-system/studio-launch-contract.md",
+    "baseline_manifest": "/tmp/opstudio-restoration-baseline-20260926.nQNfV7/MANIFEST.md",
+    "npm_run_check": "PASSED (exit 0) after the user-authorized bounded cleanup: typecheck 0 errors; lint 0 errors (3 pre-existing coverage warnings); 99 files/1064 tests; build and verify:pwa. Log: /tmp/opstudio-approved-standard-check.log",
+    "e2e_chromium": "dev and production: 54 passed, 3 skipped, 2 pre-existing failures (audio-import.spec.ts:11, slicing.spec.ts:61)",
+    "new_gates": "studio-design-contract (in E2E), dev-origin recovery (CI step), macos-visual job with 12 reviewed baselines; not run remotely",
+    "design_approved": false,
+    "release_ready": false,
+    "final_independent_review": "Genspark Sol 5.6 via OpenCode plan mode: exit 0; two read-only SPEC and STANDARDS passes reconciled (rung 2); no material restoration defects; source and screenshots accepted; reviewer did not execute tests",
+    "coordinator_browser_check": "127.0.0.1:5191 showed the old sidebar, and one manual reload recovered the unified launcher build c3f85451; localhost:5191 matched. Desktop 1440x1000 and narrow 390x844 checked; baselines inspected; Open kit reached #/studio/drum directly; zero-count contrast, no completion check, compact empty editor and stacked banks confirmed; no browser project data cleared; tabs closed; coordinator server stopped",
+    "unverified": [
+      "remote CI runs",
+      "hardware",
+      "actual assistive technology"
+    ],
+    "goal_complete": true,
+    "running_servers": "none started by this task; coordinator server stopped",
+    "status_entries": 230,
+    "authorized_cleanup": "2026-09-27: user approved removing only 16 verified-empty node_modules/@types/<name> 2 directories (aria-query, babel__core, babel__generator, babel__template, babel__traverse, chai, deep-eql, esrecurse, estree, json-schema, node, react, react-dom, resolve, trusted-types, webmidi). Each was re-verified as an empty non-symlink directory and removed with a literal-path rmdir. Nothing else was removed or installed.",
+    "remaining_disclosures": [
+      "2 baseline-reproduced E2E failures: audio-import.spec.ts:11, slicing.spec.ts:61",
+      "remote CI not run",
+      "hardware unverified",
+      "actual assistive technology unverified",
+      "design not approved; not release ready"
+    ]
+  },
+  "latest_follow_up": {
+    "scope": "User requested six left-aligned percussion pads, a fourth Record OP-XY tracks card, and removal of Tools. Implemented four equal desktop cards, two columns at medium widths and one on phones; existing guarded lazy recorder entry retained. Supersedes prior centered twelve-pad illustration. Actual drum editor still has 24 slots.",
+    "validation": "Typecheck and targeted lint passed; 23 focused unit tests passed; 27 layout/navigation contract tests passed; recorder entry 2 passed. Full Chromium: 55 passed, 3 skipped, same 2 baseline-reproduced failures (audio-import.spec.ts:11 and slicing.spec.ts:61). Genspark Sol 5.6 read-only followup found all three initial findings addressed and no remaining material defects; reviewer did not execute tests. All 12 reviewed visual baselines passed twice after the intentional header/layout refresh. Logs: /tmp/opstudio-four-cards-visual.log and /tmp/opstudio-four-cards-visual-repeat.log. All twelve images changed because removing Tools changes the shared header; drum-editor content was not edited.",
+    "preview": "http://127.0.0.1:5191/#/studio/overview remains live",
+    "status_entries": 231,
+    "boundaries": "No commit, push, deploy, install or hardware verification."
+  },
+  "progress_save": {
+    "authorization": "User explicitly requested committing and pushing current progress on 2026-09-27. This authorizes the current checkpoint only, not future commits, merges or deployment.",
+    "branch": "codex/studio-upgrade",
+    "scope": "Accumulated Studio work, latest four-card layout, tests, reviewed visual baselines, docs and handoff. Preserve duplicate AutoSamplingPanel 2.tsx and playwright-report 2 locally, excluded from this checkpoint.",
+    "validation": "npm run check passed: typecheck, lint (0 errors; 3 pre-existing coverage warnings), 99 files / 1065 unit tests, build and PWA verification. Moved artwork name constant into its sole consumer to fix Fast Refresh lint without visual changes. Current browser suite: 55 passed, 3 skipped, 2 known audio-import/slicing failures; 12 visual checks passed twice. Hardware remains unverified."
+  }
+}

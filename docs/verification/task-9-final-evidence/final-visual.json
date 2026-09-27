@@ -1,0 +1,206 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "theme": "light",
+      "name": "focus",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-focus.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "table",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-table.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "detailed",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-detailed.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "nested-waveform",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-nested-waveform.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "slicing",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-slicing.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "recording",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-recording.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "export",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-export.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "advanced",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-advanced.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "focus",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-focus.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "table",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-table.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "detailed",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-detailed.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "nested-waveform",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-nested-waveform.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "slicing",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-slicing.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "recording",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-recording.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "export",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-export.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "advanced",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-advanced.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "import-review",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-import-review.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "library",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-library.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "library-confirmation",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-library-confirmation.png",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "theme": "light",
+      "name": "320-focus",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-light-320-focus.png",
+      "geometry": {
+        "width": 320,
+        "scrollWidth": 320
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "320-focus",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-320-focus.png",
+      "geometry": {
+        "width": 320,
+        "scrollWidth": 320
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "landscape",
+      "path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/images/task9-final-dark-landscape.png",
+      "geometry": {
+        "width": 844,
+        "scrollWidth": 844
+      }
+    },
+    {
+      "systemMountedCanvasRedraw": true
+    }
+  ]
+}

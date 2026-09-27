@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { savePresetToLibrary, resetAllSettings, type LibraryPreset } from '../../utils/libraryUtils';
+import { savePresetToLibrary, resetAllSettings, restoreLibrarySamples, deserializeLibraryPreset, type LibraryPreset } from '../../utils/libraryUtils';
 import { indexedDB, STORES } from '../../utils/indexedDB';
 import { sessionStorageIndexedDB } from '../../utils/sessionStorageIndexedDB';
-import type { AppState } from '../../context/AppContext';
+import type { AppState, DrumSample } from '../../context/AppContext';
 import { createCompleteMultisampleSettings } from './testHelpers';
 
 // Mock the database initialization for indexedDB at the very top
 vi.mock('../../utils/indexedDB', () => {
   const mockPut = vi.fn().mockResolvedValue('mock-id');
   const mockAdd = vi.fn().mockResolvedValue('mock-id');
+  const mockSavePreset = vi.fn().mockResolvedValue(undefined);
   const mockGet = vi.fn().mockResolvedValue(null);
   const mockUpdate = vi.fn().mockResolvedValue('mock-id');
   const mockDelete = vi.fn().mockResolvedValue(undefined);
@@ -21,7 +22,7 @@ vi.mock('../../utils/indexedDB', () => {
   
   class MockIDBObjectStore {
     name: string;
-    put: any;
+    put: typeof mockPut;
     constructor(name: string) {
       this.name = name;
       this.put = mockPut;
@@ -46,6 +47,7 @@ vi.mock('../../utils/indexedDB', () => {
   return {
     indexedDB: {
       add: mockAdd,
+      savePreset: mockSavePreset,
       get: mockGet,
       update: mockUpdate,
       delete: mockDelete,
@@ -116,7 +118,7 @@ const mockAppState: Partial<AppState> = {
       width: 0
     },
     renameFiles: false,
-    filenameSeparator: ' ' as ' ',
+    filenameSeparator: ' ' as const,
     audioFormat: 'wav' as const
   },
   multisampleSettings: createCompleteMultisampleSettings({
@@ -193,35 +195,67 @@ describe('LibraryUtils', () => {
   });
 
   describe('savePresetToLibrary', () => {
+    it('round trips slice source identity and original-frame provenance through library storage', async () => {
+      vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
+      const sourceIdentity='source-library-1';
+      const sliceProvenance={sourceIdentity,sourceName:'break.wav',startFrame:1200,endFrame:2400,sourceFrameCount:48000,sourceSampleRate:48000,sourceChannels:1};
+      const state={...mockAppState,drumSamples:[{...mockAppState.drumSamples![0],sourceIdentity,sliceProvenance}]} as AppState;
+      const result=await savePresetToLibrary(state,'Sliced library kit','drum');
+      expect(result.success).toBe(true);
+      const saved=vi.mocked(indexedDB.savePreset).mock.calls.at(-1)?.[0] as LibraryPreset;
+      const stored=saved.data.drumSamples[0];
+      expect(stored).toMatchObject({sourceIdentity,sliceProvenance});
+      const storedBytes=await new Promise<ArrayBuffer>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(reader.result as ArrayBuffer);reader.readAsArrayBuffer(stored.audioBlob);});
+      Object.defineProperty(stored.audioBlob,'arrayBuffer',{value:async()=>storedBytes});
+      const PositionalAudioBuffer=globalThis.AudioBuffer as unknown as new(numberOfChannels:number,length:number,sampleRate:number)=>AudioBuffer;
+      vi.stubGlobal('AudioBuffer',class extends PositionalAudioBuffer {constructor(options:AudioBufferOptions){super(options.numberOfChannels ?? 1,options.length ?? 1,options.sampleRate);}});
+      try {
+        const [restored]=await restoreLibrarySamples([stored],'drum',new AudioContext());
+        expect(restored).toMatchObject({sourceIdentity,sliceProvenance});
+      } finally {vi.unstubAllGlobals();}
+    });
+
     it('should successfully save a drum preset to library', async () => {
       vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
-      const { indexedDB, STORES } = await import('../../utils/indexedDB');
-      const addSpy = vi.spyOn(indexedDB, 'add');
+      const { indexedDB } = await import('../../utils/indexedDB');
+      const addSpy = vi.spyOn(indexedDB, 'savePreset');
       const result = await savePresetToLibrary(mockAppState as AppState, 'Test Drum Kit', 'drum');
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
-      expect(addSpy).toHaveBeenCalledWith(STORES.PRESETS, expect.objectContaining({
+      expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Test Drum Kit',
         type: 'drum',
         isFavorite: false,
         sampleCount: 1
       }));
+      const saved=vi.mocked(indexedDB.savePreset).mock.calls.at(-1)?.[0] as LibraryPreset;
+      expect(saved.data.drumSamples).toHaveLength(1);
+      expect(saved.data.multisampleFiles).toEqual([]);
+      expect(saved.data.multisampleSettings).toBeUndefined();
       expect(sessionStorageIndexedDB.markSessionAsSavedToLibrary).toHaveBeenCalled();
     });
 
     it('should successfully save a multisample preset to library', async () => {
       vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
-      const result = await savePresetToLibrary(mockAppState as AppState, 'Test Multisample', 'multisample');
+      const state={...mockAppState,midiNoteMapping:'C4'} as AppState;
+      const result = await savePresetToLibrary(state, 'Test Multisample', 'multisample');
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
-      expect(indexedDB.add).toHaveBeenCalledWith(STORES.PRESETS, expect.objectContaining({
+      expect(indexedDB.savePreset).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Test Multisample',
         type: 'multisample',
         isFavorite: false,
         sampleCount: 1
       }));
+      const saved=vi.mocked(indexedDB.savePreset).mock.calls.at(-1)?.[0] as LibraryPreset;
+      expect(saved.data.multisampleFiles).toHaveLength(1);
+      expect(saved.data.drumSamples).toEqual([]);
+      expect(saved.data.drumSettings).toBeUndefined();
+      expect(saved.data.midiNoteMapping).toBe('C4');
+      const restored=await deserializeLibraryPreset({...saved,data:{...saved.data,multisampleFiles:[]}});
+      expect(restored.midiNoteMapping).toBe('C4');
       expect(sessionStorageIndexedDB.markSessionAsSavedToLibrary).toHaveBeenCalled();
     });
 
@@ -240,7 +274,7 @@ describe('LibraryUtils', () => {
     });
 
           it('should handle IndexedDB add failure', async () => {
-        vi.mocked(indexedDB.add).mockRejectedValueOnce(new Error('Database error'));
+        vi.mocked(indexedDB.savePreset).mockRejectedValueOnce(new Error('Database error'));
         const { savePresetToLibrary } = await import('../../utils/libraryUtils');
         const result = await savePresetToLibrary(mockAppState as AppState, 'Test Preset', 'drum');
         expect(result.success).toBe(false);
@@ -248,14 +282,14 @@ describe('LibraryUtils', () => {
         expect(console.error).toHaveBeenCalledWith('Failed to save preset:', new Error('Database error'));
       });
 
-    it('should handle session storage failure gracefully', async () => {
+    it('should keep committed preset success when the optional session marker fails', async () => {
       const originalMarkSession = sessionStorageIndexedDB.markSessionAsSavedToLibrary;
       sessionStorageIndexedDB.markSessionAsSavedToLibrary = vi.fn().mockRejectedValueOnce(new Error('Session storage error'));
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
       const result = await savePresetToLibrary(mockAppState as AppState, 'Test Preset', 'drum');
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('failed to save preset to library');
-      expect(indexedDB.add).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.error).toBeUndefined();
+      expect(indexedDB.savePreset).toHaveBeenCalled();
       sessionStorageIndexedDB.markSessionAsSavedToLibrary = originalMarkSession;
     });
 
@@ -268,7 +302,7 @@ describe('LibraryUtils', () => {
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
       const result = await savePresetToLibrary(stateWithEmptySamples as AppState, 'Empty Kit', 'drum');
       expect(result.success).toBe(true);
-      expect(indexedDB.add).toHaveBeenCalledWith(STORES.PRESETS, expect.objectContaining({
+      expect(indexedDB.savePreset).toHaveBeenCalledWith(expect.objectContaining({
         sampleCount: 0
       }));
     });
@@ -276,12 +310,12 @@ describe('LibraryUtils', () => {
     it('should handle null/undefined samples gracefully', async () => {
       const stateWithNullSamples = {
         ...mockAppState,
-        drumSamples: null as any,
-        multisampleFiles: undefined as any
+        drumSamples: null,
+        multisampleFiles: undefined
       };
       vi.mocked(sessionStorageIndexedDB.markSessionAsSavedToLibrary).mockResolvedValue(undefined);
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
-      const result = await savePresetToLibrary(stateWithNullSamples as AppState, 'Null Samples', 'drum');
+      const result = await savePresetToLibrary(stateWithNullSamples as unknown as AppState, 'Null Samples', 'drum');
       expect(result.success).toBe(true);
     });
 
@@ -289,24 +323,23 @@ describe('LibraryUtils', () => {
       const { savePresetToLibrary } = await import('../../utils/libraryUtils');
               await savePresetToLibrary(mockAppState as AppState, 'Preset 1', 'drum');
         await savePresetToLibrary(mockAppState as AppState, 'Preset 2', 'drum');
-        expect(indexedDB.add).toHaveBeenCalledTimes(2);
-        const calls = vi.mocked(indexedDB.add).mock.calls;
-        const preset1 = calls[0][1] as LibraryPreset;
-        const preset2 = calls[1][1] as LibraryPreset;
+        expect(indexedDB.savePreset).toHaveBeenCalledTimes(2);
+        const calls = vi.mocked(indexedDB.savePreset).mock.calls;
+        const preset1 = calls[0][0] as LibraryPreset;
+        const preset2 = calls[1][0] as LibraryPreset;
       expect(preset1.id).not.toBe(preset2.id);
     });
 
     it('should include all required preset data', async () => {
               const { savePresetToLibrary } = await import('../../utils/libraryUtils');
         await savePresetToLibrary(mockAppState as AppState, 'Complete Preset', 'drum');
-        expect(indexedDB.add).toHaveBeenCalled();
-        const savedPreset = vi.mocked(indexedDB.add).mock.calls[0][1] as LibraryPreset;
+        expect(indexedDB.savePreset).toHaveBeenCalled();
+        const savedPreset = vi.mocked(indexedDB.savePreset).mock.calls[0][0] as LibraryPreset;
       expect(savedPreset).toMatchObject({
         name: 'Complete Preset',
         type: 'drum',
         data: expect.objectContaining({
           drumSettings: expect.any(Object),
-          multisampleSettings: expect.any(Object),
           drumSamples: expect.any(Array),
           multisampleFiles: expect.any(Array)
         }),
@@ -341,7 +374,7 @@ describe('LibraryUtils', () => {
       // This test documents the current behavior and can be updated when reset logic is implemented
     });
   });
-}); 
+});
 
 // Test for drum sample index preservation
 describe('Drum Sample Index Preservation', () => {
@@ -355,7 +388,7 @@ describe('Drum Sample Index Preservation', () => {
 
   it('should preserve drum sample indexes when saving and loading presets', async () => {
     // Create a mock drum samples array with samples at specific indexes
-    const mockDrumSamples = Array.from({ length: 24 }, () => ({
+    const mockDrumSamples: DrumSample[] = Array.from({ length: 24 }, () => ({
       file: null,
       audioBuffer: null,
       name: '',
@@ -367,6 +400,7 @@ describe('Drum Sample Index Preservation', () => {
       transpose: 0,
       pan: 0,
       gain: 0,
+      isAssigned: true,
       hasBeenEdited: false,
       originalBitDepth: 16,
       originalSampleRate: 44100,
@@ -380,8 +414,8 @@ describe('Drum Sample Index Preservation', () => {
      sampleIndexes.forEach((index) => {
        mockDrumSamples[index] = {
          ...mockDrumSamples[index],
-         file: new File(['mock'], `sample${index}.wav`, { type: 'audio/wav' }) as any,
-         audioBuffer: mockAudioBuffer as any,
+         file: new File(['mock'], `sample${index}.wav`, { type: 'audio/wav' }),
+         audioBuffer: mockAudioBuffer as AudioBuffer,
          name: `Sample ${index}`,
          isLoaded: true,
          hasBeenEdited: true,
@@ -411,7 +445,7 @@ describe('Drum Sample Index Preservation', () => {
           width: 0
         },
         renameFiles: false,
-        filenameSeparator: ' ' as ' ',
+        filenameSeparator: ' ' as const,
         audioFormat: 'wav' as const
       },
       multisampleSettings: createCompleteMultisampleSettings({
@@ -491,7 +525,7 @@ describe('Drum Sample Index Preservation', () => {
       sampleCount: 4
     };
     
-    (indexedDB as any).getAll.mockResolvedValue([expectedPreset]);
+    vi.mocked(indexedDB.getAll).mockResolvedValue([expectedPreset]);
 
     // Save the preset
     const result = await savePresetToLibrary(mockState, 'Test Drum Kit', 'drum');
@@ -507,14 +541,14 @@ describe('Drum Sample Index Preservation', () => {
     expect(savedPreset.data.drumSamples.length).toBe(4); // Should have 4 loaded samples
 
     // Verify that originalIndex is preserved for each sample
-    savedPreset.data.drumSamples.forEach((sample: any, arrayIndex: number) => {
+    savedPreset.data.drumSamples.forEach((sample, arrayIndex: number) => {
       expect(sample.originalIndex).toBe(sampleIndexes[arrayIndex]);
       expect(sample.name).toBe(`Sample ${sampleIndexes[arrayIndex]}`);
       expect(sample.transpose).toBe(sampleIndexes[arrayIndex] * 2);
       expect(sample.pan).toBe(sampleIndexes[arrayIndex] * 5);
       expect(sample.gain).toBe(sampleIndexes[arrayIndex]);
       expect(sample.audioBlob).toBeDefined();
-      expect(sample.audioBuffer).toBeUndefined(); // Should be stripped
+      expect('audioBuffer' in sample).toBe(false); // Runtime buffers must be stripped
     });
 
     // Verify sample count is correct
@@ -540,7 +574,7 @@ describe('Drum Sample Index Preservation', () => {
           width: 0
         },
         renameFiles: false,
-        filenameSeparator: ' ' as ' ',
+        filenameSeparator: ' ' as const,
         audioFormat: 'wav' as const
       },
       multisampleSettings: createCompleteMultisampleSettings({
@@ -594,7 +628,7 @@ describe('Drum Sample Index Preservation', () => {
       sampleCount: 0
     };
     
-    (indexedDB as any).getAll.mockResolvedValue([expectedEmptyPreset]);
+    vi.mocked(indexedDB.getAll).mockResolvedValue([expectedEmptyPreset]);
 
     const result = await savePresetToLibrary(mockState, 'Empty Drum Kit', 'drum');
     expect(result.success).toBe(true);
@@ -737,7 +771,7 @@ describe('Multisample Loop Points Preservation', () => {
       sampleCount: 2
     };
     
-    (indexedDB as any).getAll.mockResolvedValue([expectedMultisamplePreset]);
+    vi.mocked(indexedDB.getAll).mockResolvedValue([expectedMultisamplePreset]);
 
     // Save the preset
     const result = await savePresetToLibrary(mockAppState, 'Test Multisample Loop Points', 'multisample');
@@ -759,8 +793,9 @@ describe('Multisample Loop Points Preservation', () => {
     expect(savedMultisampleFiles.length).toBe(2);
 
     // Verify first file loop points are preserved
-    const firstFile = savedMultisampleFiles.find((f: any) => f.name === 'sample_C4.wav');
+    const firstFile = savedMultisampleFiles.find((file) => file.name === 'sample_C4.wav');
     expect(firstFile).toBeDefined();
+    if (!firstFile) throw new Error('Expected the saved C4 sample');
     expect(firstFile.inPoint).toBe(0.5);
     expect(firstFile.outPoint).toBe(2.8);
     expect(firstFile.loopStart).toBe(1.0);
@@ -768,8 +803,9 @@ describe('Multisample Loop Points Preservation', () => {
     expect(firstFile.rootNote).toBe(60);
 
     // Verify second file loop points are preserved
-    const secondFile = savedMultisampleFiles.find((f: any) => f.name === 'sample_F4.wav');
+    const secondFile = savedMultisampleFiles.find((file) => file.name === 'sample_F4.wav');
     expect(secondFile).toBeDefined();
+    if (!secondFile) throw new Error('Expected the saved F4 sample');
     expect(secondFile.inPoint).toBe(0.2);
     expect(secondFile.outPoint).toBe(1.8);
     expect(secondFile.loopStart).toBe(0.4);
@@ -782,4 +818,4 @@ describe('Multisample Loop Points Preservation', () => {
 
     console.log('✅ Multisample loop points preservation test passed');
   });
-}); 
+});

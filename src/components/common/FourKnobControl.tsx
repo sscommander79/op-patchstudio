@@ -3,6 +3,7 @@ import React, { useState, useCallback, useRef } from 'react';
 interface KnobConfig {
   label: string;
   value: number; // 0-100
+  rawValue?: number;
   color: 'black' | 'dark' | 'light' | 'white'; // knob color semantic names
 }
 
@@ -132,7 +133,7 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
           {knob.label}
         </span>
         <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', userSelect: 'none' }}>
-          {Math.round(knob.value)}%
+          {Math.round(knob.value)}%{knob.rawValue === undefined ? '' : ` (raw ${knob.rawValue})`}
         </span>
       </div>
     );
@@ -163,4 +164,4 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
       </div>
     </div>
   );
-}; 
+};

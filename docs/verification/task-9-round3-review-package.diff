@@ -1,0 +1,303 @@
+--- before/scripts/pwa-cache-lifecycle.js
++++ after/scripts/pwa-cache-lifecycle.js
+@@ -38,15 +38,59 @@
+ 
+ function sameOwnership(left, right) {
+   return left.current === right.current && left.previous === right.previous &&
+-    left.waiting === right.waiting && left.complete === right.complete;
++    left.complete === right.complete;
++}
++
++function identifyWorker(worker) {
++  if (!worker) return Promise.resolve(null);
++  return new Promise((resolve) => {
++    const channel = new MessageChannel();
++    let settled = false;
++    const finish = (buildId) => {
++      if (settled) return;
++      settled = true;
++      clearTimeout(timer);
++      channel.port1.close();
++      channel.port2.close();
++      resolve(typeof buildId === 'string' && buildId.length > 0 ? buildId : null);
++    };
++    const timer = setTimeout(() => finish(null), 500);
++    channel.port1.onmessage = (event) => {
++      finish(event.data?.type === 'OPSTUDIO_WORKER_IDENTITY' ? event.data.buildId : null);
++    };
++    channel.port1.start?.();
++    try {
++      worker.postMessage({ type: 'OPSTUDIO_IDENTIFY_WORKER' }, [channel.port2]);
++    } catch {
++      finish(null);
++    }
++  });
++}
++
++async function workerSlots() {
++  if (self.registration.installing) return null;
++  const activeWorker = self.registration.active;
++  const waitingWorker = self.registration.waiting;
++  const [active, waiting] = await Promise.all([
++    identifyWorker(activeWorker),
++    identifyWorker(waitingWorker),
++  ]);
++  if (self.registration.installing || !active || waitingWorker && !waiting) return null;
++  return { active, waiting };
++}
++
++function sameSlots(left, right) {
++  return !!left && !!right && left.active === right.active && left.waiting === right.waiting;
+ }
+ 
+ async function pruneSupersededCaches(expectedWaiting) {
+   const ownership = await readMetadata();
+   if (typeof ownership.current !== 'string' || ownership.current.length === 0 || ownership.complete !== true) return false;
+-  if (expectedWaiting && ownership.waiting !== expectedWaiting) return false;
++  const slots = await workerSlots();
++  if (!slots || slots.active !== ownership.current) return false;
++  if (expectedWaiting ? slots.waiting !== expectedWaiting : slots.active !== BUILD_ID || slots.waiting) return false;
+ 
+-  const protectedBuilds = [ownership.current, ownership.previous, ownership.waiting]
++  const protectedBuilds = [ownership.current, ownership.previous, expectedWaiting]
+     .filter((value) => typeof value === 'string' && value.length > 0);
+   const candidates = (await caches.keys()).filter((name) =>
+     isAppPrecache(name) && !protectedBuilds.some((buildId) => belongsToBuild(name, buildId)));
+@@ -55,7 +99,8 @@
+     // A newer worker may have become waiting since this operation began. Its
+     // identity must be visible before any cache owned by another build is removed.
+     const latest = await readMetadata();
+-    if (!sameOwnership(ownership, latest)) return false;
++    const latestSlots = await workerSlots();
++    if (!sameOwnership(ownership, latest) || !sameSlots(slots, latestSlots)) return false;
+     await caches.delete(name);
+   }
+   return true;
+@@ -74,15 +119,15 @@
+ 
+ self.addEventListener('message', (event) => {
+   if (event.data?.type === 'OPSTUDIO_IDENTIFY_WORKER') {
+-    event.source?.postMessage({ type: 'OPSTUDIO_WORKER_IDENTITY', buildId: BUILD_ID });
++    const response = { type: 'OPSTUDIO_WORKER_IDENTITY', buildId: BUILD_ID };
++    if (event.ports?.[0]) event.ports[0].postMessage(response);
++    else event.source?.postMessage(response);
+     return;
+   }
+ 
+   if (event.data?.type === 'OPSTUDIO_CLAIM_WAITING') {
+     event.waitUntil(serialized(async () => {
+       if (!scopedWindow(event.source)) return;
+-      const metadata = await readMetadata();
+-      await writeMetadata({ ...metadata, waiting: BUILD_ID });
+       const pruned = await pruneSupersededCaches(BUILD_ID);
+       event.source?.postMessage({ type: 'OPSTUDIO_WAITING_CLAIMED', buildId: BUILD_ID, pruned });
+     }));
+@@ -105,14 +150,13 @@
+ self.addEventListener('activate', (event) => {
+   event.waitUntil(serialized(async () => {
+     const metadata = await readMetadata();
+-    if (metadata.waiting && metadata.waiting !== BUILD_ID) return;
+     const appPrecaches = (await caches.keys()).filter(isAppPrecache);
+     const ownershipComplete = typeof metadata.current === 'string' ||
+       appPrecaches.every((name) => belongsToBuild(name, BUILD_ID));
+     const previous = metadata.current && metadata.current !== BUILD_ID
+       ? metadata.current
+       : metadata.previous;
+-    await writeMetadata({ current: BUILD_ID, previous, waiting: undefined, complete: ownershipComplete });
++    await writeMetadata({ current: BUILD_ID, previous, complete: ownershipComplete });
+     if (ownershipComplete) await pruneSupersededCaches();
+   }));
+ });
+--- before/scripts/verify-pwa-build.mjs
++++ after/scripts/verify-pwa-build.mjs
+@@ -23,6 +23,11 @@
+ }
+ if (!lifecycle.includes('sameOwnership(ownership, latest)')) {
+   throw new Error('Generated lifecycle does not recheck worker-owned cache metadata before deletion')
++}
++if (!lifecycle.includes('self.registration.installing') ||
++    !lifecycle.includes('slots.active !== ownership.current') ||
++    !lifecycle.includes('sameSlots(slots, latestSlots)')) {
++  throw new Error('Generated lifecycle does not validate active, waiting and installing worker slots before deletion')
+ }
+ const matches = [...worker.matchAll(/\{url:"([^"]+)",revision:(null|"[^"]+")\}/g)]
+ 
+--- before/src/test/utils/pwaCacheLifecycle.test.ts
++++ after/src/test/utils/pwaCacheLifecycle.test.ts
+@@ -5,6 +5,7 @@
+ type WorkerEvent={
+   data?:{type?:string};
+   source?:{id:string;type:string;url:string;postMessage:(message:unknown)=>void};
++  ports?:Array<{postMessage:(message:unknown)=>void}>;
+   waitUntil:(promise:Promise<unknown>)=>void;
+ };
+ type WorkerListener=(event:WorkerEvent)=>void;
+@@ -12,6 +13,9 @@
+ interface CacheState {
+   names:Set<string>;
+   ownership?:Ownership;
++  activeId?:string;
++  waitingId?:string;
++  installingId?:string;
+   metadataReads:number;
+   beforeMetadataRead?:(read:number,state:CacheState)=>void;
+ }
+@@ -21,8 +25,30 @@
+   const deleted:string[]=[];
+   const skipWaiting=vi.fn(async()=>undefined),postMessage=vi.fn();
+   const clients=windowIds.map(id=>({id,type:'window',url:`https://studio.test/${id}`}));
++  class FakePort {
++    peer?:FakePort;
++    onmessage?:({data}:{data:unknown})=>void;
++    postMessage(data:unknown){queueMicrotask(()=>this.peer?.onmessage?.({data}));}
++    start(){}
++    close(){}
++  }
++  class FakeMessageChannel {
++    port1=new FakePort();port2=new FakePort();
++    constructor(){this.port1.peer=this.port2;this.port2.peer=this.port1;}
++  }
++  const identifiedWorker=(id:string|undefined)=>id?{
++    postMessage:(message:{type?:string},ports?:FakePort[])=>{
++      if(message.type==='OPSTUDIO_IDENTIFY_WORKER')ports?.[0]?.postMessage({type:'OPSTUDIO_WORKER_IDENTITY',buildId:id});
++    },
++  }:null;
++  const registration={
++    scope:'https://studio.test/',
++    get active(){return identifiedWorker(state.activeId);},
++    get waiting(){return identifiedWorker(state.waitingId);},
++    get installing(){return identifiedWorker(state.installingId);},
++  };
+   const worker={
+-    registration:{scope:'https://studio.test/'},
++    registration,
+     clients:{matchAll:vi.fn(async()=>clients)},
+     skipWaiting,
+     addEventListener:(type:string,listener:WorkerListener)=>listeners.set(type,listener),
+@@ -44,7 +70,7 @@
+   };
+   const source=readFileSync(`${process.cwd()}/scripts/pwa-cache-lifecycle.js`,'utf8')
+     .replace('__OPSTUDIO_PWA_BUILD_ID__',buildId);
+-  Function('self','caches','Response','URL',source)(worker,cacheStorage,Response,URL);
++  Function('self','caches','Response','URL','MessageChannel','setTimeout','clearTimeout',source)(worker,cacheStorage,Response,URL,FakeMessageChannel,setTimeout,clearTimeout);
+   const dispatch=async(type:string,data?:{type:string},sourceId=windowIds[0]??'requester')=>{
+     let work:Promise<unknown>=Promise.resolve();
+     const sourceClient={id:sourceId,type:'window',url:`https://studio.test/${sourceId}`,postMessage};
+@@ -59,7 +85,7 @@
+ 
+ describe('PWA cache lifecycle',()=>{
+   it('accepts activation only from the sole scoped app window',async()=>{
+-    const shared=state([],{current:'A',waiting:'B',complete:true});
++    const shared=state([],{current:'A',complete:true});
+     const multiple=loadLifecycle('B',['one','two'],shared);
+     await multiple.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'},'one');
+     expect(multiple.skipWaiting).not.toHaveBeenCalled();
+@@ -74,30 +100,54 @@
+ 
+   it('removes a superseded waiting build while retaining active, previous, and newest waiting builds',async()=>{
+     const shared=state([cache('P'),cache('A'),cache('B'),'unrelated-cache'],{current:'A',previous:'P',complete:true});
++    shared.activeId='A';shared.waitingId='B';
+     const waitingB=loadLifecycle('B',['one','two'],shared);
+     await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
+     expect([...shared.names]).toEqual([cache('P'),cache('A'),cache('B'),'unrelated-cache']);
+ 
+-    shared.names.add(cache('C'));
++    shared.names.add(cache('C'));shared.waitingId='C';
+     const waitingC=loadLifecycle('C',['one','two'],shared);
+     await waitingC.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
+     expect([...shared.names]).toEqual([cache('P'),cache('A'),'unrelated-cache',cache('C')]);
+-    expect(shared.ownership).toEqual({current:'A',previous:'P',waiting:'C',complete:true});
+-
+-    shared.names.add(cache('D'));
++    expect(shared.ownership).toEqual({current:'A',previous:'P',complete:true});
++
++    shared.names.add(cache('D'));shared.waitingId='D';
+     const waitingD=loadLifecycle('D',['one','two'],shared);
+     await waitingD.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
+     expect([...shared.names]).toEqual([cache('P'),cache('A'),'unrelated-cache',cache('D')]);
+-    expect(shared.ownership).toEqual({current:'A',previous:'P',waiting:'D',complete:true});
+-
++    expect(shared.ownership).toEqual({current:'A',previous:'P',complete:true});
++
++    shared.activeId='D';shared.waitingId=undefined;
+     await waitingD.dispatch('activate');
+     expect([...shared.names]).toEqual([cache('A'),'unrelated-cache',cache('D')]);
+     expect(shared.ownership).toEqual({current:'D',previous:'A',complete:true});
+   });
+ 
+   it('fails closed when ownership changes immediately before deletion',async()=>{
+-    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',waiting:'B',complete:true});
+-    shared.beforeMetadataRead=(read,current)=>{if(read===3)current.ownership={current:'A',previous:'P',waiting:'C',complete:true};};
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',complete:true});
++    shared.activeId='A';shared.waitingId='B';
++    shared.beforeMetadataRead=(read,current)=>{if(read===2)current.ownership={current:'A',previous:'changed',complete:true};};
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingB.deleted).toEqual([]);
++    expect(shared.names.has(cache('C'))).toBe(true);
++  });
++
++  it('fails closed when active identity is unknown or disagrees with activation metadata',async()=>{
++    for(const activeId of [undefined,'different-active']){
++      const shared=state([cache('P'),cache('A'),cache('B'),cache('old')],{current:'A',previous:'P',complete:true});
++      shared.activeId=activeId;shared.waitingId='B';
++      const waitingB=loadLifecycle('B',['one'],shared);
++      await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++      expect(waitingB.deleted).toEqual([]);
++      expect(shared.names.has(cache('old'))).toBe(true);
++    }
++  });
++
++  it('aborts when the waiting slot changes during the final ownership recheck',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',complete:true});
++    shared.activeId='A';shared.waitingId='B';
++    shared.beforeMetadataRead=(read,current)=>{if(read===2)current.waitingId='C';};
+     const waitingB=loadLifecycle('B',['one'],shared);
+     await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
+     expect(waitingB.deleted).toEqual([]);
+@@ -112,18 +162,42 @@
+   });
+ 
+   it('keeps pre-metadata caches through migration until a later activation establishes the previous worker',async()=>{
+-    const shared=state([cache('legacy-A'),cache('B')],{waiting:'B'});
++    const shared=state([cache('legacy-A'),cache('B')]);shared.activeId='B';
+     const waitingB=loadLifecycle('B',['one'],shared);
+     await waitingB.dispatch('activate');
+     expect(waitingB.deleted).toEqual([]);
+     expect(shared.ownership).toEqual({current:'B',complete:false});
+ 
+-    shared.names.add(cache('C'));
++    shared.names.add(cache('C'));shared.activeId='B';shared.waitingId='C';
+     const waitingC=loadLifecycle('C',['one'],shared);
+     await waitingC.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
+     expect(waitingC.deleted).toEqual([]);
+-    await waitingC.dispatch('activate');
++    shared.activeId='C';shared.waitingId=undefined;await waitingC.dispatch('activate');
+     expect([...shared.names]).toEqual([cache('B'),cache('C')]);
+     expect(shared.ownership).toEqual({current:'C',previous:'B',complete:true});
+   });
++
++  it('does not let stale waiting B prune C while C occupies the installing slot',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',complete:true});
++    shared.activeId='A';shared.waitingId='B';shared.installingId='C';
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingB.deleted).toEqual([]);
++    expect(shared.names.has(cache('C'))).toBe(true);
++    expect(shared.ownership).toEqual({current:'A',previous:'P',complete:true});
++  });
++
++  it('makes natural C activation authoritative over stale B metadata before D cleanup',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C'),'unrelated-cache'],{current:'A',previous:'P',waiting:'B',complete:true});
++    shared.activeId='C';
++    const workerC=loadLifecycle('C',['one'],shared);
++    await workerC.dispatch('activate');
++    expect(shared.ownership).toEqual({current:'C',previous:'A',complete:true});
++    expect([...shared.names]).toEqual([cache('A'),cache('C'),'unrelated-cache']);
++
++    shared.names.add(cache('D'));shared.waitingId='D';
++    const workerD=loadLifecycle('D',['one'],shared);
++    await workerD.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect([...shared.names]).toEqual([cache('A'),cache('C'),'unrelated-cache',cache('D')]);
++  });
+ });

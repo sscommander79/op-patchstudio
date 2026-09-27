@@ -10,13 +10,19 @@ import { FileDetailsBadges } from '../common/FileDetailsBadges';
 import { DrumSampleSettingsModal } from './DrumSampleSettingsModal';
 import { IconButton } from '../common/IconButton';
 import { getOrganizeModeLabelFull } from './DrumKeyboard';
+import { INTERNAL_SAMPLE_DRAG_TYPE } from '../../utils/externalFileIntake';
+import { AUDIO_FILE_ACCEPT } from '../../utils/audioFormats';
 
 
 interface DrumSampleTableProps {
   onFileUpload: (index: number, file: File) => void;
+  onFilesUpload?: (startIndex: number, files: File[]) => void;
   onClearSample: (index: number) => void;
   onRecordSample?: (index: number) => void;
   isOrganizeMode?: boolean;
+  onSliceSample?: (index:number)=>void;
+  selectedIndex?: number;
+  onSelectSample?: (index:number)=>void;
 }
 
 // Full drum names from OP-XY documentation - all lowercase
@@ -52,15 +58,17 @@ const organizedIndices = [
 // Default indices (0-23)
 const defaultIndices = Array.from({ length: 24 }, (_, i) => i);
 
-export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, isOrganizeMode = false }: DrumSampleTableProps) {
+export function DrumSampleTable({ onFileUpload, onFilesUpload, onClearSample, onRecordSample, onSliceSample, isOrganizeMode = false, selectedIndex, onSelectSample }: DrumSampleTableProps) {
   const { state, dispatch } = useAppContext();
   const { play } = useAudioPlayer();
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [selectedSampleIndex, setSelectedSampleIndex] = useState<number>(0);
+  const [internalSelectedSampleIndex, setInternalSelectedSampleIndex] = useState<number>(0);
+  const selectedSampleIndex=selectedIndex??internalSelectedSampleIndex;
+  const selectSample=(index:number)=>{setInternalSelectedSampleIndex(index);onSelectSample?.(index);};
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
-  const [selectedSample, setSelectedSample] = useState<{ index: number; audioBuffer: AudioBuffer; inPoint: number; outPoint: number } | null>(null);
+  const [selectedSample, setSelectedSample] = useState<{ index: number; audioBuffer: AudioBuffer; inPoint: number; outPoint: number; reverse: boolean; transpose: number; gain: number } | null>(null);
   
   // Drag and drop state for sample swapping (desktop only)
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
@@ -88,6 +96,11 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
     } catch (error) {
       console.error('Error in handleFileSelect:', error);
     }
+  };
+
+  const handleFilesSelect = (index:number, files:File[]) => {
+    if(onFilesUpload)onFilesUpload(index,files);
+    else files.forEach((file,offset)=>handleFileSelect(index+offset,file));
   };
 
   const openFileDialog = (index: number) => {
@@ -137,6 +150,7 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
     if (!sample?.isLoaded) return; // Only allow dragging loaded samples
     
     setDraggedItem(index);
+    e.dataTransfer.setData(INTERNAL_SAMPLE_DRAG_TYPE,String(index));
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -211,12 +225,12 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
       // Show rotate overlay instead of opening modal
       triggerRotateOverlay(() => {
         // This callback will be executed when device is rotated to landscape
-        setSelectedSampleIndex(index);
+        selectSample(index);
         setSettingsModalOpen(true);
       });
     } else {
       // Open modal directly on desktop or landscape mobile
-      setSelectedSampleIndex(index);
+      selectSample(index);
       setSettingsModalOpen(true);
     }
   };
@@ -231,8 +245,11 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
       setSelectedSample({
         index,
         audioBuffer: sample.audioBuffer,
-        inPoint: sample.inPoint || 0,
-        outPoint: sample.outPoint || sample.duration || sample.audioBuffer.duration,
+        inPoint: sample.inPoint ?? 0,
+        outPoint: sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration,
+        reverse: sample.reverse,
+        transpose: sample.transpose,
+        gain: sample.gain,
       });
       setIsZoomModalOpen(true);
     }
@@ -289,7 +306,7 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
               <div key={index}>
                 <input
                   type="file"
-                  accept="audio/*,.wav"
+                  accept={AUDIO_FILE_ACCEPT}
                   style={{ display: 'none' }}
                   ref={(el) => { fileInputRefs.current[index] = el; }}
                   onChange={(e) => {
@@ -307,6 +324,10 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                 />
                 
                 <div
+                  data-audio-import="drum"
+                  data-drum-pad={index}
+                  aria-current={selectedSampleIndex===index ? 'true' : undefined}
+                  onClick={()=>selectSample(index)}
                   style={{
                     background: c.bg,
                     border: `1px solid ${c.border}`,
@@ -372,6 +393,13 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                          color="var(--color-accent-primary)"
                        />
                        <IconButton
+                         icon="fas fa-cut"
+                         onClick={() => onSliceSample?.(index)}
+                         title="slice this sample"
+                         color={isLoaded ? c.action : c.textSecondary}
+                         disabled={!isLoaded}
+                       />
+                       <IconButton
                          icon="fas fa-cog"
                          onClick={() => openSettingsModal(index)}
                          title="settings"
@@ -416,10 +444,10 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                            <SmallWaveform
                              audioBuffer={sample.audioBuffer}
                              height={50}
-                             inPoint={Math.round((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
-                             outPoint={Math.round((sample.outPoint || sample.duration || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                             inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
+                             outPoint={Math.round((sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
                              onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
-                               const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate || 44100);
+                               const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate ?? 44100);
                                dispatch({
                                  type: 'UPDATE_DRUM_SAMPLE',
                                  payload: {
@@ -482,6 +510,18 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
             );
           })}
         </div>
+        <WaveformZoomModal
+          isOpen={isZoomModalOpen}
+          onClose={closeZoomModal}
+          audioBuffer={selectedSample?.audioBuffer ?? null}
+          initialInPoint={selectedSample?.inPoint ?? 0}
+          initialOutPoint={selectedSample?.outPoint ?? 0}
+          reverse={selectedSample?.reverse ?? false}
+          playbackRate={2 ** ((selectedSample?.transpose ?? 0) / 12)}
+          gain={selectedSample?.gain ?? 0}
+          onSave={handleZoomSave}
+          onSaveForAll={handleSaveForAll}
+        />
       </div>
     );
   }
@@ -529,12 +569,13 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
               <input
                 type="file"
                 multiple
-                accept="audio/*,.wav"
+                aria-label={`choose drum row ${index+1} audio files`}
+                accept={AUDIO_FILE_ACCEPT}
                 style={{ display: 'none' }}
                 ref={(el) => { fileInputRefs.current[index] = el; }}
                 onChange={(e) => {
                   const files = [...(e.target.files || [])];
-                  files.forEach((file, i) => handleFileSelect(index + i, file));
+                  handleFilesSelect(index,files);
                   e.target.value = '';
                 }}
               />
@@ -554,6 +595,10 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                   cursor: isLoaded ? 'move' : 'default'
                 }}
                 draggable={isLoaded}
+                data-audio-import="drum"
+                data-drum-pad-start={index}
+                aria-current={selectedSampleIndex===index ? 'true' : undefined}
+                onClick={()=>selectSample(index)}
                 onDragStart={(e) => handleSampleDragStart(e, index)}
                 onDragOver={(e) => handleSampleDragOver(e, index)}
                 onDragLeave={handleSampleDragLeave}
@@ -651,10 +696,10 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                           <SmallWaveform
                             audioBuffer={sample.audioBuffer}
                             height={44}
-                            inPoint={Math.round((sample.inPoint || 0) * sample.audioBuffer.sampleRate)}
-                            outPoint={Math.round((sample.outPoint || sample.duration || sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
+                            inPoint={Math.round((sample.inPoint ?? 0) * sample.audioBuffer.sampleRate)}
+                            outPoint={Math.round((sample.outPoint ?? sample.duration ?? sample.audioBuffer.duration) * sample.audioBuffer.sampleRate)}
                             onMarkersChange={(markers: { inPoint: number; outPoint: number; loopStart?: number; loopEnd?: number }) => {
-                              const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate || 44100);
+                              const toSeconds = (frame: number) => frame / (sample.audioBuffer?.sampleRate ?? 44100);
                               dispatch({
                                 type: 'UPDATE_DRUM_SAMPLE',
                                 payload: {
@@ -749,6 +794,13 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
                     color="var(--color-accent-primary)"
                   />
                   <IconButton
+                    icon="fas fa-cut"
+                    onClick={() => onSliceSample?.(index)}
+                    title="slice this sample"
+                    color={isLoaded ? c.action : c.textSecondary}
+                    disabled={!isLoaded}
+                  />
+                  <IconButton
                     icon="fas fa-cog"
                     onClick={() => openSettingsModal(index)}
                     title="settings"
@@ -773,12 +825,15 @@ export function DrumSampleTable({ onFileUpload, onClearSample, onRecordSample, i
       <WaveformZoomModal
         isOpen={isZoomModalOpen}
         onClose={closeZoomModal}
-        audioBuffer={selectedSample?.audioBuffer || null}
-        initialInPoint={selectedSample?.inPoint || 0}
-        initialOutPoint={selectedSample?.outPoint || 0}
+        audioBuffer={selectedSample?.audioBuffer ?? null}
+        initialInPoint={selectedSample?.inPoint ?? 0}
+        initialOutPoint={selectedSample?.outPoint ?? 0}
+        reverse={selectedSample?.reverse ?? false}
+        playbackRate={2 ** ((selectedSample?.transpose ?? 0) / 12)}
+        gain={selectedSample?.gain ?? 0}
         onSave={handleZoomSave}
         onSaveForAll={handleSaveForAll}
       />
     </div>
   );
-} 
+}

@@ -140,10 +140,12 @@ describe('AppContext - Unassigned Sample Management', () => {
 
     const newState = appReducer(stateWithUnassigned, action);
 
-    // Verify the sample was assigned
-    const assignedSample = newState.drumSamples[24];
+    // Assignment follows the physical pad layout and removes the empty tray row.
+    const assignedSample = newState.drumSamples[5];
     expect(assignedSample.isAssigned).toBe(true);
     expect(assignedSample.assignedKey).toBe(5);
+    expect(assignedSample.name).toBe('Unassigned Sample');
+    expect(newState.drumSamples).toHaveLength(24);
   });
 
   it('should unassign sample correctly', () => {
@@ -179,40 +181,39 @@ describe('AppContext - Unassigned Sample Management', () => {
     // Create state with two assigned samples
     const stateWithAssigned = {
       ...initialState,
-      drumSamples: [
-        {
-          ...initialState.drumSamples[0],
-          isLoaded: true,
-          name: 'Sample 1',
-          isAssigned: true,
-          assignedKey: 5
-        },
-        {
-          ...initialState.drumSamples[1],
-          isLoaded: true,
-          name: 'Sample 2',
-          isAssigned: true,
-          assignedKey: 10 // Different key from Sample 1
-        },
-        ...initialState.drumSamples.slice(2)
-      ]
+      drumSamples: initialState.drumSamples.map((sample, index) => index === 1 ? {
+        ...sample,
+        isLoaded: true,
+        name: 'Sample 2',
+        isAssigned: true,
+        assignedKey: 1
+      } : index === 5 ? {
+        ...sample,
+        isLoaded: true,
+        name: 'Sample 1',
+        isAssigned: true,
+        assignedKey: 5
+      } : sample)
     };
 
     const action = {
       type: 'ASSIGN_DRUM_SAMPLE' as const,
       payload: {
         sampleIndex: 1, // Sample 2
-        targetKeyIndex: 5 // Assign to same key as Sample 1
+        targetKeyIndex: 5 // Assign to the physical pad occupied by Sample 1
       }
     };
 
     const newState = appReducer(stateWithAssigned, action);
 
-    // Verify Sample 1 was unassigned and Sample 2 was assigned to key 5
-    expect(newState.drumSamples[0].isAssigned).toBe(false);
-    expect(newState.drumSamples[0].assignedKey).toBeUndefined();
-    expect(newState.drumSamples[1].isAssigned).toBe(true);
-    expect(newState.drumSamples[1].assignedKey).toBe(5);
+    // The displaced sound moves to the source row as unassigned; the target
+    // physical pad contains the selected sound.
+    expect(newState.drumSamples[1].name).toBe('Sample 1');
+    expect(newState.drumSamples[1].isAssigned).toBe(false);
+    expect(newState.drumSamples[1].assignedKey).toBeUndefined();
+    expect(newState.drumSamples[5].name).toBe('Sample 2');
+    expect(newState.drumSamples[5].isAssigned).toBe(true);
+    expect(newState.drumSamples[5].assignedKey).toBe(5);
   });
 });
 

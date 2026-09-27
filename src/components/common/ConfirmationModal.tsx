@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -7,13 +8,17 @@ interface ConfirmationModalProps {
   onCancel: () => void;
 }
 
-export function ConfirmationModal({ 
-  isOpen, 
-  message, 
-  onConfirm, 
-  onCancel 
+export function ConfirmationModal({
+  isOpen,
+  message,
+  onConfirm,
+  onCancel
 }: ConfirmationModalProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const headingId = React.useId();
+  const messageId = React.useId();
+  const dialogRef=React.useRef<HTMLDivElement>(null);
+  useOwnedDialog({active:isOpen,dialogRef,onClose:onCancel});
 
   const handleConfirm = async () => {
     setIsLoading(true);
@@ -29,7 +34,7 @@ export function ConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       style={{
         position: 'fixed',
         top: 0,
@@ -45,7 +50,13 @@ export function ConfirmationModal({
       }}
       onClick={onCancel}
     >
-      <div 
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        aria-describedby={messageId}
+        tabIndex={-1}
         style={{
           backgroundColor: 'var(--color-bg-primary)',
           borderRadius: '6px',
@@ -62,7 +73,7 @@ export function ConfirmationModal({
           padding: '1.5rem 1.5rem 1rem 1.5rem',
           borderBottom: '1px solid var(--color-border-subtle)'
         }}>
-          <h3 style={{
+          <h3 id={headingId} style={{
             margin: '0',
             fontSize: '1.25rem',
             fontWeight: '300',
@@ -71,16 +82,16 @@ export function ConfirmationModal({
             alignItems: 'center',
             gap: '0.5rem'
           }}>
-            <i className="fas fa-exclamation-triangle" style={{ 
-              color: 'var(--color-text-primary)', 
-              fontSize: '1.25rem' 
+            <i className="fas fa-exclamation-triangle" style={{
+              color: 'var(--color-text-primary)',
+              fontSize: '1.25rem'
             }}></i>
             confirm action
           </h3>
         </div>
 
         {/* Content */}
-        <div style={{
+        <div id={messageId} style={{
           padding: '1.5rem',
           color: 'var(--color-text-secondary)',
           fontSize: '0.95rem',
@@ -97,6 +108,7 @@ export function ConfirmationModal({
           justifyContent: 'flex-end'
         }}>
           <button
+            data-initial-focus="true"
             onClick={onCancel}
             disabled={isLoading}
             style={{
@@ -138,7 +150,7 @@ export function ConfirmationModal({
               border: 'none',
               borderRadius: '3px',
               backgroundColor: isLoading ? 'var(--color-border-medium)' : 'var(--color-interactive-focus)',
-              color: 'var(--color-white)',
+              color: 'var(--studio-accent-text)',
               fontSize: '0.875rem',
               fontWeight: '500',
               cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -173,4 +185,4 @@ export function ConfirmationModal({
       </div>
     </div>
   );
-} 
+}

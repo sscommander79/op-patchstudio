@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer } from 'react';
+import { createContext, useContext, useReducer, useCallback } from 'react';
+import { createHistory, reduceHistory } from '../utils/projectHistory';
 import type { ReactNode } from 'react';
 import type { AudioMetadata } from '../utils/audioFormats';
 import { midiNoteToString, parseFilename } from '../utils/audio';
@@ -7,6 +8,17 @@ import { cookieUtils, COOKIE_KEYS } from '../utils/cookies';
 import type { FilenameSeparator } from '../utils/constants';
 import { loadDrumDefaultSettings, loadMultisampleDefaultSettings, loadDrumImportedPreset, loadMultisampleImportedPreset } from '../utils/defaultSettings';
 import { applyZeroCrossingToMarkers } from '../utils/audio';
+import { hydrateMultisampleSettings } from '../utils/jsonImport';
+import type { ImportedPresetJson } from '../utils/jsonImport';
+import type { RestoredProject } from '../utils/projectSerialization';
+import { associateImportedCrossfades } from '../utils/importedCrossfade';
+import { framesToSeconds, normalizeSecondRanges } from '../utils/loopEditing';
+import { finalizeSliceApplication, type PreparedSliceApplication } from '../utils/audioSlicing';
+import { finalizeRecordingApplication, type PreparedRecordingApplication } from '../utils/recordingApplication';
+import { finalizeAudioImport, type PreparedAudioImport } from '../utils/audioImport';
+import { extractDrumSettings, importPresetFromFile, type ImportResult } from '../utils/presetImport';
+import { validateProjectArchiveMetadata } from '../utils/projectArchive';
+import { finalizeStudioSeedOperation, type PreparedStudioSeedOperation } from '../utils/studioDemo';
 
 // Define enhanced types for the application state
 export interface DrumSample {
@@ -36,6 +48,18 @@ export interface DrumSample {
   // Assignment status - for unassigned samples beyond the 24 drum keys
   isAssigned: boolean; // true if assigned to a drum key (0-23), false if unassigned
   assignedKey?: number; // the drum key index this sample is assigned to (0-23)
+  /** Stable identity of an unedited source retained in the project. */
+  sourceIdentity?: string;
+  /** Original source coordinates; these are not relative to the derived slice buffer. */
+  sliceProvenance?: {
+    sourceIdentity: string;
+    sourceName: string;
+    startFrame: number;
+    endFrame: number;
+    sourceFrameCount: number;
+    sourceSampleRate: number;
+    sourceChannels: number;
+  };
 }
 
 export interface MultisampleFile {
@@ -49,6 +73,7 @@ export interface MultisampleFile {
   outPoint: number;
   loopStart: number;
   loopEnd: number;
+  loopCrossfade?: LoopCrossfadeProvenance;
   // WAV metadata from header parsing
   originalBitDepth?: number;
   originalSampleRate?: number;
@@ -56,11 +81,29 @@ export interface MultisampleFile {
   fileSize?: number;
   duration?: number;
   isFloat?: boolean; // Whether sample is 32-bit float format
+  /** Stable identity of the original imported source. */
+  sourceIdentity?: string;
+}
+
+export interface LoopCrossfadeProvenance {
+  /** Display meaning as a fraction of the region's frame count. */
+  fraction: number;
+  /** Exact imported values are retained for provenance and portable round trips. */
+  importedRaw?: number;
+  importedFramecount?: number;
+  sourceIdentity?: string;
 }
 
 export interface AppState {
+  /** Increments only when the complete project is replaced. */
+  projectGeneration?: number;
   // Current tab
   currentTab: 'drum' | 'multisample' | 'feedback' | 'library' | 'donate';
+  sliceCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;assignedCount?:number;overflowCount?:number};
+  recordingCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;appliedIds?:string[];retainedIds?:string[];assignedCount?:number;overflowCount?:number};
+  importCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;appliedIds?:string[];retainedIds?:string[];assignedCount?:number;overflowCount?:number};
+  studioSeedCommitResult?: {operationId:string;status:'committed'|'rejected';error?:string;assignedCount?:number;unassignedCount?:number;selectedIndex?:number|null};
+  pendingPresetImport?: {operationId:string;expectedProjectGeneration:number};
   
   // Drum tool settings
   drumSettings: {
@@ -140,10 +183,14 @@ export interface AppState {
   notifications: Notification[];
   
   // Imported preset settings (for patch generation)
-  importedDrumPreset: any | null;
-  importedMultisamplePreset: any | null;
+  importedDrumPreset: ImportedPresetJson | null;
+  importedMultisamplePreset: ImportedPresetJson | null;
   
   // Session management
+  sessionSaveStatus?: 'checking' | 'idle' | 'saving' | 'saved' | 'error';
+  sessionSaveError?: string | null;
+  sessionLastSavedAt?: number | null;
+  sessionRecoveryResolved?: boolean;
   isSessionRestorationModalOpen: boolean;
   sessionInfo: { timestamp: number; drumSamplesCount: number; multisampleFilesCount: number } | null;
   
@@ -153,6 +200,11 @@ export interface AppState {
 
 // Define enhanced action types
 export type AppAction = 
+  | {type:'UNDO' | 'REDO'}
+  | {type:'BUMP_PROJECT_GENERATION'}
+  | {type:'BEGIN_EDIT' | 'END_EDIT' | 'CANCEL_EDIT'; payload:string}
+  | {type:'BATCH_EDIT'; payload:AppAction[]}
+  | {type:'IMPORT_PROJECT'; payload:RestoredProject}
   | { type: 'SET_TAB'; payload: 'drum' | 'multisample' | 'feedback' | 'library' | 'donate' }
   | { type: 'SET_DRUM_SAMPLE_RATE'; payload: number }
   | { type: 'SET_DRUM_BIT_DEPTH'; payload: number }
@@ -204,6 +256,11 @@ export type AppAction =
   | { type: 'REORDER_DRUM_SAMPLES'; payload: { fromIndex: number; toIndex: number } }
   | { type: 'SWAP_DRUM_SAMPLES'; payload: { fromIndex: number; toIndex: number } }
   | { type: 'ADD_UNASSIGNED_DRUM_SAMPLE'; payload: { file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata } }
+  | { type: 'STORE_DRUM_SAMPLE_ASSET'; payload: { sample: DrumSample; targetKeyIndex: number | null } }
+  | { type: 'COMMIT_PREPARED_SLICES'; payload: {operationId:string;prepared:PreparedSliceApplication} }
+  | { type: 'COMMIT_PREPARED_RECORDINGS'; payload: {operationId:string;prepared:PreparedRecordingApplication} }
+  | { type: 'COMMIT_PREPARED_IMPORTS'; payload: {operationId:string;prepared:PreparedAudioImport} }
+  | { type:'COMMIT_STUDIO_SEED'; payload:PreparedStudioSeedOperation }
   | { type: 'ASSIGN_DRUM_SAMPLE'; payload: { sampleIndex: number; targetKeyIndex: number } }
   | { type: 'UNASSIGN_DRUM_SAMPLE'; payload: number }
   | { type: 'IMPORT_OP1_DRUM_PRESET'; payload: { samples: Array<{ keyIndex: number; file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata; name: string }>; presetName: string } }
@@ -216,13 +273,19 @@ export type AppAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'ADD_NOTIFICATION'; payload: Notification }
   | { type: 'REMOVE_NOTIFICATION'; payload: string }
-  | { type: 'SET_IMPORTED_DRUM_PRESET'; payload: any | null }
-  | { type: 'SET_IMPORTED_MULTISAMPLE_PRESET'; payload: any | null }
+  | { type: 'SET_IMPORTED_DRUM_PRESET'; payload: ImportedPresetJson | null }
+  | { type: 'SET_IMPORTED_MULTISAMPLE_PRESET'; payload: ImportedPresetJson | null }
+  | { type: 'IMPORT_MULTISAMPLE_PRESET'; payload: ImportedPresetJson }
+  | { type: 'BEGIN_PRESET_IMPORT'; payload: {operationId:string} }
+  | { type: 'COMMIT_PRESET_IMPORT'; payload: {operationId:string;instrument:'drum'|'multisample';result:ImportResult} }
   | { type: 'TOGGLE_DRUM_KEYBOARD_PIN' }
   | { type: 'TOGGLE_MULTISAMPLE_KEYBOARD_PIN' }
-  | { type: 'RESTORE_SESSION'; payload: { drumSettings: AppState['drumSettings']; multisampleSettings: AppState['multisampleSettings']; drumSamples: Array<{ originalIndex: number; isAssigned: boolean; assignedKey?: number; file: File; audioBuffer: AudioBuffer; name: string; isLoaded: boolean; inPoint: number; outPoint: number; playmode: 'oneshot' | 'group' | 'loop' | 'gate'; reverse: boolean; transpose: number; pan: number; gain: number; hasBeenEdited: boolean; originalBitDepth: number; originalSampleRate: number; originalChannels: number; fileSize: number; duration: number; isFloat?: boolean }>; multisampleFiles: MultisampleFile[]; selectedMultisample: number | null; isDrumKeyboardPinned: boolean; isMultisampleKeyboardPinned: boolean } }
+  | { type: 'RESTORE_SESSION'; payload: Omit<RestoredProject, 'importedDrumPreset' | 'importedMultisamplePreset' | 'midiNoteMapping'> & Partial<Pick<RestoredProject, 'importedDrumPreset' | 'importedMultisamplePreset' | 'midiNoteMapping'>> }
+  | { type: 'RESTORE_LIBRARY'; payload: { mode: 'drum' | 'multisample'; project: RestoredProject } }
+  | { type: 'SET_SESSION_SAVE_STATUS'; payload: { status: NonNullable<AppState['sessionSaveStatus']>; error?: string | null; lastSavedAt?: number | null } }
   | { type: 'SET_SESSION_RESTORATION_MODAL_OPEN'; payload: boolean }
   | { type: 'SET_SESSION_INFO'; payload: { timestamp: number; drumSamplesCount: number; multisampleFilesCount: number } | null }
+  | { type: 'SET_SESSION_RECOVERY_RESOLVED'; payload: boolean }
   | { type: 'SET_MIDI_NOTE_MAPPING'; payload: 'C3' | 'C4' }
   | { type: 'UPDATE_ALL_MULTI_SAMPLES'; payload: Partial<MultisampleFile> }
   | { type: 'UPDATE_ALL_DRUM_SAMPLES'; payload: Partial<DrumSample> }
@@ -310,6 +373,7 @@ const getInitialMidiMapping = (): 'C3' | 'C4' => {
 }
 
 const initialState: AppState = {
+  projectGeneration: 0,
   currentTab: getInitialTab(),
   drumSettings: loadDrumDefaultSettings(),
   multisampleSettings: loadMultisampleDefaultSettings(),
@@ -325,12 +389,18 @@ const initialState: AppState = {
   importedMultisamplePreset: loadMultisampleImportedPreset(),
   isSessionRestorationModalOpen: false,
   sessionInfo: null,
+  sessionSaveStatus: 'checking',
+  sessionSaveError: null,
+  sessionLastSavedAt: null,
+  sessionRecoveryResolved: false,
   midiNoteMapping: getInitialMidiMapping()
 };
 
 // Enhanced reducer function
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case 'BUMP_PROJECT_GENERATION':
+      return {...state,projectGeneration:(state.projectGeneration??0)+1,pendingPresetImport:undefined};
     case 'SET_TAB':
       // Save tab to cookie for persistence
       try {
@@ -700,8 +770,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         );
         finalInPoint = result.inPoint;
         finalOutPoint = result.outPoint;
-        finalLoopStart = result.loopStart || initialLoopStart;
-        finalLoopEnd = result.loopEnd || initialLoopEnd;
+        finalLoopStart = result.loopStart ?? initialLoopStart;
+        finalLoopEnd = result.loopEnd ?? initialLoopEnd;
         
 
       }
@@ -900,6 +970,99 @@ function appReducer(state: AppState, action: AppAction): AppState {
       
       return { ...state, drumSamples: [...state.drumSamples, newUnassignedSample] };
     }
+
+    case 'STORE_DRUM_SAMPLE_ASSET': {
+      const { sample, targetKeyIndex } = action.payload;
+      if (!sample.isLoaded || !sample.audioBuffer || !sample.file || sample.audioBuffer.length < 1) return state;
+      if (targetKeyIndex === null) {
+        return { ...state, drumSamples: [...state.drumSamples, { ...sample, isAssigned: false, assignedKey: undefined }] };
+      }
+      if (!Number.isInteger(targetKeyIndex) || targetKeyIndex < 0 || targetKeyIndex >= 24 || state.drumSamples[targetKeyIndex]?.isLoaded) return state;
+      const drumSamples = [...state.drumSamples];
+      drumSamples[targetKeyIndex] = { ...sample, isAssigned: true, assignedKey: targetKeyIndex };
+      return { ...state, drumSamples };
+    }
+
+    case 'COMMIT_PREPARED_SLICES': {
+      try {
+        const committed=finalizeSliceApplication(action.payload.prepared,state.drumSamples,[...state.drumSamples,...state.multisampleFiles]);
+        const next=committed.actions.reduce(appReducer,state);
+        const expectedStores=committed.actions.filter((candidate):candidate is Extract<AppAction,{type:'STORE_DRUM_SAMPLE_ASSET'}>=>candidate.type==='STORE_DRUM_SAMPLE_ASSET');
+        const appliedStores=expectedStores.map(candidate=>{
+          const {sample,targetKeyIndex}=candidate.payload;
+          if(targetKeyIndex===null)return next.drumSamples.find(item=>item.audioBuffer===sample.audioBuffer&&item.file===sample.file&&!item.isAssigned);
+          const applied=next.drumSamples[targetKeyIndex];
+          return applied?.audioBuffer===sample.audioBuffer&&applied.file===sample.file&&applied.isAssigned&&applied.assignedKey===targetKeyIndex?applied:undefined;
+        });
+        if(appliedStores.some(sample=>!sample))throw new Error('The complete slice operation could not be committed. No slices were added; retry.');
+        const expectedSlices=action.payload.prepared.actions.filter((candidate):candidate is Extract<AppAction,{type:'STORE_DRUM_SAMPLE_ASSET'}>=>candidate.type==='STORE_DRUM_SAMPLE_ASSET'&&Boolean(candidate.payload.sample.sliceProvenance));
+        const appliedSlices=expectedSlices.map((candidate,index)=>{
+          const sample=next.drumSamples.find(item=>item.audioBuffer===candidate.payload.sample.audioBuffer&&item.file===candidate.payload.sample.file);
+          const target=action.payload.prepared.mapping?.[index];
+          if(target!==undefined&&target!==null&&next.drumSamples[target]!==sample)return undefined;
+          if(target===null&&sample?.isAssigned)return undefined;
+          return sample;
+        });
+        const actualAssigned=appliedSlices.filter((sample):sample is DrumSample=>Boolean(sample?.isAssigned)).length;
+        if(appliedSlices.some(sample=>!sample)||appliedSlices.length!==action.payload.prepared.ranges.length||actualAssigned!==committed.assignedCount) {
+          throw new Error('The complete slice operation could not be committed. No slices were added; retry.');
+        }
+        if(action.payload.prepared.source.existingIndex!==null&&next.drumSamples[action.payload.prepared.source.existingIndex]?.sourceIdentity!==committed.sourceIdentity) {
+          throw new Error('The slice source identity could not be committed. No slices were added; retry.');
+        }
+        validateProjectArchiveMetadata(next);
+        return {...next,sliceCommitResult:{operationId:action.payload.operationId,status:'committed',assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},notifications:[...next.notifications,{id:crypto.randomUUID(),type:'success',title:'slices applied',
+          message:`${committed.assignedCount} assigned to keys${committed.overflowCount?`; ${committed.overflowCount} kept unassigned`:''}`}]};
+      } catch(reason) {
+        const message=reason instanceof Error?reason.message:'The project changed while slicing. No slices were added; retry.';
+        return {...state,sliceCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'slices not applied',message}]};
+      }
+    }
+
+    case 'COMMIT_PREPARED_RECORDINGS': {
+      try {
+        const committed=finalizeRecordingApplication(action.payload.prepared,state);
+        if(!committed.appliedIds.length)throw new Error('No recording takes could be added; the review tray is unchanged.');
+        const candidate={...state,drumSamples:committed.drumSamples,multisampleFiles:committed.multisampleFiles};
+        validateProjectArchiveMetadata(candidate);
+        return {...candidate,
+          recordingCommitResult:{operationId:action.payload.operationId,status:'committed',appliedIds:committed.appliedIds,
+            retainedIds:committed.retainedIds,assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},
+          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'success',title:'recorded takes added',
+            message:`${committed.appliedIds.length} take${committed.appliedIds.length===1?'':'s'} added${action.payload.prepared.instrument==='drum'&&committed.overflowCount?`; ${committed.overflowCount} kept unassigned`:''}${committed.retainedIds.length?`; ${committed.retainedIds.length} retained in review`:''}`} ]};
+      } catch(reason) {
+        const message=reason instanceof Error?reason.message:'The project changed while recordings were preparing. No takes were added.';
+        return {...state,recordingCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},
+          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'recorded takes not added',message}]};
+      }
+    }
+
+    case 'COMMIT_PREPARED_IMPORTS': {
+      try {
+        const committed=finalizeAudioImport(action.payload.prepared,state);
+        if(!committed.appliedIds.length)throw new Error('No reviewed files could be added; the import review is unchanged.');
+        return {...state,drumSamples:committed.drumSamples,multisampleFiles:committed.multisampleFiles,
+          importCommitResult:{operationId:action.payload.operationId,status:'committed',appliedIds:committed.appliedIds,retainedIds:committed.retainedIds,assignedCount:committed.assignedCount,overflowCount:committed.overflowCount},
+          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'success',title:'audio imported',message:`${committed.appliedIds.length} file${committed.appliedIds.length===1?'':'s'} added${committed.retainedIds.length?`; ${committed.retainedIds.length} retained in review`:''}`} ]};
+      } catch(reason) {
+        const message=reason instanceof Error?reason.message:'The project changed while importing. No files were added.';
+        return {...state,importCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'audio not imported',message}]};
+      }
+    }
+
+    case 'COMMIT_STUDIO_SEED': {
+      try {
+        const committed=finalizeStudioSeedOperation(state,action.payload);
+        return {...state,projectGeneration:(state.projectGeneration??0)+1,drumSamples:committed.drumSamples,drumSettings:committed.drumSettings,
+          importedDrumPreset:committed.importedDrumPreset,studioSeedCommitResult:{operationId:action.payload.operationId,status:'committed',
+            assignedCount:committed.assignedCount,unassignedCount:committed.unassignedCount,selectedIndex:committed.selectedIndex},
+          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'success',title:'Studio Seed loaded',message:`${committed.assignedCount} sounds assigned${committed.unassignedCount?`; ${committed.unassignedCount} kept unassigned`:''}`} ]};
+      } catch(reason) {
+        const message=reason instanceof Error?reason.message:'Studio Seed could not be applied. Your project was kept.';
+        return {...state,studioSeedCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},
+          notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'Studio Seed not loaded',message}]};
+      }
+    }
     
     case 'ASSIGN_DRUM_SAMPLE': {
       const { sampleIndex, targetKeyIndex } = action.payload;
@@ -923,22 +1086,15 @@ function appReducer(state: AppState, action: AppAction): AppState {
         return state;
       }
       
-      // If target key already has a sample, unassign it first
-      const existingSampleIndex = updatedDrumSamples.findIndex(s => s.isAssigned && s.assignedKey === targetKeyIndex);
-      if (existingSampleIndex !== -1) {
-        updatedDrumSamples[existingSampleIndex] = {
-          ...updatedDrumSamples[existingSampleIndex],
-          isAssigned: false,
-          assignedKey: undefined
-        };
-      }
-      
-      // Assign the sample to the target key
-      updatedDrumSamples[sampleIndex] = {
+      const targetSample=updatedDrumSamples[targetKeyIndex];
+      updatedDrumSamples[targetKeyIndex] = {
         ...sampleToAssign,
         isAssigned: true,
         assignedKey: targetKeyIndex
       };
+      if(targetSample?.isLoaded)updatedDrumSamples[sampleIndex]={...targetSample,isAssigned:false,assignedKey:undefined};
+      else if(sampleIndex>=24)updatedDrumSamples.splice(sampleIndex,1);
+      else updatedDrumSamples[sampleIndex]=createDrumSample(sampleIndex,true);
       
       return { ...state, drumSamples: updatedDrumSamples };
     }
@@ -970,7 +1126,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'IMPORT_OP1_DRUM_PRESET': {
       // Start with existing drum samples
       const newDrumSamples = [...state.drumSamples];
-      let samplesAddedAsUnassigned = 0;
       
       // Find the first available empty slot in the 0-23 range
       const findFirstEmptySlot = (samples: DrumSample[]): number | null => {
@@ -1034,7 +1189,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
             hasBeenEdited: false
           };
           newDrumSamples.push(unassignedSample);
-          samplesAddedAsUnassigned++;
         }
       }
       
@@ -1078,7 +1232,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       } else {
         // Try to extract from filename - look for note pattern at the end
         try {
-          const [_, midiFromParse] = parseFilename(action.payload.file.name, state.midiNoteMapping);
+          const [, midiFromParse] = parseFilename(action.payload.file.name, state.midiNoteMapping);
           if (midiFromParse >= 0 && midiFromParse <= 127) {
             detectedMidiNote = midiFromParse;
             detectedNote = midiNoteToString(midiFromParse, state.midiNoteMapping);
@@ -1114,7 +1268,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
             if (candidateNote >= 0 && !existingNotes.has(candidateNote)) {
               detectedMidiNote = candidateNote;
               detectedNote = midiNoteToString(candidateNote, state.midiNoteMapping);
-              foundAvailableNote = true;
               break;
             }
           }
@@ -1146,8 +1299,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         );
         finalInPoint = result.inPoint;
         finalOutPoint = result.outPoint;
-        finalLoopStart = result.loopStart || initialLoopStart;
-        finalLoopEnd = result.loopEnd || initialLoopEnd;
+        finalLoopStart = result.loopStart ?? initialLoopStart;
+        finalLoopEnd = result.loopEnd ?? initialLoopEnd;
         
 
       }
@@ -1173,8 +1326,24 @@ function appReducer(state: AppState, action: AppAction): AppState {
         duration: action.payload.metadata.duration, // Use calculated duration from metadata
         isFloat: action.payload.metadata.isFloat
       };
+
+      if (action.payload.audioBuffer) {
+        const normalized = normalizeSecondRanges(
+          action.payload.audioBuffer.length,
+          action.payload.audioBuffer.sampleRate,
+          { start: finalInPoint, end: finalOutPoint },
+          { start: finalLoopStart, end: finalLoopEnd },
+        );
+        newMultisampleFile.inPoint = framesToSeconds(normalized.sample.start, action.payload.audioBuffer.sampleRate);
+        newMultisampleFile.outPoint = framesToSeconds(normalized.sample.end, action.payload.audioBuffer.sampleRate);
+        newMultisampleFile.loopStart = framesToSeconds(normalized.loop.start, action.payload.audioBuffer.sampleRate);
+        newMultisampleFile.loopEnd = framesToSeconds(normalized.loop.end, action.payload.audioBuffer.sampleRate);
+      }
       
-      const updatedFiles = [...state.multisampleFiles, newMultisampleFile];
+      const updatedFiles = associateImportedCrossfades(
+        [...state.multisampleFiles, newMultisampleFile],
+        state.importedMultisamplePreset,
+      ).files;
       
       // Sort by rootNote descending to make zone calculation easier
       updatedFiles.sort((a, b) => b.rootNote - a.rootNote);
@@ -1237,7 +1406,45 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, importedDrumPreset: action.payload };
       
     case 'SET_IMPORTED_MULTISAMPLE_PRESET':
-      return { ...state, importedMultisamplePreset: action.payload };
+      return {
+        ...state,
+        importedMultisamplePreset: action.payload,
+        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload).files,
+      };
+
+    case 'IMPORT_MULTISAMPLE_PRESET':
+      return {
+        ...state,
+        importedMultisamplePreset: action.payload,
+        multisampleSettings: hydrateMultisampleSettings(state.multisampleSettings, action.payload),
+        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload, { replaceMatched: true }).files,
+      };
+
+    case 'BEGIN_PRESET_IMPORT':
+      return {...state,pendingPresetImport:{operationId:action.payload.operationId,expectedProjectGeneration:state.projectGeneration??0}};
+
+    case 'COMMIT_PRESET_IMPORT': {
+      const pending=state.pendingPresetImport;
+      if(!pending || pending.operationId!==action.payload.operationId) return state;
+      if(pending.expectedProjectGeneration!==(state.projectGeneration??0)) return {...state,pendingPresetImport:undefined};
+      const failure=(message:string):AppState=>({...state,pendingPresetImport:undefined,notifications:[...state.notifications,{id:`preset-import-${action.payload.operationId}`,type:'error',title:'import failed',message}]});
+      if(!action.payload.result.success || !action.payload.result.data) return failure(action.payload.result.error||'failed to import preset');
+      const preset=action.payload.result.data;
+      let candidate:AppState;
+      if(action.payload.instrument==='drum') {
+        if(preset.type!=='drum') return failure('The selected file is not a drum preset');
+        const imported=extractDrumSettings(preset);
+        candidate={...state,pendingPresetImport:undefined,importedDrumPreset:preset,drumSettings:{...state.drumSettings,presetSettings:imported.presetSettings}};
+      } else {
+        if(preset.type!=='multisampler') return failure('The selected file is not a multisample preset');
+        candidate={...state,pendingPresetImport:undefined,importedMultisamplePreset:preset,
+          multisampleSettings:hydrateMultisampleSettings(state.multisampleSettings,preset),
+          multisampleFiles:associateImportedCrossfades(state.multisampleFiles,preset,{replaceMatched:true}).files};
+      }
+      try {validateProjectArchiveMetadata(candidate);}
+      catch(error){return failure(error instanceof Error?error.message:'Preset settings cannot be stored in this project');}
+      return {...candidate,notifications:[...candidate.notifications,{id:`preset-import-${action.payload.operationId}`,type:'success',title:'settings imported',message:`successfully imported ${action.payload.instrument} preset settings`}]};
+    }
       
     case 'TOGGLE_DRUM_KEYBOARD_PIN':
       return { ...state, isDrumKeyboardPinned: !state.isDrumKeyboardPinned };
@@ -1245,6 +1452,20 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'TOGGLE_MULTISAMPLE_KEYBOARD_PIN':
       return { ...state, isMultisampleKeyboardPinned: !state.isMultisampleKeyboardPinned };
       
+    case 'SET_SESSION_SAVE_STATUS':
+      return {...state, sessionSaveStatus:action.payload.status,
+        sessionSaveError: action.payload.error === undefined ? state.sessionSaveError : action.payload.error,
+        sessionLastSavedAt: action.payload.lastSavedAt === undefined ? state.sessionLastSavedAt : action.payload.lastSavedAt};
+    case 'SET_SESSION_RECOVERY_RESOLVED':
+      return {...state,sessionRecoveryResolved:action.payload};
+    case 'RESTORE_LIBRARY': {
+      const {mode,project} = action.payload;
+      const restored = appReducer(state,{type:'RESTORE_SESSION',payload:project});
+      return mode === 'drum'
+        ? {...state,pendingPresetImport:undefined,projectGeneration:restored.projectGeneration,currentTab:'drum',drumSettings:restored.drumSettings,drumSamples:restored.drumSamples,importedDrumPreset:restored.importedDrumPreset}
+        : {...state,pendingPresetImport:undefined,projectGeneration:restored.projectGeneration,currentTab:'multisample',multisampleSettings:restored.multisampleSettings,multisampleFiles:restored.multisampleFiles,selectedMultisample:restored.selectedMultisample,importedMultisamplePreset:restored.importedMultisamplePreset};
+    }
+    case 'IMPORT_PROJECT':
     case 'RESTORE_SESSION': {
       // Create a properly sized drum samples array that can accommodate all samples
       // Find the highest originalIndex to determine the array size
@@ -1273,7 +1494,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
             originalChannels: restoredSample.originalChannels,
             fileSize: restoredSample.fileSize,
             duration: restoredSample.duration,
-            isFloat: restoredSample.isFloat
+            isFloat: restoredSample.isFloat,
+            sourceIdentity: restoredSample.sourceIdentity,
+            sliceProvenance: restoredSample.sliceProvenance ? {...restoredSample.sliceProvenance} : undefined,
           };
         }
         // For empty slots, create proper initial state with correct assignment
@@ -1286,10 +1509,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
       const newState = {
         ...state,
+        projectGeneration: (state.projectGeneration ?? 0) + 1,
+        pendingPresetImport: undefined,
+        importedDrumPreset: action.payload.importedDrumPreset ?? null,
+        importedMultisamplePreset: action.payload.importedMultisamplePreset ?? null,
+        midiNoteMapping: action.payload.midiNoteMapping ?? state.midiNoteMapping,
         drumSettings: action.payload.drumSettings,
         multisampleSettings: action.payload.multisampleSettings,
         drumSamples: restoredDrumSamples,
-        multisampleFiles: action.payload.multisampleFiles,
+        multisampleFiles: associateImportedCrossfades(
+          action.payload.multisampleFiles,
+          action.payload.importedMultisamplePreset ?? null,
+        ).files,
         selectedMultisample: action.payload.selectedMultisample,
         isDrumKeyboardPinned: action.payload.isDrumKeyboardPinned,
         isMultisampleKeyboardPinned: action.payload.isMultisampleKeyboardPinned,
@@ -1335,7 +1566,23 @@ function appReducer(state: AppState, action: AppAction): AppState {
         multisampleFiles: state.multisampleFiles.map(file => {
           // Only update loaded files with valid audio data
           if (file.isLoaded && file.audioBuffer) {
-            return { ...file, ...action.payload };
+            const merged = { ...file, ...action.payload };
+            const normalized = normalizeSecondRanges(
+              file.audioBuffer.length,
+              file.audioBuffer.sampleRate,
+              { start: merged.inPoint, end: merged.outPoint },
+              { start: merged.loopStart, end: merged.loopEnd },
+            );
+            return {
+              ...merged,
+              inPoint: framesToSeconds(normalized.sample.start, file.audioBuffer.sampleRate),
+              outPoint: framesToSeconds(normalized.sample.end, file.audioBuffer.sampleRate),
+              loopStart: framesToSeconds(normalized.loop.start, file.audioBuffer.sampleRate),
+              loopEnd: framesToSeconds(normalized.loop.end, file.audioBuffer.sampleRate),
+              ...(action.payload.loopCrossfade ? {
+                loopCrossfade: { fraction: Math.max(0, Math.min(0.75, Number.isFinite(action.payload.loopCrossfade.fraction) ? action.payload.loopCrossfade.fraction : 0)) },
+              } : {}),
+            };
           }
           return file;
         })
@@ -1348,7 +1595,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
         drumSamples: state.drumSamples.map(sample => {
           // Only update loaded samples with valid audio data
           if (sample.isLoaded && sample.audioBuffer) {
-            return { ...sample, ...action.payload };
+            const merged = { ...sample, ...action.payload };
+            const normalized = normalizeSecondRanges(
+              sample.audioBuffer.length,
+              sample.audioBuffer.sampleRate,
+              { start: merged.inPoint, end: merged.outPoint },
+            );
+            return {
+              ...merged,
+              inPoint: framesToSeconds(normalized.sample.start, sample.audioBuffer.sampleRate),
+              outPoint: framesToSeconds(normalized.sample.end, sample.audioBuffer.sampleRate),
+            };
           }
           return sample;
         }),
@@ -1365,27 +1622,48 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export { appReducer, initialState };
 
 // Create context
-const AppContext = createContext<{
+interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-} | null>(null);
+  canUndo:boolean; canRedo:boolean; historyLimited:boolean;
+  beginEdit: (token:string)=>void; endEdit:(token:string)=>void; cancelEdit:(token:string)=>void;
+  importPresetFile:(file:File,instrument:'drum'|'multisample')=>Promise<void>;
+}
+const AppContext = createContext<AppContextValue | null>(null);
 
 // Provider component
 export function AppContextProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [history, dispatch] = useReducer((h:ReturnType<typeof createHistory>,a:AppAction)=>reduceHistory(h,a,appReducer), initialState, createHistory);
+  const state=history.present;
+  const beginEdit=useCallback((token:string)=>dispatch({type:'BEGIN_EDIT',payload:token}),[]);
+  const endEdit=useCallback((token:string)=>dispatch({type:'END_EDIT',payload:token}),[]);
+  const cancelEdit=useCallback((token:string)=>dispatch({type:'CANCEL_EDIT',payload:token}),[]);
+  const importPresetFile=useCallback(async(file:File,instrument:'drum'|'multisample')=>{
+    const operationId=crypto.randomUUID();
+    dispatch({type:'BEGIN_PRESET_IMPORT',payload:{operationId}});
+    const result=await importPresetFromFile(file,instrument==='drum'?'drum':'multisampler');
+    dispatch({type:'COMMIT_PRESET_IMPORT',payload:{operationId,instrument,result}});
+  },[]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch,canUndo:history.past.length>0,canRedo:history.future.length>0,historyLimited:history.limited,beginEdit,endEdit,cancelEdit,importPresetFile }}>
       {children}
     </AppContext.Provider>
   );
 }
 
 // Custom hook to use the context
-export function useAppContext() {
+export function useAppContext():{state:AppState;dispatch:React.Dispatch<AppAction>;importPresetFile?:AppContextValue['importPresetFile']} {
   const context = useContext(AppContext);
   if (!context) {
     throw new Error('useAppContext must be used within AppContextProvider');
   }
-  return context;
+  return {state:context.state,dispatch:context.dispatch,importPresetFile:context.importPresetFile};
+}
+
+export function useProjectHistory() {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useProjectHistory must be used within AppContextProvider');
+  const {canUndo,canRedo,historyLimited,beginEdit,endEdit,cancelEdit}=context;
+  return {canUndo,canRedo,historyLimited,beginEdit,endEdit,cancelEdit};
 }

@@ -7,12 +7,12 @@ function createMockAudioBuffer(length = 1000, sampleRate = 44100, channels = 1) 
   for (let i = 0; i < length; i++) {
     channelData[i] = Math.sin(i * 0.1) * 0.5; // Simple sine wave
   }
-  
+
   const buffers: Float32Array[] = [];
   for (let ch = 0; ch < channels; ch++) {
     buffers.push(channelData);
   }
-  
+
   return {
     length,
     sampleRate,
@@ -25,7 +25,7 @@ function createMockAudioBuffer(length = 1000, sampleRate = 44100, channels = 1) 
 }
 
 describe('SMPL Chunk Functionality', () => {
-  let mockBuffer: any;
+  let mockBuffer: AudioBuffer;
 
   beforeEach(() => {
     mockBuffer = createMockAudioBuffer(1000, 44100, 1);
@@ -34,27 +34,15 @@ describe('SMPL Chunk Functionality', () => {
   describe('audioBufferToWav with SMPL metadata', () => {
     it('should create WAV without SMPL chunk when no metadata provided', async () => {
       const result = await audioBufferToWav(mockBuffer, 16);
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
-      
+
       // Verify no SMPL chunk is present
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Look for "smpl" chunk identifier
       let foundSmpl = false;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -66,7 +54,7 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(foundSmpl).toBe(false);
     });
 
@@ -74,27 +62,15 @@ describe('SMPL Chunk Functionality', () => {
       const result = await audioBufferToWav(mockBuffer, 16, {
         rootNote: 60
       });
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
-      
+
       // Verify SMPL chunk is present
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Look for "smpl" chunk identifier
       let foundSmpl = false;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -106,7 +82,7 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(foundSmpl).toBe(true);
     });
 
@@ -115,27 +91,15 @@ describe('SMPL Chunk Functionality', () => {
         loopStart: 100,
         loopEnd: 900
       });
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
-      
+
       // Verify SMPL chunk is present
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Look for "smpl" chunk identifier
       let foundSmpl = false;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -147,7 +111,7 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(foundSmpl).toBe(true);
     });
 
@@ -157,28 +121,16 @@ describe('SMPL Chunk Functionality', () => {
         loopStart: 200,
         loopEnd: 800
       });
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
-      
+
       // Verify SMPL chunk is present and contains correct data
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
       const dataView = new DataView(arrayBuffer);
-      
+
       // Find SMPL chunk
       let smplOffset = -1;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -190,22 +142,22 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(smplOffset).toBeGreaterThan(-1);
-      
+
       // Verify SMPL chunk structure
       const smplDataOffset = smplOffset + 8;
       const chunkSize = dataView.getUint32(smplOffset + 4, true);
       expect(chunkSize).toBe(60); // Fixed size for SMPL chunk with one loop
-      
+
       // Verify MIDI unity note (offset 12 from smpl data start)
       const midiNote = dataView.getUint32(smplDataOffset + 12, true);
       expect(midiNote).toBe(72);
-      
+
       // Verify number of loops (offset 28 from smpl data start)
       const numLoops = dataView.getUint32(smplDataOffset + 28, true);
       expect(numLoops).toBe(1);
-      
+
       // Verify loop data (offset 36 from smpl data start)
       const loopStart = dataView.getUint32(smplDataOffset + 36 + 8, true);
       const loopEnd = dataView.getUint32(smplDataOffset + 36 + 12, true);
@@ -219,31 +171,31 @@ describe('SMPL Chunk Functionality', () => {
         loopStart: 100,
         loopEnd: 900
       });
-      
+
       const result24 = await audioBufferToWav(mockBuffer, 24, {
         rootNote: 60,
         loopStart: 100,
         loopEnd: 900
       });
-      
+
       expect(result16).toBeInstanceOf(Blob);
       expect(result24).toBeInstanceOf(Blob);
       expect(result16.type).toBe('audio/wav');
       expect(result24.type).toBe('audio/wav');
-      
+
       // 24-bit should be larger than 16-bit
       expect(result24.size).toBeGreaterThan(result16.size);
     });
 
     it('should handle stereo audio with SMPL metadata', async () => {
       const stereoBuffer = createMockAudioBuffer(1000, 44100, 2);
-      
+
       const result = await audioBufferToWav(stereoBuffer, 16, {
         rootNote: 60,
         loopStart: 100,
         loopEnd: 900
       });
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
     });
@@ -253,28 +205,16 @@ describe('SMPL Chunk Functionality', () => {
         rootNote: 60
         // loopStart and loopEnd not provided
       });
-      
+
       expect(result).toBeInstanceOf(Blob);
       expect(result.type).toBe('audio/wav');
-      
+
       // Verify SMPL chunk is present
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
       const dataView = new DataView(arrayBuffer);
-      
+
       // Find SMPL chunk
       let smplOffset = -1;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -286,17 +226,17 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(smplOffset).toBeGreaterThan(-1);
-      
+
       // Verify default values are used
       const smplDataOffset = smplOffset + 8;
       const midiNote = dataView.getUint32(smplDataOffset + 12, true);
       expect(midiNote).toBe(60);
-      
-      // Default loop end should be buffer length - 2 (subtract 1 frame from end marker)
-      const loopEnd = dataView.getUint32(smplDataOffset + 36 + 12, true);
-      expect(loopEnd).toBe(mockBuffer.length - 2);
+
+      // Supplying only a root note must not invent a sampler loop.
+      const numberOfLoops = dataView.getUint32(smplDataOffset + 28, true);
+      expect(numberOfLoops).toBe(0);
     });
   });
 
@@ -307,24 +247,12 @@ describe('SMPL Chunk Functionality', () => {
         loopStart: 100,
         loopEnd: 900
       });
-      
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
       const dataView = new DataView(arrayBuffer);
-      
+
       // Find SMPL chunk
       let smplOffset = -1;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -336,9 +264,9 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(smplOffset).toBeGreaterThan(-1);
-      
+
       // Verify chunk size is 60 bytes
       const chunkSize = dataView.getUint32(smplOffset + 4, true);
       expect(chunkSize).toBe(60);
@@ -348,24 +276,12 @@ describe('SMPL Chunk Functionality', () => {
       const result = await audioBufferToWav(mockBuffer, 16, {
         rootNote: 60
       });
-      
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
-      
+
+      const arrayBuffer = await result.arrayBuffer();
+
       const uint8Array = new Uint8Array(arrayBuffer);
       const dataView = new DataView(arrayBuffer);
-      
+
       // Find SMPL chunk
       let smplOffset = -1;
       for (let i = 0; i < uint8Array.length - 4; i++) {
@@ -377,9 +293,9 @@ describe('SMPL Chunk Functionality', () => {
           break;
         }
       }
-      
+
       expect(smplOffset).toBeGreaterThan(-1);
-      
+
       // Verify sample period (nanoseconds)
       const smplDataOffset = smplOffset + 8;
       const samplePeriod = dataView.getUint32(smplDataOffset + 8, true);
@@ -387,4 +303,4 @@ describe('SMPL Chunk Functionality', () => {
       expect(samplePeriod).toBe(expectedPeriod);
     });
   });
-}); 
+});

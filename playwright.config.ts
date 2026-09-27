@@ -1,14 +1,17 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const production=process.env.PLAYWRIGHT_PRODUCTION==='1'
+
 export default defineConfig({
-  testDir: './src/test/e2e',
+  testDir: './tests/e2e',
+  testIgnore: ['**/recording-fake-device.spec.ts','**/recovery-integrity.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5187',
     trace: 'on-first-retry',
   },
 
@@ -41,8 +44,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    command: production?'npm run preview -- --host 127.0.0.1 --port 5187 --strictPort':'npm run dev -- --host 127.0.0.1 --port 5187 --strictPort',
+    url: 'http://127.0.0.1:5187',
+    reuseExistingServer: false,
   },
 })

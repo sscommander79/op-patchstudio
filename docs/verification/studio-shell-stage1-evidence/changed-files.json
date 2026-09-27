@@ -1,0 +1,54 @@
+[
+  {
+    "path": "src/App.tsx",
+    "sha256": "905563bf83f05c24f5467df07bcc8c8afff1cd98be526e97669af2a09657921b"
+  },
+  {
+    "path": "src/styles/studio.css",
+    "sha256": "647098b8a8d21407b98df7b2e0a8d66be8d7e4eb5fe4491d808a62986a823a25"
+  },
+  {
+    "path": "src/components/drum/DrumTool.tsx",
+    "sha256": "a4abf4c3cae1f547196eb02bc5f27e5e0f6304ff821f38f9b3e16fd29ba669c9"
+  },
+  {
+    "path": "src/components/common/RecordingModal.tsx",
+    "sha256": "fc68d7de26bfe88c94bc5e117d1c4b68e0422694237393d18a9b492acda78b28"
+  },
+  {
+    "path": "src/components/common/StudioShell.tsx",
+    "sha256": "28c689539ec5f604aa363d62715a90b1f0263c743c1630735add4ba969d75b69"
+  },
+  {
+    "path": "src/components/common/ProjectToolbar.tsx",
+    "sha256": "52107b6241c3ecadcfcbea701b2171dd00177ea248ba045de22eecc5c54076c4"
+  },
+  {
+    "path": "src/components/common/AutoSamplingPanel.tsx",
+    "sha256": "2a939bc84ded21122b45accedd7df061f3bf8fdfed84cee4cf9e8ebf2906cc60"
+  },
+  {
+    "path": "src/components/common/MainTabs.tsx",
+    "sha256": "2c351cada9b63b8a2c3b510ad27761de694c38778b3ece94daa24330f856fcf6"
+  },
+  {
+    "path": "src/components/multisample/MultisampleTool.tsx",
+    "sha256": "b1801ba4b2b2b401fe3fd6d24ed4e1fe0a7c67e3647fa68c2d05f02539e7d604"
+  },
+  {
+    "path": "src/test/components/RecordingModal.test.tsx",
+    "sha256": "112b14320ce6774a7793c9ca59cb1a79d7150f9e893b4705ea5ad5448bc02fb2"
+  },
+  {
+    "path": "tests/e2e/studio-shell.spec.ts",
+    "sha256": "3d522f7a13f1e65097c7c8bbd055b67fbbf5ad165fe4bfac72e1cbcc27b13894"
+  },
+  {
+    "path": "tests/e2e/library-workflow.spec.ts",
+    "sha256": "5de10af42a29a140dde0a6e6ea90009318896ad9ca31e4a8282326b59580c74a"
+  },
+  {
+    "path": "tests/e2e/library-collections.spec.ts",
+    "sha256": "3a75e56e5cd071cc0d69929b8cc3cc6dc113d68b6d3d87bdda469a50f6850697"
+  }
+]

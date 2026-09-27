@@ -1,0 +1,34 @@
+# Task 8 correction round 1 report
+
+Status: all eight findings in `task-8-review.md` are implemented with focused regression coverage. Local unit, production-build, scoped-lint, and changed-file whitespace gates pass. The controller-owned frozen browser matrix, production Studio Seed proof, rendered notification check, and independent source rereview remain pending.
+
+## Finding dispositions
+
+| Finding | Correction | Regression evidence |
+| --- | --- | --- |
+| R1 guarded tray replacement | Unassigned Focus replacement now enters the shared prepared-import review with the expected individual File/AudioBuffer identity. The live commit finds the moved tray asset by identity, rejects a stale/project-replaced/assigned target, creates fresh source identity without slice provenance, checks current decoded capacity and validates the complete candidate archive, then commits as one history edit. | A moved index 25→26 overflow-slice target is replaced without touching its new neighbor, receives fresh provenance, round trips through a portable backup, and one Undo restores the complete prior tray. Existing generation and occupied-target regressions remain active. |
+| R2 numeric Focus validation | Multisample root accepts only finite whole MIDI values 0–127. Sample and loop markers must be finite and within the selected buffer; one complete normalized frame-range update is dispatched, while rejected drafts restore the valid values and expose a visible alert without adding history. | Focus tests cover root 128/fraction/negative behavior, out-of-buffer markers, one-frame normalization, and no invalid dispatch. The controller's frozen proof will also exercise rejected-root backup. |
+| R3 owned multisample preview | Focus uses the same ADSR/play-mode/loop/trim options as the retained multisample route. Its control has the accessible names **Play selected** and **Stop preview**. Stop, selection change, Table switch, and unmount abort pending context acquisition and force-release an active voice. | Component tests inspect non-default envelope and loop arguments plus Stop/unmount release. The audio-player regression defers context acquisition, aborts the owner, resolves the wait, and proves no source node is created or started. |
+| R4 stable automatic selection | The multisample workspace establishes individual File/AudioBuffer identity for the first automatic selection and reconciles that identity after root sorting and state changes. Selection remains presentation-only. | The new test imports two zones, edits the automatically selected zone across a root-order change, and proves Focus stays on the same asset. |
+| R5 silent drum arrows | Desktop and compact bank pads move physical selection with Arrow keys, retain focus, cross the 11→12 bank boundary, and do not call playback or enter history. Enter/Space audition remains intact. | Desktop adjacent and compact cross-bank tests both assert selected physical index, focus, and zero play calls. |
+| R6 exact same-rate frames | Integer frame conversion now returns the exact source length when rates match and otherwise calculates the rate ratio from integer source dimensions. Precision-only 32→16 conversion therefore keeps Seed Shaker at 6,174 frames. | The original floating-point duration case was captured RED at 6,175, then passes at 6,174. Existing patch and loop-contract tests remain green; the controller's production WAV harness retains the exact assertion. |
+| R7 dark notifications | Studio light/dark tokens now supply notification surface, border, shadow, title/body, and dismiss colors from the resolved semantic palette. | CSS/build gates pass. Actual success/failure computed contrast is deliberately left to the controller's frozen rendered check. |
+| R8 truthful conversion preflight | `planAudioConversion` is now the shared writer/preflight decision for conversion necessity, automatic-rate fallback, effective channels, depth, loop-end cut with the retained five-frame padding, and integer output frames. Automatic rate uses known original rate only when another conversion is actually required; channel value 2 continues to mean keep source channels. Mixed outputs are described per sample and unknown fallbacks remain explicit. | Numeric cases cover decoded 48 kHz/original 44.1 kHz downmix, automatic no-conversion, restored channels=2 mono, explicit arbitrary rate, unknown source rate/depth, and effective trim/cut behavior. A real generated WAV test compares the preflight rate, mono channel header, and PCM extent with the writer output. |
+
+## Browser-definition reconciliation
+
+The existing audio-import, export, loop-editor, and recording definitions now use the instrument-region loaded counts, enter Table before table-row actions, distinguish drum from multisample count helpers, and locate the filename within Focus. The Studio Seed definition still performs actual playback before marking guide step one, makes a musical direction edit, checks Undo/Redo and restores the original state, then asserts all ten sparse physical MIDI regions and exact WAV dimensions. No archive, PCM, history, cancellation, or error assertion was removed or weakened.
+
+These definitions have not been executed by the implementation worker. The controller owns browser launches and will rerun all 125 configured cases while source, tests, E2E, and configuration stay frozen.
+
+## Fresh local gates
+
+- Focused review set: `npx vitest --run …` — **8 files, 153/153 tests passed**. Log: `/tmp/opstudio-task8-round1-focused.log`.
+- Complete unit suite: `npm test -- --reporter=dot` — **73 files, 774/774 tests passed**. Log: `/tmp/opstudio-task8-round1-units.log`. Established negative-path storage/parser output and older audio-node/React test warnings remain non-failing.
+- Production build: `npm run build` — TypeScript, Vite, and PWA generation passed. Log: `/tmp/opstudio-task8-round1-build.log`. Existing Carbon Sass, chunk-size, dynamic-import, and stale Browserslist warnings remain assigned to Task 9.
+- Scoped lint over the new correction modules, focused regressions, shared export planner, and all adapted browser definitions passed with empty output. Log: `/tmp/opstudio-task8-round1-scoped-lint.log`.
+- Changed Task 8 correction files pass `git diff --check` with empty output. Log: `/tmp/opstudio-task8-round1-diff-check.log`.
+
+## Evidence limits
+
+The implementation worker did not run a browser, listen to generated audio, use assistive technology, or test physical OP hardware. Automated source/WAV checks do not establish subjective sound quality, screen-reader conformance, or device transfer/playback. Task 9 still owns broad lint, dependency, bundle, offline/PWA, security, and CI work; Task 10 still owns the whole-upgrade review. This correction report does not claim project completion.

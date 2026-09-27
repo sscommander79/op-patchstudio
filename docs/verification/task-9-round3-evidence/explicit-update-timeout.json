@@ -1,0 +1,21 @@
+{
+  "origin": "http://127.0.0.1:5188",
+  "buildA": "/tmp/opstudio-task9-build-a",
+  "buildB": "/tmp/opstudio-task9-build-b",
+  "transitions": [
+    "updatefound",
+    "installed"
+  ],
+  "errors": [],
+  "browser": "153.0.8010.12",
+  "waitingPreservesDraft": true,
+  "deferredTab": {
+    "build": "A",
+    "document": "keep-draft",
+    "draftVisible": true
+  },
+  "activationBlockedWithOtherTab": true,
+  "deferredOldTabOfflineLazyLibrary": true,
+  "status": "FAIL",
+  "failure": "TimeoutError: page.waitForEvent: Timeout 30000ms exceeded while waiting for event \"load\"\n=========================== logs ===========================\nwaiting for event \"load\"\n============================================================"
+}

@@ -1,5 +1,5 @@
 // Audio format utilities for handling multiple file types
-// Supports WAV, AIF, AIFF, MP3 with metadata extraction capabilities.
+// Supports signature-validated WAV, AIF/AIFF and browser-decodable compressed audio.
 //
 // Implementation based on public AIF/AIFF format documentation and general best practices.
 // No code was copied from proprietary or third-party sources.
@@ -14,12 +14,14 @@ import {
 
 // Audio format types
 export type AudioFormat = 'wav' | 'aif' | 'aiff' | 'mp3' | 'm4a' | 'ogg' | 'flac';
+export const AUDIO_FILE_ACCEPT='audio/*,.wav,.aif,.aiff,.mp3,.m4a,.ogg,.flac';
 
 // Metadata interface for all audio formats
 export interface AudioMetadata {
   format: AudioFormat;
+  /** Browser-decoded dimensions (decodeAudioData may resample to its context). */
   sampleRate: number;
-  bitDepth: number;
+  bitDepth?: number;
   channels: number;
   duration: number;
   audioBuffer: AudioBuffer;
@@ -31,6 +33,9 @@ export interface AudioMetadata {
   hasLoopData: boolean;
   // Format-specific metadata
   isFloat?: boolean; // Whether audio data is floating point (32-bit float, etc.)
+  /** Verified source-container dimensions, when a dedicated parser provides them. */
+  sourceSampleRate?: number;
+  sourceChannels?: number;
   rootNote?: number;
   loopPoints?: {
     start: number;
@@ -70,7 +75,10 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
     let numSampleFrames = 0;
     let bitDepth = 16;
     let sampleRate = 44100;
+    let rawSampleRate = 44100;
     let isFloat = false;
+    let compressionType: string | undefined;
+    let foundComm = false;
     let loopStart: number | undefined;
     let loopEnd: number | undefined;
     let rootNote: number | undefined;
@@ -86,6 +94,7 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
       const chunkId = textDecoder.decode(new Uint8Array(bufferCopy, offset, 4));
       const chunkSize = dataView.getUint32(offset + 4, false);
       const chunkDataOffset = offset + 8;
+      if ((chunkId==='COMM'||chunkId==='SSND')&&chunkDataOffset+chunkSize>bufferCopy.byteLength) throw new Error(`Truncated ${chunkId} chunk`);
       
       // Parse COMM chunk for core audio properties
       if (chunkId === 'COMM' && chunkSize >= 18) {
@@ -94,7 +103,10 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
         numSampleFrames = commChunk.numSampleFrames;
         bitDepth = commChunk.bitDepth;
         sampleRate = commChunk.sampleRate;
+        rawSampleRate = commChunk.rawSampleRate;
         isFloat = commChunk.isFloat;
+        compressionType = commChunk.compressionType;
+        foundComm = true;
         
         // Log format detection for debugging
         if (isFloat) {
@@ -155,6 +167,16 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
       offset += 8 + chunkSize + (chunkSize % 2);
     }
 
+    if(!foundComm)throw new Error('AIFF is missing a COMM chunk');
+    if(!Number.isInteger(channels)||channels<1||channels>32)throw new Error('AIFF channel dimensions are invalid');
+    if(!Number.isInteger(numSampleFrames)||numSampleFrames<1)throw new Error('AIFF frame dimensions are invalid');
+    if(!Number.isFinite(rawSampleRate)||rawSampleRate<8_000||rawSampleRate>768_000)throw new Error('AIFF sample rate is invalid');
+    if(!Number.isInteger(bitDepth)||bitDepth<1||bitDepth>64)throw new Error('AIFF bit depth is invalid');
+    const decodedBytes=24+4*channels*numSampleFrames;
+    if(!Number.isSafeInteger(decodedBytes)||decodedBytes>128*1024*1024)throw new Error('AIFF decoded dimensions exceed the project budget');
+    if(ssndOffset>0){if(ssndSize<8)throw new Error('AIFF SSND extent is invalid');const soundOffset=dataView.getUint32(ssndOffset,false);if(soundOffset>ssndSize-8)throw new Error('AIFF SSND extent is invalid');
+      const uncompressed=formatId==='AIFF'||compressionType===undefined||['NONE','twos','sowt','fl32','fl64'].includes(compressionType);if(uncompressed){const sourceBytes=Math.ceil(bitDepth/8)*channels*numSampleFrames;if(!Number.isSafeInteger(sourceBytes)||sourceBytes>ssndSize-8-soundOffset)throw new Error('AIFF PCM extent is shorter than its declared dimensions');}}
+
     // Fallbacks and validation for missing or incomplete metadata
     if (!numSampleFrames && markersList.length > 0) {
       numSampleFrames = Math.max(...markersList.map(m => m.position));
@@ -165,29 +187,29 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
     // Validate and set loop points only if they were found in the file
     if (foundLoopPoints) {
       // Validate loop points are within audio duration
-      const maxFrame = numSampleFrames - 1;
+      const maxStartFrame = numSampleFrames - 1;
       
       if (loopStart !== undefined) {
-        if (loopStart < 0 || loopStart > maxFrame) {
+        if (loopStart < 0 || loopStart > maxStartFrame) {
           console.warn(`[AIF PARSER] Invalid loop start ${loopStart}, clamping to valid range`);
-          loopStart = Math.max(0, Math.min(loopStart, maxFrame));
+          loopStart = Math.max(0, Math.min(loopStart, maxStartFrame));
         }
       } else {
         loopStart = 0;
       }
       
       if (loopEnd !== undefined) {
-        if (loopEnd <= loopStart || loopEnd > maxFrame) {
+        if (loopEnd <= loopStart || loopEnd > numSampleFrames) {
           console.warn(`[AIF PARSER] Invalid loop end ${loopEnd}, clamping to valid range`);
-          loopEnd = Math.max(loopStart + 1, Math.min(loopEnd, maxFrame));
+          loopEnd = Math.max(loopStart + 1, Math.min(loopEnd, numSampleFrames));
         }
       } else {
-        loopEnd = maxFrame;
+        loopEnd = numSampleFrames;
       }
     } else {
       // No loop points found in file, set to defaults
       loopStart = 0;
-      loopEnd = Math.max(0, numSampleFrames - 1);
+      loopEnd = numSampleFrames;
     }
 
     const duration = numSampleFrames / sampleRate;
@@ -197,16 +219,19 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
     try {
       const audioContext = await audioContextManager.getAudioContext();
       audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    } catch (decodeError) {
+    } catch {
       // Browser decode failed, fall back to manual AIF decoder
       if (ssndOffset > 0 && ssndSize > 0) {
         try {
-          audioBuffer = await decodeAifManually(bufferCopy, ssndOffset, ssndSize, channels, bitDepth, sampleRate, numSampleFrames, isFloat);
+          audioBuffer = await decodeAifManually(bufferCopy, ssndOffset, channels, bitDepth, sampleRate, numSampleFrames, isFloat);
         } catch (manualError) {
           console.error(`[AIF PARSER] Manual AIF decoder failed for ${filename}:`, manualError);
           // Continue with null audioBuffer - metadata is still valid
         }
       }
+    }
+    if (!audioBuffer || audioBuffer.length < 1) {
+      throw new Error(`Audio decode failed for ${filename}`);
     }
 
     // Extract root note from filename if not found in INST chunk
@@ -218,7 +243,7 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
         if (parsed && parsed.length > 1) {
           midiNote = parsed[1];
         }
-      } catch (_) {
+      } catch {
         // ignore filename parsing errors
       }
     }
@@ -233,21 +258,23 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
     // Return extracted metadata with audioBuffer (may be null if decoding failed)
     return {
       format: 'aiff',
-      sampleRate,
+      sampleRate: audioBuffer.sampleRate,
       bitDepth,
-      channels,
-      duration,
-      audioBuffer: audioBuffer as any, // Will be null if decoding failed
+      channels: audioBuffer.numberOfChannels,
+      duration: audioBuffer.duration,
+      audioBuffer,
       fileSize: bufferCopy.byteLength,
       midiNote,
       loopStart: loopStartSeconds,
       loopEnd: loopEndSeconds,
       hasLoopData: foundLoopPoints,
       isFloat,
-      rootNote: finalRootNote
+      rootNote: finalRootNote,
+      sourceSampleRate: sampleRate,
+      sourceChannels: channels,
     };
   } catch (error) {
-    throw new Error(`Failed to parse AIF metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to parse AIF metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -255,7 +282,6 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
 async function decodeAifManually(
   arrayBuffer: ArrayBuffer,
   ssndOffset: number,
-  _ssndSize: number,
   channels: number,
   bitDepth: number,
   sampleRate: number,
@@ -272,13 +298,13 @@ async function decodeAifManually(
   
 
   
-  // Create AudioContext with matching sample rate
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-    sampleRate: sampleRate
+  // The manual decoder only needs owned PCM storage. Avoid creating a live
+  // AudioContext that would remain open after fallback decoding completes.
+  const audioBuffer = new AudioBuffer({
+    numberOfChannels: channels,
+    length: numSampleFrames,
+    sampleRate,
   });
-  
-  // Create empty AudioBuffer
-  const audioBuffer = audioContext.createBuffer(channels, numSampleFrames, sampleRate);
   
   // Extract and convert PCM data
   for (let channel = 0; channel < channels; channel++) {
@@ -308,7 +334,7 @@ async function decodeAifManually(
               // 16-bit signed, big-endian
               sample = dataView.getInt16(sampleOffset, false) / 32768;
               break;
-            case 24:
+            case 24: {
               // 24-bit signed, big-endian
               const b1 = dataView.getUint8(sampleOffset);
               const b2 = dataView.getUint8(sampleOffset + 1);
@@ -320,6 +346,7 @@ async function decodeAifManually(
               }
               sample = value / 8388608;
               break;
+            }
             case 32:
               // 32-bit signed, big-endian
               sample = dataView.getInt32(sampleOffset, false) / 2147483648;
@@ -339,8 +366,8 @@ async function decodeAifManually(
   return audioBuffer;
 }
 
-// Parse MP3 metadata (basic implementation)
-async function parseMp3Metadata(
+async function parseBrowserDecodedMetadata(
+  format: Extract<AudioFormat,'mp3'|'m4a'|'ogg'|'flac'>,
   arrayBuffer: ArrayBuffer,
   filename: string,
   fileSize: number,
@@ -358,14 +385,14 @@ async function parseMp3Metadata(
     if (parsed && parsed.length > 1) {
       midiNote = parsed[1];
     }
-  } catch (_) {
+  } catch {
     // ignore filename parsing errors
   }
 
   return {
-    format: 'mp3',
+    format,
     sampleRate: audioBuffer.sampleRate,
-    bitDepth: 16, // MP3 is typically 16-bit
+    bitDepth: undefined,
     channels: audioBuffer.numberOfChannels,
     duration: audioBuffer.duration,
     audioBuffer,
@@ -374,7 +401,7 @@ async function parseMp3Metadata(
     loopStart: audioBuffer.duration * 0.1,
     loopEnd: audioBuffer.duration * 0.9,
     hasLoopData: false,
-    isFloat: false // MP3 doesn't support float format
+    isFloat: undefined
   };
 }
 
@@ -384,7 +411,7 @@ export async function readAudioMetadata(file: File, mapping: 'C3' | 'C4' = 'C3')
     const arrayBuffer = await file.arrayBuffer();
     return await readAudioMetadataFromArrayBuffer(arrayBuffer, file.name, file.size, mapping);
   } catch (error) {
-    throw new Error(`Failed to read audio metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to read audio metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -400,15 +427,15 @@ export async function readAudioMetadataFromArrayBuffer(
     const format = detectAudioFormat(arrayBuffer, filename);
     
     switch (format) {
-      case 'wav':
+      case 'wav': {
         const wavMetadata = await readWavMetadataFromArrayBuffer(arrayBuffer, filename, fileSize, mapping);
         // Convert WavMetadata to AudioMetadata
         return {
           format: 'wav' as const,
-          sampleRate: wavMetadata.sampleRate,
+          sampleRate: wavMetadata.audioBuffer.sampleRate,
           bitDepth: wavMetadata.bitDepth,
-          channels: wavMetadata.channels,
-          duration: wavMetadata.duration,
+          channels: wavMetadata.audioBuffer.numberOfChannels,
+          duration: wavMetadata.audioBuffer.duration,
           audioBuffer: wavMetadata.audioBuffer,
           fileSize: wavMetadata.fileSize,
           midiNote: wavMetadata.midiNote,
@@ -416,59 +443,48 @@ export async function readAudioMetadataFromArrayBuffer(
           loopEnd: wavMetadata.loopEnd,
           hasLoopData: wavMetadata.hasLoopData,
           isFloat: false // WAV format in our implementation doesn't support float
+          ,sourceSampleRate: wavMetadata.sampleRate
+          ,sourceChannels: wavMetadata.channels
         };
+      }
       case 'aif':
       case 'aiff':
         return await parseAifMetadata(arrayBuffer, filename, mapping);
       case 'mp3':
-        return await parseMp3Metadata(arrayBuffer, filename, fileSize, mapping);
+      case 'm4a':
+      case 'ogg':
+      case 'flac':
+        return await parseBrowserDecodedMetadata(format, arrayBuffer, filename, fileSize, mapping);
       default:
         throw new Error(`Unsupported audio format: ${format}`);
     }
   } catch (error) {
-    throw new Error(`Failed to read audio metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to read audio metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
 // Detect audio format from file header and extension
 export function detectAudioFormat(arrayBuffer: ArrayBuffer, filename: string): AudioFormat {
   const extension = filename.toLowerCase().split('.').pop();
-  
-  // Check file headers
-  if (arrayBuffer.byteLength >= 4) {
-    const header = String.fromCharCode(...Array.from(new Uint8Array(arrayBuffer, 0, 4)));
-    
-    if (header === 'RIFF') {
+  const bytes=new Uint8Array(arrayBuffer);
+  const fourCC=(offset:number)=>bytes.length>=offset+4?String.fromCharCode(...bytes.subarray(offset,offset+4)):'';
+  if (bytes.length >= 4) {
+    const header = fourCC(0);
+    if (header === 'RIFF' && fourCC(8)==='WAVE') {
       return 'wav';
     }
-    
-    if (header === 'FORM') {
+    if (header === 'FORM' && (fourCC(8)==='AIFF'||fourCC(8)==='AIFC')) {
       return 'aiff';
     }
-    
-    if (header === 'ID3' || header === '\xff\xfb') {
+    if (header.startsWith('ID3') || (bytes[0]===0xff&&(bytes[1]&0xe0)===0xe0)) {
       return 'mp3';
     }
+    if(header==='fLaC')return 'flac';
+    if(header==='OggS')return 'ogg';
+    if(fourCC(4)==='ftyp')return 'm4a';
   }
-  
-  // Fallback to extension
-  switch (extension) {
-    case 'wav':
-      return 'wav';
-    case 'aif':
-    case 'aiff':
-      return 'aiff';
-    case 'mp3':
-      return 'mp3';
-    case 'm4a':
-      return 'm4a';
-    case 'ogg':
-      return 'ogg';
-    case 'flac':
-      return 'flac';
-    default:
-      throw new Error(`Unsupported audio format: ${extension}`);
-  }
+  if(['wav','aif','aiff','mp3','m4a','ogg','flac'].includes(extension??''))throw new Error(`Audio signature does not match ${extension?.toUpperCase()} content`);
+  throw new Error(`Unsupported audio format: ${extension}`);
 }
 
 // Convert audio buffer to WAV with metadata preservation
@@ -521,4 +537,4 @@ export function isValidAudioFile(file: File): boolean {
   // Check file extension
   const extension = file.name.toLowerCase();
   return validExtensions.some(ext => extension.endsWith(ext));
-} 
+}

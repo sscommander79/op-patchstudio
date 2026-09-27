@@ -57,7 +57,7 @@ export function GeneratePresetSection({
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -84,7 +84,7 @@ export function GeneratePresetSection({
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
           <h3 style={{
             margin: 0,
-            color: '#222',
+            color: 'var(--color-text-primary)',
             fontSize: '1.25rem',
             fontWeight: 300,
           }}>
@@ -94,7 +94,7 @@ export function GeneratePresetSection({
       </div>
 
       {/* Content */}
-      <div style={{ 
+      <div style={{
         padding: isMobile ? '1rem' : '2rem',
       }}>
 
@@ -111,9 +111,9 @@ export function GeneratePresetSection({
           }}
         >
           {/* Preset Name Input */}
-          <div style={{ 
-            width: isMobile ? '100%' : '40%', 
-            minWidth: 0 
+          <div style={{
+            width: isMobile ? '100%' : '40%',
+            minWidth: 0
           }}>
             <PresetNameInput
               id={inputId}
@@ -164,10 +164,10 @@ export function GeneratePresetSection({
             }}
           >
             {/* Rename Files Toggle */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.75rem' 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
             }}>
               <Toggle
                 id={`rename-files-toggle-${inputId}`}
@@ -212,16 +212,16 @@ export function GeneratePresetSection({
             </div>
 
             {/* Filename Separator and Export Format Row */}
-            <div style={{ 
-              display: 'flex', 
+            <div style={{
+              display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
               gap: isMobile ? '1rem' : '2rem',
               alignItems: isMobile ? 'center' : 'flex-start'
             }}>
               {/* Filename Separator Options */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '0.5rem',
                 alignItems: isMobile ? 'center' : 'flex-start'
               }}>
@@ -233,8 +233,8 @@ export function GeneratePresetSection({
                 }}>
                   filename separator
                 </div>
-                <div style={{ 
-                  display: 'flex', 
+                <div style={{
+                  display: 'flex',
                   gap: '1rem'
                 }}>
                   {([' ', '-'] as const).map((separator) => (
@@ -267,9 +267,9 @@ export function GeneratePresetSection({
               </div>
 
               {/* Audio Format Toggle */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '0.5rem',
                 alignItems: isMobile ? 'center' : 'flex-start'
               }}>
@@ -295,7 +295,7 @@ export function GeneratePresetSection({
             </div>
           </div>
         </div>
-        
+
         {/* Preset Size and Summary */}
         <div style={{
           display: 'flex',
@@ -305,12 +305,12 @@ export function GeneratePresetSection({
           marginBottom: '2rem'
         }}>
           {/* Preset Size Indicator - 50% width */}
-          <div style={{ 
+          <div style={{
             width: isMobile ? '100%' : '50%'
           }}>
             <PatchSizeIndicator type={type} />
           </div>
-          
+
           {/* Preset Summary - 50% width */}
           <div style={{
             width: isMobile ? '100%' : '50%',
@@ -321,23 +321,23 @@ export function GeneratePresetSection({
             <div style={{
               fontSize: '0.9rem',
               fontWeight: '500',
-              color: '#222',
+              color: 'var(--color-text-primary)',
               marginBottom: '0.25rem'
             }}>
               preset summary
             </div>
-            
+
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '0.25rem',
               fontSize: '0.8rem',
-              color: '#666'
+              color: 'var(--color-text-secondary)'
             }}>
               {/* Validation Message - only show when can't generate */}
               {!canGeneratePatch && !hasPresetName && (
                 <div style={{
-                  color: '#666',
+                  color: 'var(--color-text-secondary)',
                   fontSize: '0.8rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -348,17 +348,17 @@ export function GeneratePresetSection({
                   <span>enter preset name to continue</span>
                 </div>
               )}
-              
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className={`fas ${hasLoadedSamples ? 'fa-check' : 'fa-times'}`} 
-                   style={{ color: '#666', fontSize: '0.7rem', width: '12px', textAlign: 'center' }}></i>
+                <i className={`fas ${hasLoadedSamples ? 'fa-check' : 'fa-times'}`}
+                   style={{ color: 'var(--color-text-secondary)', fontSize: '0.7rem', width: '12px', textAlign: 'center' }}></i>
                 <span>{loadedSamplesCount} {loadedSamplesCount === 1 ? 'sample' : 'samples'} loaded</span>
               </div>
-              
+
               {/* Show load samples message when no samples but have preset name */}
               {!canGeneratePatch && hasPresetName && !hasLoadedSamples && (
                 <div style={{
-                  color: '#666',
+                  color: 'var(--color-text-secondary)',
                   fontSize: '0.8rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -369,19 +369,19 @@ export function GeneratePresetSection({
                   <span>load samples to continue</span>
                 </div>
               )}
-              
+
               {/* Only show custom settings info when samples are loaded and settings have been changed */}
               {hasLoadedSamples && editedSamplesCount > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className="fas fa-info-circle" style={{ color: '#666', fontSize: '0.7rem', width: '12px', textAlign: 'center' }}></i>
+                  <i className="fas fa-info-circle" style={{ color: 'var(--color-text-secondary)', fontSize: '0.7rem', width: '12px', textAlign: 'center' }}></i>
                   <span>{editedSamplesCount} {editedSamplesCount === 1 ? 'sample' : 'samples'} with custom settings</span>
                 </div>
               )}
-              
+
               {/* File Format Info - only show when ready to generate */}
               {canGeneratePatch && (
                 <div style={{
-                  color: '#666',
+                  color: 'var(--color-text-secondary)',
                   fontSize: '0.8rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -532,7 +532,7 @@ export function GeneratePresetSection({
               border: 'none',
               borderRadius: '6px',
               backgroundColor: canGeneratePatch ? 'var(--color-interactive-focus)' : 'var(--color-border-medium)',
-              color: 'var(--color-white)',
+              color: canGeneratePatch ? 'var(--studio-accent-text)' : 'var(--color-text-secondary)',
               fontSize: '0.9rem',
               fontWeight: '500',
               cursor: canGeneratePatch ? 'pointer' : 'not-allowed',
@@ -563,4 +563,4 @@ export function GeneratePresetSection({
       </div>
     </div>
   );
-} 
+}

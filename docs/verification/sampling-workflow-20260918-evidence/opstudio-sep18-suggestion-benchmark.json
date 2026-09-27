@@ -1,0 +1,17 @@
+{
+  "sourceSHA256": "d2d896ec620b3848ce14bee1c6a483a35def6d14886badfec1d16357426f2686",
+  "fixture": "20 seconds stereo96kHz padded periodic tone",
+  "elapsedMs": 32.964124999999996,
+  "originalPCMUnchanged": true,
+  "result": {
+    "trim": {
+      "start": 7680,
+      "end": 1912320
+    },
+    "loop": {
+      "start": 580248,
+      "end": 1339957
+    },
+    "reason": null
+  }
+}

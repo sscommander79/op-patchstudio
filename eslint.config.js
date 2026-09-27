@@ -12,12 +12,32 @@ export default tseslint.config([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+      'react-refresh/only-export-components': ['error', {
+        allowConstantExport: true,
+        allowExportNames: [
+          'appReducer', 'initialState', 'useAppContext', 'useProjectHistory',
+          'triggerRotateOverlay', 'hideRotateOverlay', 'registerOverlayControl',
+          'getOrganizeModeLabel', 'getOrganizeModeLabelFull',
+          'useDrumSampleSettingsKeyboard',
+        ],
+      }],
     },
   },
 ])

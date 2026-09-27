@@ -221,7 +221,7 @@ $opxy-carbon-theme: (
 
 .opxy-theme {
   @include theme($opxy-carbon-theme);
-  font-family: "Montserrat", "Arial", sans-serif;
+  font-family: "NimbusSansL", "Arial", sans-serif;
 
   // Carbon component overrides
   .cds--tabs__nav-link {

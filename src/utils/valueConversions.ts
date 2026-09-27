@@ -18,15 +18,23 @@ export function internalToPercent(internal: number): number {
  * Deep merge objects, matching legacy deepMerge function
  * Used for merging imported preset settings with base JSON
  */
-export function deepMerge(target: any, source: any): void {
-  for (const key in source) {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      if (!target[key] || typeof target[key] !== 'object') {
-        target[key] = {};
-      }
-      deepMerge(target[key], source[key]);
+const unsafeMergeKeys = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isMergeableObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): void {
+  for (const key of Object.keys(source)) {
+    if (unsafeMergeKeys.has(key)) continue;
+
+    const sourceValue = source[key];
+    if (isMergeableObject(sourceValue)) {
+      const targetValue = isMergeableObject(target[key]) ? target[key] : {};
+      target[key] = targetValue;
+      deepMerge(targetValue, sourceValue);
     } else {
-      target[key] = source[key];
+      target[key] = sourceValue;
     }
   }
-} 
+}

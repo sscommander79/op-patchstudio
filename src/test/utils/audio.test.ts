@@ -46,7 +46,7 @@ const dummyAudioNode = {
   context: undefined as unknown as BaseAudioContext,
   numberOfInputs: 1,
   numberOfOutputs: 1,
-  connect: (_destination: any, _output?: number, _input?: number) => dummyAudioNode,
+  connect: (_destination: AudioNode | AudioParam, _output?: number, _input?: number) => dummyAudioNode,
   disconnect: () => {},
   addEventListener: () => {},
   removeEventListener: () => {},
@@ -77,7 +77,7 @@ const mockAudioContext = {
       ratio: mockAudioParam,
       attack: mockAudioParam,
       release: mockAudioParam,
-      connect: (_destination: any, _output?: number, _input?: number) => dummyAudioNode,
+      connect: (_destination: AudioNode | AudioParam, _output?: number, _input?: number) => dummyAudioNode,
       reduction: 0,
       channelCount: 2,
       channelCountMode: 'max' as ChannelCountMode,
@@ -164,7 +164,7 @@ vi.mock('../../utils/audioContext', () => ({
             ratio: mockAudioParam,
             attack: mockAudioParam,
             release: mockAudioParam,
-            connect: (_destination: any, _output?: number, _input?: number) => dummyAudioNode,
+            connect: (_destination: AudioNode | AudioParam, _output?: number, _input?: number) => dummyAudioNode,
             reduction: 0,
             channelCount: 2,
             channelCountMode: 'max' as ChannelCountMode,
@@ -233,14 +233,14 @@ beforeAll(() => {
       context: undefined as unknown as BaseAudioContext,
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      connect: (_destination: any, _output?: number, _input?: number) => dummyAudioNode,
+      connect: (_destination: AudioNode | AudioParam, _output?: number, _input?: number) => dummyAudioNode,
       disconnect: () => {},
       addEventListener: () => {},
       removeEventListener: () => {},
       dispatchEvent: () => false,
     };
     // Mock connect method
-    const mockConnect = (_destination: any, _output?: number, _input?: number) => dummyAudioNode;
+    const mockConnect = (_destination: AudioNode | AudioParam, _output?: number, _input?: number) => dummyAudioNode;
     window.AudioContext.prototype.createDynamicsCompressor = () => ({
       threshold: mockAudioParam,
       knee: mockAudioParam,
@@ -540,11 +540,7 @@ describe('audio utilities', () => {
     })
 
     it('should handle invalid WAV files gracefully', async () => {
-      // Mock File with arrayBuffer method
-      const mockFile = {
-        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(10)),
-        size: 10
-      } as any
+      const mockFile = new File([new ArrayBuffer(10)], 'invalid.wav', { type: 'audio/wav' })
 
       await expect(readWavMetadata(mockFile)).rejects.toThrow('Invalid WAV file: missing RIFF header')
     })
@@ -588,11 +584,7 @@ describe('audio utilities', () => {
       view.setUint8(39, 0x61) // 'a'
       view.setUint32(40, 1000, true) // data size
 
-      // Mock File with arrayBuffer method
-      const mockFile = {
-        arrayBuffer: vi.fn().mockResolvedValue(wavBuffer),
-        size: 44 + 1000
-      } as any
+      const mockFile = new File([wavBuffer], 'minimal.wav', { type: 'audio/wav' })
       
       const mockAudioBuffer = createMockAudioBuffer(1000, 44100)
       mockAudioContext.decodeAudioData.mockResolvedValue(mockAudioBuffer)
@@ -639,20 +631,7 @@ describe('audio utilities', () => {
       expect(result.type).toBe('audio/wav')
       
       // Verify the WAV contains SMPL chunk by checking the binary data
-      let arrayBuffer: ArrayBuffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        arrayBuffer = await (result as Blob).arrayBuffer();
-      } else if (result instanceof Uint8Array) {
-        arrayBuffer = result.buffer;
-      } else if (result instanceof ArrayBuffer) {
-        arrayBuffer = result;
-      } else if ((result as any).buffer instanceof ArrayBuffer) {
-        arrayBuffer = (result as any).buffer;
-      } else {
-        // If we can't get the buffer, skip the test in this environment
-        console.warn('Skipping SMPL chunk verification - Blob not supported in test environment');
-        return;
-      }
+      const arrayBuffer = await result.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer)
       
       // Look for "smpl" chunk identifier in the WAV file
@@ -687,7 +666,7 @@ describe('audio utilities', () => {
   })
 
   describe('findNearestZeroCrossing', () => {
-    let mockBuffer: any
+    let mockBuffer: ReturnType<typeof createMockAudioBuffer>
 
     beforeEach(() => {
       mockBuffer = createMockAudioBuffer(100, 44100)
@@ -734,6 +713,15 @@ describe('audio utilities', () => {
   })
 
   describe('convertAudioFormat with normalization and gain', () => {
+    it('preserves the exact frame count for same-rate precision conversion', async () => {
+      currentTestContext = '';
+      const source = createMockAudioBuffer(6174, 44100);
+
+      const result = await convertAudioFormat(source, { sampleRate: 44100 });
+
+      expect(result.length).toBe(6174);
+    });
+
     it('should apply gain correctly', async () => {
       currentTestContext = 'gain';
       const mockBuffer = createMockAudioBuffer(1000, 44100);
@@ -945,7 +933,9 @@ describe('audio utilities', () => {
 
   it('applyZeroCrossingToMarkers should adjust markers to nearest zero crossings', () => {
     // Create a simple audio buffer with known zero crossings
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is unavailable');
+    const audioContext = new AudioContextClass();
     const buffer = audioContext.createBuffer(1, 1000, 44100);
     const data = buffer.getChannelData(0);
     
@@ -984,7 +974,9 @@ describe('audio utilities', () => {
   });
 
   it('applyZeroCrossingToMarkers should not adjust when already at zero crossings', () => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is unavailable');
+    const audioContext = new AudioContextClass();
     const buffer = audioContext.createBuffer(1, 1000, 44100);
     const data = buffer.getChannelData(0);
     
@@ -1018,7 +1010,9 @@ describe('audio utilities', () => {
   });
 
   it('applyZeroCrossingToMarkers should handle edge cases gracefully', () => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is unavailable');
+    const audioContext = new AudioContextClass();
     const buffer = audioContext.createBuffer(1, 100, 44100);
     const data = buffer.getChannelData(0);
     

@@ -1,0 +1,163 @@
+--- before/src/components/common/WaveformZoomModal.tsx
++++ src/components/common/WaveformZoomModal.tsx
+@@ -275,7 +275,12 @@
+     const request = ++playRequestRef.current;
+     playPendingRef.current = true;
+     const current = draftRef.current ?? draft;
+-    const startFrame = transport === 'paused' ? playheadFrame : reverse ? current.sample.end : current.sample.start;
++    const pausedFrameIsValid = reverse
++      ? playheadFrame > current.sample.start && playheadFrame <= current.sample.end
++      : playheadFrame >= current.sample.start && playheadFrame < current.sample.end;
++    const startFrame = transport === 'paused' && pausedFrameIsValid
++      ? playheadFrame
++      : reverse ? current.sample.end : current.sample.start;
+     try {
+       const requestedFrames = loopEnabled && hasLoopPoints ? Math.round(crossfade.fraction * audioBuffer.length) : 0;
+       const previewBuffer = makePreviewCopy(audioBuffer, current.loop, requestedFrames);
+@@ -303,6 +308,7 @@
+         return;
+       }
+       currentNoteIdRef.current = actualId;
++      setPlayheadFrame(startFrame);
+       previewClockRef.current = {
+         startedAt: audioContextManager.getCurrentTime() ?? 0,
+         startFrame,
+--- before/src/context/AppContext.tsx
++++ src/context/AppContext.tsx
+@@ -1293,7 +1293,7 @@
+         ...state,
+         importedMultisamplePreset: action.payload,
+         multisampleSettings: hydrateMultisampleSettings(state.multisampleSettings, action.payload),
+-        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload).files,
++        multisampleFiles: associateImportedCrossfades(state.multisampleFiles, action.payload, { replaceMatched: true }).files,
+       };
+       
+     case 'TOGGLE_DRUM_KEYBOARD_PIN':
+--- before/src/test/components/WaveformZoomModalEditing.test.tsx
++++ src/test/components/WaveformZoomModalEditing.test.tsx
+@@ -254,4 +254,33 @@
+     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
+     expect(Array.from(audio.playWithADSR.mock.calls[0][0].getChannelData(0))).toEqual(Array.from(source));
+   });
++
++  it.each([
++    { reverse: false, marker: 'Sample start frames', value: '80', expectedStart: 80, nextFrame: 90 },
++    { reverse: false, marker: 'Sample end frames', value: '40', expectedStart: 0, nextFrame: 10 },
++    { reverse: true, marker: 'Sample end frames', value: '40', expectedStart: 40, nextFrame: 30 },
++  ])('restarts a paused voice and clock at a valid boundary after editing $marker with reverse=$reverse', async ({ reverse, marker, value, expectedStart, nextFrame }) => {
++    let animationFrame: FrameRequestCallback | undefined;
++    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { animationFrame = callback; return 1; }));
++    vi.stubGlobal('cancelAnimationFrame', vi.fn());
++    render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
++      initialInPoint={0} initialOutPoint={1} reverse={reverse}
++      onSave={() => {}} onSaveForAll={() => {}} />);
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    clock.now = 0.5;
++    act(() => animationFrame?.(500));
++    expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
++    fireEvent.click(screen.getByRole('button', { name: 'pause' }));
++    fireEvent.change(screen.getByLabelText(marker), { target: { value } });
++    fireEvent.click(screen.getByRole('button', { name: 'play' }));
++    await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
++    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
++    const options = audio.playWithADSR.mock.calls[1][2];
++    expect(options).toMatchObject({ inFrame: reverse ? 0 : Number(value === '80' ? 80 : 0), outFrame: reverse ? 40 : Number(value === '40' ? 40 : 100), startTime: 0 });
++    expect(screen.getByText(`Playhead: ${expectedStart} frames`)).toBeInTheDocument();
++    clock.now = 0.6;
++    act(() => animationFrame?.(600));
++    expect(screen.getByText(`Playhead: ${nextFrame} frames`)).toBeInTheDocument();
++  });
+ });
+--- before/src/test/context/projectHistory.test.tsx
++++ src/test/context/projectHistory.test.tsx
+@@ -131,4 +131,26 @@
+     send({type:'REDO'});
+     expect(result.current.state.multisampleFiles[1]).toMatchObject({inPoint:0.1,outPoint:0.25,loopStart:0.2,loopEnd:0.25});
+   });
++
++  it('applies each explicit preset crossfade atomically while ordinary edits stay authoritative', () => {
++    const {result} = renderHook(() => ({...useAppContext(),...useProjectHistory()}), {wrapper});
++    const send = (action: AppAction) => act(() => result.current.dispatch(action));
++    const audioBuffer = new AudioContext().createBuffer(1,100,100);
++    const tone = {file:new File(['x'],'tone.wav'),audioBuffer,name:'tone.wav',isLoaded:true,rootNote:60,note:'C4',
++      inPoint:0,outPoint:1,loopStart:0.1,loopEnd:0.9};
++    send({type:'RESTORE_SESSION',payload:{...initialState,drumSamples:[],multisampleFiles:[tone]}});
++    const first = {regions:[{sample:'tone.wav',framecount:100,'loop.crossfade':25}]};
++    const second = {regions:[{sample:'tone.wav',framecount:100,'loop.crossfade':90}]};
++    send({type:'IMPORT_MULTISAMPLE_PRESET',payload:first});
++    expect(result.current.state.multisampleFiles[0].loopCrossfade).toMatchObject({fraction:0.25,importedRaw:25});
++    send({type:'IMPORT_MULTISAMPLE_PRESET',payload:second});
++    expect(result.current.state.multisampleFiles[0].loopCrossfade).toMatchObject({fraction:0.9,importedRaw:90});
++    send({type:'UNDO'});
++    expect(result.current.state.multisampleFiles[0].loopCrossfade).toMatchObject({fraction:0.25,importedRaw:25});
++    send({type:'UPDATE_MULTISAMPLE_FILE',payload:{index:0,updates:{loopCrossfade:{fraction:0.4}}}});
++    send({type:'IMPORT_MULTISAMPLE_PRESET',payload:second});
++    expect(result.current.state.multisampleFiles[0].loopCrossfade).toMatchObject({fraction:0.9,importedRaw:90});
++    send({type:'UNDO'});
++    expect(result.current.state.multisampleFiles[0].loopCrossfade).toEqual({fraction:0.4});
++  });
+ });
+--- before/src/test/utils/importedCrossfade.test.ts
++++ src/test/utils/importedCrossfade.test.ts
+@@ -76,4 +76,18 @@
+     expect(ambiguous.files.every((file) => file.loopCrossfade === undefined)).toBe(true);
+     expect(ambiguous.notice).toMatch(/ambiguous/i);
+   });
++
++  it('replaces exact matches only for an explicit new preset and clears only stale imported matches', () => {
++    const firstPreset = { regions: [{ sample: 'tone.wav', framecount: 100, 'loop.crossfade': 25 }] };
++    const secondPreset = { regions: [{ sample: 'tone.wav', framecount: 100, 'loop.crossfade': 90 }] };
++    const associated = associateImportedCrossfades([sample('tone.wav')], firstPreset).files[0];
++    const replaced = associateImportedCrossfades([associated], secondPreset, { replaceMatched: true }).files[0];
++    expect(replaced.loopCrossfade).toMatchObject({ fraction: 0.9, importedRaw: 90 });
++
++    const stale = associateImportedCrossfades([associated], { regions: [] }, { replaceMatched: true }).files[0];
++    expect(stale.loopCrossfade).toBeUndefined();
++    const manual = sample('tone.wav');
++    manual.loopCrossfade = { fraction: 0.4 };
++    expect(associateImportedCrossfades([manual], { regions: [] }, { replaceMatched: true }).files[0].loopCrossfade).toEqual({ fraction: 0.4 });
++  });
+ });
+--- before/src/utils/importedCrossfade.ts
++++ src/utils/importedCrossfade.ts
+@@ -56,14 +56,19 @@
+   notice?: string;
+ }
+ 
++interface CrossfadeAssociationOptions {
++  replaceMatched?: boolean;
++}
++
+ /** Associate only exact, unique identities. Raw imported JSON remains untouched. */
+ export function associateImportedCrossfades(
+   files: readonly MultisampleFile[],
+   preset: ImportedPresetJson | null | undefined,
++  options: CrossfadeAssociationOptions = {},
+ ): CrossfadeAssociationResult {
+   const scan = importedRegions(preset);
+   const { regions } = scan;
+-  if (regions.length === 0 && scan.uninterpreted === 0) return { files: files.map((file) => ({ ...file })) };
++  if (regions.length === 0 && scan.uninterpreted === 0 && !options.replaceMatched) return { files: files.map((file) => ({ ...file })) };
+ 
+   const fileCounts = new Map<string, number>();
+   for (const file of files) {
+@@ -93,9 +98,16 @@
+       return { ...file };
+     }
+     const region = uniqueRegions.get(identity);
+-    if (!region) return { ...file };
++    if (!region) {
++      if (options.replaceMatched && file.loopCrossfade?.importedRaw !== undefined) {
++        const withoutAssociation = { ...file };
++        delete withoutAssociation.loopCrossfade;
++        return withoutAssociation;
++      }
++      return { ...file };
++    }
+     matched += 1;
+-    const effective = file.loopCrossfade ?? region.crossfade;
++    const effective = options.replaceMatched ? region.crossfade : (file.loopCrossfade ?? region.crossfade);
+     aboveNormalRange ||= effective.fraction > 0.75;
+     return { ...file, loopCrossfade: { ...effective } };
+   });

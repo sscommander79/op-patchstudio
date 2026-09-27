@@ -49,7 +49,7 @@ const PWAInstallPrompt: React.FC = () => {
     if (dismissedDate) {
       const lastDismissed = new Date(dismissedDate).getTime();
       const now = new Date().getTime();
-      
+
       // If dismissed within the repropt interval, don't show again
       if (now - lastDismissed < PROMPT_CONFIG.REPROMPT_INTERVAL) {
         return false;
@@ -81,7 +81,7 @@ const PWAInstallPrompt: React.FC = () => {
       e.preventDefault();
       // Stash the event so it can be triggered later
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
+
       // Show prompt after delay if conditions are met
       if (shouldShowPrompt()) {
         const delay = isMobile ? PROMPT_CONFIG.MOBILE_DELAY : PROMPT_CONFIG.DESKTOP_DELAY;
@@ -127,7 +127,7 @@ const PWAInstallPrompt: React.FC = () => {
 
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === 'accepted') {
       console.log('User accepted the install prompt');
       localStorage.setItem(STORAGE_KEYS.INSTALL_ACCEPTED, new Date().toISOString());
@@ -178,8 +178,8 @@ const PWAInstallPrompt: React.FC = () => {
       }}
     >
       <div style={{ marginBottom: '12px' }}>
-        <strong style={{ 
-          display: 'block', 
+        <strong style={{
+          display: 'block',
           marginBottom: '4px',
           fontSize: '0.95rem',
           fontWeight: '500',
@@ -187,20 +187,20 @@ const PWAInstallPrompt: React.FC = () => {
         }}>
           install OP-PatchStudio offline
         </strong>
-        <span style={{ 
-          fontSize: '0.875rem', 
+        <span style={{
+          fontSize: '0.875rem',
           color: 'var(--color-text-secondary)',
           lineHeight: '1.4'
         }}>
-          {isMobile 
+          {isMobile
             ? 'install as app for offline use and quick access'
             : 'install as app for offline use and quick access'
           }
         </span>
       </div>
-      
-      <div style={{ 
-        display: 'flex', 
+
+      <div style={{
+        display: 'flex',
         gap: '8px',
         flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'flex-end'
@@ -268,7 +268,7 @@ const PWAInstallPrompt: React.FC = () => {
             border: 'none',
             borderRadius: '3px',
             backgroundColor: 'var(--color-interactive-focus)',
-            color: 'var(--color-white)',
+            color: 'var(--studio-accent-text)',
             fontSize: '0.875rem',
             fontWeight: '500',
             cursor: 'pointer',
@@ -294,4 +294,4 @@ const PWAInstallPrompt: React.FC = () => {
   );
 };
 
-export default PWAInstallPrompt; 
+export default PWAInstallPrompt;

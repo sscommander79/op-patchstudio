@@ -1,0 +1,138 @@
+--- before/scripts/pwa-cache-lifecycle.js
++++ after/scripts/pwa-cache-lifecycle.js
+@@ -75,7 +75,8 @@
+     identifyWorker(activeWorker),
+     identifyWorker(waitingWorker),
+   ]);
+-  if (self.registration.installing || !active || waitingWorker && !waiting) return null;
++  if (self.registration.installing || self.registration.active !== activeWorker ||
++      self.registration.waiting !== waitingWorker || !active || waitingWorker && !waiting) return null;
+   return { active, waiting };
+ }
+ 
+@@ -135,16 +136,17 @@
+   }
+ 
+   if (event.data?.type !== 'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT') return;
+-  event.waitUntil(serialized(async () => {
++  const decision = serialized(async () => {
+     const openWindows = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+       .filter(scopedWindow);
+     const requester = event.source;
+     if (scopedWindow(requester) && openWindows.length === 1 && openWindows[0].id === requester.id) {
+-      await self.skipWaiting();
+-      return;
++      return true;
+     }
+     requester?.postMessage({ type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' });
+-  }));
++    return false;
++  });
++  event.waitUntil(decision.then((approved) => approved ? self.skipWaiting() : undefined));
+ });
+ 
+ self.addEventListener('activate', (event) => {
+--- before/scripts/verify-pwa-build.mjs
++++ after/scripts/verify-pwa-build.mjs
+@@ -26,7 +26,9 @@
+ }
+ if (!lifecycle.includes('self.registration.installing') ||
+     !lifecycle.includes('slots.active !== ownership.current') ||
+-    !lifecycle.includes('sameSlots(slots, latestSlots)')) {
++    !lifecycle.includes('sameSlots(slots, latestSlots)') ||
++    !lifecycle.includes('self.registration.active !== activeWorker') ||
++    !lifecycle.includes('self.registration.waiting !== waitingWorker')) {
+   throw new Error('Generated lifecycle does not validate active, waiting and installing worker slots before deletion')
+ }
+ const matches = [...worker.matchAll(/\{url:"([^"]+)",revision:(null|"[^"]+")\}/g)]
+--- before/src/test/utils/pwaCacheLifecycle.test.ts
++++ after/src/test/utils/pwaCacheLifecycle.test.ts
+@@ -18,12 +18,20 @@
+   installingId?:string;
+   metadataReads:number;
+   beforeMetadataRead?:(read:number,state:CacheState)=>void;
++  beforeIdentityReply?:(id:string,state:CacheState)=>void;
++  skipWaiting?:()=>Promise<void>;
++}
++
++function deferred() {
++  let resolve!:()=>void;
++  const promise=new Promise<void>(done=>{resolve=done;});
++  return {promise,resolve};
+ }
+ 
+ function loadLifecycle(buildId:string,windowIds:string[],state:CacheState) {
+   const listeners=new Map<string,WorkerListener>();
+   const deleted:string[]=[];
+-  const skipWaiting=vi.fn(async()=>undefined),postMessage=vi.fn();
++  const skipWaiting=vi.fn(state.skipWaiting??(async()=>undefined)),postMessage=vi.fn();
+   const clients=windowIds.map(id=>({id,type:'window',url:`https://studio.test/${id}`}));
+   class FakePort {
+     peer?:FakePort;
+@@ -36,11 +44,18 @@
+     port1=new FakePort();port2=new FakePort();
+     constructor(){this.port1.peer=this.port2;this.port2.peer=this.port1;}
+   }
+-  const identifiedWorker=(id:string|undefined)=>id?{
+-    postMessage:(message:{type?:string},ports?:FakePort[])=>{
+-      if(message.type==='OPSTUDIO_IDENTIFY_WORKER')ports?.[0]?.postMessage({type:'OPSTUDIO_WORKER_IDENTITY',buildId:id});
+-    },
+-  }:null;
++  const identifiedWorkers=new Map<string,{postMessage:(message:{type?:string},ports?:FakePort[])=>void}>();
++  const identifiedWorker=(id:string|undefined)=>{
++    if(!id)return null;
++    let remote=identifiedWorkers.get(id);
++    if(!remote){remote={postMessage:(message,ports)=>{
++      if(message.type==='OPSTUDIO_IDENTIFY_WORKER'){
++        state.beforeIdentityReply?.(id,state);
++        ports?.[0]?.postMessage({type:'OPSTUDIO_WORKER_IDENTITY',buildId:id});
++      }
++    }};identifiedWorkers.set(id,remote);}
++    return remote;
++  };
+   const registration={
+     scope:'https://studio.test/',
+     get active(){return identifiedWorker(state.activeId);},
+@@ -98,6 +113,25 @@
+     expect(sole.skipWaiting).toHaveBeenCalledOnce();
+   });
+ 
++  it('releases the lifecycle queue before waiting for activation to finish',async()=>{
++    const activationGate=deferred();
++    const shared=state([cache('A'),cache('B')],{current:'A',complete:true});
++    shared.activeId='A';shared.waitingId='B';shared.skipWaiting=()=>activationGate.promise;
++    const waitingB=loadLifecycle('B',['one'],shared);
++    const requesting=waitingB.dispatch('message',{type:'OPSTUDIO_ACTIVATE_IF_SOLE_CLIENT'},'one');
++    await vi.waitFor(()=>expect(waitingB.skipWaiting).toHaveBeenCalledOnce());
++    shared.activeId='B';shared.waitingId=undefined;
++    const activating=waitingB.dispatch('activate');
++    let activationRanBeforeSkipWaitingResolved=false;
++    try {
++      await vi.waitFor(()=>expect(shared.ownership).toEqual({current:'B',previous:'A',complete:true}),{timeout:100});
++      activationRanBeforeSkipWaitingResolved=true;
++    } catch { /* the assertion below records the queue cycle */ }
++    activationGate.resolve();
++    await Promise.all([requesting,activating]);
++    expect(activationRanBeforeSkipWaitingResolved).toBe(true);
++  });
++
+   it('removes a superseded waiting build while retaining active, previous, and newest waiting builds',async()=>{
+     const shared=state([cache('P'),cache('A'),cache('B'),'unrelated-cache'],{current:'A',previous:'P',complete:true});
+     shared.activeId='A';shared.waitingId='B';
+@@ -154,6 +188,16 @@
+     expect(shared.names.has(cache('C'))).toBe(true);
+   });
+ 
++  it('rejects captured worker-slot references that change during identity replies',async()=>{
++    const shared=state([cache('P'),cache('A'),cache('B'),cache('C')],{current:'A',previous:'P',complete:true});
++    shared.activeId='A';shared.waitingId='B';
++    shared.beforeIdentityReply=(id,current)=>{if(id==='B'){current.waitingId='C';current.beforeIdentityReply=undefined;}};
++    const waitingB=loadLifecycle('B',['one'],shared);
++    await waitingB.dispatch('message',{type:'OPSTUDIO_CLAIM_WAITING'});
++    expect(waitingB.deleted).toEqual([]);
++    expect(shared.names.has(cache('C'))).toBe(true);
++  });
++
+   it('keeps existing generations when active-worker ownership is unavailable',async()=>{
+     const shared=state([cache('A'),cache('B')]);
+     const waitingB=loadLifecycle('B',['one'],shared);

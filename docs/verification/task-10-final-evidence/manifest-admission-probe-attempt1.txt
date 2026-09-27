@@ -1,0 +1,28 @@
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+ ❯ src/test/task10ManifestAdmission.probe.test.ts (1 test | 1 failed) 130ms
+   × probes near-limit mutation admission and late imported crossfade association 128ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/task10ManifestAdmission.probe.test.ts > probes near-limit mutation admission and late imported crossfade association
+Error: Can't read the data of 'the loaded zip file'. Is it in a supported JavaScript type (String, Blob, ArrayBuffer, etc) ?
+ ❯ node_modules/jszip/lib/utils.js:479:17
+ ❯ manifestBytes src/test/task10ManifestAdmission.probe.test.ts:100:15
+     98| async function manifestBytes(candidate: AppState): Promise<{ archiveBy…
+     99|   const archive = await exportProjectArchive(createProjectSnapshot(can…
+    100|   const zip = await JSZip.loadAsync(await archive.arrayBuffer());
+       |               ^
+    101|   const raw = await zip.file('manifest.json')!.async('uint8array');
+    102|   return { archiveBytes: archive.size, manifestBytes: raw.byteLength };
+ ❯ src/test/task10ManifestAdmission.probe.test.ts:108:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  08:11:27
+   Duration  828ms (transform 186ms, setup 105ms, import 215ms, tests 130ms, environment 275ms)
+

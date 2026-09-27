@@ -1,0 +1,208 @@
+{
+  "origin": "http://127.0.0.1:5188",
+  "buildA": "/tmp/opstudio-task9-build-a",
+  "buildB": "/tmp/opstudio-task9-build-b",
+  "transitions": [
+    "updatefound",
+    "installed"
+  ],
+  "errors": [],
+  "browser": "153.0.8010.12",
+  "waitingPreservesDraft": true,
+  "deferredTab": {
+    "build": "A",
+    "document": "keep-draft",
+    "draftVisible": true
+  },
+  "activationBlockedWithOtherTab": true,
+  "deferredOldTabOfflineLazyLibrary": true,
+  "explicitUpdatePreservesAudioAndSavedDraft": true,
+  "caches": [
+    {
+      "name": "op-patchstudio-v0.16.0-mtoifvbt-c9615001-94fe-494e-9bbd-189940435e3a-precache-v2-http://127.0.0.1:5188/",
+      "urls": [
+        "http://127.0.0.1:5188/index.html?__WB_REVISION__=2580422f3a0b17d42b826f06b8452b80",
+        "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+        "http://127.0.0.1:5188/assets/task9-proof-static.svg?__WB_REVISION__=a8d9bb45e6aa46609315038d2c8cef38",
+        "http://127.0.0.1:5188/assets/pwa-cache-lifecycle-v0.16.0-mtoifvbt-c9615001-94fe-494e-9bbd-189940435e3a.js?__WB_REVISION__=b6407625d80abe2186ae8ea87aba9a11",
+        "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+        "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+        "http://127.0.0.1:5188/assets/index-fRByNizp.css?__WB_REVISION__=997f3f03b237ec27fe518f2c94c1c6ad",
+        "http://127.0.0.1:5188/assets/index-CzXIubxN.js?__WB_REVISION__=08263286e461a8fb3fe6d070e02057ff",
+        "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+        "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+        "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+        "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+        "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+        "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+        "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+        "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+        "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+        "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+        "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+        "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+        "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+        "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+        "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+        "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+        "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+        "http://127.0.0.1:5188/assets/MultisampleTool-BuZYyZoz.js?__WB_REVISION__=9f291d7c6767caa862d6cf4cea4e7b10",
+        "http://127.0.0.1:5188/assets/LibraryPage-Cu5kuEdq.js?__WB_REVISION__=04134bd2315d3d3077840f651d1825c7",
+        "http://127.0.0.1:5188/assets/FeedbackPage-D4-00cnd.js?__WB_REVISION__=a53e9b33c03c6db98b1527028bb53be9",
+        "http://127.0.0.1:5188/assets/DonatePage-DWSpqCey.js?__WB_REVISION__=4b114679beae686e485c4e79052bf0ae",
+        "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+      ]
+    },
+    {
+      "name": "op-patchstudio-lifecycle-metadata-v1",
+      "urls": [
+        "http://127.0.0.1:5188/__opstudio_cache_lifecycle__"
+      ]
+    },
+    {
+      "name": "opstudio-proof-unrelated",
+      "urls": [
+        "http://127.0.0.1:5188/unrelated-sentinel"
+      ]
+    },
+    {
+      "name": "op-patchstudio-v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea-precache-v2-http://127.0.0.1:5188/",
+      "urls": [
+        "http://127.0.0.1:5188/index.html?__WB_REVISION__=678c03a65ddda94d2605313a4f1143d4",
+        "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+        "http://127.0.0.1:5188/assets/task9-proof-static.svg?__WB_REVISION__=c3c4c859033176092f3ce323256ba149",
+        "http://127.0.0.1:5188/assets/pwa-cache-lifecycle-v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea.js?__WB_REVISION__=68d01a40b4e989379aa984d3fb97bee0",
+        "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+        "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+        "http://127.0.0.1:5188/assets/index-fRByNizp.css?__WB_REVISION__=997f3f03b237ec27fe518f2c94c1c6ad",
+        "http://127.0.0.1:5188/assets/index-Cs2Rrkzb.js?__WB_REVISION__=8bfe2f2193b478b3b611206ec1da7fc8",
+        "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+        "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+        "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+        "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+        "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+        "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+        "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+        "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+        "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+        "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+        "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+        "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+        "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+        "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+        "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+        "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+        "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+        "http://127.0.0.1:5188/assets/MultisampleTool-UniAeEN3.js?__WB_REVISION__=1a1159593411d459287570ab43e1ff1c",
+        "http://127.0.0.1:5188/assets/LibraryPage-3Ua1STIp.js?__WB_REVISION__=78442fe82625e2a216da50ca4698a7b1",
+        "http://127.0.0.1:5188/assets/FeedbackPage-1Vy8OrVR.js?__WB_REVISION__=65473ff62968971b29523bafe175e737",
+        "http://127.0.0.1:5188/assets/DonatePage-DpTuq7f-.js?__WB_REVISION__=9fb2d179a68f731802a694a258d47c5d",
+        "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+      ]
+    }
+  ],
+  "entryA": "/assets/index-CzXIubxN.js",
+  "entryB": "/assets/index-Cs2Rrkzb.js",
+  "boundedAppCacheGenerations": true,
+  "changedStaticAssetUpdated": true,
+  "unrelatedCachePreserved": true,
+  "offlineColdStartBuildB": true,
+  "afterThirdBuildCaches": [
+    {
+      "name": "op-patchstudio-lifecycle-metadata-v1",
+      "urls": [
+        "http://127.0.0.1:5188/__opstudio_cache_lifecycle__"
+      ]
+    },
+    {
+      "name": "opstudio-proof-unrelated",
+      "urls": [
+        "http://127.0.0.1:5188/unrelated-sentinel"
+      ]
+    },
+    {
+      "name": "op-patchstudio-v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea-precache-v2-http://127.0.0.1:5188/",
+      "urls": [
+        "http://127.0.0.1:5188/index.html?__WB_REVISION__=678c03a65ddda94d2605313a4f1143d4",
+        "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+        "http://127.0.0.1:5188/assets/task9-proof-static.svg?__WB_REVISION__=c3c4c859033176092f3ce323256ba149",
+        "http://127.0.0.1:5188/assets/pwa-cache-lifecycle-v0.16.0-mtoifvbu-549524bb-deaf-4fb9-9c37-6f588716d9ea.js?__WB_REVISION__=68d01a40b4e989379aa984d3fb97bee0",
+        "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+        "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+        "http://127.0.0.1:5188/assets/index-fRByNizp.css?__WB_REVISION__=997f3f03b237ec27fe518f2c94c1c6ad",
+        "http://127.0.0.1:5188/assets/index-Cs2Rrkzb.js?__WB_REVISION__=8bfe2f2193b478b3b611206ec1da7fc8",
+        "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+        "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+        "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+        "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+        "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+        "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+        "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+        "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+        "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+        "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+        "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+        "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+        "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+        "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+        "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+        "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+        "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+        "http://127.0.0.1:5188/assets/MultisampleTool-UniAeEN3.js?__WB_REVISION__=1a1159593411d459287570ab43e1ff1c",
+        "http://127.0.0.1:5188/assets/LibraryPage-3Ua1STIp.js?__WB_REVISION__=78442fe82625e2a216da50ca4698a7b1",
+        "http://127.0.0.1:5188/assets/FeedbackPage-1Vy8OrVR.js?__WB_REVISION__=65473ff62968971b29523bafe175e737",
+        "http://127.0.0.1:5188/assets/DonatePage-DpTuq7f-.js?__WB_REVISION__=9fb2d179a68f731802a694a258d47c5d",
+        "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+      ]
+    },
+    {
+      "name": "op-patchstudio-v0.16.0-mtoifvbt-e9ae78b2-f735-42c7-b6d7-26b0f4d17a63-precache-v2-http://127.0.0.1:5188/",
+      "urls": [
+        "http://127.0.0.1:5188/index.html?__WB_REVISION__=b69c8fed9563a427e9895bf841d51dbc",
+        "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+        "http://127.0.0.1:5188/assets/task9-proof-static.svg?__WB_REVISION__=36f0f30924d807dc80dfca7e17f9a5ad",
+        "http://127.0.0.1:5188/assets/pwa-cache-lifecycle-v0.16.0-mtoifvbt-e9ae78b2-f735-42c7-b6d7-26b0f4d17a63.js?__WB_REVISION__=480aba46410fab456d245599e340a6ed",
+        "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+        "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+        "http://127.0.0.1:5188/assets/index-fRByNizp.css?__WB_REVISION__=997f3f03b237ec27fe518f2c94c1c6ad",
+        "http://127.0.0.1:5188/assets/index-CzJd6K8H.js?__WB_REVISION__=6b27d2b67cd04cc94481d98ba6b949dc",
+        "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+        "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+        "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+        "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+        "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+        "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+        "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+        "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+        "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+        "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+        "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+        "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+        "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+        "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+        "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+        "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+        "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+        "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+        "http://127.0.0.1:5188/assets/MultisampleTool-HTRDAJj3.js?__WB_REVISION__=4e6a0427c4ffb6d3fa3ff98b635c0dca",
+        "http://127.0.0.1:5188/assets/LibraryPage-DxWPSZ9-.js?__WB_REVISION__=48623d97064e1fe031330aea7dcd612f",
+        "http://127.0.0.1:5188/assets/FeedbackPage-CUvarFDv.js?__WB_REVISION__=348608c661e04643a179fbc719a1c69f",
+        "http://127.0.0.1:5188/assets/DonatePage-Cu6_qyYl.js?__WB_REVISION__=c9e057da76ef76d4a2addebd27e25d36",
+        "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+      ]
+    }
+  ],
+  "thirdBuildCleanupBounded": true,
+  "status": "PASS"
+}

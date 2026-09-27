@@ -1,0 +1,150 @@
+{
+  "origin": "http://127.0.0.1:5188",
+  "checks": [
+    "offline new-document cold start",
+    "offline import trim name Undo Redo autosave",
+    "offline reload recovery exact source PCM and trim",
+    "offline library save and load",
+    "offline actual device ZIP sparse mapping and trim",
+    "offline actual worklet take and Cancel stream cleanup",
+    "offline donation and feedback fallback with return to unchanged instrument"
+  ],
+  "errors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:5188/manifest.json",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "url": "http://127.0.0.1:5188/manifest.json",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "url": "https://api.allorigins.win/raw?url=https%3A%2F%2Fwww.patreon.com%2Fapi%2Fposts%3Ffilter%5Bcampaign_id%5D%3D14433645%26sort%3D-published_at%26page%5Bsize%5D%3D5",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "url": "https://cors-anywhere.herokuapp.com/https%3A%2F%2Fwww.patreon.com%2Fapi%2Fposts%3Ffilter%5Bcampaign_id%5D%3D14433645%26sort%3D-published_at%26page%5Bsize%5D%3D5",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "url": "https://thingproxy.freeboard.io/fetch/https%3A%2F%2Fwww.patreon.com%2Fapi%2Fposts%3Ffilter%5Bcampaign_id%5D%3D14433645%26sort%3D-published_at%26page%5Bsize%5D%3D5",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "browser": "153.0.8010.12",
+  "initialResources": [
+    {
+      "name": "http://127.0.0.1:5188/assets/index-C-hW6fLg.js",
+      "initiatorType": "script",
+      "transferSize": 260211,
+      "encodedBodySize": 259911,
+      "decodedBodySize": 895305
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/index-fRByNizp.css",
+      "initiatorType": "link",
+      "transferSize": 48826,
+      "encodedBodySize": 48526,
+      "decodedBodySize": 270196
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff",
+      "initiatorType": "css",
+      "transferSize": 31196,
+      "encodedBodySize": 30896,
+      "decodedBodySize": 30896
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2",
+      "initiatorType": "css",
+      "transferSize": 158520,
+      "encodedBodySize": 158220,
+      "decodedBodySize": 158220
+    },
+    {
+      "name": "http://127.0.0.1:5188/manifest.json",
+      "initiatorType": "fetch",
+      "transferSize": 1305,
+      "encodedBodySize": 1005,
+      "decodedBodySize": 3282
+    },
+    {
+      "name": "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js",
+      "initiatorType": "script",
+      "transferSize": 2658,
+      "encodedBodySize": 2358,
+      "decodedBodySize": 5748
+    }
+  ],
+  "install": {
+    "controller": "http://127.0.0.1:5188/sw.js",
+    "caches": [
+      {
+        "name": "op-patchstudio-v0.16.0-mtojp3ac-c93c6d9a-c218-4126-9fa0-378d0d5b4ef3-precache-v2-http://127.0.0.1:5188/",
+        "urls": [
+          "http://127.0.0.1:5188/index.html?__WB_REVISION__=0cc20e45bb211224789f97848552a8a4",
+          "http://127.0.0.1:5188/assets/workbox-window.prod.es5-BBnX5xw4.js?__WB_REVISION__=b63a6c814e11c0837136540cf08ca10f",
+          "http://127.0.0.1:5188/assets/pwa-cache-lifecycle-v0.16.0-mtojp3ac-c93c6d9a-c218-4126-9fa0-378d0d5b4ef3.js?__WB_REVISION__=245aac29a661371ad4ffa59993894dfb",
+          "http://127.0.0.1:5188/assets/preview-image.png?__WB_REVISION__=9f5b4b1d1937c4deab3429fd874c614c",
+          "http://127.0.0.1:5188/assets/preview-image-2.png?__WB_REVISION__=564f589b6f426f421fb9d57043f200e9",
+          "http://127.0.0.1:5188/assets/index-fRByNizp.css?__WB_REVISION__=997f3f03b237ec27fe518f2c94c1c6ad",
+          "http://127.0.0.1:5188/assets/index-C-hW6fLg.js?__WB_REVISION__=e9ecbbf1827113fcdf1b4f7655b6e940",
+          "http://127.0.0.1:5188/assets/icon-96x96.png?__WB_REVISION__=d89ad28014cf5bbefe39d879fc681369",
+          "http://127.0.0.1:5188/assets/icon-72x72.png?__WB_REVISION__=bc51f85b3e63fb85a009ad2b365ad5de",
+          "http://127.0.0.1:5188/assets/icon-512x512.png?__WB_REVISION__=f7cfadec541fb058afb90dde4c2ac7b8",
+          "http://127.0.0.1:5188/assets/icon-384x384.png?__WB_REVISION__=17da23879a09c25a4551a835deaffd48",
+          "http://127.0.0.1:5188/assets/icon-192x192.png?__WB_REVISION__=1374e25d99d985aef4644b67adfa8f54",
+          "http://127.0.0.1:5188/assets/icon-152x152.png?__WB_REVISION__=4bd3dc6779a303e03d26a72fb4e4d995",
+          "http://127.0.0.1:5188/assets/icon-144x144.png?__WB_REVISION__=a7869980e2b243d3c6a5bcd2d1a07f79",
+          "http://127.0.0.1:5188/assets/icon-128x128.png?__WB_REVISION__=e23cf05ddbf920c18b03ad50e4e02e94",
+          "http://127.0.0.1:5188/assets/favicon.svg?__WB_REVISION__=9e96ad6b83dc60e097f48172ae3e9504",
+          "http://127.0.0.1:5188/assets/favicon.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon.ico?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon-64.png?__WB_REVISION__=c531b3260b7ea36c1383b5dfe78439c1",
+          "http://127.0.0.1:5188/assets/favicon-48.png?__WB_REVISION__=4a14bd743bbad7a91c7b4def34ca3967",
+          "http://127.0.0.1:5188/assets/favicon-32.png?__WB_REVISION__=5736ee076d97cd550e1321fd2a7a3baa",
+          "http://127.0.0.1:5188/assets/favicon-16.png?__WB_REVISION__=d89fb52bee5736d9d18176fc9bc1f990",
+          "http://127.0.0.1:5188/assets/fa-solid-900-CTAAxXor.woff2?__WB_REVISION__=4a6591ab5460ae5cbff1ecbd6e52193a",
+          "http://127.0.0.1:5188/assets/fa-regular-400-BjRzuEpd.woff2?__WB_REVISION__=89672701a5874b80be27649e0494e354",
+          "http://127.0.0.1:5188/assets/fa-brands-400-D_cYUPeE.woff2?__WB_REVISION__=cbcf42b2e9228a8f5bad42717d8a88db",
+          "http://127.0.0.1:5188/assets/captureProcessor-C_h0dtKF.js?__WB_REVISION__=808cb55dd0fb7c7d7c136a57cf40fcaf",
+          "http://127.0.0.1:5188/assets/NimbusSanL-Reg-webfont.woff?__WB_REVISION__=35c58a88c4bcefa009a7c669efdec9e5",
+          "http://127.0.0.1:5188/assets/MultisampleTool-Cubu6amM.js?__WB_REVISION__=4cf4f588539fb8452ec9bddd6da9904f",
+          "http://127.0.0.1:5188/assets/LibraryPage-C7gpQAkW.js?__WB_REVISION__=a91d73f03119fdb754872ec4821728de",
+          "http://127.0.0.1:5188/assets/FeedbackPage-CoFbZBnn.js?__WB_REVISION__=2b182455cfe0194b97c09db146264ae4",
+          "http://127.0.0.1:5188/assets/DonatePage-XmahAN7q.js?__WB_REVISION__=4f487e0ed2a94a10cc6ba8cdaacd0b9c",
+          "http://127.0.0.1:5188/manifest.webmanifest?__WB_REVISION__=f07fdf27dec3f19d629c66bc88d9863a"
+        ]
+      },
+      {
+        "name": "op-patchstudio-lifecycle-metadata-v1",
+        "urls": [
+          "http://127.0.0.1:5188/__opstudio_cache_lifecycle__"
+        ]
+      }
+    ]
+  },
+  "device": {
+    "fade.in": 0,
+    "fade.out": 0,
+    "framecount": 8820,
+    "hikey": 58,
+    "lokey": 58,
+    "pan": 0,
+    "pitch.keycenter": 60,
+    "playmode": "oneshot",
+    "reverse": false,
+    "sample": "offline-original.wav",
+    "transpose": 0,
+    "tune": 0,
+    "gain": 0,
+    "sample.start": 882,
+    "sample.end": 8820
+  },
+  "workletLoads": [
+    "/assets/captureProcessor-C_h0dtKF.js"
+  ],
+  "workletResponses": [],
+  "status": "PASS"
+}

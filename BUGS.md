@@ -2,6 +2,8 @@
 
 Last updated: 2026-01-17
 
+> Historical upstream tracker snapshot. The statuses below describe the upstream project as of the date above and are not current acceptance results for this fork. See [`docs/verification/acceptance-matrix.md`](docs/verification/acceptance-matrix.md) for the current automated evidence and [`docs/verification/device-validation-checklist.md`](docs/verification/device-validation-checklist.md) for checks that still require browsers, assistive technology, listening, or physical devices.
+
 ## Fixed - Pending User Confirmation
 
 ### 1. Envelope/ADSR Settings Not Written to Preset

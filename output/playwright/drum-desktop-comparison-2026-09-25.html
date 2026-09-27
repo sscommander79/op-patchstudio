@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OP–PatchStudio — drum workspace comparison</title>
+<style>
+  :root{--paper:#f1f0eb;--panel:#fbfaf6;--ink:#171816;--muted:#686b66;--line:#8f918b;--tray:#71736f;--orange:#ff5a1f;--cyan:#16bee8}
+  *{box-sizing:border-box}body{margin:0;background:#dfdfda;color:var(--ink);font-family:Arial,Helvetica,sans-serif}main{width:1440px;margin:0 auto;padding:24px 32px 38px}
+  .intro{display:flex;align-items:end;justify-content:space-between;margin-bottom:12px}.intro h1{margin:0;font-size:23px;font-weight:500;letter-spacing:-.025em}.intro p{margin:0;color:#51534f;font-size:13px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase}
+  .compare{display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start;margin-bottom:18px}.compare-label{font-size:12px;line-height:1.5;color:#555854}.compare-label strong{display:block;margin-bottom:5px;color:var(--ink);font-size:15px;font-weight:600}.capture{overflow:hidden;border:1px solid #a9aaa4;background:#666864}.capture img{display:block;width:100%;height:auto}
+  .proposal{background:var(--paper);border:1px solid #656761;box-shadow:0 8px 28px #00000014}.proposal-header{display:grid;grid-template-columns:235px 1fr auto;align-items:center;height:62px;border-bottom:1px solid var(--line)}.brand{padding-left:23px;font-size:21px;letter-spacing:-.055em}.topnav{display:flex;align-items:stretch;height:100%;gap:0}.topnav span{display:flex;align-items:center;padding:0 23px;border-left:1px solid #b9bab4;font-size:11px;font-weight:700}.topnav .active{box-shadow:inset 0 -3px var(--orange)}.status{display:flex;align-items:center;gap:10px;padding:0 22px;border-left:1px solid #b9bab4;font-size:10px}.status i{height:7px;width:7px;border-radius:50%;background:var(--cyan)}
+  .heading{display:flex;justify-content:space-between;align-items:end;padding:24px 25px 17px;border-bottom:1px solid var(--line)}.eyebrow{font-size:10px;color:#666963}.heading h2{margin:7px 0 2px;font-size:27px;font-weight:500;letter-spacing:-.035em}.heading p{margin:0;color:#5f625d;font-size:13px}.heading .meta{font-size:10px;color:#686b66;text-align:right;line-height:1.7}
+  .work{display:grid;grid-template-columns:632px 1fr;min-height:500px}.performance{padding:16px 18px 18px 24px;border-right:1px solid var(--line)}.editor{padding:16px 24px 18px 18px}.panel-title{display:flex;justify-content:space-between;align-items:center;min-height:29px;margin-bottom:9px;font-size:11px;font-weight:700}.panel-title small{font-size:10px;font-weight:400;color:#737670}.tray{padding:13px 14px;background:var(--tray);border:1px solid #595b57}.bank{padding-bottom:11px}.bank+.bank{padding-top:12px;border-top:1px solid #aaa9a340}.bank-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#f7f7f2;font-size:10px}.bank-head span:last-child{color:#dbdcd5;font-size:9px}.keys{padding:0 3px}.upper,.lower{display:grid;grid-template-columns:repeat(7,1fr);column-gap:7px;justify-items:center}.upper{height:65px;align-items:start}.upper .key:nth-child(4){grid-column:5}.lower{height:79px;align-items:start}.key{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid #a2a39e;background:#d5d5ce;color:#252622;box-shadow:inset 0 1px 1px #ffffffe3,0 2px 0 #4b4e4b}.key .shortcut{position:absolute;top:7px;color:#565a56;font-size:8px}.key b{font-size:12px;font-weight:600}.key em{font-size:8px;font-style:normal;color:#555a56}.key::after{content:"";position:absolute;top:7px;right:8px;width:5px;height:5px;border-radius:50%;background:#aaa}.key.loaded::after{background:var(--cyan)}.key.selected{background:var(--orange);border-color:#d64b1d}.key.selected em,.key.selected .shortcut{color:#34231c}.upper .key{height:59px;width:62px;border-radius:21px}.lower .key{height:72px;width:66px;border-radius:26px}.lower .key .shortcut{top:5px}.lower .key b{margin-top:5px}.key.empty{background:#bfc0b9}.key.empty em{color:#535752}.key.selected::after{background:var(--cyan)}
+  .performance-foot{display:flex;align-items:center;justify-content:space-between;margin-top:11px;font-size:10px;color:#6a6d68}.performance-foot span:first-child{display:flex;align-items:center;gap:8px}.performance-foot i{height:6px;width:6px;border-radius:50%;background:var(--cyan)}
+  .editor-card{border:1px solid var(--line);background:var(--panel)}.editor-head{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid var(--line)}.editor-head .selected-pad{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600}.editor-head .selected-pad i{height:8px;width:8px;border-radius:50%;background:var(--orange)}.editor-head button{border:1px solid #777a73;background:transparent;padding:7px 10px;color:var(--ink);font-size:10px}.fileline{display:flex;justify-content:space-between;align-items:center;padding:12px 13px 7px;font-size:13px}.fileline strong{font-weight:600}.fileline span{color:#5d605a;font-size:10px}.wave{height:104px;margin:3px 13px 12px;border:1px solid #9fa19a;background:repeating-linear-gradient(90deg,transparent 0,transparent 24px,#e8e8e2 24px,#e8e8e2 25px),linear-gradient(#fbfaf6,#fbfaf6);position:relative;overflow:hidden}.wave svg{width:100%;height:100%}.wave .marker{position:absolute;top:0;bottom:0;left:8%;border-left:2px solid var(--orange)}.wave .marker.end{left:90%;border-color:#262823}.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#bfc1bb;border-top:1px solid #bfc1bb}.control{min-height:82px;padding:11px;background:var(--panel)}.control span{display:block;margin-bottom:9px;font-size:9px;color:#6a6c67}.control b{font-size:15px;font-weight:500}.control .range{height:3px;margin-top:12px;background:#c9cac4}.control .range::before{content:"";display:block;width:48%;height:3px;background:#242622}.control .range::after{content:"";display:block;width:7px;height:7px;transform:translate(55px,-5px);border-radius:50%;background:#242622}.actions{display:flex;gap:8px;margin-top:12px}.actions button{min-height:34px;padding:0 12px;border:1px solid #777973;background:var(--panel);font-size:10px;font-weight:700}.actions button.primary{background:var(--orange);border-color:#e9511c}.note{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:11px 24px;color:#62655f;font-size:10px}
+  .legend{display:flex;gap:25px;justify-content:flex-end;margin-top:9px;color:#535651;font-size:11px}.legend span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--cyan)}.legend span:last-child::before{background:var(--orange)}
+  /* Revision 2: keep the physical grouping, remove the inflated/cartoony key treatment. */
+  .tray{background:#696b67;border-color:#5e605d}
+  .upper{height:73px}.lower{height:83px}
+  .key{gap:2px;border-color:#9da09a;background:#dddeda;box-shadow:inset 0 1px 0 #f8f8f3,0 2px 0 #4f514e;color:#1b1d1a}
+  .key b{font-size:13px;font-weight:600;letter-spacing:.005em}
+  .key em{position:absolute;top:calc(100% + 5px);left:0;width:100%;font-size:8px;letter-spacing:.04em;color:#ecede8;white-space:nowrap;text-align:center}
+  .key .shortcut{top:6px;left:8px;color:#646963;font-size:8px}
+  .key::after{top:8px;right:8px;width:5px;height:5px}
+  .key.empty{background:#c6c8c2;color:#313530}
+  .key.empty em{color:#d6d8d1}
+  .upper .key{height:51px;width:63px;border-radius:12px}
+  .lower .key{height:61px;width:66px;border-radius:13px}
+  .lower .key .shortcut{top:6px}
+  .lower .key b{margin-top:4px}
+  .key.selected{background:var(--orange);border-color:#d6501d;box-shadow:inset 0 1px 0 #ff9f7c,0 2px 0 #584238}
+  .key.selected b{font-weight:700}
+  .key.selected em{color:#ff8d61}
+  /* Full-size desktop study: preserve the approved composition; evaluate keys at 1:1. */
+  body{background:var(--paper)}
+  main{width:1440px;padding:0;margin:0 auto}
+  .intro,.compare:has(.capture),.compare-label,.legend{display:none}
+  .compare{display:block;margin:0}
+  .proposal{width:1440px;box-shadow:none;border-color:#6e706b}
+  .proposal-header{height:70px;grid-template-columns:260px 1fr auto}
+  .brand{padding-left:26px;font-size:23px}
+  .heading{padding:24px 27px 20px}
+  .heading h2{font-size:30px}
+  .work{grid-template-columns:735px 1fr;min-height:0}
+  .performance{padding:19px 20px 20px 27px}
+  .editor{padding:19px 27px 20px 20px}
+  .panel-title{min-height:31px;margin-bottom:10px;font-size:12px}
+  .panel-title small{font-size:11px}
+  .tray{padding:17px 18px 14px;background:#6b6d68;border-color:#555854}
+  .bank{padding-bottom:16px}
+  .bank+.bank{padding-top:15px}
+  .bank-head{margin-bottom:11px;font-size:11px}
+  .bank-head span:last-child{font-size:10px}
+  .keys{padding:0 2px}
+  .upper,.lower{column-gap:10px}
+  .upper{height:86px}
+  .lower{height:98px}
+  .key{border:1px solid #a1a39e;background:#dedfda;box-shadow:inset 0 1px 0 #fbfbf7,0 2px 0 #4a4d49}
+  .key b{font-size:16px;font-weight:600}
+  .key .shortcut{top:8px;left:10px;font-size:10px}
+  .key em{top:calc(100% + 7px);font-size:10px;font-weight:600;letter-spacing:.05em}
+  .key::after{top:9px;right:10px;width:6px;height:6px}
+  .key.empty{background:#c8cac4}
+  .key.empty::after{background:transparent}
+  .upper .key{width:78px;height:64px;border-radius:14px}
+  .lower .key{width:82px;height:76px;border-radius:15px}
+  .lower .key .shortcut{top:8px}
+  .key.selected{background:var(--orange);border-color:#d6501d;box-shadow:inset 0 1px 0 #ff9a75,0 2px 0 #57453b}
+  .key.selected em{color:#ffd3bd}
+  .performance-foot{margin-top:14px;font-size:11px}
+  .editor-head{padding:14px 16px;border-left:3px solid var(--orange)}
+  .editor-head .selected-pad{font-size:18px}
+  .editor-head button{padding:9px 13px;font-size:11px}
+  .fileline{padding:16px 16px 8px;font-size:15px}
+  .fileline span{font-size:11px}
+  .wave{height:154px;margin:4px 16px 15px}
+  .control{min-height:104px;padding:14px}
+  .control span{font-size:10px}
+  .control b{font-size:16px}
+  .actions{gap:9px;margin-top:14px}
+  .actions button{min-height:38px;padding:0 13px;font-size:11px}
+  .actions button.primary{background:#20221f;border-color:#20221f;color:#f8f8f4}
+  .note{padding:13px 27px;font-size:10px}
+</style>
+</head>
+<body><main>
+  <div class="intro"><h1>Drum editor · desktop composition</h1><p class="mono">Comparison study / visual only</p></div>
+  <div class="compare"><div class="compare-label"><strong>Current pad strip</strong>Actual capture. Correct 5-over-7 order, but the tray and 24 large keys dominate.</div><div class="capture"><img src="drum-physical-layout-desktop-2026-09-25.png" alt="Current drum pad strip screenshot"></div></div>
+  <div class="compare"><div class="compare-label"><strong>Refined key study</strong>Mockup, not a screenshot of the existing app. Same layout and bank order; restrained, instrument-like molded keys without deep bevels or pill silhouettes.</div><div class="proposal">
+    <div class="proposal-header"><div class="brand">OP–PatchStudio</div><div class="topnav mono"><span>Overview</span><span class="active">Create</span><span>Library</span><span>Transfer</span></div><div class="status mono"><i></i> LOCAL WORKSPACE</div></div>
+    <div class="heading"><div><div class="eyebrow mono">Create / drum kit</div><h2>Build a drum kit</h2><p>Choose a pad, add a sound, and shape it here.</p></div><div class="meta mono">24 PADS / 10 LOADED<br>PROJECT SAVED LOCALLY</div></div>
+    <div class="work"><section class="performance"><div class="panel-title mono">PERFORMANCE / PAD MAP <small>click a pad to edit · play with keyboard</small></div><div class="tray">
+      <div class="bank"><div class="bank-head mono"><span>LOWER / 1–12</span><span>ACTIVE BANK · A–J</span></div><div class="keys"><div class="upper">
+        <div class="key empty"><span class="shortcut mono">W</span><b>KD2</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">E</span><b>SD2</b><em class="mono">empty</em></div><div class="key loaded"><span class="shortcut mono">R</span><b>CLP</b><em class="mono">loaded</em></div><div class="key loaded"><span class="shortcut mono">Y</span><b>CH</b><em class="mono">loaded</em></div><div class="key loaded"><span class="shortcut mono">U</span><b>OH</b><em class="mono">loaded</em></div>
+      </div><div class="lower"><div class="key selected"><span class="shortcut mono">A</span><b>KD1</b><em class="mono">selected</em></div><div class="key loaded"><span class="shortcut mono">S</span><b>SD1</b><em class="mono">loaded</em></div><div class="key loaded"><span class="shortcut mono">D</span><b>RIM</b><em class="mono">loaded</em></div><div class="key empty"><span class="shortcut mono">F</span><b>TB</b><em class="mono">empty</em></div><div class="key loaded"><span class="shortcut mono">G</span><b>SH</b><em class="mono">loaded</em></div><div class="key empty"><span class="shortcut mono">H</span><b>CL</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">J</span><b>CAB</b><em class="mono">empty</em></div></div></div></div>
+      <div class="bank"><div class="bank-head mono"><span>UPPER / 13–24</span><span>PRESS X TO PLAY</span></div><div class="keys"><div class="upper">
+        <div class="key empty"><span class="shortcut mono">W</span><b>RC</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">E</span><b>CC</b><em class="mono">empty</em></div><div class="key loaded"><span class="shortcut mono">R</span><b>COW</b><em class="mono">loaded</em></div><div class="key empty"><span class="shortcut mono">Y</span><b>LC</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">U</span><b>HC</b><em class="mono">empty</em></div>
+      </div><div class="lower"><div class="key loaded"><span class="shortcut mono">A</span><b>LT1</b><em class="mono">loaded</em></div><div class="key empty"><span class="shortcut mono">S</span><b>MT</b><em class="mono">empty</em></div><div class="key loaded"><span class="shortcut mono">D</span><b>HT</b><em class="mono">loaded</em></div><div class="key empty"><span class="shortcut mono">F</span><b>TRI</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">G</span><b>LT2</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">H</span><b>WS</b><em class="mono">empty</em></div><div class="key empty"><span class="shortcut mono">J</span><b>GUI</b><em class="mono">empty</em></div></div></div></div>
+    </div><div class="performance-foot mono"><span><i></i>CYAN = LOADED · ORANGE = SELECTED</span><span>DROP AUDIO ON ANY PAD</span></div></section>
+    <section class="editor"><div class="panel-title mono">EDIT / SELECTED PAD <small>1 of 24</small></div><div class="editor-card"><div class="editor-head"><div class="selected-pad"><i></i>KD1 <span class="mono" style="font-size:10px;font-weight:400;color:#696c66">/ LOWER PAD 01</span></div><button class="mono">NEXT PAD →</button></div><div class="fileline"><strong>Small Kick.wav</strong><span class="mono">0.48 S · 44.1 KHZ</span></div><div class="wave"><svg viewBox="0 0 520 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 L8 47 L14 59 L20 25 L25 79 L31 12 L36 84 L41 19 L47 74 L53 28 L59 70 L65 34 L72 64 L80 38 L88 61 L96 41 L104 58 L113 43 L122 56 L133 44 L145 55 L158 45 L174 54 L190 46 L209 53 L229 47 L251 52 L277 48 L304 52 L336 49 L369 51 L405 49 L446 50 L520 50" fill="none" stroke="#242622" stroke-width="1.5"/></svg><div class="marker"></div><div class="marker end"></div></div><div class="controls"><div class="control"><span class="mono">MODE</span><b>One shot</b></div><div class="control"><span class="mono">IN / OUT</span><b>0.04 / 0.44</b></div><div class="control"><span class="mono">GAIN</span><b>0 dB</b><div class="range"></div></div><div class="control"><span class="mono">PITCH</span><b>0 st</b><div class="range"></div></div></div></div><div class="actions mono"><button class="primary">REPLACE AUDIO</button><button>PLAY PAD</button><button>DETAILED EDIT</button><button>CLEAR</button></div></section></div><div class="note mono"><span>INDEPENDENT LOCAL UTILITY · CONCEPT ONLY</span><span>THE PAD MAP AND EDITOR STAY IN ONE VIEW</span></div>
+  </div></div>
+  <div class="legend mono"><span>loaded signal</span><span>selected pad</span></div>
+</main></body></html>

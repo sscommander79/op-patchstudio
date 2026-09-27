@@ -100,6 +100,7 @@ export function parseCommChunk(
   numSampleFrames: number;
   bitDepth: number;
   sampleRate: number;
+  rawSampleRate: number;
   isLittleEndian: boolean;
   isFloat: boolean;
   compressionType?: string;
@@ -175,6 +176,7 @@ export function parseCommChunk(
     numSampleFrames,
     bitDepth,
     sampleRate: validatedSampleRate,
+    rawSampleRate: sampleRate,
     isLittleEndian,
     isFloat,
     compressionType
@@ -343,4 +345,4 @@ export function findLoopPointsFromMarkers(
     loopEnd,
     foundLoopPoints
   };
-} 
+}

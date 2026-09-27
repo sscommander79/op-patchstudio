@@ -1,0 +1,20 @@
+[
+  {
+    "path": "scripts/pwa-cache-lifecycle.js",
+    "beforeBytes": 4604,
+    "afterBytes": 6056,
+    "sha256": "7c74a3535ae71a79fdf660bca6ebf83264529d7e079169d95611a73650a71055"
+  },
+  {
+    "path": "scripts/verify-pwa-build.mjs",
+    "beforeBytes": 2624,
+    "afterBytes": 2929,
+    "sha256": "828d917417957d7fbfe5a6e19a83fa3b4fb57e88e8febebae4b2b01d0ec5577b"
+  },
+  {
+    "path": "src/test/utils/pwaCacheLifecycle.test.ts",
+    "beforeBytes": 6508,
+    "afterBytes": 10286,
+    "sha256": "1c17b568d8174797fd93cbcc4f30b322a8d5f233caece97c5a47d3a940c55ce2"
+  }
+]
