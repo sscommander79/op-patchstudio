@@ -5,7 +5,7 @@
   "project": "OP-PatchStudio (unofficial, TE-inspired but original visual identity)",
   "repo_path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved",
   "branch": "codex/studio-upgrade",
-  "head_commit": "dc1e1f3515e2f2054f83b7507e1e71951f5ee80e",
+  "head_commit": "17fc6880e215272dec251dd308adc5ff6fa61a56",
   "phase": null,
   "phase_name": null,
   "phase_dir": null,
@@ -14,11 +14,11 @@
   "total_tasks": null,
   "gsd_milestone": null,
   "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
-  "status": "Original push failures repaired; strict flaky-test CI follow-through in progress; human/hardware acceptance pending",
+  "status": "Push/CI repairs and Claude review complete; all six strict push gates pass without flaky tests; human/hardware acceptance pending",
   "release_ready": false,
   "design_approved": false,
   "working_tree": {
-    "state": "HEAVILY DIRTY, UNCOMMITTED WIP",
+    "state": "Tracked repairs and evidence committed and pushed; only four pre-existing untracked duplicate/output paths remain before this documentation checkpoint",
     "status_entries_before_handoff": 222,
     "status_entries_added_by_handoff": "1 (untracked `?? .planning/` containing HANDOFF.json and .continue-here.md); expected total 223",
     "user_owned_changes_must_be_preserved": true,
@@ -29,10 +29,10 @@
       "git stash / reset / checkout / clean or any command that discards or moves working-tree changes",
       "npm install or dependency changes"
     ],
-    "commit_note": "The GSD pause-work skill normally commits the handoff. Not done here: this repo's instructions require separate, explicit commit authorization, and the user has not given it.",
+    "commit_note": "User explicitly authorized commit/push and uninterrupted CI/review follow-through; completed on codex/studio-upgrade. Older dirty counts are historical.",
     "status_entries_before_hv007": 139,
     "status_entries_at_new_chat_handoff": 145,
-    "status_note": "Verified2026-10-02; dynamic count must be checked again on resume. All uncommitted work is user-owned and must be preserved."
+    "status_note": "Verified at strict code checkpoint17fc688; recheck dynamic status on resume. Preserve all four pre-existing untracked paths."
   },
   "background_processes": {
     "dev_server_5191": "RUNNING; live Chrome drum editor, verified2026-10-02",
@@ -237,7 +237,7 @@
       "log_safety": "Capture raw output to a private temporary file, sanitize API-key/config/authorization strings before printing or persisting reviewer reports. Never print raw config or key. Completed-review sanitizer is in the temporary work directory referenced in NEW-CHAT-HANDOFF."
     }
   },
-  "next_action": "Read docs/verification/ci-followthrough-2026-10-02/README.md. Code9f64f79 passed all six push-triggered GitHub jobs; local and remote1174unit tests pass. Claude final static review has no remaining material findings in repaired scope. Resume HumanTest04 only after inspecting live user state. HV001/HV004 and separate pre-existing import-rate fidelity follow-up remain. No merge/deployment or physical hardware acceptance performed.",
+  "next_action": "Read docs/verification/ci-followthrough-2026-10-02/README.md. Strict code17fc688 passed all six push-triggered GitHub jobs in37074972204, with zero flaky tests in complete logs. Claude reviews complete and findings addressed. One older Mobile Safari timeout remains of unknown cause, documented; strict CI now fails flakes and retains initial traces. Inspect live state before HumanTest04. HV001/HV004, physical acceptance and separate source-fidelity follow-up remain. No merge/deployment.",
   "resume_file": ".planning/OPXY-HANDOFF-2026-10-02.md",
   "latest_pass": {
     "name": "Studio restoration (unified launch, direct Open kit, drum compaction, semantic colour, dev stale-worker guard, regression gates)",
@@ -595,10 +595,10 @@
   },
   "ci_followthrough": {
     "date": "2026-10-02",
-    "code_commit": "9f64f79266df569eeea7f627e9cbc48fd795d5e8",
-    "run_id": 37072170233,
-    "result": "PASS all6push-triggered jobs; scheduled/manual-only job not applicable",
-    "review": "Claude read-only initial, follow-up, final; final no material findings in limited scope",
+    "code_commit": "17fc6880e215272dec251dd308adc5ff6fa61a56",
+    "run_id": 37074972204,
+    "result": "PASS all six push-triggered jobs; zero flaky tests in complete job logs; scheduled/manual-only job not applicable",
+    "review": "Claude production initial/follow-up/final and configuration initial/final; findings closed and required evidence committed",
     "report": "docs/verification/ci-followthrough-2026-10-02/README.md",
     "local_unit_tests": 1174,
     "local_portability": "78passed,2existing skips,5profiles at44100Hz",
@@ -611,7 +611,8 @@
       "finding": "One Mobile Safari first-attempt timeout; passed retry; cause unestablished",
       "local_reproduction": "60 folder repetitions and 14 file-entry tests passed",
       "repair": "CI fails on flaky tests and retains initial failure plus retry traces",
-      "strict_ci": "Pending new push at this checkpoint"
-    }
+      "strict_ci": "PASS37074972204 on17fc688; original single timeout cause remains unknown"
+    },
+    "production_code_commit": "9f64f79266df569eeea7f627e9cbc48fd795d5e8"
   }
 }

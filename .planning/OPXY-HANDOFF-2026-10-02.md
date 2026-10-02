@@ -1,8 +1,10 @@
 # OP-PatchStudio — move this work to the OPXY project
 
-## Final retry audit follow-through — 2026-10-02
+## Latest verified strict CI result — 2026-10-02
 
-The documentation-only a2f19fd run was green but contained one Mobile Safari folder-import timeout that passed on retry. Root cause is not established; 60 local repetitions and all 14 file-entry checks passed. The next checkpoint tightens CI to fail on flaky tests and retain first-failure/retry traces; a controlled probe verifies both. No product code or assertion was weakened. See the final section of the CI report and subsequent Actions run for strict remote results. Earlier verified9f64f79 results below remain historical evidence.
+Commit17fc688 passed all six push-triggered Quality jobs in run37074972204. Complete job logs contain zero flaky tests. CI now fails retry-only passes and retains first-failure/retry traces in the main and storage suites; controlled probes prove exit status and trace retention. The scheduled/manual job gains evidence upload but was not applicable to this push. Claude's two additional configuration reviews are closed, with required logs committed.
+
+The earlier a2f19fd run had one Mobile Safari folder-import timeout that passed on retry; its cause remains unknown. Sixty local repetitions, all14file-entry tests, and the final strict remote profile passed. No product code, assertion or timeout was softened. Read the final sections of `docs/verification/ci-followthrough-2026-10-02/README.md` and `strict-code-ci.json`. This documentation checkpoint changes no verified behavior. Resume human/hardware acceptance only after inspecting live state; deferred work remains unchanged.
 
 ## Latest completed CI and Claude review — 2026-10-02
 
