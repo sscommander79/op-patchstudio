@@ -1,0 +1,62 @@
+# Static review: `dc1e1f3..3061b96` (reviewed commit `3061b96bac82`)
+
+**Scope and limitations.** This was a read-only static review using `git show`/`git diff` at `3061b96` plus the two CI logs in `docs/verification/ci-followthrough-2026-10-02/`. Nothing was run, edited or delegated. It was one pass focused on the priorities you named (audio import, frame/rate handling, playback cancellation, CI portability), not separate SPEC and STANDARDS passes; the UI, CSS and accessibility parts of the range were not reviewed. HV001/HV004 were not touched. `rate-44100-red.log` appeared in the working tree mid-review and was not read.
+
+**Summary.** All four Chromium failures are test assumptions about the runner's audio rate, not regressions in this range. The `browser-regressions` cancellation is the 25-minute job timeout, driven by a Firefox failure cluster whose root cause the log does not show.
+
+`★ Insight ─────────────────────────────────────`
+- `decodeAudioData` resamples to the rate of the `AudioContext` it is called on. This app decodes every import on the singleton realtime context, so "frames" depend on the machine: 48 kHz on the dev Mac, 44.1 kHz on a headless Linux runner.
+- A GitHub Actions job timeout ends as *cancelled*, not *failed*, so `if: failure()` steps are skipped and Playwright never prints its end-of-run error summary.
+`─────────────────────────────────────────────────`
+
+## Findings
+
+### F1. High, test assumption: e2e specs hard-code the dev machine's 48 kHz context rate
+- **Where:** `tests/e2e/audio-import.spec.ts:19` and `:26`; `tests/e2e/loop-editor.spec.ts:72`, `:170`, `:175`; `tests/e2e/slicing.spec.ts:146`.
+- **Evidence:** CI received `decoded 44100 Hz`, `4410` and `44099` where the specs expect 48000, 4800 and 48000. The app displays `audioBuffer.sampleRate` and `audioBuffer.length` straight from a decode on `new AudioContext()` (`src/utils/audioContext.ts:18`, `src/utils/audio.ts:67`, `src/utils/audioFormats.ts:220` and `:377`).
+- **Origin:** No decode code changed in this range. The loop-editor and audio-import expectations pre-date it; `slicing.spec.ts:146` was introduced in range (it replaced a constant with a read-back plus exact `toBe(48_000)`).
+- **Latent follow-on:** `audio-import.spec.ts:26` (`mp3.audio.sampleRate` is 48000) will fail next once line 19 is fixed.
+- **44099:** the slicer's Reset uses `source.audioBuffer.length` (`SliceAudioModal.tsx:115`), so the decoder returned 44099 frames for a 48000-frame source. I infer this is Chromium's resampler length, not app arithmetic; either way, `frames × rate ÷ 48000` is not an exact predictor.
+- **Recommendation:** Do not just swap the constants to 44100. Either apply F2, which makes WAV/AIFF frame counts machine-independent, or read the context rate in-page and assert relative to it with ±1 frame tolerance. For compressed formats, assert `decoded ${contextRate} Hz`.
+
+### F2. Medium, production, pre-existing: imported audio is resampled to the device rate
+- **Where:** `src/utils/audio.ts:67`, `src/utils/audioFormats.ts:220` and `:377`; `src/utils/exportPlanning.ts:50`.
+- **Scenario:** A 48 kHz WAV imported on a 44.1 kHz device is stored and edited at 44.1 kHz, while `originalSampleRate` stays 48000. With "keep original", `planAudioConversion` exports at 44.1 kHz when no conversion is needed, but at 48 kHz (upsampled from the already downsampled buffer) as soon as normalize or a bit-depth change is on.
+- **Effect:** Frame markers and slice provenance are in device-rate frames, so the same file gives different numbers on different machines. The import review UI is honest about this ("decoded N Hz"); the behaviour itself is the issue.
+- **Recommendation:** For WAV/AIFF, where the header rate is already parsed before decode, decode on `new OfflineAudioContext(channels, 1, headerRate)` so no resampling occurs. This also fixes three of the four CI failures at the root. Guard for rates outside what the browser's `OfflineAudioContext` accepts.
+
+### F3. High, CI workflow: `browser-regressions` cannot finish in 25 minutes when a cluster fails, and loses its evidence
+- **Where:** `.github/workflows/quality.yml:89` (timeout) and `:121` (`if: failure()`); `playwright.config.ts` (`retries: 2`, `workers: 1`).
+- **Evidence:** The job started at 21:29:59 and was cancelled at 21:55:13, on test 304 of 320. Firefox had 81 failed attempts costing about 779 s; all passing tests together cost about 500 s.
+- **Consequence:** The artifact upload was skipped and the reporter printed no error details, so the Firefox cause is not recoverable from this run.
+- **Recommendation:**
+  - Change the upload step to `if: always()`.
+  - Split the job into a per-project matrix, or raise the timeout.
+  - Set `retries: 1` and a `maxFailures` cap for this job.
+  - Add a `github` or `line` reporter so errors print as they happen.
+
+### F4. High, cause unproven: Firefox failure cluster
+- **Evidence:** 27 distinct Firefox tests failed all three attempts across `file-entry-audit`, `focus-entry-audit`, `marker-actions-audit`, `multisample-table-audit`, `mobile-row-drop-audit`, `drum-row-actions-audit`, `instrument-utility-audit` (multisample) and `slicing:124/245/262`.
+- **Pattern:** Every failing test I opened imports a user file or asserts that playback started. Firefox tests that only use settings, the library, guides or the demo kit passed, including `slicing.spec.ts:76`.
+- **Hypothesis, not proven:** Both import decode and playback first `await audioContextManager.getAudioContext()`, which does an unbounded `await this.audioContext.resume()` when suspended (`src/utils/audioContext.ts:23-25`). If Firefox on the runner never settles that promise, imports hang with no error. If true, this is a production hazard, not just a test one.
+- **Next step:** Rerun Firefox alone with traces after F3. If confirmed, stop gating decode on `resume()`; F2's offline context removes the dependency.
+
+### F5. Low–Medium, production, pre-existing: slicer transport shows "playing" when playback failed
+- **Where:** `src/components/drum/SliceAudioModal.tsx:103-105`.
+- **Scenario:** `playWithADSR` returns `null` on any caught error (`useAudioPlayer.ts:885-888`). `playRange` treats a non-string result as the requested id, sets `noteRef`, and calls `setTransport('playing')`. No voice exists, so `onEnded` never fires; frame inputs stay disabled and Mark split is enabled against a clock for audio that is not playing, until the user presses Stop.
+- **Recommendation:** On a `null` result, call `stop()` and surface an error instead of entering `playing`.
+
+### F6. Low, production, in range: envelope scheduling change looks correct, with one inconsistency
+- **Where:** `src/hooks/useAudioPlayer.ts:446-454`.
+- **Assessment:** Replacing attack/decay `setValueCurveAtTime` with point ramps removes the overlap throw that previously made `playWithADSR` return `null` with nodes connected but never started. I found no defect in it.
+- **Residual:** Release still uses `setValueCurveAtTime` (`:524`, `:603`). A release during attack or decay cancels the remaining ramp points, so gain can step by up to one segment (1/50 of the stage) before the release curve. `cancelAndHoldAtTime` would avoid that where available.
+
+### F7. Low, production, in range: capture session changes
+- **Where:** `src/audio/recording/captureSession.ts:127`, `:136`, `:162-165`.
+- **Capacity:** Reservation now always assumes two channels, so a mono input close to the limit is refused where it previously fit. This looks deliberate per the comment, but it is a user-visible change.
+- **Ordering:** Pending processor messages are now awaited in sequence after the live `onmessage` handler is installed (`:160`). A live message can therefore be handled while an earlier pending one is still awaiting; I did not confirm this causes a wrong state.
+- **Processor:** The `captureProcessor.ts` change (lazy core from the first input block, early return when failed) has no defect I could find.
+
+### F8. Info, CI coverage gaps
+- The Chromium e2e step failed, so the later steps in `quality-and-chromium` never ran: storage integration, dev-origin, recording and stem recording are unverified in CI for this commit.
+- Neither log contains `macos-visual` output. All 12 baselines are `chromium-darwin` and were recorded on Darwin 25.1, while the runner is `macos-15`; with `maxDiffPixels: 20` an OS rendering difference is a risk I could not assess.

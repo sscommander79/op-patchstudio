@@ -1,4 +1,4 @@
-import { expect, test, type Download, type Page } from './control-audit-test';
+import { expect, test, type Download, type Page } from './audio-context-fixture';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {applyAudioImport} from './import-helpers';
@@ -64,6 +64,10 @@ async function readPatch(download: Download) {
   const audio = await zip.file(String(patch.regions[0].sample))!.async('uint8array');
   return { patch, audio };
 }
+
+test.describe('explicit 48 kHz source-to-44.1 kHz export contract', () => {
+  // Exact marker/export bytes below intentionally exercise a 48 kHz decoder.
+  test.use({ audioSampleRate: 48000 });
 
 test('zoom editor saves one atomic half-open edit and exports real converted loop bytes', async ({ page }) => {
   await uploadMultisample(page);
@@ -151,6 +155,8 @@ test('zoom editor saves one atomic half-open edit and exports real converted loo
   expect(smpl.view.getUint32(smpl.offset + 36 + 12, true)).toBe(2204);
 });
 
+});
+
 test('portrait touch opens the responsive editor without a rotation gate', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await uploadMultisample(page);
@@ -167,12 +173,16 @@ test('drum table opens the same frame editor and Cancel preserves its markers', 
   await page.getByRole('button', { name: 'Table', exact: true }).click();
   let dialog = await openEditor(page);
   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
-  await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+  const decodedFrames = await page.evaluate(async () => {
+    const context = new AudioContext();
+    try { return Math.round(context.sampleRate / 10); } finally { await context.close(); }
+  });
+  await expect(dialog.getByLabel('Sample end frames')).toHaveValue(String(decodedFrames));
   await dialog.getByLabel('Sample start frames').fill('480');
   await dialog.getByRole('button', { name: 'cancel' }).click();
   dialog = await openEditor(page);
   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
-  await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+  await expect(dialog.getByLabel('Sample end frames')).toHaveValue(String(decodedFrames));
 });
 
 test('waveform surface opens zoom and Escape preserves existing markers',async({page})=>{

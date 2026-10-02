@@ -37,6 +37,13 @@ jobs:
           PLAYWRIGHT_FAKE_AUDIO_FILE: /tmp/opstudio-ci-stem-audio.wav
           PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
         run: npx playwright test --config=playwright.stem-recording.config.ts
+      - name: Upload Chromium failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromium-failures
+          path: test-results
+          retention-days: 14
 
   # Pixel baselines for the launch surface and drum workbench are recorded on macOS Chromium. A failure
   # here needs a person to review the uploaded diff images; baselines are never updated automatically.
@@ -87,6 +94,18 @@ jobs:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: Mobile Chrome
+            browser: chromium
+          - project: Mobile Safari
+            browser: webkit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -95,8 +114,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Functional regressions across desktop and mobile browser profiles
+        timeout-minutes: 18
         env:
           PLAYWRIGHT_PRODUCTION: '1'
         run: >-
@@ -115,12 +135,11 @@ jobs:
           tests/e2e/file-entry-audit.spec.ts
           tests/e2e/modal-cancellation-audit.spec.ts
           tests/e2e/mobile-row-drop-audit.spec.ts
-          --project=firefox --project=webkit
-          --project='Mobile Chrome' --project='Mobile Safari'
+          --project="${{ matrix.project }}" --reporter=github,list
       - name: Upload failure evidence
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-regression-failures
+          name: browser-regression-failures-${{ matrix.project }}
           path: test-results
           retention-days: 14

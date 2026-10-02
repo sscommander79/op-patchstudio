@@ -1,4 +1,4 @@
-import { expect, test, type Download, type Page } from './control-audit-test';
+import { expect, test, type Download, type Page } from './audio-context-fixture';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {downloadDevicePreset, gotoWorkspace, expectDrumLoaded, openAdvanced, openWorkspace, projectAction} from './workspace-actions';
@@ -143,7 +143,17 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await dialog.getByText('Detailed timing',{exact:true}).click();
   await dialog.getByRole('button',{name:'Reset to full source'}).click();
   const sourceFrames=Number(await dialog.getByLabel('Sound 1 End frame').inputValue());
-  expect(sourceFrames).toBe(48_000);
+  // Browser decoding may resample the 48 kHz file to its output-device rate.
+  // Independently decode the same bytes, rather than trusting the editor value.
+  const decoded = await page.evaluate(async bytes => {
+    const context = new AudioContext();
+    try {
+      const buffer = await context.decodeAudioData(Uint8Array.from(bytes).buffer);
+      return { frames: buffer.length, sampleRate: buffer.sampleRate };
+    } finally { await context.close(); }
+  }, Array.from(transientWav().buffer));
+  expect(sourceFrames).toBe(decoded.frames);
+  expect(Math.abs(sourceFrames - decoded.sampleRate)).toBeLessThanOrEqual(1);
   await dialog.getByRole('button',{name:'Play source'}).click();
   await expect(dialog.getByRole('button',{name:'Mark split (M)'})).toBeEnabled();
   await page.waitForTimeout(80);
@@ -202,6 +212,7 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   expect(originalAsset.sourcePath).toBeTruthy();
   expect(originalAsset.metadata).toMatchObject({sampleRate:48_000,channels:1});
   expect(originalAsset.audio.frames).toBe(sourceFrames);
+  expect(originalAsset.audio.sampleRate).toBe(decoded.sampleRate);
   for(const ref of sliceRefs) {
     const asset=manifest.samples.find(sample=>sample.id===ref.sampleId)!;
     expect(asset.sourcePath).toBeUndefined();

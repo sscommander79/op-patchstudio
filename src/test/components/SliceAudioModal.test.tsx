@@ -8,7 +8,7 @@ import { prepareSliceApplication } from '../../utils/audioSlicing';
 
 const audioFormatMocks=vi.hoisted(()=>({read:vi.fn()}));
 vi.mock('../../utils/audioFormats',()=>({readAudioMetadataFromArrayBuffer:audioFormatMocks.read}));
-const playWithADSR=vi.fn(async(_audio:AudioBuffer,id:string,options?:{onEnded?:()=>void})=>{void options;return id;}),releaseNote=vi.fn();
+const playWithADSR=vi.fn(async(_audio:AudioBuffer,id:string,options?:{onEnded?:()=>void}):Promise<string|null>=>{void options;return id;}),releaseNote=vi.fn();
 vi.mock('../../hooks/useAudioPlayer',()=>({useAudioPlayer:()=>({playWithADSR,releaseNote})}));
 let audioClock=10;
 vi.mock('../../utils/audioContext',()=>({audioContextManager:{getCurrentTime:()=>audioClock,getSampleRate:()=>10_000}}));
@@ -103,6 +103,18 @@ describe('SliceAudioModal beginner workflow',()=>{
   it('accepts only an internal current range id on drop and moves a staged sound',async()=>{render(<SliceAudioModal {...props()}/>);await ready();const sound=screen.getByRole('button',{name:'Select sound 1'}),pad9=screen.getByRole('button',{name:/Pad 9, CH, Empty/i});const values=new Map<string,string>(),dataTransfer={types:[SLICE_DRAG_TYPE],effectAllowed:'none',setData:(type:string,value:string)=>values.set(type,value),getData:(type:string)=>values.get(type)??''};fireEvent.dragStart(sound,{dataTransfer});fireEvent.drop(pad9,{dataTransfer});expect(screen.getByRole('button',{name:/Pad 9, CH, Sound 1/i})).toBeInTheDocument();const invalid={types:[SLICE_DRAG_TYPE],getData:()=> 'stale-sound'};fireEvent.drop(screen.getByRole('button',{name:/Pad 10, CL, Empty/i}),{dataTransfer:invalid});expect(screen.getByRole('button',{name:/Pad 10, CL, Empty/i})).toBeInTheDocument();const rangeId=values.get(SLICE_DRAG_TYPE)!,external={types:['text/plain'],getData:()=>rangeId};fireEvent.drop(screen.getByRole('button',{name:/Pad 10, CL, Empty/i}),{dataTransfer:external});expect(screen.getByRole('button',{name:/Pad 10, CL, Empty/i})).toBeInTheDocument();});
 
   it('keeps the original assignment through split and clears mapping on delete and confirmed reset',async()=>{render(<SliceAudioModal {...props()}/>);await ready();await userEvent.selectOptions(screen.getByLabelText('Destination pad'),'8');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));await advanced();await userEvent.click(screen.getByRole('button',{name:'Split sound'}));expect(screen.getByRole('button',{name:/Pad 9, CH, Sound 1/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Delete sound'}));expect(screen.getByRole('button',{name:/Pad 9, CH, Sound 1/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Select sound 1'}));await userEvent.click(screen.getByRole('button',{name:'Stop'}));await userEvent.click(screen.getByRole('button',{name:'Delete sound'}));expect(screen.getByRole('button',{name:/Pad 9, CH, Empty/i})).toBeInTheDocument();await userEvent.selectOptions(screen.getByLabelText('Destination pad'),'9');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));await userEvent.click(screen.getByRole('button',{name:'Reset to full source'}));expect(screen.getByRole('alert')).toHaveTextContent(/boundary edits and assignments/i);await userEvent.click(screen.getByRole('button',{name:'Replace edits'}));expect(screen.getByText(/0 sounds are assigned/i)).toBeInTheDocument();});
+
+  it('failed preview startup stays stopped, reports failure and permits retry',async()=>{
+    render(<SliceAudioModal {...props()}/>);await ready();
+    playWithADSR.mockResolvedValueOnce(null);
+    await userEvent.click(screen.getByRole('button',{name:'Play sound'}));
+    expect(screen.getByRole('button',{name:'Stop'})).toBeDisabled();
+    expect(screen.getByLabelText('Sound 1 End')).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not play/i);
+    await userEvent.click(screen.getByRole('button',{name:'Play sound'}));
+    expect(screen.getByRole('button',{name:'Stop'})).toBeEnabled();
+    expect(screen.queryByText(/could not play/i)).not.toBeInTheDocument();
+  });
 
   it('changing selected sound stops owned playback and editing is disabled while playing',async()=>{render(<SliceAudioModal {...props()}/>);await ready();await userEvent.click(screen.getByRole('button',{name:'Play sound'}));expect(screen.getByLabelText('Sound 1 End')).toBeDisabled();await userEvent.click(screen.getByRole('button',{name:'Next sound'}));expect(releaseNote).toHaveBeenCalledTimes(1);expect(screen.getByLabelText('Sound 2 End')).toBeEnabled();});
 
