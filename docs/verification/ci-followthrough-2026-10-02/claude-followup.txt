@@ -1,0 +1,71 @@
+Still reviewing statically; the working tree changed mid-review (Codex is editing concurrently), so I re-snapshotted and the findings below are against the tree as of 15:09:18.
+
+# Follow-up static review: working tree vs `3061b96`
+
+**Scope.** This is a read-only static review. I ran nothing, edited nothing, delegated nothing and did not browse. It is a single pass, not separate SPEC and STANDARDS passes, and makes no independent-model or runtime claim.
+
+- **Read:** `git diff 3061b96` (6 files, +72/−16), `tests/e2e/audio-context-fixture.ts`, `README.md`, `claude-review.txt`, and the heads and tails of the logs in the verification folder.
+- **Snapshot:** `SliceAudioModal.test.tsx` was modified at 15:07:45 while I was reading. Findings are pinned to the tree at 15:09:18 (`git diff 3061b96 | shasum` = `3f9599d7…`).
+- **Not written:** the plan-mode plan file, because the deliverable is this review.
+
+**Verdict.** No blocking defect in the three areas you named. There are three actionable items (A1, B1, C1), and the README is stale in three places (section D).
+
+`★ Insight ─────────────────────────────────────`
+- The fixture subclasses `window.AudioContext` and injects `sampleRate` only when the caller gave none. Every app construction site resolves through `window.AudioContext`, so they all pick it up, and explicit rates in `RecordingModal` and `StemRecordingModal` are preserved. `OfflineAudioContext` is untouched, so the export resampler stays real.
+- In the slicer, the order of the two guards after `await playWithADSR` is what keeps cancellation silent: the superseded/closed/busy check runs before the `null` check.
+`─────────────────────────────────────────────────`
+
+## A. Sample-rate assertion repairs
+
+The exact export contract is not weakened. In `loop-editor.spec.ts` every exact value is unchanged (`'4800'`, `framecount: 2210`, loop `441`/`2205`, crossfade `553`, smpl `441`/`2204`), and the 48 kHz input is now pinned with `test.use({ audioSampleRate: 48000 })`.
+
+- **A1 (Low–Medium), `loop-editor.spec.ts:176-179`:** the drum Cancel test predicts frames with `Math.round(context.sampleRate / 10)`.
+  - `claude-review.txt` F1 warned this arithmetic is not an exact predictor (the 44099 case).
+  - It gives 4410 on Linux Chromium per the initial CI log. But this spec also runs on Firefox, WebKit and both mobile profiles in `scheduled-browser-matrix`, where resampler length is unverified.
+  - The README's "follows device frames" overstates it.
+  - Fix: reuse the `decodeAudioData` probe from `slicing.spec.ts:148-154` on `wavFixture48k('drum.wav').buffer` and assert `toHaveValue(String(decoded.frames))`.
+- **A2 (Low), `slicing.spec.ts:155-156`:** on a 48 kHz device the old exact `48_000` is now `decoded.frames` plus a ±1 tolerance.
+  - The probe uses the same browser decoder as the app, so it proves app-equals-browser, not exactness.
+  - Fix: add `if (decoded.sampleRate === 48_000) expect(sourceFrames).toBe(48_000);`.
+- **A3 (Info), coverage:** exact export bytes are asserted only for a 48 kHz context. What a real 44.1 kHz user gets is still unasserted. That is consistent with deferring F2, but record it as an F2 follow-up.
+- **A4 (Info), remote behaviour:** the forced 48 kHz context on a 44.1 kHz Linux runner includes real playback (playhead polling). It is locally green only, so treat it as pending remote confirmation.
+- **Checked, no issue:** `audio-import.spec.ts`. The `decoded ${decodedRate} Hz` substring is as strict as the old regex, and the "source rate unknown", `source rate 44100 Hz` and byte-identical source assertions are intact.
+
+## B. Matrix workflow and evidence loss
+
+The main loss mode is fixed: a step timeout of 18 minutes fails the step rather than cancelling the job, and the upload is `if: always()`. All four projects and all 21 specs are retained, and `fail-fast: false` is set.
+
+- **B1 (Medium), `quality.yml:119,138`:** the failure summary can still be lost if the Firefox job hits the step timeout.
+  - The `list` and `github` reporters emit error details at end of run, so a killed step may print none. Whether Playwright gets a graceful interrupt there is unproven.
+  - F4 is unresolved and `retries: 2` is unchanged. The previous Firefox cost was about 779 s of failures plus its share of passes, so it sits close to 18 minutes.
+  - Fix: add `--global-timeout=900000` so Playwright ends itself and prints the summary, plus `--max-failures=15` or `--retries=1` for this job. Both were in F3's recommendation and were not adopted.
+- **B2 (Low), `quality.yml:40-41`:** the new Chromium upload is `if: failure()` under a 30-minute job timeout with no step timeout. A timeout there is a cancel, so it reproduces the original loss. Fix: use `if: always()`, or give the e2e steps a `timeout-minutes`.
+- **B3 (Info), check names:** jobs are now named `browser-regressions (firefox, firefox)` and so on. If branch protection requires a check called `browser-regressions`, it will never report. I cannot verify this statically.
+- **Checked, no issue:**
+  - Artifact names with spaces ("Mobile Chrome") are valid for upload-artifact v4.
+  - `--reporter=github,list` drops the HTML reporter, which was never uploaded.
+  - The Chromium upload's `test-results` path covers the dev-origin and visual sub-directories.
+
+## C. Slicer null-start fix (`SliceAudioModal.tsx:103-105`)
+
+Cancellation and owned-note state are preserved.
+
+- A `null` result that arrives after Stop, close, busy or a newer request takes the earlier guard and returns silently, with no error shown.
+- On the `null` branch, `noteRef` is never set to the phantom id, the clock is not created, and transport stays stopped.
+- `playWithADSR` only returns `null` before `activeNotesRef.set` (`useAudioPlayer.ts:866-889`), so no registered note is orphaned.
+
+- **C1 (Low–Medium), unconditional `setError('')` at line 103:** it clears alerts that have nothing to do with playback.
+  - `auditionSound` calls `playRange`, so merely selecting a sound now wipes the "Pad N changed. Its unassignment was cancelled" notice (line 43), "No sounds found…" (line 58) and the commit-conflict message (line 82).
+  - Fix: keep playback failure in its own state, or clear only when the current error is the playback message.
+- **C2 (Low), test gap:** the new test covers fail-then-retry only. Add a case where `playWithADSR` resolves `null` after Stop or close and assert there is no alert and `releaseNote` is not called for a phantom note.
+
+## D. README dispositions
+
+- **F1, F5, F6, F7:** accurate. The counts match the logs (78 passed and 2 skipped of 80; 39 of 39 slicer tests).
+- **F2:** accurate as a deferral. "Track separately" points to no issue or file; add one.
+- **F3:** "implemented" is incomplete. See B1 and B2.
+- **F4:** correctly pending.
+- **F8:** "macOS visual gate independently confirmed passed" has no supporting artifact in the folder, and `claude-review.txt` says neither log contains `macos-visual` output. Attach the run reference or soften the claim.
+- **Stale status line:** it says the local standard check is pending, but `standard-check-final.log` shows typecheck, lint (0 errors, 3 warnings), 1173 tests and build passing.
+- **Unexplained failed log:** `standard-check.log` records a failed typecheck (`'exact'` not in `ByRoleOptions`, lines 111 and 115). That is fixed in the current test file, but the README does not mention the log.
+- **Unreferenced log:** `final-slicing-44100.log` (25 passed) is not mentioned.

@@ -21,7 +21,7 @@ All four Chromium failures reproduced locally with a real 44.1 kHz AudioContext 
 
 Finding disposition so far:
 - F1 test sample-rate assumptions: repaired and reproduced at 44.1 kHz.
-- F2 existing device-rate decoding / keep-original export inconsistency: confirmed source behavior; architectural import fidelity change is outside this CI repair. Original source bytes remain preserved and decoded dimensions remain truthful. Track separately; do not silently change frame coordinate semantics across existing projects.
+- F2 existing device-rate decoding / keep-original export inconsistency: confirmed source behavior; architectural import fidelity change is outside this CI repair. Original source bytes remain preserved and decoded dimensions remain truthful. Tracked in [followup-import-rate-fidelity.md](followup-import-rate-fidelity.md); do not silently change frame coordinate semantics across existing projects.
 - F3 CI timeout/evidence loss: matrix separation and evidence uploads implemented; remote verification pending.
 - F4 Firefox import/playback failure: root cause still under investigation; require fresh remote traces.
 - F5 null slicer playback: regression and bounded production repair implemented.
@@ -34,3 +34,15 @@ Official CI guidance retrieved through find-docs/Context7 (Playwright 1.63): htt
 Local standard gate PASS: 1,173 unit tests across111files, typecheck/lint/build/PWA (`standard-check-final.log`). Initial new test used an unsupported Testing Library role option; typecheck caught it, corrected before this passing run. Post-build slicer suites at44.1kHz PASS25 across five profiles (`final-slicing-44100.log`).
 
 Status: work ongoing. Fresh remote run pending. No completion or hardware-acceptance claim.
+
+## Follow-up review disposition
+
+Claude follow-up (`claude-followup.txt`) found no blocking defect in the targeted repairs and supplied additional improvements. A1: independent decode now determines the drum Cancel frame count. A2: native48k slicing retains the original exact48000 assertion. A3:44.1k export fidelity added to the separate F2 record. B1/B2: explicit Playwright global timeout plus matrix max-failure cap preserve summaries; step deadlines leave time for always-uploaded evidence. B3: no branch-protection settings were altered. C1/C2: RED tests reproduced warning erasure and phantom-note release; repaired by clearing only the playback alert and releasing only successful late-start ids. All40 slicer tests pass. D: current standard/portability evidence is recorded above; initial visual success can be verified at https://github.com/sscommander79/op-patchstudio/actions/runs/37067181483/job/111037841931 .
+
+## Firefox environment experiment
+
+All jobs except Firefox passed on9d6c59d (run37070991176); Firefox's repeated import/playback failures remain unresolved. Source inspection shows both decode and audition await realtime AudioContext.resume. A primary maintainer report and its own CI setup describe Firefox never starting its AudioContext on headless Linux without an audio backend: https://github.com/tsuemura/playwright-audio-mocking#notes--caveats . Playwright Context7 docs did not document this prerequisite; freedesktop's module documentation lookup returned an error. These sources support a hypothesis, not proof of this runner's cause.
+
+Next CI experiment provisions PulseAudio in Linux jobs that run Firefox, prints the available sinks, and keeps real browser decoding/playback and existing assertions. The experiment changes no product decode architecture, no browser autoplay policy and no local dependencies. Require actual remote Firefox pass and prior failure traces before closing F4.
+
+Latest local state: `final-standard.log` PASS1174tests/111files plus typecheck/lint/build/PWA; `final-portability-44100.log` PASS78/2existing skips across five profiles.

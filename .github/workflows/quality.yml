@@ -26,7 +26,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e:production -- --project=chromium
+      - run: npm run test:e2e:production -- --project=chromium --global-timeout=900000
+        timeout-minutes: 18
       - run: npm run test:e2e:storage-integration -- --project=chromium
       - name: Dev-origin stale service worker recovery
         run: npm run test:e2e:dev-origin
@@ -38,7 +39,7 @@ jobs:
           PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
         run: npx playwright test --config=playwright.stem-recording.config.ts
       - name: Upload Chromium failure evidence
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: chromium-failures
@@ -80,6 +81,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Start virtual audio output for Firefox
+        run: |
+          sudo apt-get install -y pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl list short sinks
       - run: npm run test:e2e:production
       - run: npm run test:e2e:storage-integration
       - name: Synthetic recording and guided multisampling
@@ -115,6 +121,12 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start virtual audio output for Firefox
+        if: matrix.browser == 'firefox'
+        run: |
+          sudo apt-get install -y pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl list short sinks
       - name: Functional regressions across desktop and mobile browser profiles
         timeout-minutes: 18
         env:
@@ -136,6 +148,7 @@ jobs:
           tests/e2e/modal-cancellation-audit.spec.ts
           tests/e2e/mobile-row-drop-audit.spec.ts
           --project="${{ matrix.project }}" --reporter=github,list
+          --global-timeout=900000 --max-failures=15
       - name: Upload failure evidence
         if: always()
         uses: actions/upload-artifact@v4

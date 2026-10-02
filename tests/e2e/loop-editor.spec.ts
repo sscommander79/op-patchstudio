@@ -173,10 +173,11 @@ test('drum table opens the same frame editor and Cancel preserves its markers', 
   await page.getByRole('button', { name: 'Table', exact: true }).click();
   let dialog = await openEditor(page);
   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
-  const decodedFrames = await page.evaluate(async () => {
+  const decodedFrames = await page.evaluate(async bytes => {
     const context = new AudioContext();
-    try { return Math.round(context.sampleRate / 10); } finally { await context.close(); }
-  });
+    try { return (await context.decodeAudioData(Uint8Array.from(bytes).buffer)).length; }
+    finally { await context.close(); }
+  }, Array.from(wavFixture48k('drum.wav').buffer));
   await expect(dialog.getByLabel('Sample end frames')).toHaveValue(String(decodedFrames));
   await dialog.getByLabel('Sample start frames').fill('480');
   await dialog.getByRole('button', { name: 'cancel' }).click();

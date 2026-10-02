@@ -116,6 +116,16 @@ describe('SliceAudioModal beginner workflow',()=>{
     expect(screen.queryByText(/could not play/i)).not.toBeInTheDocument();
   });
 
+  it('ignores a failed preview that settles after closing without releasing a phantom note',async()=>{
+    const input=props(),view=render(<SliceAudioModal {...input}/>);await ready();
+    const late=deferred<string|null>();playWithADSR.mockImplementationOnce(()=>late.promise);
+    await userEvent.click(screen.getByRole('button',{name:'Play sound'}));
+    view.rerender(<SliceAudioModal {...input} isOpen={false} request={null}/>);
+    await act(async()=>{late.resolve(null);await late.promise;});
+    expect(screen.queryByText(/could not play/i)).not.toBeInTheDocument();
+    expect(releaseNote).not.toHaveBeenCalled();
+  });
+
   it('changing selected sound stops owned playback and editing is disabled while playing',async()=>{render(<SliceAudioModal {...props()}/>);await ready();await userEvent.click(screen.getByRole('button',{name:'Play sound'}));expect(screen.getByLabelText('Sound 1 End')).toBeDisabled();await userEvent.click(screen.getByRole('button',{name:'Next sound'}));expect(releaseNote).toHaveBeenCalledTimes(1);expect(screen.getByLabelText('Sound 2 End')).toBeEnabled();});
 
   it('stops owned playback before an unedited reset replaces ranges',async()=>{render(<SliceAudioModal {...props()}/>);await ready();await advanced();await userEvent.click(screen.getByRole('button',{name:'Play sound'}));await userEvent.click(screen.getByRole('button',{name:'Reset to full source'}));expect(releaseNote).toHaveBeenCalledTimes(1);expect(screen.getByText('Sound 1 of 1')).toBeInTheDocument();expect(screen.getByRole('button',{name:'Play sound'})).toBeEnabled();});
@@ -152,7 +162,7 @@ describe('slicer organization and decision safety',()=>{
     await userEvent.click(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'}));await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));
     const changed={...input.existingSamples[2],name:'changed.wav',gain:8},existingSamples=input.existingSamples.map((sample,index)=>index===2?changed:sample);
     view.rerender(<SliceAudioModal {...input} existingSamples={existingSamples} projectAssets={existingSamples} prepareApplication={prepareApplication}/>);
-    expect(screen.getByRole('button',{name:'Pad 3, SD1, changed.wav'})).toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent(/changed.*unassignment.*cancelled/i);
+    expect(screen.getByRole('button',{name:'Pad 3, SD1, changed.wav'})).toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent(/changed.*unassignment.*cancelled/i);await userEvent.click(screen.getByRole('button',{name:'Play sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/changed.*unassignment.*cancelled/i);await userEvent.click(screen.getByRole('button',{name:'Stop'}));
     await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));await userEvent.click(screen.getByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Add sounds to kit'}));await waitFor(()=>expect(input.onApply).toHaveBeenCalledOnce());
     expect(prepareApplication.mock.calls[0][0].unassignmentApprovals).toEqual([{targetKeyIndex:2,sample:changed}]);
   });

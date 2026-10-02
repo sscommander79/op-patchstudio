@@ -153,6 +153,7 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
     } finally { await context.close(); }
   }, Array.from(transientWav().buffer));
   expect(sourceFrames).toBe(decoded.frames);
+  if (decoded.sampleRate === 48_000) expect(sourceFrames).toBe(48_000);
   expect(Math.abs(sourceFrames - decoded.sampleRate)).toBeLessThanOrEqual(1);
   await dialog.getByRole('button',{name:'Play source'}).click();
   await expect(dialog.getByRole('button',{name:'Mark split (M)'})).toBeEnabled();
