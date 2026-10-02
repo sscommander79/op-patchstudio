@@ -15,9 +15,11 @@ interface Props {
   disabled:boolean;
   onAssign:(rangeId:string,keyIndex:number)=>void;
   onPreview:(rangeId:string)=>void;
+  selectedKey?:number;
+  onSelect?:(keyIndex:number)=>void;
 }
 
-export function SliceKeyboardMapping({existingSamples,ranges,mapping,disabled,onAssign,onPreview}:Props) {
+export function SliceKeyboardMapping({existingSamples,ranges,mapping,disabled,onAssign,onPreview,selectedKey,onSelect}:Props) {
   const rangeNumber=new Map(ranges.map((range,index)=>[range.id,index+1]));
   const assignedByKey=new Map(Object.entries(mapping).map(([id,key])=>[key,id]));
   const drop=(event:DragEvent<HTMLButtonElement>,keyIndex:number)=>{
@@ -31,8 +33,9 @@ export function SliceKeyboardMapping({existingSamples,ranges,mapping,disabled,on
     const detail=soundNumber?`Sound ${soundNumber}`:existing?.name||'Empty';
     return <button key={index} type="button" disabled={disabled} aria-label={`Pad ${index+1}, ${label}, ${detail}`} title={detail} data-slice-pad={index}
       onDragOver={event=>{if(event.dataTransfer.types.includes(SLICE_DRAG_TYPE))event.preventDefault();}} onDrop={event=>drop(event,index)}
-      onClick={()=>{if(rangeId)onPreview(rangeId);}}
-      style={{gridColumn:`${column} / span 2`,gridRow:row,width:'48px',minWidth:'48px',minHeight:'64px',padding:'.25rem',border:'1px solid var(--color-border-medium)',borderRadius:'4px',background:soundNumber?'var(--color-interactive-focus)':existing?'var(--color-bg-tertiary)':'var(--color-bg-secondary)',color:soundNumber?'var(--studio-accent-text)':'var(--color-text-primary)',cursor:rangeId?'pointer':'default',display:'grid',alignContent:'center',gap:'.1rem'}}>
+      aria-pressed={selectedKey===index}
+      onClick={()=>{onSelect?.(index);if(rangeId)onPreview(rangeId);}}
+      style={{gridColumn:`${column} / span 2`,gridRow:row,width:'48px',minWidth:'48px',minHeight:'64px',padding:'.25rem',border:'1px solid var(--color-border-medium)',outline:selectedKey===index?'2px solid var(--color-text-primary)':undefined,outlineOffset:'-2px',borderRadius:'4px',background:soundNumber?'var(--color-interactive-focus)':existing?'var(--color-bg-tertiary)':'var(--color-bg-secondary)',color:soundNumber?'var(--studio-accent-text)':'var(--color-text-primary)',cursor:'pointer',display:'grid',alignContent:'center',gap:'.1rem'}}>
       <strong>{label}</strong><span>{index+1}</span><small style={{fontSize:'11px',lineHeight:1.05,display:'grid'}}>{soundNumber?<><span>Sound</span><span>{soundNumber}</span></>:existing?'Loaded':'Empty'}</small>
     </button>;
   };

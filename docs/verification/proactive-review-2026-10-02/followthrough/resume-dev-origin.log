@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:78764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/dev-origin/stale-worker.spec.ts:98:1 › the dev server retires a legacy OP-PatchStudio worker without reloading tabs or clearing project data (11.5s)
+
+  1 passed (12.6s)

@@ -1,0 +1,22 @@
+[
+  {
+    "suite": "storage",
+    "exit": 0,
+    "log": "docs/verification/proactive-review-2026-10-02/followthrough/resume-verified-storage.log"
+  },
+  {
+    "suite": "fake-recording",
+    "exit": 0,
+    "log": "docs/verification/proactive-review-2026-10-02/followthrough/resume-verified-fake-recording.log"
+  },
+  {
+    "suite": "stem",
+    "exit": 0,
+    "log": "docs/verification/proactive-review-2026-10-02/followthrough/resume-verified-stem.log"
+  },
+  {
+    "suite": "production",
+    "exit": 1,
+    "log": "docs/verification/proactive-review-2026-10-02/followthrough/resume-verified-production.log"
+  }
+]

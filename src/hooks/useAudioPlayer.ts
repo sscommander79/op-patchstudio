@@ -439,6 +439,20 @@ export function useAudioPlayer() {
     return points;
   }, []);
 
+  // Preserve the curve's linear interpolation without reserving an interval.
+  // Native value curves clamp past start times to currentTime; if the audio
+  // clock advances between calls, adjacent attack/decay curves can overlap
+  // and throw before the source starts. Point ramps tolerate that clock advance.
+  const scheduleEnvelopeSegment = useCallback((
+    param: AudioParam, values: number[], startTime: number, duration: number
+  ) => {
+    const points = Float32Array.from(values);
+    param.setValueAtTime(points[0], startTime);
+    for (let index = 1; index < points.length; index += 1) {
+      param.linearRampToValueAtTime(points[index], startTime + duration * (index / (points.length - 1)));
+    }
+  }, []);
+
   // Apply ADSR envelope to a gain node using exponential curves
   const applyADSREnvelope = useCallback((
     gainNode: GainNode,
@@ -461,7 +475,7 @@ export function useAudioPlayer() {
     if (attackTime > 0) {
       // Attack: exponential curve (factor 1.5 like the visual envelope)
       const attackCurve = generateExponentialCurve(0, scaledAttackPeak, 1.5);
-      gainNode.gain.setValueCurveAtTime(attackCurve, startTime, attackTime);
+      scheduleEnvelopeSegment(gainNode.gain, attackCurve, startTime, attackTime);
     } else {
       // Instant attack
       gainNode.gain.setValueAtTime(scaledAttackPeak, startTime);
@@ -472,7 +486,7 @@ export function useAudioPlayer() {
     if (decayTime > 0) {
       // Decay: exponential curve to sustain level
       const decayCurve = generateExponentialCurve(scaledAttackPeak, scaledSustainLevel, 2.0);
-      gainNode.gain.setValueCurveAtTime(decayCurve, attackEndTime, decayTime);
+      scheduleEnvelopeSegment(gainNode.gain, decayCurve, attackEndTime, decayTime);
     } else {
       // Instant decay to sustain
       gainNode.gain.setValueAtTime(scaledSustainLevel, attackEndTime);
@@ -484,7 +498,7 @@ export function useAudioPlayer() {
     
     // Return the sustain end time for release calculation
     return decayEndTime;
-  }, [convertADSRValues, generateExponentialCurve]);
+  }, [convertADSRValues, generateExponentialCurve, scheduleEnvelopeSegment]);
 
   // Release a note with ADSR envelope
   const releaseNoteWithADSR = useCallback((

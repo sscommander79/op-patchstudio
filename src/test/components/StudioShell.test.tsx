@@ -35,10 +35,11 @@ describe('StudioShell presentation landmarks', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'What are you working on?' })).toBeInTheDocument();
     expect(document.querySelectorAll('[data-start-diagram]').length).toBe(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    expect(screen.queryByRole('button', { name: 'Create' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Setup guide: multisample a synth' }));
 
     expect(window.location.hash).toBe('#/studio/create');
-    expect(screen.getByRole('heading', { name: 'What would you like to make?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Where is your synth?' })).toBeInTheDocument();
     expect(document.querySelectorAll('[data-launch-diagram]').length).toBe(0);
   });
 

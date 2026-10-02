@@ -209,20 +209,23 @@ export function MultisamplePresetSettings() {
   };
 
   const updateAmpEnvelope = (envelope: MultisampleAdvancedSettings['ampEnvelope']) => {
-    setSettings(prev => {
-      const newSettings = { ...prev, ampEnvelope: envelope };
-      dispatch({ type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: envelope });
-      return newSettings;
-    });
+    setSettings(prev => ({ ...prev, ampEnvelope: envelope }));
+    dispatch({ type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: envelope });
   };
 
   const updateFilterEnvelope = (envelope: MultisampleAdvancedSettings['filterEnvelope']) => {
-    setSettings(prev => {
-      const newSettings = { ...prev, filterEnvelope: envelope };
-      dispatch({ type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: envelope });
-      return newSettings;
-    });
+    setSettings(prev => ({ ...prev, filterEnvelope: envelope }));
+    dispatch({ type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: envelope });
   };
+
+  const updateEnvelopes = (ampEnvelope: MultisampleAdvancedSettings['ampEnvelope'], filterEnvelope: MultisampleAdvancedSettings['filterEnvelope']) => {
+    setSettings(prev => ({ ...prev, ampEnvelope, filterEnvelope }));
+    dispatch({ type: 'BATCH_EDIT', payload: [
+      { type: 'SET_MULTISAMPLE_AMP_ENVELOPE', payload: ampEnvelope },
+      { type: 'SET_MULTISAMPLE_FILTER_ENVELOPE', payload: filterEnvelope },
+    ] });
+  };
+
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -257,7 +260,7 @@ export function MultisamplePresetSettings() {
   );
 
   return (
-    <div style={{
+    <div className="studio-settings-panel" style={{
       background: 'var(--color-bg-primary)',
       borderRadius: '15px',
       boxShadow: '0 2px 8px var(--color-shadow-primary)',
@@ -266,7 +269,7 @@ export function MultisamplePresetSettings() {
       marginBottom: '1rem',
     }}>
       {/* Header */}
-      <div style={{
+      <div className="studio-settings-panel-header" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -294,7 +297,7 @@ export function MultisamplePresetSettings() {
         <div style={{ display: 'grid', gap: '1rem' }}>
 
           {/* Essential Settings */}
-          <section style={{
+          <section className="studio-settings-section" style={{
             border: '1px solid var(--color-border-light)',
             borderRadius: '6px',
             marginBottom: '0.75rem',
@@ -303,6 +306,16 @@ export function MultisamplePresetSettings() {
           }}>
             {/* Header */}
             <div
+              className="studio-settings-section-header"
+              role="button"
+              tabIndex={0}
+              aria-label="Basic settings"
+              aria-expanded={expandedSections.basic}
+              onKeyDown={event => {
+                if (event.key !== ' ' && event.key !== 'Enter') return;
+                event.preventDefault();
+                if (!event.repeat) toggleSection('basic');
+              }}
               onClick={() => toggleSection('basic')}
               style={{
                 display: 'flex',
@@ -434,7 +447,7 @@ export function MultisamplePresetSettings() {
           </section>
 
           {/* Advanced Settings */}
-          <section style={{
+          <section className="studio-settings-section" style={{
             border: '1px solid var(--color-border-light)',
             borderRadius: '6px',
             marginBottom: '0.75rem',
@@ -443,6 +456,16 @@ export function MultisamplePresetSettings() {
           }}>
             {/* Header */}
             <div
+              className="studio-settings-section-header"
+              role="button"
+              tabIndex={0}
+              aria-label="Advanced settings"
+              aria-expanded={expandedSections.sound}
+              onKeyDown={event => {
+                if (event.key !== ' ' && event.key !== 'Enter') return;
+                event.preventDefault();
+                if (!event.repeat) toggleSection('sound');
+              }}
               onClick={() => toggleSection('sound')}
               style={{
                 display: 'flex',
@@ -636,7 +659,7 @@ export function MultisamplePresetSettings() {
           </section>
 
           {/* Envelopes and Filters */}
-          <section style={{
+          <section className="studio-settings-section" style={{
             border: '1px solid var(--color-border-light)',
             borderRadius: '6px',
             marginBottom: '0.75rem',
@@ -645,6 +668,16 @@ export function MultisamplePresetSettings() {
           }}>
             {/* Header */}
             <div
+              className="studio-settings-section-header"
+              role="button"
+              tabIndex={0}
+              aria-label="Envelopes and filters"
+              aria-expanded={expandedSections.envelopes}
+              onKeyDown={event => {
+                if (event.key !== ' ' && event.key !== 'Enter') return;
+                event.preventDefault();
+                if (!event.repeat) toggleSection('envelopes');
+              }}
               onClick={() => toggleSection('envelopes')}
               style={{
                 display: 'flex',
@@ -679,7 +712,7 @@ export function MultisamplePresetSettings() {
             </div>
             {/* Content */}
             {expandedSections.envelopes && (
-              <div style={{
+              <div className="studio-settings-section-body" style={{
                 display: 'flex',
                 flexDirection: isMobile ? 'column' : 'row',
                 gap: isMobile ? '1.5rem' : '3rem',
@@ -696,11 +729,12 @@ export function MultisamplePresetSettings() {
                     filterEnvelope={settings.filterEnvelope}
                     onAmpEnvelopeChange={updateAmpEnvelope}
                     onFilterEnvelopeChange={updateFilterEnvelope}
+                    onEnvelopesChange={updateEnvelopes}
                   />
                 </div>
 
                 {/* Filters (Coming Soon) */}
-                <div style={{
+                <div className="studio-settings-placeholder" style={{
                   flex: isMobile ? '1' : '1 1 50%',
                   display: 'flex',
                   flexDirection: 'column',
@@ -722,7 +756,6 @@ export function MultisamplePresetSettings() {
                   </div>
                   <div style={{
                     fontSize: '0.9rem',
-                    opacity: 0.7,
                     textAlign: 'center'
                   }}>
                     coming soon

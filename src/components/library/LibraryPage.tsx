@@ -67,13 +67,15 @@ export function LibraryPage() {
   const stopLibraryPreview=useCallback((announce=true)=>{latestPreviewRequestRef.current++;stopPreview(announce);},[stopPreview]);
   const previewSummary=useCallback(async(summary:PresetSummary)=>{
     const requestId=++latestPreviewRequestRef.current;
+    let failureMessage = 'Could not read this saved preset. Try previewing again.';
     try{
       const preset=await indexedDB.getPreset(summary.id);
       if(!mountedRef.current||requestId!==latestPreviewRequestRef.current)return;
-      if(!preset)throw new Error('Saved preset no longer exists');
+      if(!preset){failureMessage='This preset is no longer in the library. Refresh the library to update the list.';throw new Error('Saved preset no longer exists');}
+      if(preset.type!=='drum'&&preset.type!=='multisample'){failureMessage='This saved preset type cannot be previewed.';throw new Error('Unsupported saved preset type');}
       await preview(preset as LibraryPreset);
     }catch{
-      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'preview failed',message:'saved preset is no longer available'}});
+      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'preview failed',message:failureMessage}});
     }
   },[dispatch,preview]);
 
@@ -180,11 +182,13 @@ export function LibraryPage() {
     try {
       const preset=await indexedDB.getPreset(summary.id) as LibraryPreset|null;
       if(!preset)throw new Error('Saved preset no longer exists');
+      if(preset.type!=='drum'&&preset.type!=='multisample')throw new Error('Unsupported saved preset type');
       // The current project remains valid while all incoming audio is decoded.
       const project = await deserializeLibraryPreset(preset);
       if(!mountedRef.current||requestId!==latestLoadRequestRef.current)return;
       if(!projectEditIdentityMatches(editIdentity,currentStateRef.current))throw new Error('Current project changed while the preset was loading');
       dispatch({type:'RESTORE_LIBRARY',payload:{mode:preset.type,project}});
+      window.dispatchEvent(new CustomEvent('opstudio-open-workspace', {detail:preset.type}));
 
       dispatch({
         type: 'ADD_NOTIFICATION',
@@ -214,6 +218,7 @@ export function LibraryPage() {
     try {
       const preset=await indexedDB.getPreset(summary.id) as LibraryPreset|null;
       if(!preset)throw new Error('Saved preset no longer exists');
+      if(preset.type!=='drum'&&preset.type!=='multisample')throw new Error('Unsupported saved preset type');
       const patchBlob=await renderSavedPreset(preset);
       downloadBlob(patchBlob, `${libraryPresetFolderNames([preset])[0]}.zip`);
 

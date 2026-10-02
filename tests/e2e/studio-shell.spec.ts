@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './control-audit-test';
 
 test('desktop studio uses the available width and has one brand header', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -49,9 +49,7 @@ test('top-level workspace navigation survives reload and browser Back', async ({
 test('single-sample path reaches manual recording; Help search and navigation preserve the recorder', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'What would you like to make?' })).toBeVisible();
-  await page.getByRole('button', { name: /Sample a sound Record \/ review/ }).click();
+  await page.getByRole('button', { name: 'Setup guide: sample a sound' }).click();
   await page.getByRole('button', { name: /Software synth Run it in your DAW/ }).click();
   await page.getByRole('button', { name: 'Continue to setup' }).click();
   await expect(page.getByText('MIDI is optional for recording a single sound.')).toBeVisible();
@@ -86,8 +84,7 @@ test('single-sample path reaches manual recording; Help search and navigation pr
 
 test('automatic multisampling and drum setup reach their actual recorders', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('button', { name: /Multisample a synth Capture notes/ }).click();
+  await page.getByRole('button', { name: 'Setup guide: multisample a synth' }).click();
   await page.getByRole('button', { name: 'Continue to setup' }).click();
   await page.getByRole('button', { name: 'Open editor and Record takes' }).click();
   const recorder = page.getByRole('dialog', { name: 'Record takes' });
@@ -98,8 +95,7 @@ test('automatic multisampling and drum setup reach their actual recorders', asyn
   await expect(recorder.getByLabel('Capture mode')).toBeHidden();
   await recorder.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Overview' }).click();
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('button', { name: /Build a drum kit Pad map/ }).click();
+  await page.getByRole('button', { name: 'Setup guide: build a drum kit' }).click();
   await page.getByRole('button', { name: 'Open editor and Record takes' }).click();
   await expect(recorder).toBeVisible();
   await expect(recorder.getByText('Guided automatic multisampling')).toHaveCount(0);
@@ -138,8 +134,7 @@ test('route focus keeps narrow navigation visible and uses the shell as the only
   await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole('button', { name: 'Help', exact: true }).last()).toBeInViewport();
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('button', { name: /Multisample a synth Capture notes/ }).click();
+  await page.getByRole('button', { name: 'Setup guide: multisample a synth' }).click();
   await expect(page.getByRole('heading', { name: 'Where is your synth?' })).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole('button', { name: 'Help', exact: true }).last()).toBeInViewport();

@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-02",
+  "scope": "Approved bounded slicer grouping, disclosure affordance, fixed footer and pending-decision mutation guards; project-wide review guidance",
+  "standard": {
+    "command": "npm run check",
+    "exit_code": 0,
+    "unit_files": 111,
+    "unit_tests": 1143,
+    "typecheck": "pass",
+    "lint": "pass, zero errors; three existing unused-disable warnings",
+    "build_pwa": "pass"
+  },
+  "focused": {
+    "tests": 31,
+    "status": "pass",
+    "red_evidence": [
+      "organization, pending reset/reanalysis mutation and setup refresh failed on original source",
+      "near-key drag control test failed before implementation",
+      "removing the new split decision guard reproduces pending-M mutation"
+    ]
+  },
+  "browser": {
+    "command": "PLAYWRIGHT_PRODUCTION=1 node_modules/.bin/playwright test tests/e2e/slicing.spec.ts --workers=2 --reporter=list",
+    "exit_code": 0,
+    "passed": 20,
+    "failed": 0,
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit",
+      "Mobile Chrome",
+      "Mobile Safari"
+    ],
+    "layout_viewports": [
+      {
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "width": 390,
+        "height": 640
+      }
+    ],
+    "checks": [
+      "native disclosure keyboard use",
+      "fixed footer during body scrolling",
+      "no horizontal body overflow",
+      "real drag/drop, selected near-key drag affordance",
+      "slice live marker, apply, portable project provenance, export, Undo",
+      "draft survives browser Back"
+    ]
+  },
+  "review": {
+    "model": "genspark-llm-proxy/gpt-5.6-sol",
+    "routing_verified": "plan \u00b7 gpt-5.6-sol",
+    "mode": "read-only; no test execution by reviewer",
+    "verdict": "no blocking runtime defects; safe after checks",
+    "low_findings_disposition": [
+      "Actual Fast Refresh tested separately and real 18-sound draft preservation observed during integration",
+      "Pending-M mutation has direct RED/GREEN test, allowed post-decision M behavior also checked with dialog focus",
+      "Stale analysis/file completions flushed through React act before assertions",
+      "Source mutation checked with before/after PCM arrays",
+      "E2E source frame count now read from actual reset boundary, asserted 48000"
+    ]
+  },
+  "live": {
+    "url": "http://127.0.0.1:5191/#/studio/drum",
+    "source": "Take 1.opfloat, 5.66 seconds, original Pad 4 / SD2",
+    "draft_sound_count": 18,
+    "selected_sound": 16,
+    "selected_start_seconds_display": "3.197",
+    "selected_end_seconds_display": "3.208",
+    "assigned": 0,
+    "integration": "Actual refresh kept source/count/selected boundaries/pending reset; assistant clicked Keep edits afterward to preserve draft and re-enable controls. No sounds applied, reset, played or exported from user session.",
+    "screenshot": "hv006-approved-slicer-ready.png"
+  },
+  "boundaries": [
+    "No new commit, push, deployment, dependency install, Git checkout/reset/stash/clean or hardware action",
+    "No visual baseline updates",
+    "HV-001 Table clipping and HV-004 Safari Overview remain open/deferred",
+    "Desired-count selector remains unimplemented enhancement observation",
+    "No release or exhaustive hardware/function claim"
+  ],
+  "guidance": "docs/design-system/studio-usability-feedback.md"
+}

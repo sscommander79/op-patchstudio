@@ -1,0 +1,23 @@
+
+> plan · gpt-5.6-sol
+
+✱ Glob "**/VirtualMidiKeyboard.tsx" in . · 1 match
+✱ Glob "**/VirtualMidiKeyboardShortcuts.test.tsx" in . · 1 match
+✱ Glob "**/SessionRestorationModal.tsx" in . · 1 match
+→ Read docs/verification/proactive-review-2026-10-02/followthrough/resume-sol-review.txt [offset=1, limit=2000]
+I’ll inspect only the four named artifacts and assess the four specified fixes against the latest code and recorded findings.
+→ Read src/test/components/VirtualMidiKeyboardShortcuts.test.tsx [offset=1, limit=1200]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=1, limit=1400]
+→ Read src/components/common/SessionRestorationModal.tsx [offset=1, limit=500]
+**Remaining Material Issue**
+- **Medium: Pointer cleanup can still release before asynchronous playback starts.** `VirtualMidiKeyboard.tsx:74-95,537-561`
+- **Exact reproduction:** configure `onKeyClick` to pause while initializing/resuming audio; press or touch loaded note 72, then trigger `mouseup`, `touchcancel`, window blur, deactivation, or unmount before that promise completes. `releasePointer()`/`releaseHeldNotes()` calls `onKeyRelease(72)` immediately, but `onKeyClick(72)` is not awaited. When its promise later resolves, playback can register after the release and remain sounding. The pointer tests at `VirtualMidiKeyboardShortcuts.test.tsx:100-107` use synchronous spies and do not cover this ordering.
+
+The other reviewed fixes appear correct statically:
+
+- Assistive `detail === 0` activation awaits `onKeyClick` and releases in `finally`.
+- Pointer ownership is cleared during release, blur, deactivation, unmount, and `touchcancel`.
+- Mere pointer entry/leave no longer releases a note owned by another input.
+- Restoration uses `useOwnedDialog`; while pending, focus moves to the focusable dialog container, and afterward returns to an enabled action.
+
+Static read-only review only. No tests, browser, assistive technology, touch hardware, or audio execution were used. Prior Devices and `RecordingModal` nonfindings stand.

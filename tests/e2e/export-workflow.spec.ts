@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {applyAudioImport} from './import-helpers';
@@ -120,11 +120,15 @@ test('an older saved session can be restored after reload with its pad assignmen
 test('a failed autosave offers a retry that saves the current work', async ({ page }) => {
   await page.addInitScript(() => {
     const original = IDBObjectStore.prototype.put;
-    let failNextMusicalSave = true;
+    // Keep the injected outage active through subsequent edits. A one-shot
+    // failure let autosave recover before Playwright could click Retry save.
+    let storageAvailable = false;
+    document.addEventListener('click', event => {
+      if ((event.target as Element).closest('button')?.textContent?.trim() === 'Retry save') storageAvailable = true;
+    }, { capture: true });
     IDBObjectStore.prototype.put = function (...args) {
       const value = args[0] as { drumSamples?: unknown[] };
-      if (this.name === 'sessions' && value.drumSamples?.length && failNextMusicalSave) {
-        failNextMusicalSave = false;
+      if (this.name === 'sessions' && value.drumSamples?.length && !storageAvailable) {
         throw new DOMException('Simulated storage failure', 'QuotaExceededError');
       }
       return original.apply(this, args);
@@ -168,6 +172,7 @@ test('library reload restores saved multisample settings and keeps the drum kit'
   await page.getByRole('button', { name: /^(load preset|load)$/ }).click();
   await page.getByRole('button', { name: 'ok', exact: true }).click();
   await expect(page.locator('.studio-shell-location strong')).toHaveText('Multisample editor');
+  await expect(page).toHaveURL(/#\/studio\/multisample$/);
   await expect(page.getByRole('textbox', { name: 'Instrument name', exact: true })).toHaveValue('Library complete');
   const { patch } = await downloadPatch(page);
   expect.soft(patch.octave).toBe(2);

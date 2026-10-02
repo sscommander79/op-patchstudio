@@ -104,7 +104,7 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
           : 'Unsaved changes';
   const revisionConflict = state.sessionSaveStatus === 'error' && state.sessionSaveError?.includes('another tab');
 
-  return <section aria-label="Instrument project controls" className="studio-toolbar">
+  return <section data-project-busy={busy !== null ? 'true' : undefined} aria-label="Instrument project controls" className="studio-toolbar">
     <div className="studio-toolbar-main">
       <label className="studio-name-field" htmlFor="instrument-name">
         <span>Instrument name</span>
@@ -126,7 +126,7 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
             <button type="button" disabled={busy !== null} onClick={() => void downloadProject()}>Download project</button>
             <button type="button" disabled={busy !== null} onClick={() => backupInput.current?.click()}>Open project</button>
             <button type="button" onClick={saveDefault}>Save settings as default</button>
-            <button type="button" onClick={() => { if (!document.querySelector('[data-recording-modal="true"]')) dispatch({ type: 'SET_TAB', payload: 'library' }); }}>Open library</button>
+            <button type="button" onClick={() => { window.dispatchEvent(new CustomEvent('opstudio-open-workspace', { detail: 'library' })); }}>Open library</button>
           </div>
         </details>
         <input ref={backupInput} aria-label="Project backup file" hidden type="file" accept=".opstudio,application/vnd.op-patchstudio.project+zip,application/zip" onChange={event => void openProject(event.target.files?.[0])} />

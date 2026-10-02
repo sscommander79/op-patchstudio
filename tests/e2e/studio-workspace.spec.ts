@@ -1,4 +1,4 @@
-import { expect, test, type Download } from '@playwright/test';
+import { expect, test, type Download } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {gotoWorkspace} from './workspace-actions';

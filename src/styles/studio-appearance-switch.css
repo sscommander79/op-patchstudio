@@ -1,0 +1,46 @@
+/* Appearance switch: two tab-shaped native radios. Shared by both appearances because the control is new in each. */
+.studio-appearance-switch { display: inline-flex; align-items: stretch; min-width: 0; margin: 0; padding: 0; border: 0; }
+.studio-appearance-legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.studio-appearance-choice {
+  position: relative; display: inline-flex; flex: 1 1 auto; align-items: center; justify-content: center; gap: .4rem;
+  min-width: 44px; min-height: 44px; box-sizing: border-box; padding: 0 .75rem;
+  border: 1px solid var(--studio-system-rule); border-bottom-width: 3px; border-bottom-color: transparent;
+  background: transparent; color: var(--studio-system-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
+  cursor: pointer;
+}
+.studio-appearance-choice + .studio-appearance-choice { margin-left: -1px; }
+/* The native radio covers its tab so pointer, touch and keyboard all reach the real control. */
+.studio-appearance-choice input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.studio-appearance-choice:hover { background: var(--studio-system-recess); color: var(--studio-system-graphite); }
+/* Checked: filled tab, heavier label and a solid lower rule — shape and weight, not only colour. */
+.studio-appearance-choice:has(input:checked) { z-index: 1; border-color: var(--studio-system-graphite); border-bottom-color: var(--studio-system-graphite); background: var(--studio-system-graphite); color: var(--studio-system-panel); font-weight: 800; --studio-appearance-glyph-screen: var(--studio-system-graphite); }
+.studio-appearance-choice:has(input:checked) .studio-appearance-label { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.studio-appearance-choice:has(input:focus-visible),
+.studio-appearance-switch[data-keyboard-focus="true"] .studio-appearance-choice:has(input:focus) { z-index: 2; outline: 3px solid var(--studio-text); outline-offset: 2px; box-shadow: 0 0 0 5px var(--studio-panel); }
+.studio-appearance-glyph { flex: 0 0 auto; }
+@media (max-width: 560px) {
+  .studio-shell-header-meta:has(.studio-appearance-switch) { flex: 1 1 100%; flex-wrap: wrap; row-gap: .4rem; padding-top: .35rem; padding-bottom: .35rem; }
+  .studio-shell-header-meta .studio-appearance-switch { flex: 1 1 100%; }
+  /* Theme and Help share the row below the switch. */
+  .studio-shell-header-meta:has(.studio-appearance-switch) .studio-theme-picker { flex: 1 1 0; min-width: 0; }
+  .studio-shell-header-meta:has(.studio-appearance-switch) .studio-theme-picker select { flex: 1 1 auto; min-width: 0; }
+}
+/* The switch widens the header meta group. Keep the brand on one readable line and let the
+ * meta group move to its own row instead of squeezing the brand or overflowing the page. */
+.studio-shell-header-main:has(.studio-appearance-switch) .studio-shell-brand { flex: 0 0 auto; }
+@media (max-width: 850px) { .studio-shell-header-main:has(.studio-appearance-switch) .studio-shell-brand { flex: 1 0 auto; } }
+.studio-shell-header-main:has(.studio-appearance-switch) .studio-shell-brand > strong,
+.studio-shell-header-main:has(.studio-appearance-switch) .studio-shell-brand > small,
+.studio-shell-header-meta:has(.studio-appearance-switch) > span { white-space: nowrap; }
+@media (max-width: 1360px) {
+  .studio-shell-header-main:has(.studio-appearance-switch) { flex-wrap: wrap; }
+  .studio-shell-header-meta:has(.studio-appearance-switch) { flex-wrap: wrap; justify-content: flex-end; min-height: 60px; }
+}
+@media (max-width: 1360px) and (min-width: 1051px) {
+  /* Brand and navigation share the first row; settings sit right-aligned on the second. */
+  .studio-shell-header-meta:has(.studio-appearance-switch) { flex: 1 1 100%; border-top: 1px solid var(--studio-system-rule); }
+}
+@media (max-width: 1050px) and (min-width: 561px) {
+  .studio-shell-header-meta:has(.studio-appearance-switch) { flex: 1 1 0; min-width: 0; }
+}

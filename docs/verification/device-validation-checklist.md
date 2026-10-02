@@ -1,20 +1,20 @@
 # Physical OP-XY validation checklist
 
-Status: **not performed**. This checklist requires an actual OP-XY and must remain pending until evidence includes the device firmware version, transferred files and observed results.
+Status: **in progress**. The user confirmed physical OP-XY USB / Field Kit access and visibility of presets, projects and samples on 2026-10-01. The user also reported successful copying of Human Test 01.preset into presets/PatchStudio Tests. Human Test 01 import without error and the full sparse-kit check were reported: ten expected key mappings, fourteen empty keys and normal playback. Local-host macOS 26.1 was read via sw_vers. The user reported firmware 1.1.25 and test-project/kit persistence after restart. The subsequent Human Test 02 round trip confirmed explicit M4 eject, fresh preset loading and a louder kick after changing only exported kick gain from −8 to 0, with other sounds/mapping unchanged. Exact numeric gain, same-folder replacement and broader fixtures remain pending; Human Test 03 also loads without error and plays the recorded phrase clearly, reported “works perfectly” on 2026-10-01. This is limited sparse-kit/manual recorded-source evidence, not complete hardware acceptance.
 
 | Check | Required evidence | Status |
 |---|---|---|
-| MTP transfer | Computer/OS, OP-XY firmware, COM then M4 connection and copied `.preset` folder | Pending |
-| Drum import | Sparse and full 24-pad presets load with the intended sample on each mapped pad | Pending |
+| MTP transfer | Computer/OS, OP-XY firmware, COM then M4 connection and copied `.preset` folder | PASS — reported COM → M4 access and Human Test 01.preset copy via Field Kit; local macOS 26.1 observed; OP-XY firmware 1.1.25 user reported. Explicit M4 eject is tracked separately |
+| Drum import | Sparse and full 24-pad presets load with the intended sample on each mapped pad | PARTIAL PASS — ten-region sparse kit loads, all ten expected mappings/playback and fourteen empty keys confirmed; full 24-sound kit pending |
 | Multisample import | Root notes, ranges, pitch direction and sample selection match the exported `patch.json` | Pending |
-| WAV and AIFF audio | Device accepts each generated format/rate/depth/channel combination claimed by the UI | Pending |
+| WAV and AIFF audio | Device accepts each generated format/rate/depth/channel combination claimed by the UI | PARTIAL PASS — ten PCM16 mono 44.1 kHz WAV clips play; all other format/rate/depth/channel combinations pending |
 | Frame markers | Start, end and one-frame boundary fixtures play without rejected or shifted bounds | Pending |
 | Loop modes | Loop off, loop forever and loop until release match the device behavior | Pending |
 | Crossfade | Several exported fractions, including a retained imported value above the preview editor limit, are compared on device | Pending |
-| Engine settings | Transpose, velocity, width, envelopes, modulation, tuning and portamento match the exported raw values | Pending |
+| Engine settings | Sample gain, transpose, velocity, width, envelopes, modulation, tuning and portamento match the exported raw values | PARTIAL PASS — qualitative kick-gain −8 → 0 response confirmed, other sounds/mapping unchanged; exact numeric gain unavailable through the reported slider screen (HV-003); other settings pending |
 | Size limits | A near-limit preset imports and an over-limit preset remains blocked before download | Pending |
-| Recording source | A recorded take transferred through the normal export route loads and plays | Pending |
-| Repeated export | Edit, export again, replace the folder and confirm the newer content is loaded | Pending |
-| Eject/reopen | Eject with M4, reopen the preset after device restart and confirm persistence | Pending |
+| Recording source | A recorded take transferred through the normal export route loads and plays | PASS for this fixture — manual microphone capture/stop, clear audition, Pad 4 application/playback, library save/download, and Human Test 03 OP-XY loading/voice playback pass by user report (“works perfectly”, 2026-10-01). Local ZIP/folder inspection passes: 11 regions, Take 1.wav at MIDI 56, PCM16 mono 44.1 kHz with valid frames/trim; ten seed files/regions unchanged. Other recording modes/formats and new-fixture restart persistence untested |
+| Repeated export | Edit, export again, replace the folder and confirm the newer content is loaded | PARTIAL PASS — separately named Human Test 02 re-export verified, copied and loaded with expected audible change; WAVs identical. Same-folder replacement remains pending, deferred by user priority |
+| Eject/reopen | Eject with M4, reopen the preset after device restart and confirm persistence | PARTIAL PASS — original saved test-project/kit survives restart on 1.1.25; subsequent explicit M4 eject and fresh Human Test 01/02 preset loads confirmed. Revised Human Test 02 restart not tested |
 
 Automated browser playback is useful regression evidence but cannot complete any row above. Record subjective listening observations separately from byte, frame and settings checks.

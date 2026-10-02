@@ -1,8 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppContext, type DrumSample } from '../../context/AppContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
-import { triggerRotateOverlay } from '../../App';
-import { isMobile as isMobileDevice, isTablet } from 'react-device-detect';
 
 import { SmallWaveform } from '../common/SmallWaveform';
 import { WaveformZoomModal } from '../common/WaveformZoomModal';
@@ -217,22 +215,8 @@ export function DrumSampleTable({ onFileUpload, onFilesUpload, onClearSample, on
   };
 
   const openSettingsModal = (index: number) => {
-    // Check if we're on a mobile device and in portrait mode
-    const mobileOrTablet = isMobileDevice || isTablet;
-    const isPortraitMode = window.innerHeight > window.innerWidth;
-    
-    if (mobileOrTablet && isPortraitMode) {
-      // Show rotate overlay instead of opening modal
-      triggerRotateOverlay(() => {
-        // This callback will be executed when device is rotated to landscape
-        selectSample(index);
-        setSettingsModalOpen(true);
-      });
-    } else {
-      // Open modal directly on desktop or landscape mobile
-      selectSample(index);
-      setSettingsModalOpen(true);
-    }
+    selectSample(index);
+    setSettingsModalOpen(true);
   };
 
   const closeSettingsModal = () => {
@@ -510,6 +494,11 @@ export function DrumSampleTable({ onFileUpload, onFilesUpload, onClearSample, on
             );
           })}
         </div>
+        <DrumSampleSettingsModal
+          isOpen={settingsModalOpen}
+          onClose={closeSettingsModal}
+          sampleIndex={selectedSampleIndex}
+        />
         <WaveformZoomModal
           isOpen={isZoomModalOpen}
           onClose={closeZoomModal}

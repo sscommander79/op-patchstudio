@@ -1,0 +1,601 @@
+--- pre-resume/src/components/common/SessionRestorationModal.tsx
++++ current/src/components/common/SessionRestorationModal.tsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useRef } from 'react';
++import { useOwnedDialog } from '../../hooks/useOwnedDialog';
+ 
+ interface SessionRestorationModalProps {
+   isOpen: boolean;
+@@ -22,55 +23,21 @@
+   error
+ }: SessionRestorationModalProps) {
+   const modalRef = useRef<HTMLDivElement>(null);
+-  const firstButtonRef = useRef<HTMLButtonElement>(null);
+-  const lastButtonRef = useRef<HTMLButtonElement>(null);
+-
+-  // Focus management
++  // Recovery requires an explicit Restore/Start new decision; Escape never discards it.
++  useOwnedDialog({ active: isOpen, dialogRef: modalRef, onClose: () => {} });
++
+   useEffect(() => {
+-    if (isOpen) {
+-      // Focus the first button when modal opens
+-      firstButtonRef.current?.focus();
+-
+-      // Prevent body scroll
+-      document.body.style.overflow = 'hidden';
+-
+-      return () => {
+-        document.body.style.overflow = '';
+-      };
+-    }
++    if (!isOpen) return;
++    const previousOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => { document.body.style.overflow = previousOverflow; };
+   }, [isOpen]);
+ 
+-  // Handle keyboard navigation and escape key
+   useEffect(() => {
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (!isOpen) return;
+-
+-      switch (event.key) {
+-        case 'Escape':
+-          event.preventDefault();
+-          break;
+-        case 'Tab':
+-          // Trap focus within the modal
+-          if (event.shiftKey) {
+-            if (document.activeElement === firstButtonRef.current) {
+-              event.preventDefault();
+-              lastButtonRef.current?.focus();
+-            }
+-          } else {
+-            if (document.activeElement === lastButtonRef.current) {
+-              event.preventDefault();
+-              firstButtonRef.current?.focus();
+-            }
+-          }
+-          break;
+-      }
+-    };
+-
+-    if (isOpen) {
+-      document.addEventListener('keydown', handleKeyDown);
+-      return () => document.removeEventListener('keydown', handleKeyDown);
+-    }
+-  }, [isOpen, onStartNew]);
++    if (!isOpen) return;
++    if (pending) modalRef.current?.focus();
++    else modalRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
++  }, [isOpen, pending]);
+ 
+   if (!isOpen) return null;
+ 
+@@ -140,6 +107,7 @@
+       <div
+         className="session-modal-container"
+         role="dialog"
++        tabIndex={-1}
+         aria-modal="true"
+         aria-labelledby="session-restoration-title"
+         aria-describedby="session-restoration-description"
+@@ -232,7 +200,6 @@
+             justifyContent: 'flex-end'
+           }}>
+             <button
+-              ref={firstButtonRef}
+               disabled={pending}
+               onClick={async () => {
+                 try {
+@@ -269,7 +236,6 @@
+               start new
+             </button>
+             <button
+-              ref={lastButtonRef}
+               disabled={pending}
+               onClick={onLoadSession}
+               style={{
+--- pre-resume/src/components/devices/DevicesWorkspace.tsx
++++ current/src/components/devices/DevicesWorkspace.tsx
+@@ -44,8 +44,17 @@
+   const [deleteCandidate, setDeleteCandidate] = useState<{id:string; name:string} | null>(null);
+   const keepSetup = useRef<HTMLButtonElement>(null);
+   const deleteSetup = useRef<HTMLButtonElement>(null);
+-  useEffect(() => { if (deleteCandidate) keepSetup.current?.focus(); }, [deleteCandidate]);
+-  const finishDeleteDecision = () => { setDeleteCandidate(null); queueMicrotask(() => deleteSetup.current?.focus()); };
++  const savedSetups = useRef<HTMLSelectElement>(null);
++  const restoreDeleteFocus = useRef(false);
++  useEffect(() => {
++    if (deleteCandidate) keepSetup.current?.focus();
++    else if (restoreDeleteFocus.current) {
++      restoreDeleteFocus.current = false;
++      if (deleteSetup.current && !deleteSetup.current.disabled) deleteSetup.current.focus();
++      else savedSetups.current?.focus();
++    }
++  }, [deleteCandidate]);
++  const finishDeleteDecision = () => { restoreDeleteFocus.current = true; setDeleteCandidate(null); };
+ 
+   return <div className="studio-devices-workspace">
+     <p className="studio-eyebrow">MIDI tools</p>
+@@ -201,7 +210,7 @@
+           <input aria-label="Setup name" value={state.setupName} onChange={event => actions.setSetupName(event.target.value)} />
+         </label>
+         <label>Saved setups
+-          <select aria-label="Saved setups" value={state.selectedSetupId} onChange={event => actions.setSelectedSetupId(event.target.value)}>
++          <select ref={savedSetups} aria-label="Saved setups" value={state.selectedSetupId} onChange={event => actions.setSelectedSetupId(event.target.value)}>
+             <option value="">Choose saved setup</option>
+             {state.setups.map(setup => <option key={setup.id} value={setup.id}>{setup.name}</option>)}
+           </select>
+--- pre-resume/src/components/multisample/MultisampleTool.tsx
++++ current/src/components/multisample/MultisampleTool.tsx
+@@ -28,6 +28,14 @@
+   const consumedRecorderRequest = useRef<number | null>(null);
+   const { handleMultisampleUpload, clearMultisampleFile } = useFileUpload();
+   const { playWithADSR, releaseNote, stopAllNotes } = useAudioPlayer();
++  const pendingNoteStarts = useRef(new Map<number, Set<AbortController>>());
++  useEffect(() => {
++    const pending = pendingNoteStarts.current;
++    return () => {
++      pending.forEach(controllers => controllers.forEach(controller => controller.abort()));
++      pending.clear();
++    };
++  }, []);
+   const audioFileInputRef = useRef<HTMLInputElement>(null);
+   const browseInputRef = useRef<HTMLInputElement>(null);
+   const directoryInputRef = useRef<HTMLInputElement>(null);
+@@ -305,6 +313,10 @@
+     const rootSample = state.multisampleFiles.find(f => f.rootNote === rootNote);
+ 
+     if (rootSample && rootSample.audioBuffer) {
++      const controller = new AbortController();
++      const pending = pendingNoteStarts.current.get(midiNote) ?? new Set<AbortController>();
++      pending.add(controller);
++      pendingNoteStarts.current.set(midiNote, pending);
+       try {
+         // Apply pitch shifting
+         const playbackRate = Math.pow(2, pitchOffset / 12);
+@@ -318,6 +330,7 @@
+         // Use the ADSR-enabled audio player
+         const noteId = `multisample-${midiNote}-${Date.now()}`;
+         await playWithADSR(rootSample.audioBuffer, noteId, {
++          signal: controller.signal,
+           playbackRate,
+           gain: state.multisampleSettings.gain || 0,
+           pan: 0, // No pan control for multisample
+@@ -332,12 +345,18 @@
+         });
+       } catch (error) {
+         console.error("Error playing pitched sample:", error);
++      } finally {
++        pending.delete(controller);
++        if (!pending.size && pendingNoteStarts.current.get(midiNote) === pending) pendingNoteStarts.current.delete(midiNote);
+       }
+     }
+   }, [zoneMap, state.multisampleFiles, playWithADSR, state.multisampleSettings.gain, state.multisampleSettings.ampEnvelope, state.multisampleSettings.playmode, state.multisampleSettings.loopEnabled, state.multisampleSettings.loopOnRelease]);
+ 
+   // Handler for releasing a key (for ADSR release phase)
+   const handleKeyRelease = useCallback((midiNote: number) => {
++    // A release can precede async audio-context initialization and voice registration.
++    pendingNoteStarts.current.get(midiNote)?.forEach(controller => controller.abort());
++    pendingNoteStarts.current.delete(midiNote);
+     // Release all notes that match this MIDI note (could be multiple if same note played multiple times)
+     // The audio player will handle finding and releasing the correct note(s)
+     // We'll try all possible noteIds for this midiNote
+--- pre-resume/src/components/multisample/VirtualMidiKeyboard.tsx
++++ current/src/components/multisample/VirtualMidiKeyboard.tsx
+@@ -9,7 +9,7 @@
+ 
+ interface VirtualMidiKeyboardProps {
+   assignedNotes?: number[]; // MIDI note numbers that have samples assigned
+-  onKeyClick?: (midiNote: number) => void;
++  onKeyClick?: (midiNote: number) => void | Promise<void>;
+   onKeyRelease?: (midiNote: number) => void; // Add release handler for ADSR
+   onUnassignedKeyClick?: (midiNote: number) => void;
+   onKeyDrop?: (midiNote: number, files: File[]) => void;
+@@ -59,6 +59,7 @@
+   const physicalNotesRef = useRef(new Map<string, number>());
+   const [focusedNote, setFocusedNote] = useState(72);
+   const focusedHeldNote = useRef<number | null>(null);
++  const pointerHeldNote = useRef<number | null>(null);
+ 
+   const [mousePressedKey, setMousePressedKey] = useState<number | null>(null);
+   const { onMidiEvent, state: midiState, refreshDevices } = useWebMidi();
+@@ -66,6 +67,32 @@
+   const [localSelectedMidiChannel, setLocalSelectedMidiChannel] = useState(selectedMidiChannel || 1);
+   const [midiTriggeredKeys, setMidiTriggeredKeys] = useState<Set<string>>(new Set());
+   const [midiPressedNotes, setMidiPressedNotes] = useState<Set<number>>(new Set());
++
++  const releaseCallback = useRef(onKeyRelease);
++  useEffect(() => { releaseCallback.current = onKeyRelease; }, [onKeyRelease]);
++
++  // Key-up may never arrive after leaving the window or this workspace.
++  useEffect(() => {
++    const releaseHeldNotes = () => {
++      const notes = new Set(physicalNotesRef.current.values());
++      physicalNotesRef.current.clear();
++      if (focusedHeldNote.current !== null) notes.add(focusedHeldNote.current);
++      focusedHeldNote.current = null;
++      if (pointerHeldNote.current !== null) notes.add(pointerHeldNote.current);
++      pointerHeldNote.current = null;
++      notes.forEach(note => releaseCallback.current?.(note));
++      setPressedKeys(new Set());
++      setMousePressedKey(null);
++    };
++    const onVisibility = () => { if (document.hidden) releaseHeldNotes(); };
++    window.addEventListener('blur', releaseHeldNotes);
++    document.addEventListener('visibilitychange', onVisibility);
++    return () => {
++      window.removeEventListener('blur', releaseHeldNotes);
++      document.removeEventListener('visibilitychange', onVisibility);
++      releaseHeldNotes();
++    };
++  }, [isActive]);
+ 
+   // Refresh MIDI devices when tab becomes visible (helps with device detection)
+   useEffect(() => {
+@@ -122,7 +149,7 @@
+   // Keyboard event handlers
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+-      if (shouldIgnoreKeyboardKeyDown(e)) return;
++      if (!isActive || shouldIgnoreKeyboardKeyDown(e)) return;
+ 
+       const key = e.key.toLowerCase();
+       const physicalKey = e.code || `key:${key}`;
+@@ -188,7 +215,7 @@
+       document.removeEventListener('keydown', handleKeyDown);
+       document.removeEventListener('keyup', handleKeyUp);
+     };
+-  }, [activeOctave, assignedNotes, changeOctave, midiTriggeredKeys, onKeyClick, onKeyRelease]);
++  }, [activeOctave, assignedNotes, changeOctave, isActive, midiTriggeredKeys, onKeyClick, onKeyRelease]);
+ 
+   // Helper function to get computer key for a MIDI note in the active octave
+   const getComputerKeyForNote = useCallback((midiNote: number): string | null => {
+@@ -465,6 +492,12 @@
+   const createKeyEventHandlers = useCallback((midiNote: number) => {
+     const isAssigned = assignedNotes.includes(midiNote);
+ 
++    const releasePointer = () => {
++      if (pointerHeldNote.current !== midiNote) return;
++      pointerHeldNote.current = null;
++      setMousePressedKey(null);
++      onKeyRelease?.(midiNote);
++    };
+     const releaseFocused = () => {
+       if (focusedHeldNote.current !== midiNote) return;
+       focusedHeldNote.current = null;
+@@ -495,47 +528,37 @@
+         if (event.key !== 'Enter' && event.key !== ' ') return;
+         event.preventDefault(); event.stopPropagation(); releaseFocused();
+       },
++      onClick: async (event: React.MouseEvent) => {
++        // Assistive technology can activate a button without pointer/key events.
++        if (event.detail !== 0 || !isActive || focusedHeldNote.current !== null) return;
++        if (isAssigned) { try { await onKeyClick?.(midiNote); } finally { onKeyRelease?.(midiNote); } }
++        else onUnassignedKeyClick?.(midiNote);
++      },
+       onMouseDown: () => {
+         // Don't set pressed key if we're starting to drag
+-        if (!isDragging) {
++        if (isActive && !isDragging) {
+           setMousePressedKey(midiNote);
+           // Trigger note on mouse down for immediate response
+           if (isAssigned) {
++            pointerHeldNote.current = midiNote;
+             onKeyClick?.(midiNote);
+           } else {
+             onUnassignedKeyClick?.(midiNote);
+           }
+         }
+       },
+-      onMouseUp: () => {
+-        setMousePressedKey(null);
+-        // Trigger release for ADSR
++      onMouseUp: releasePointer,
++      onMouseLeave: () => { releasePointer(); handleKeyMouseLeave(); },
++      onTouchStart: () => {
++        if (!isActive) return;
+         if (isAssigned) {
+-          onKeyRelease?.(midiNote);
+-        }
++          pointerHeldNote.current = midiNote;
++          setMousePressedKey(midiNote);
++          onKeyClick?.(midiNote);
++        } else onUnassignedKeyClick?.(midiNote);
+       },
+-      onMouseLeave: () => {
+-        setMousePressedKey(null);
+-        handleKeyMouseLeave();
+-        // Trigger release for ADSR when mouse leaves key
+-        if (isAssigned) {
+-          onKeyRelease?.(midiNote);
+-        }
+-      },
+-      onTouchStart: () => {
+-        // Trigger note on touch start for immediate response
+-        if (isAssigned) {
+-          onKeyClick?.(midiNote);
+-        } else {
+-          onUnassignedKeyClick?.(midiNote);
+-        }
+-      },
+-      onTouchEnd: () => {
+-        // Trigger release for ADSR on touch end
+-        if (isAssigned) {
+-          onKeyRelease?.(midiNote);
+-        }
+-      },
++      onTouchEnd: releasePointer,
++      onTouchCancel: releasePointer,
+       onMouseEnter: () => handleKeyMouseEnter(midiNote),
+       onDragOver: (e: React.DragEvent) => handleKeyDragOver(e, midiNote),
+       onDragLeave: handleKeyDragLeave,
+--- pre-resume/src/test/components/DevicesWorkspace.test.tsx
++++ current/src/test/components/DevicesWorkspace.test.tsx
+@@ -897,6 +897,24 @@
+     expect(store.snapshot()).toHaveLength(0);
+     expect(session.sendCc).not.toHaveBeenCalled();
+     expect(screen.getByRole('status')).toHaveTextContent('Setup deleted locally');
++    expect(screen.getByLabelText('Saved setups')).toHaveFocus();
++  });
++
++  it('preserves the saved setup on a storage failure and allows an explicit retry', async () => {
++    const user=userEvent.setup(), session=fakeSession(), store=memoryStore([savedSetup()]);
++    store.save.mockImplementationOnce(()=>{throw new Error('Storage unavailable');});
++    render(<DevicesWorkspace session={session} store={store} supported />);
++    await user.selectOptions(screen.getByLabelText('Saved setups'),'studio-nina');
++    await user.click(screen.getByRole('button',{name:'Delete setup'}));
++    await user.click(screen.getByRole('button',{name:'Delete saved setup'}));
++    expect(store.snapshot()).toHaveLength(1);
++    expect(screen.getByRole('alert')).toHaveTextContent('Storage unavailable');
++    expect(screen.getByRole('button',{name:'Delete setup'})).toHaveFocus();
++    await user.click(screen.getByRole('button',{name:'Delete setup'}));
++    await user.click(screen.getByRole('button',{name:'Delete saved setup'}));
++    expect(store.snapshot()).toHaveLength(0);
++    expect(screen.getByLabelText('Saved setups')).toHaveFocus();
++    expect(session.sendCc).not.toHaveBeenCalled();
+   });
+ 
+   it('keeps save, rename, delete, profile, and port changes byte-silent', async () => {
+--- pre-resume/src/test/components/MultisampleTool.test.tsx
++++ current/src/test/components/MultisampleTool.test.tsx
+@@ -287,6 +287,7 @@
+         mockAudioBuffer,
+         expect.stringMatching(/multisample-60-\d+/),
+         {
++          signal: expect.any(AbortSignal),
+           playbackRate: 1, // No pitch offset for root note
+           gain: 0,
+           pan: 0,
+@@ -306,6 +307,22 @@
+         }
+       );
+     });
++  });
++
++  it.each(['release','unmount'])('cancels pending playback on %s before audio initialization completes',async(reason)=>{
++    let finish!:()=>void;
++    let captured:AbortSignal|undefined;
++    let started=false;
++    mockPlayWithADSR.mockImplementationOnce((_buffer,_id,options)=>new Promise<void>(resolve=>{
++      captured=options.signal;
++      finish=()=>{if(!captured?.aborted)started=true;resolve();};
++    }));
++    const view=render(<MultisampleTool/>);
++    fireEvent.click(screen.getByTestId('assigned-key-60'));
++    if(reason==='release')fireEvent.mouseUp(screen.getByTestId('assigned-key-60'));else view.unmount();
++    finish();
++    await waitFor(()=>expect(started).toBe(false));
++    expect(captured?.aborted).toBe(true);
+   });
+ 
+   it('should release note when key is released', async () => {
+--- pre-resume/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
++++ current/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
+@@ -1,4 +1,4 @@
+-import { fireEvent, render, screen } from '@testing-library/react';
++import { act, fireEvent, render, screen } from '@testing-library/react';
+ import { describe, expect, it, vi } from 'vitest';
+ import { VirtualMidiKeyboard } from '../../components/multisample/VirtualMidiKeyboard';
+ import { AppContextProvider } from '../../context/AppContext';
+@@ -66,4 +66,64 @@
+     fireEvent.click(screen.getByTitle('connect midi devices'));expect(screen.queryByRole('combobox',{name:'MIDI audition channel'})).not.toBeInTheDocument();
+   });
+ 
++  it.each(['window blur', 'deactivate', 'unmount'])('releases focused and physical notes on %s', (reason) => {
++    const play=vi.fn(),release=vi.fn();
++    const view=(active=true)=><AppContextProvider><VirtualMidiKeyboard assignedNotes={[72,74]} onKeyClick={play} onKeyRelease={release} isActive={active} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>;
++    const mounted=render(view());
++    fireEvent.keyDown(document,{key:'s',code:'KeyS'});
++    fireEvent.keyDown(screen.getByRole('button',{name:'MIDI note 72, loaded'}),{key:'Enter'});
++    expect(play.mock.calls).toEqual([[74],[72]]);
++    if(reason==='window blur') fireEvent.blur(window);
++    else if(reason==='deactivate') mounted.rerender(view(false));
++    else mounted.unmount();
++    expect(release.mock.calls.map(call=>call[0]).sort()).toEqual([72,74]);
++    fireEvent.keyUp(document,{key:'s',code:'KeyS'});
++    expect(release).toHaveBeenCalledTimes(2);
++    if(reason==='deactivate') {
++      fireEvent.keyDown(document,{key:'s',code:'KeyS'});
++      expect(play).toHaveBeenCalledTimes(2);
++    }
++  });
++
++  it('supports assistive click activation without duplicating a pointer gesture',async()=>{
++    const play=vi.fn(),release=vi.fn(),empty=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={play} onKeyRelease={release} onUnassignedKeyClick={empty} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    const key=screen.getByRole('button',{name:'MIDI note 72, loaded'});
++    await act(async()=>{fireEvent.click(key,{detail:0});});
++    expect(play).toHaveBeenCalledTimes(1);expect(release).toHaveBeenCalledWith(72);
++    fireEvent.mouseDown(key);fireEvent.mouseUp(key);fireEvent.click(key,{detail:1});
++    expect(play).toHaveBeenCalledTimes(2);
++    fireEvent.click(screen.getByRole('button',{name:'MIDI note 73, empty'}),{detail:0});
++    expect(empty).toHaveBeenCalledWith(73);
++  });
++
++  it.each(['mouseDown','touchStart'] as const)('releases a held pointer note after %s and window blur', (start) => {
++    const play=vi.fn(),release=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={play} onKeyRelease={release} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    const key=screen.getByRole('button',{name:'MIDI note 72, loaded'});
++    fireEvent[start](key);expect(play).toHaveBeenCalledWith(72);
++    fireEvent.blur(window);expect(release).toHaveBeenCalledTimes(1);
++    expect(release).toHaveBeenCalledWith(72);
++  });
++
++  it('releases assistive activation only after asynchronous playback has started',async()=>{
++    let ready!:()=>void;
++    const play=vi.fn(()=>new Promise<void>(resolve=>{ready=resolve;})),release=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={play} onKeyRelease={release} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'MIDI note 72, loaded'}),{detail:0});
++    expect(play).toHaveBeenCalledWith(72);expect(release).not.toHaveBeenCalled();
++    await act(async()=>{ready();});
++    expect(release).toHaveBeenCalledExactlyOnceWith(72);
++  });
++
++  it('does not release a physical-key note when the pointer merely passes over it',()=>{
++    const release=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={vi.fn()} onKeyRelease={release} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    fireEvent.keyDown(document,{key:'a'});
++    const key=screen.getByRole('button',{name:'MIDI note 72, loaded'});
++    fireEvent.mouseEnter(key);fireEvent.mouseLeave(key);
++    expect(release).not.toHaveBeenCalled();
++    fireEvent.keyUp(document,{key:'a'});expect(release).toHaveBeenCalledExactlyOnceWith(72);
++  });
++
+ });
+--- pre-resume/src/test/hooks/sessionRecovery.test.tsx
++++ current/src/test/hooks/sessionRecovery.test.tsx
+@@ -163,3 +163,22 @@
+   window.dispatchEvent(navigation);
+   expect(navigation.defaultPrevented).toBe(true);
+ });
++
++it('retains keyboard ownership while recovery buttons are pending', () => {
++  render(<SessionRestorationModal isOpen pending onLoadSession={vi.fn()} onStartNew={vi.fn(async()=>{})} />);
++  const event=new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
++  document.dispatchEvent(event);
++  expect(event.defaultPrevented).toBe(true);
++  expect(screen.getByRole('dialog')).toHaveFocus();
++});
++
++it('requires an explicit recovery choice and wraps focus between available actions', () => {
++  const restore=vi.fn(),discard=vi.fn(async()=>{});
++  render(<SessionRestorationModal isOpen onLoadSession={restore} onStartNew={discard} />);
++  const buttons=screen.getByRole('dialog').querySelectorAll('button');
++  buttons[0].focus();fireEvent.keyDown(buttons[0],{key:'Tab',shiftKey:true});expect(buttons[1]).toHaveFocus();
++  fireEvent.keyDown(buttons[1],{key:'Tab'});expect(buttons[0]).toHaveFocus();
++  fireEvent.keyDown(buttons[0],{key:'Escape'});
++  expect(restore).not.toHaveBeenCalled();expect(discard).not.toHaveBeenCalled();
++  expect(screen.getByRole('dialog')).toBeVisible();
++});
+--- pre-resume/tests/e2e/recording.spec.ts
++++ current/tests/e2e/recording.spec.ts
+@@ -7,7 +7,7 @@
+   project:{drumSamples:Array<{name:string;sampleId:string}>};
+   samples:Array<{id:string;name:string;type:string;sourcePath?:string;metadata:{sampleRate:number;channels:number;bitDepth:number;isFloat:boolean};audioPath:string;audio:{bytes:number;frames:number;sampleRate:number;channels:number}}>;
+ };
+-type SyntheticState={calls:number;tracks:MediaStreamTrack[];contexts:AudioContext[];constraints:MediaStreamConstraints[];stubInstalled:boolean;getUserMedia:MediaDevices['getUserMedia'];triggerBurst:()=>Promise<void>};
++type SyntheticState={calls:number;tracks:MediaStreamTrack[];contexts:AudioContext[];constraints:MediaStreamConstraints[];stubInstalled:boolean;getUserMedia:MediaDevices['getUserMedia'];triggerBurst:(seconds?:number)=>Promise<void>};
+ declare global {interface Window {__opRecordingSynthetic:SyntheticState}}
+ 
+ async function downloadedBytes(download:Download) {
+@@ -45,9 +45,9 @@
+     Object.defineProperty(getUserMedia,'__opPatchStudioSynthetic',{value:true});
+     const events=new EventTarget(),facade={getUserMedia,enumerateDevices:async()=>[{deviceId:'synthetic-input',groupId:'synthetic',kind:'audioinput',label:'Synthetic input',toJSON:()=>({})} as MediaDeviceInfo],getSupportedConstraints:()=>({}),addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events),dispatchEvent:events.dispatchEvent.bind(events),ondevicechange:null};
+     Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:facade});
+-    const state:SyntheticState={calls:0,tracks:[],contexts:[],constraints:[],stubInstalled:navigator.mediaDevices===facade&&navigator.mediaDevices.getUserMedia===getUserMedia,getUserMedia,triggerBurst:async()=>{
++    const state:SyntheticState={calls:0,tracks:[],contexts:[],constraints:[],stubInstalled:navigator.mediaDevices===facade&&navigator.mediaDevices.getUserMedia===getUserMedia,getUserMedia,triggerBurst:async(seconds=.1)=>{
+       const session=sessions.at(-1);if(!session||session.context.state==='closed')throw new Error('Synthetic input is not active');
+-      const frames=Math.round(session.context.sampleRate*.1),buffer=session.context.createBuffer(1,frames,session.context.sampleRate),channel=buffer.getChannelData(0);
++      const frames=Math.round(session.context.sampleRate*seconds),buffer=session.context.createBuffer(1,frames,session.context.sampleRate),channel=buffer.getChannelData(0);
+       for(let frame=0;frame<frames;frame+=1)channel[frame]=.8*Math.sin(frame*.19);
+       const source=session.context.createBufferSource();source.buffer=buffer;source.connect(session.destination);session.sources.add(source);source.onended=()=>{session.sources.delete(source);source.disconnect();};source.start(session.context.currentTime+.35);
+     }};
+@@ -112,6 +112,9 @@
+   expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(500);
+   await dialog.getByRole('button',{name:'Start recording'}).click();
+   await expect(dialog.getByText(/State: recording/)).toBeVisible();
++  // Initial WebKit frames can be silent; an all-silent manual take is intentionally discarded.
++  await page.evaluate(()=>window.__opRecordingSynthetic.triggerBurst(.5));
++  await expect.poll(async()=>Number((await dialog.getByText(/Take time/).textContent())?.match(/Level ([\d.]+)%/)?.[1]??0),{intervals:[20,50,100]}).toBeGreaterThan(1);
+   await dialog.getByRole('button',{name:'Stop recording'}).click();
+   await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(1);
+   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+--- pre-resume/tests/e2e/slicing.spec.ts
++++ current/tests/e2e/slicing.spec.ts
+@@ -159,20 +159,23 @@
+   await typedMarker.press('Enter');
+   await expect(dialog.getByText('Sound 2 of 2',{exact:true})).toBeVisible();
+   await dialog.getByRole('button',{name:'Select sound 1'}).click();
+-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
++  // Short slice previews may finish before a Stop click becomes actionable.
++  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
+   const firstEnd=dialog.getByLabel('Sound 1 End frame');
+   await firstEnd.click();
+   await firstEnd.press('ControlOrMeta+A');
+   await firstEnd.pressSequentially('10000');
+   await firstEnd.press('Enter');
+   await dialog.getByRole('button',{name:'Select sound 2'}).click();
+-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
++  // Short slice previews may finish before a Stop click becomes actionable.
++  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
+   await expect(dialog.getByLabel('Sound 2 Start frame')).toHaveValue('12000');
+   await dialog.getByRole('button',{name:'Select sound 1'}).click();
+   await dragSoundToPad(dialog,1,'Pad 9, CH, Empty');
+   await expect(dialog.getByRole('button',{name:'Pad 9, CH, Sound 1',exact:true})).toBeVisible();
+   await dialog.getByRole('button',{name:'Select sound 2'}).click();
+-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
++  // Short slice previews may finish before a Stop click becomes actionable.
++  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
+   await dialog.getByLabel('Destination pad').selectOption('2');
+   await dialog.getByRole('button',{name:'Assign selected sound',exact:true}).click();
+   await dialog.getByRole('button',{name:'Add sounds to kit'}).click();
+--- pre-resume/tests/e2e/studio-appearance.spec.ts
++++ current/tests/e2e/studio-appearance.spec.ts
+@@ -144,15 +144,16 @@
+     await expect(selected.locator('.studio-drum-pad-status')).toHaveText(compactLowerKey ? 'LOADED' : 'SELECTED');
+     // OP-XY selection is an inverted key with an inset ring, in every row and width.
+     expect(await selected.evaluate(element => getComputedStyle(element).boxShadow)).toContain('inset');
+-    const [keyLuminance, nameLuminance] = await selected.evaluate(element => {
++    const selectedLuminance = () => selected.evaluate(element => {
+       const rgb = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+       const lum = (value: string) => { const [r, g, b] = rgb(value); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
+       const image = getComputedStyle(element).backgroundImage;
+       const key = image !== 'none' ? image : getComputedStyle(element).backgroundColor;
+       return [lum(key), lum(getComputedStyle(element.querySelector('.studio-drum-pad-name')!).color)];
+     });
+-    expect(keyLuminance).toBeGreaterThan(0.7);
+-    expect(nameLuminance).toBeLessThan(0.2);
++    // Wait for the existing key-colour transition to settle before measuring contrast.
++    await expect.poll(async () => (await selectedLuminance())[0]).toBeGreaterThan(0.7);
++    await expect.poll(async () => (await selectedLuminance())[1]).toBeLessThan(0.2);
+     const loadedPad = page.locator('.studio-drum-pad[data-pad-state="loaded"]:not([aria-current])').first();
+     expect(await loadedPad.evaluate(element => getComputedStyle(element, '::after').borderRadius)).toBe('0px');
+     const selectedBg = await selected.evaluate(element => getComputedStyle(element).backgroundImage + getComputedStyle(element).backgroundColor);
+--- pre-resume/tests/e2e/virtual-keyboard-access.spec.ts
++++ current/tests/e2e/virtual-keyboard-access.spec.ts
+@@ -0,0 +1,22 @@
++import {expect,test} from '@playwright/test';
++import {gotoWorkspace} from './workspace-actions';
++
++test('virtual notes support roving focus, visible focus and empty-note selection',async({page})=>{
++  await gotoWorkspace(page,'multisample');
++  const note=(number:number)=>page.getByRole('button',{name:`MIDI note ${number}, empty`,exact:true});
++  await expect(note(72)).toHaveAttribute('tabindex','0');
++  await note(72).focus();
++  await page.keyboard.press('ArrowRight');
++  await expect(note(73)).toBeFocused();
++  await expect(note(72)).toHaveAttribute('tabindex','-1');
++  await expect(note(73)).toHaveAttribute('tabindex','0');
++  await expect(note(73)).toBeInViewport();
++  const outline=await note(73).evaluate(element=>({style:getComputedStyle(element).outlineStyle,width:getComputedStyle(element).outlineWidth}));
++  expect(outline.style).not.toBe('none');expect(parseFloat(outline.width)).toBeGreaterThan(0);
++  await page.keyboard.press('ArrowLeft');await expect(note(72)).toBeFocused();
++  await note(0).focus();await page.keyboard.press('ArrowLeft');await expect(note(0)).toBeFocused();
++  await note(127).focus();await page.keyboard.press('ArrowRight');await expect(note(127)).toBeFocused();
++  await note(73).focus();await page.keyboard.press('Enter');
++  await expect(page.getByRole('region',{name:'Multisample instrument, 0 of 24 loaded',exact:true})).toBeVisible();
++  await expect(page.getByRole('dialog')).toHaveCount(0);
++});

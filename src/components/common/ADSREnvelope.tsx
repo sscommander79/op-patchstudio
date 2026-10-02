@@ -13,6 +13,7 @@ interface ADSREnvelopeProps {
   filterEnvelope: ADSRValues;
   onAmpEnvelopeChange: (envelope: ADSRValues) => void;
   onFilterEnvelopeChange: (envelope: ADSRValues) => void;
+  onEnvelopesChange?: (amp: ADSRValues, filter: ADSRValues) => void;
   width?: number;
   height?: number;
 }
@@ -97,10 +98,13 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
   filterEnvelope,
   onAmpEnvelopeChange,
   onFilterEnvelopeChange,
+  onEnvelopesChange,
   width = 480,  // OP-XY outer border: 62mm × 7.74 scale = 480px (2:1 ratio)
   height = 194   // OP-XY inner border: 25mm × 7.74 scale = 194px (removes white space)
 }) => {
   const svgRef = React.useRef<SVGSVGElement>(null);
+  const dragCleanup = React.useRef<(() => void) | null>(null);
+  React.useEffect(() => () => { dragCleanup.current?.(); }, []);
   const [activeEnvelope, setActiveEnvelope] = useState<'amp' | 'filter'>('amp');
   const [isDragging, setIsDragging] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<PresetType>('keys');
@@ -111,6 +115,11 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
   // Note: Removed automatic preset application to prevent overriding session/library restored values
   // The default settings in defaultSettings.ts should provide appropriate initial values
 
+  const changeEnvelopes = useCallback((amp: ADSRValues, filter: ADSRValues) => {
+    if (onEnvelopesChange) onEnvelopesChange(amp, filter);
+    else { onAmpEnvelopeChange(amp); onFilterEnvelopeChange(filter); }
+  }, [onEnvelopesChange, onAmpEnvelopeChange, onFilterEnvelopeChange]);
+
   // Handle preset changes
   const handlePresetChange = useCallback((preset: PresetType) => {
     setSelectedPreset(preset);
@@ -120,15 +129,13 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
       const randomAmp = generateRandomEnvelope();
       const randomFilter = generateRandomEnvelope();
       
-      onAmpEnvelopeChange(randomAmp);
-      onFilterEnvelopeChange(randomFilter);
+      changeEnvelopes(randomAmp, randomFilter);
     } else {
       // Apply predefined preset
       const presetValues = ADSR_PRESETS[preset];
-      onAmpEnvelopeChange(presetValues.amp);
-      onFilterEnvelopeChange(presetValues.filter);
+      changeEnvelopes(presetValues.amp, presetValues.filter);
     }
-  }, [onAmpEnvelopeChange, onFilterEnvelopeChange]);
+  }, [changeEnvelopes]);
 
   // Handle knob value changes for the active envelope
   const handleKnobValueChange = useCallback((index: number, value: number) => {
@@ -300,6 +307,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
 
   // Handle mouse and touch interactions
   const handlePointerDown = useCallback((event: React.MouseEvent<SVGElement> | React.TouchEvent<SVGElement>) => {
+    dragCleanup.current?.();
     const svg = svgRef.current;
     if (!svg) return;
 
@@ -416,19 +424,23 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
           }
         };
         
-        const handleGlobalEnd = () => {
-          setIsDragging(null);
+        const cleanupDrag = () => {
           document.removeEventListener('mousemove', handleGlobalMove);
           document.removeEventListener('touchmove', handleGlobalMove);
           document.removeEventListener('mouseup', handleGlobalEnd);
           document.removeEventListener('touchend', handleGlobalEnd);
+          document.removeEventListener('touchcancel', handleGlobalEnd);
+          dragCleanup.current = null;
         };
+        const handleGlobalEnd = () => { cleanupDrag(); setIsDragging(null); };
+        dragCleanup.current = cleanupDrag;
         
         // Add global listeners for both mouse and touch
         document.addEventListener('mousemove', handleGlobalMove);
         document.addEventListener('touchmove', handleGlobalMove);
         document.addEventListener('mouseup', handleGlobalEnd);
         document.addEventListener('touchend', handleGlobalEnd);
+        document.addEventListener('touchcancel', handleGlobalEnd);
         
         break;
       }
@@ -489,9 +501,18 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>envelopes</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'amp' ? '#000' : '#999' }}>amp</span>
-          <div 
-            onClick={() => setActiveEnvelope(activeEnvelope === 'amp' ? 'filter' : 'amp')}
+          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'amp' ? 'var(--studio-appearance-ink-strong, #000)' : 'var(--studio-appearance-ink-muted, #999)' }}>amp</span>
+          <div
+            role="switch"
+            tabIndex={0}
+            aria-label="Edit filter envelope"
+            aria-checked={activeEnvelope === 'filter'}
+            onKeyDown={event => {
+              if (event.key !== ' ' && event.key !== 'Enter') return;
+              event.preventDefault();
+              if (!event.repeat) setActiveEnvelope(current => current === 'amp' ? 'filter' : 'amp');
+            }}
+            onClick={() => setActiveEnvelope(current => current === 'amp' ? 'filter' : 'amp')}
             style={{
               width: '32px',
               height: '16px',
@@ -516,7 +537,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
               }}
             />
           </div>
-          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'filter' ? '#000' : '#999' }}>filter</span>
+          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'filter' ? 'var(--studio-appearance-ink-strong, #000)' : 'var(--studio-appearance-ink-muted, #999)' }}>filter</span>
         </div>
       </div>
       
@@ -670,6 +691,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
           width: '100%'
         }}>
           <select
+            aria-label="Envelope preset"
             value={selectedPreset}
             onChange={(e) => handlePresetChange(e.target.value as PresetType)}
             style={{
@@ -700,8 +722,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
               setSelectedPreset('random');
               const randomAmp = generateRandomEnvelope();
               const randomFilter = generateRandomEnvelope();
-              onAmpEnvelopeChange(randomAmp);
-              onFilterEnvelopeChange(randomFilter);
+              changeEnvelopes(randomAmp, randomFilter);
             }}
             style={{
               width: '36px',

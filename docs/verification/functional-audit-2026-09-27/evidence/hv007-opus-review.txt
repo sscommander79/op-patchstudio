@@ -1,0 +1,89 @@
+# Independent review: slicer follow-up (read-only)
+
+**Review rung:** 3 (a fresh session that saw only the packet and the source; I don't know which model wrote the change). I did not edit anything, run tests, run builds, change git state, use a browser or spawn subagents.
+
+**Files inspected:** I read these in full and diffed them against the snapshot: `SliceAudioModal.tsx`, `SliceKeyboardMapping.tsx`, `audioSlicing.ts` (lines 400–638, prepare and finalize), `AppContext.tsx` (`COMMIT_PREPARED_SLICES` at 986–1021, `CLEAR_DRUM_SAMPLE`, `STORE_DRUM_SAMPLE_ASSET`), `SliceAudioModal.test.tsx` and `audioSlicingApplication.test.ts`. I also checked the call sites: `DrumTool.tsx:276-291` and `StudioShell.tsx:308`.
+
+**Limits:** Nothing was executed, so I can't say whether the TypeScript compiles or the tests pass. I didn't check the CSS or the visual layout. Drag-and-drop on real browsers or touch devices wasn't tested.
+
+**Overall:** Apply is still atomic, stale pads are rejected, nothing is written until Add sounds to kit, and Cancel touches nothing in the project. I found no defect at critical or high severity. Below are the concrete holes, most important first.
+
+---
+
+### M1. "Unassign pad sound" on a replaced pad also removes the original, with no way back
+- **Severity:** Medium. **Confidence:** High.
+- **Trigger:**
+  1. Drop Sound 1 onto loaded Pad 3 and confirm **Replace**. Pad 3 now shows Sound 1, and the original is approved for replacement.
+  2. Click Pad 3, then **Unassign pad sound**.
+  3. `unassignPad` (`SliceAudioModal.tsx:121-124`) removes the mapping, deletes the replacement approval, *and* adds the original sample to `unassignments[2]`.
+  4. The pad now shows Empty. On Apply, the original is moved off the pad.
+- **Why it matters:** The user meant to remove the slice they just staged. Before this change, "Unassign selected sound" put the original back on the pad. Now the slicer offers no way to restore it except **Reset** or **Detect again**, which throw away every edit, or Cancel. Nothing is lost (the original goes to Unassigned sounds), but the result is not what the user asked for.
+- **Smallest repair:** In `unassignPad`, if `destinationRangeId` is set, only remove that mapping and its approval, and don't add to `unassignments`. Only add to `unassignments` when no slice is staged on the pad and the pad holds a loaded original. A second click would then unassign the original, and the pad shows what it currently holds at each step.
+
+### M2. A stale unassignment hides the pad's real sound and makes Apply fail every time
+- **Severity:** Medium. **Confidence:** Medium. This needs the project's samples to change while the slicer is open; `existingSamples` is live props from both call sites.
+- **Trigger:**
+  1. Unassign loaded Pad 9 (sample X).
+  2. While the slicer is open, Pad 9 changes to sample Y, for example through a gain edit or a reload from another surface.
+  3. `visibleSamples` (`:86`) hides any pad whose index is in `unassignments`, whether or not the sample there is still X. Pad 9 shows Empty and **Unassign pad sound** is disabled, because it checks `visibleSamples` (`:200`).
+  4. `apply` (`:127`) still sends `{9, X}`, and `prepareSliceApplication` throws "Pad 9 changed before unassignment was prepared" (`audioSlicing.ts:517`).
+- **Result:** Apply keeps failing. The only ways out are assigning a slice to Pad 9 or Reset. (Commit-time stale rejection itself is correct.)
+- **Smallest repair:** Hide the pad only when the sample still matches: `unassignments[index]===sample`. Also drop entries whose `existingSamples[key]!==sample`, either when building `unassignmentApprovals` or in an effect that prunes stale entries, and show a notice.
+
+### M3. The commit check on the source's identity was loosened more than needed
+- **Severity:** Medium. **Confidence:** Medium.
+- **Location:** `AppContext.tsx:1010-1013`.
+- **What changed:** The old check required `next.drumSamples[existingIndex].sourceIdentity===committed.sourceIdentity`. The new check accepts *any* loaded sample anywhere in `drumSamples` with the same `audioBuffer`, `file` and `sourceIdentity`.
+- **Trigger:** The source pad is neither replaced nor unassigned, and the Unassigned pool already holds a copy with the same buffer and file. That copy can exist from an earlier session that replaced this source pad, or from a duplicate. The new check is satisfied by the copy, even if the source pad's identity update is missing.
+- **Smallest repair:** Branch on whether the source pad is targeted.
+  - If `prepared.mapping` includes the source pad, or an unassignment snapshot targets it, require that the copy written by *this operation's* `STORE_DRUM_SAMPLE_ASSET` (found by reference among the `appliedStores` already computed) has `sourceIdentity===committed.sourceIdentity`.
+  - Otherwise keep the old exact-index check.
+
+### L1. The replacement prompt pulls focus back to Keep on every render
+- **Severity:** Low (accessibility). **Confidence:** High.
+- **Location:** `SliceAudioModal.tsx:203`.
+- **Why:** The prompt's ref is an inline arrow function. React runs a new ref callback on every render, and this one calls `scrollIntoView` and `focus()` on the Keep button each time.
+- **Trigger:**
+  1. Start a preview, then drop a slice onto a loaded pad.
+  2. Tab to **Replace**.
+  3. When the preview ends, its `onEnded` handler calls `setTransport`, the modal re-renders, and focus jumps back to **Keep**.
+- **Smallest repair:** Use a stable `useRef` and do the focus and scroll in `useEffect(()=>{…},[replacement?.rangeId,replacement?.keyIndex])`.
+
+### L2. Pad unassignments are stored inside the replacement-approvals object, and the comment about it is wrong
+- **Severity:** Low (maintainability). **Confidence:** High.
+- **Location:** `:40-41`.
+- **What's wrong:**
+  - The type `Record<number,DrumSample>&{unassignments?:…}` mixes a string key into what is meant to be a map of numeric pads. Any future `Object.entries(replacementApprovals)` would pick up `"unassignments"` as if it were a pad.
+  - The comment says this layout "preserves an open slicing draft" across a refresh. It doesn't: a full refresh of AppContext remounts the provider, which is exactly how the user's live draft was lost. The comment states something false.
+- **Smallest repair:** Use a separate `useState<Record<number,DrumSample>>` for unassignments, reset it in `acceptRanges`, and delete the comment.
+
+### L3. The numbered sounds are below the waveform, but not directly below it
+- **Severity:** Low (spec). **Confidence:** High.
+- **Location:** `:172-180`.
+- **What's there:** Between the canvas and the numbered buttons sit the "Sound X of Y" label and the Previous/Next buttons. The numbers also disappear when there is no selection (`selected&&` wraps them); before, a "Sound 0 of 0" row still showed.
+- **Test gap:** The new test checks only that the numbers come after the waveform in the document, so it would pass with anything in between.
+- **Smallest repair:** Put `.studio-slicer-sounds` as the canvas's next sibling and move the Previous/Next row after it. Assert that the canvas's `nextElementSibling` is the numbers container.
+
+### L4. Left-over reference to the removed rule in project docs
+- **Severity:** Low. **Confidence:** High.
+- `docs/verification/drum-slicing-genspark/2026-09-20-keyboard-mapping.md:20` still says "The original source pad cannot be replaced." That is no longer true.
+- `docs/verification/functional-audit-2026-09-27/control-inventory.md:390` still lists "Unassign selected sound", which no longer exists.
+- These are documentation only, but the audit inventory now describes a control that doesn't exist.
+
+---
+
+### Test gaps (nothing currently guards these paths)
+1. **No UI test checks what Apply passes to `prepareApplication`.** None of the new UI tests confirm that `unassignmentApprovals` and `replacementApprovals` arrive, including on the source pad. The fake `prepareApplication` at `SliceAudioModal.test.tsx:74` ignores both fields, so M1 and M2 would go unnoticed.
+2. **Unassigning the source pad without mapping anything to it is untested.** That is the path `retained={...current,sourceIdentity}` in finalize's unassignment loop (`audioSlicing.ts:604`), including when the source starts with no `sourceIdentity`. The context test only covers a source pad that is *mapped* plus a different pad being unassigned.
+3. **Auto-fill onto an unassigned pad, then Apply, is untested.** `autoFill` maps the slice without an approval entry, so `apply` has to supply the approval from `unassignments` through the loop at `:127`. This works when traced by hand but is not tested. If anyone later deletes that loop as redundant, prepare will throw "replacement was not approved".
+4. **Undo/Redo of an unassignment that also moves the source pad doesn't check the retained copies.** Redo only checks `drumSamples[8].isLoaded`. It doesn't confirm that both originals are back in the pool with the same `file` and `audioBuffer` references.
+5. **Stale source while the source pad is being replaced is untested.** No test changes the source pad between prepare and commit when `mapping` includes the source pad.
+6. **The Cancel assertion is too weak.** `input.existingSamples[2].isLoaded` can never change, because the props array isn't connected to any reducer. A real check would render with the AppContext provider, or assert that no dispatch happens.
+
+### Verified OK (by reading the code, not by running it)
+- **Atomic Apply:** Finalize builds every action before the single reducer batch, and any throw returns the unchanged `state`.
+- **Stale rejection:** Unassignment snapshots are compared at commit by `file`, `audioBuffer` and the full `sampleState`.
+- **Capacity:** Moving a sample to Unassigned adds no new samples or bytes, and `planSliceApplication` is re-run at commit against current assets.
+- **Originals kept:** A replaced or unassigned sample is copied unchanged, keeping its `file` and `audioBuffer` references, before its pad is cleared. The source pad's copy carries its `sourceIdentity`.
+- **Approval overlap:** Assigning to a pad removes it from the unassign list and unassigning removes its approval, so the two lists don't produce duplicate pads in normal use.
+- **Draft not saved:** Nothing in this change persists an in-progress slicer draft. I am not claiming the user's lost draft can be recovered.

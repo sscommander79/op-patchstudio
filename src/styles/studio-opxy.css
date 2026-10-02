@@ -1,0 +1,275 @@
+/*
+ * OP-XY appearance. Every rule is scoped to :root[data-studio-appearance="opxy"], so the default
+ * OP-1 Field presentation in studio.css is untouched. Two layers:
+ *   - Hardware surfaces (header brand, launch artwork, gear strip, drum tray and keys) are a black
+ *     chassis in both light and dark.
+ *   - Document surfaces (page, panels, forms, dialogs) stay grayscale and follow the Theme setting.
+ * Colour is grayscale; red is reserved for errors and destructive/recording states. Pad state is
+ * carried by shape and text (square marker, dashed ring, inverted fill), never by colour alone.
+ */
+
+/* ---------- Tokens ---------- */
+:root[data-studio-appearance="opxy"],
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] {
+  --studio-system-page: #d4d4d4;
+  --studio-system-panel: #f3f3f3;
+  --studio-system-recess: #e2e2e2;
+  --studio-system-graphite: #0d0d0d;
+  --studio-system-rule: #6f6f6f;
+  --studio-system-muted: #474747;
+  --studio-system-cyan: #bdbdbd;
+  --studio-system-orange: #0d0d0d;
+  --studio-system-red: #c4161c;
+  --studio-system-on-signal: #0a0a0a;
+  --studio-accent: #4a4a4a;
+  --studio-accent-text: #f3f3f3;
+  --studio-error: #b3141a;
+  --studio-warning: #0d0d0d;
+  --studio-success: #0d0d0d;
+  --studio-shadow: rgba(0, 0, 0, .2);
+  --studio-appearance-ink-strong: var(--studio-text);
+  --studio-appearance-ink: var(--studio-text);
+  --studio-appearance-ink-muted: var(--studio-muted);
+  --studio-appearance-ink-faint: var(--studio-border);
+}
+:root[data-studio-appearance="opxy"][data-studio-theme="dark"] {
+  --studio-system-page: #050505;
+  --studio-system-panel: #131313;
+  --studio-system-recess: #1e1e1e;
+  --studio-system-graphite: #ededed;
+  --studio-system-rule: #626262;
+  --studio-system-muted: #ababab;
+  --studio-system-cyan: #bdbdbd;
+  --studio-system-orange: #ededed;
+  --studio-system-red: #ff453a;
+  --studio-system-on-signal: #0a0a0a;
+  --studio-accent: #bdbdbd;
+  --studio-accent-text: #0a0a0a;
+  --studio-error: #ff5a50;
+  --studio-warning: #ededed;
+  --studio-success: #ededed;
+  --studio-shadow: rgba(0, 0, 0, .6);
+}
+/* Hardware palette: identical in light and dark. */
+:root[data-studio-appearance="opxy"] {
+  --studio-system-tray: #0b0b0b;
+  --studio-system-key: #2c2c2c;
+  --studio-system-key-ink: #f0f0f0;
+  --opxy-chassis: linear-gradient(180deg, #1d1d1d 0%, #0b0b0b 55%, #050505 100%);
+  --opxy-chassis-flat: #0b0b0b;
+  --opxy-hairline: #333333;
+  --opxy-screen: #000000;
+  --opxy-screen-ink: #e8e8e8;
+  --opxy-screen-mid: #a6a6a6;
+  --opxy-screen-dim: #6a6a6a;
+  --opxy-screen-faint: #2f2f2f;
+  /* Meaningful outlines (empty zones/pads) need >= 3:1 on the black screen. */
+  --opxy-screen-outline: #7a7a7a;
+  --opxy-key-top: #353535;
+  --opxy-key-bottom: #232323;
+  --opxy-key-empty: #151515;
+  --opxy-key-selected: #e9e9e9;
+  --opxy-key-ink: #f2f2f2;
+  --opxy-key-ink-muted: #b4b4b4;
+  --opxy-key-ink-inverse: #0a0a0a;
+}
+
+/* ---------- Legacy component tokens ----------
+ * Several editors still read legacy --color-* variables that studio.css does not alias, so they fell
+ * back to the old near-white blue-gray palette in device-themes.scss (#f8f9fa panels, #999 borders,
+ * invisible slider tracks). They are mapped to the grayscale document tokens for OP-XY Light only (dark keeps its approved rendering). The
+ * Carbon theme class sets its --cds-* variables on the .studio-app element, so these are declared
+ * there with higher specificity. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-app {
+  --color-bg-panel: var(--studio-recess);
+  --color-border-medium: var(--studio-border);
+  --color-bg-slider-track: var(--studio-border);
+  --color-progress-track: var(--studio-recess);
+  --color-text-info: var(--studio-muted);
+  --cds-border-strong: var(--studio-border);
+  --cds-border-strong-01: var(--studio-border);
+}
+/* Carbon slider tracks default to the recess tone (about 1.1:1 on a panel); give the unfilled track a visible rule. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .opxy-theme .cds--slider__track { background: var(--color-bg-slider-track) !important; }
+
+/* Light scheme surface hierarchy: a darker desk behind pages so bordered panels and cards read as
+ * panels rather than one uniform gray blanket. Editors keep their own panel surfaces. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] { --opxy-desk: #e3e3e3; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-shell-content:not([data-view="workspace"]),
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-library-page { background: var(--opxy-desk); }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-devices-workspace .studio-setup-panel,
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-manage-grid article,
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-setup-panel { background: var(--studio-system-panel); }
+/* Source choices sit on one rule-coloured grid like the task cards, so an unselected card keeps a boundary. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-source-grid { gap: 1px; border: 1px solid var(--studio-system-rule); background: var(--studio-system-rule); }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-source-grid .studio-start-card { border: 0; border-radius: 0; background: var(--studio-system-panel); }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-source-grid .studio-start-card[aria-pressed="true"],
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-source-grid .studio-start-card:hover { background: var(--studio-system-recess); box-shadow: inset 0 4px 0 var(--studio-system-graphite); }
+
+/* Instrument settings: the legacy rounded, shadowed and nested panels become flat ruled sections. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-panel { border: 1px solid var(--studio-system-rule) !important; border-radius: 0 !important; box-shadow: none !important; background: var(--studio-system-panel) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-panel-header { border-bottom-color: var(--studio-system-rule) !important; background: var(--studio-system-recess) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-section { border-color: var(--studio-system-rule) !important; border-radius: 0 !important; background: var(--studio-system-panel) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-section-header { border-radius: 0 !important; border-bottom-color: var(--studio-system-rule) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-section-body { border: 0 !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-placeholder { border: 1px dashed var(--studio-system-rule) !important; border-radius: 0 !important; background: var(--studio-system-recess) !important; color: var(--studio-system-muted) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-settings-panel button { border-radius: 0 !important; }
+
+/* Bulk edit dialog: its inline Tailwind-era whites and blue-grays are remapped to the document tokens. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit { border: 1px solid var(--studio-system-rule); border-radius: 0 !important; box-shadow: 0 18px 54px var(--studio-shadow) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-header,
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-actions { border-color: var(--studio-system-rule) !important; background: var(--studio-system-recess); }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-note { border-color: var(--studio-system-rule) !important; border-radius: 0 !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-label { color: var(--studio-system-graphite) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-field { border-color: var(--studio-system-rule) !important; border-radius: 0 !important; background: var(--studio-system-panel) !important; color: var(--studio-system-graphite) !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-range { accent-color: var(--studio-system-graphite); }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-actions button { border-radius: 0 !important; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-bulk-edit-cancel { border-color: var(--studio-system-graphite) !important; background: var(--studio-system-panel) !important; color: var(--studio-system-graphite) !important; }
+
+/* Recorder dialogs share one inline button style with no disabled treatment; disabled actions get a
+ * dashed boundary and muted label so they no longer read as enabled. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] :is([data-recording-modal], [data-studio-automatic-panel]) button:disabled { border-style: dashed !important; color: var(--studio-system-muted) !important; cursor: not-allowed; }
+
+/* Devices CC grid: ruled cells without painting the unused trailing cell as a solid gray block. */
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-cc-grid { gap: 0; border: 0; background: transparent; }
+:root[data-studio-appearance="opxy"][data-studio-theme="light"] .studio-cc-slot { outline: 1px solid var(--studio-system-rule); }
+
+/* ---------- Shell ---------- */
+:root[data-studio-appearance="opxy"] .studio-shell { border-color: #0a0a0a; }
+:root[data-studio-appearance="opxy"] .studio-shell-brand { gap: .15rem; grid-template-columns: auto minmax(0, 1fr); column-gap: .7rem; align-items: center; border-right-color: #000; background: var(--opxy-chassis); color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-shell-brand > strong,
+:root[data-studio-appearance="opxy"] .studio-shell-brand > small { grid-column: 2; }
+:root[data-studio-appearance="opxy"] .studio-shell-brand > small { color: var(--opxy-screen-mid); }
+.studio-opxy-display { grid-column: 1; grid-row: 1 / span 2; display: inline-flex; line-height: 0; }
+.studio-opxy-display-screen { fill: var(--opxy-screen); stroke: var(--opxy-hairline); stroke-width: 1; }
+.studio-opxy-display-bar { fill: var(--opxy-screen-mid); }
+:root[data-studio-appearance="opxy"] .studio-shell-nav button[aria-current="page"] { font-weight: 800; }
+:root[data-studio-appearance="opxy"] .studio-appearance-choice { --studio-appearance-glyph-screen: #8a8a8a; }
+
+/* ---------- Launch surface ---------- */
+:root[data-studio-appearance="opxy"] .studio-launch-module { border-color: var(--studio-system-rule); }
+:root[data-studio-appearance="opxy"] .studio-launch-module-heading { border-left-width: 4px; }
+.studio-opxy-art-screen { fill: var(--opxy-screen); stroke: var(--opxy-hairline); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-rule { stroke: var(--opxy-screen-faint); stroke-width: 1; vector-effect: non-scaling-stroke; }
+/* Doubled class beats the Field `.studio-launch-diagram text` rule (0,1,1) so labels stay light on the black screen. */
+.studio-launch-diagram .studio-opxy-art-label, .studio-launch-diagram .studio-opxy-art-lane-number { fill: var(--opxy-screen-mid); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; letter-spacing: .1em; }
+.studio-opxy-art-zone { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-zone--empty { fill: none; stroke: var(--opxy-screen-outline); stroke-dasharray: 2 2; }
+.studio-opxy-art-zone--loaded { fill: var(--opxy-screen-mid); stroke: var(--opxy-screen-ink); }
+.studio-opxy-art-zone-cap { fill: var(--opxy-screen-ink); }
+.studio-opxy-art-key { fill: #9d9d9d; }
+.studio-opxy-art-key-dark { fill: #1c1c1c; stroke: #000; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-wave { fill: var(--opxy-screen-mid); stroke: var(--opxy-screen-ink); stroke-width: .75; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-trim { fill: none; stroke: var(--opxy-screen-ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-cursor { stroke: var(--opxy-screen-ink); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-pad { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-pad--empty { fill: none; stroke: var(--opxy-screen-outline); stroke-dasharray: 3 2; }
+.studio-opxy-art-pad--loaded { fill: #2e2e2e; stroke: var(--opxy-screen-dim); }
+.studio-opxy-art-pad--selected { fill: var(--opxy-key-selected); stroke: var(--opxy-screen-ink); }
+.studio-opxy-art-pad-mark { fill: var(--opxy-screen-ink); }
+[data-pad-art-state="selected"] .studio-opxy-art-pad-mark, [data-pad-art-state="selected"] .studio-opxy-art-pad-legend { fill: var(--opxy-key-ink-inverse); stroke: var(--opxy-key-ink-inverse); }
+.studio-opxy-art-pad-legend { stroke: var(--opxy-screen-dim); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-bracket { fill: none; stroke: var(--opxy-screen-ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.studio-opxy-art-lane { fill: #111111; }
+.studio-opxy-art-clip { fill: var(--opxy-screen-mid); }
+/* Launch meta markers: filled square = loaded, hollow square = workflow hint. No dots that read as a live REC lamp. */
+:root[data-studio-appearance="opxy"] .studio-launch-meta[data-state="loaded"]::before,
+:root[data-studio-appearance="opxy"] .studio-launch-meta[data-state="capture"]::before { width: 8px; height: 8px; border-radius: 0; background: var(--studio-system-graphite); }
+:root[data-studio-appearance="opxy"] .studio-launch-meta[data-state="capture"]::before { box-sizing: border-box; border: 2px solid var(--studio-system-graphite); background: transparent; }
+
+/* External gear: a black chassis strip in both schemes. */
+:root[data-studio-appearance="opxy"] .studio-launch-gear,
+:root[data-studio-appearance="opxy"][data-studio-theme="dark"] .studio-launch-gear { border-color: #000; background: var(--opxy-chassis); color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-launch-gear:hover,
+:root[data-studio-appearance="opxy"][data-studio-theme="dark"] .studio-launch-gear:hover { background: #1b1b1b; }
+:root[data-studio-appearance="opxy"] .studio-launch-gear-title small,
+:root[data-studio-appearance="opxy"] .studio-launch-gear-flow i { color: var(--opxy-screen-mid); }
+:root[data-studio-appearance="opxy"] .studio-launch-gear-flow { border-color: #4a4a4a; background: var(--opxy-screen); }
+:root[data-studio-appearance="opxy"] .studio-launch-gear-flow span { border-color: var(--opxy-screen-mid); }
+
+/* ---------- Editors ---------- */
+:root[data-studio-appearance="opxy"] .studio-editor-command-bar button:first-child { background: var(--studio-system-graphite); color: var(--studio-system-panel); }
+:root[data-studio-appearance="opxy"] .studio-editor-command-bar button:first-child:hover { background: var(--studio-system-recess); color: var(--studio-system-graphite); }
+:root[data-studio-appearance="opxy"] .studio-cc-slot input[type="checkbox"],
+:root[data-studio-appearance="opxy"] .studio-cc-slot input[type="range"] { accent-color: var(--studio-system-graphite); }
+:root[data-studio-appearance="opxy"] .studio-guide li[data-done="true"] { font-weight: 700; }
+
+/* Envelope editor SVG uses fixed presentation attributes; CSS maps them to the grayscale document tokens. */
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [stroke="#ddd"],
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [stroke="#cccccc"] { stroke: var(--studio-border); }
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [stroke="#333333"] { stroke: var(--studio-text); }
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [fill="#333333"],
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [fill="#333"] { fill: var(--studio-text); }
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [fill="#999999"],
+:root[data-studio-appearance="opxy"] .adsr-envelope-container svg [fill="#999"] { fill: var(--studio-muted); }
+
+/* ---------- Drum tray and keys (hardware, same in both schemes) ---------- */
+:root[data-studio-appearance="opxy"] .studio-drum-surface { border-color: #000; background: var(--opxy-chassis-flat); }
+:root[data-studio-appearance="opxy"] .studio-drum-surface > .studio-performance-header { --color-text-secondary: var(--opxy-screen-mid); border-bottom-color: #000; background: var(--opxy-chassis); color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-drum-surface > .studio-performance-header h3,
+:root[data-studio-appearance="opxy"] .studio-drum-loaded-count,
+:root[data-studio-appearance="opxy"] .studio-drum-surface .pin-button { color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-drum-surface .studio-performance-header h3::before { color: var(--opxy-screen-mid); }
+:root[data-studio-appearance="opxy"] .studio-drum-pad-tray { background: var(--opxy-chassis) !important; border-color: #000 !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important; }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-bank + .studio-desktop-pad-bank { border-top-color: var(--opxy-hairline); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-bank > p { color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-bank > p span { color: var(--opxy-screen-mid); }
+
+:root[data-studio-appearance="opxy"] .studio-drum-pad { --studio-drum-pad-bg: linear-gradient(180deg, var(--opxy-key-top), var(--opxy-key-bottom)); --studio-drum-pad-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 0 #000; color: var(--opxy-key-ink); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-slot > .studio-drum-pad,
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-banks .studio-desktop-pad-slot > .studio-drum-pad,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-drum-pad { border-color: #000; box-shadow: var(--studio-drum-pad-shadow); color: var(--opxy-key-ink); }
+:root[data-studio-appearance="opxy"] .studio-drum-pad .studio-drum-pad-name { color: var(--opxy-key-ink); }
+:root[data-studio-appearance="opxy"] .studio-drum-pad .studio-drum-pad-keychar { color: var(--opxy-key-ink-muted); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-slot > .studio-drum-pad .studio-drum-pad-status { color: var(--opxy-key-ink-muted); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-banks .studio-drum-pad .studio-drum-pad-status,
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-banks .studio-drum-pad[data-pad-state="empty"] .studio-drum-pad-status,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-pad-row--upper .studio-drum-pad .studio-drum-pad-status { color: var(--opxy-screen-mid); }
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-banks .studio-drum-pad[data-pad-state="loaded"] .studio-drum-pad-status,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-pad-row--upper .studio-drum-pad[data-pad-state="loaded"] .studio-drum-pad-status { color: var(--opxy-screen-ink); }
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-drum-pad small,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-drum-pad[data-pad-state="loaded"] small { color: var(--opxy-key-ink); }
+
+/* Empty: darker recessed key with a dashed inner ring. */
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-state="empty"] { --studio-drum-pad-bg: var(--opxy-key-empty); --studio-drum-pad-shadow: inset 0 1px 2px rgba(0,0,0,.6), 0 1px 0 #000; opacity: 1; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-state="empty"]::before { content: ""; position: absolute; inset: 5px; border: 1px dashed #7a7a7a; border-radius: inherit; pointer-events: none; }
+/* Loaded: a filled square marker instead of the Field LED dot. */
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-state="loaded"]::after { top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 0; background: var(--opxy-key-ink); box-shadow: 0 0 0 1px #000; }
+/* Selected: inverted key with an inset ring; SELECTED text stays visible. Focus remains the separate outer outline. */
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-selected="true"] { --studio-drum-pad-bg: var(--opxy-key-selected); --studio-drum-pad-shadow: inset 0 0 0 2px #0a0a0a, inset 0 0 0 4px var(--opxy-key-selected), inset 0 0 0 5px #0a0a0a, 0 2px 0 #000; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-selected="true"]::before { content: none; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-selected="true"]::after { background: var(--opxy-key-ink-inverse); box-shadow: none; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-selected="true"] .studio-drum-pad-name,
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-pad-selected="true"] .studio-drum-pad-keychar,
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-slot > .studio-drum-pad[data-pad-selected="true"] .studio-drum-pad-status,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-drum-pad[data-pad-selected="true"] small { color: var(--opxy-key-ink-inverse); }
+/* Status labels printed on the tray below a selected key. */
+:root[data-studio-appearance="opxy"] .studio-desktop-pad-banks .studio-drum-pad[data-pad-selected="true"] .studio-drum-pad-status,
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid .studio-pad-row--upper .studio-drum-pad[data-pad-selected="true"] .studio-drum-pad-status { color: #ffffff; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid button[aria-current="true"] { box-shadow: inset 0 0 0 2px #0a0a0a, inset 0 0 0 4px var(--opxy-key-selected), inset 0 0 0 5px #0a0a0a; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad[data-drag-over="true"] { border: 2px dashed #ffffff !important; background: #1b1b1b !important; box-shadow: 0 0 0 2px #000 !important; }
+:root[data-studio-appearance="opxy"] .studio-drum-pad:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; box-shadow: 0 0 0 6px #000; }
+:root[data-studio-appearance="opxy"] .studio-mobile-pad-grid button[data-drag-over="true"] { box-shadow: 0 0 0 2px #fff; }
+
+/* ---------- Multisample keybed (hardware, same in both schemes) ----------
+ * Keys read legacy colour variables from inline styles, so they are remapped only inside the keybed.
+ * Assigned keys are raised graphite with a visible note label and light border; unassigned keys are
+ * recessed black with no label, so the state does not depend on colour alone. */
+:root[data-studio-appearance="opxy"] .studio-multisample-surface .hide-scrollbar {
+  background: var(--opxy-chassis) !important;
+  --color-bg-primary: #3a3a3a;
+  --color-surface-secondary: #4a4a4a;
+  --color-border-subtle: #1a1a1a;
+  --color-key-inactive-white-bg: #262626;
+  --color-key-inactive-border: #000000;
+  --color-black: #f0f0f0;
+  --color-text-secondary: #a6a6a6;
+  --color-interactive-secondary: #d8d8d8;
+  --color-interactive-focus-ring: #5a5a5a;
+  --color-interactive-dark: #8c8c8c;
+  --color-key-inactive-black-bg: #050505;
+  --color-interactive-focus: #f0f0f0;
+}
+/* The two white edge-fade overlays are the only absolutely positioned direct children with a pointer-events:none style. */
+:root[data-studio-appearance="opxy"] .studio-multisample-surface > div[style*="pointer-events: none"][style*="position: absolute"] { background: linear-gradient(to right, #0b0b0b, transparent) !important; }
+:root[data-studio-appearance="opxy"] .studio-multisample-surface > div[style*="pointer-events: none"][style*="right: 0"] { background: linear-gradient(to left, #0b0b0b, transparent) !important; }

@@ -20,6 +20,7 @@ function MidiChannelSelector({ selectedChannel, onChannelChange }: MidiChannelSe
     }}>
       <span style={{ color: 'var(--color-text-secondary)' }}>channel:</span>
       <select
+        aria-label="MIDI audition channel"
         value={selectedChannel}
         onChange={(e) => onChannelChange(parseInt(e.target.value))}
         style={{

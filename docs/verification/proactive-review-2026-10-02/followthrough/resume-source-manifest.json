@@ -1,0 +1,62 @@
+[
+  {
+    "path": "src/components/common/SessionRestorationModal.tsx",
+    "before_sha256": "8186d6c9069f4f31d4bed712ffd05d3c2767d23283abd2463924229ffec145e0",
+    "after_sha256": "4e170efe41ee1e32c76d52923b1adb2fe2f788c4726ce313d8bb63137f6a76b1"
+  },
+  {
+    "path": "src/components/devices/DevicesWorkspace.tsx",
+    "before_sha256": "7f477f97f2db9b62b3b9073c8091a57aa9563f207ca1c058c6a7125fc97e3ff8",
+    "after_sha256": "7e9e66e5bf51d584bf8dbb74db6acb1104584f2205c6ac2b2fe6f2366368305f"
+  },
+  {
+    "path": "src/components/multisample/MultisampleTool.tsx",
+    "before_sha256": "7fb9e02a21675c3ba41904390a71eb9c9a881a08d6c2512126333486ece48551",
+    "after_sha256": "1c4b7a831550c7e999b313d96ed03d12dba1b79c9bfc2a82b2a3ee0d3378e3a3"
+  },
+  {
+    "path": "src/components/multisample/VirtualMidiKeyboard.tsx",
+    "before_sha256": "e28a1ef4bf8cd8166737337d19d229d9ff7103c32ade7b991f9c8d6701efcd3d",
+    "after_sha256": "ae1006ab50e00bdfc81fd895722bb99c1646f4bf46ef8506c7eec692302a1ebf"
+  },
+  {
+    "path": "src/test/components/DevicesWorkspace.test.tsx",
+    "before_sha256": "42b17d15e555fcedbd4c771e7f10b88ba8332035af9a72903ad5b127804bc210",
+    "after_sha256": "258e0d3797e05dba4a4d9fb657dda171ad2a689dec08be967a723651d2f2e2bd"
+  },
+  {
+    "path": "src/test/components/MultisampleTool.test.tsx",
+    "before_sha256": "2e6cdd9df5cec2543685d4837cd3e419272bd250237cc364545cdb86c910a2e0",
+    "after_sha256": "e843b7baf9e87f5052a71788343129df10de15bd9f94bae46db9fe13023f31c6"
+  },
+  {
+    "path": "src/test/components/VirtualMidiKeyboardShortcuts.test.tsx",
+    "before_sha256": "54101ae4df9d093502207cb2dfb1c37e037dc59dc61939d3cea144eb77a070de",
+    "after_sha256": "c9cf21dd15c5614918bb5b3b1d0593f12923b60e7e4aa65946a064ce479aa48d"
+  },
+  {
+    "path": "src/test/hooks/sessionRecovery.test.tsx",
+    "before_sha256": "a35cfbfbf629730c0efcc62f01527e5feb4e2b877fe15010532c6d1eb118e6b0",
+    "after_sha256": "c42d01fc332c9c902713deb211bd0770cc6194648fda69fde29a9f8c9aa21ae3"
+  },
+  {
+    "path": "tests/e2e/recording.spec.ts",
+    "before_sha256": "614d66e352bb2463067f7b9d379c257ba37f04906bf440c7552ac5c5d1ab6547",
+    "after_sha256": "6d74ea90527d29b8df4f003ec7f5f9fac6f1e50b011727f9c41c1553155f6ad3"
+  },
+  {
+    "path": "tests/e2e/slicing.spec.ts",
+    "before_sha256": "d2b28d20084e057ff2f5d84ea1e5c3b1ec0d54b8af3c31d5a82456c08dac1657",
+    "after_sha256": "c49dbbea4ffb8029d1f75393f33c44232797879c32f3622ce99c2c7087cf90be"
+  },
+  {
+    "path": "tests/e2e/studio-appearance.spec.ts",
+    "before_sha256": "29a75cb1ad954834a352432dd48ed0362286d4a7a0b5042b860c8150d597e859",
+    "after_sha256": "9176507aee250a4229c3cfaaeeb9b295c683654488983b39d505369662ad488a"
+  },
+  {
+    "path": "tests/e2e/virtual-keyboard-access.spec.ts",
+    "before_sha256": null,
+    "after_sha256": "5e001c80d116800b0b6a3c4e4c901ea9dc87d202b3878b2dfb39d5f7c0bac28b"
+  }
+]

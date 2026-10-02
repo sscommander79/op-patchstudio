@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import {nativeControlKeys} from './keyboard-policy';
+import { expect, test, type Locator, type Page } from './control-audit-test';
 
 // Semantic and layout contract for the unified launch surface and the drum workbench.
 // These assertions are independent of the pixel baselines in tests/visual, so a re-recorded
@@ -58,7 +59,7 @@ test.describe('unified launch surface', () => {
     await expect(page.locator('.studio-shell-sidebar, .studio-app-header')).toHaveCount(0);
     await expect(page.getByRole('navigation')).toHaveCount(1);
     const primary = page.getByRole('navigation', { name: 'Workspace' }).getByRole('button');
-    await expect(primary).toHaveText(['Overview', 'Create', 'Library', 'Transfer', 'Devices']);
+    await expect(primary).toHaveText(['Overview', 'Library', 'Transfer', 'Devices']);
     const primaryTops = await primary.evaluateAll(buttons => buttons.map(button => Math.round(button.getBoundingClientRect().top)));
     expect(new Set(primaryTops).size).toBe(1);
     await expect(page.getByRole('navigation', { name: 'Tools' })).toHaveCount(0);
@@ -128,6 +129,7 @@ test.describe('unified launch surface', () => {
   });
 
   test('keyboard order follows the launch hierarchy and every target is operable', async ({ page }) => {
+    const {forward,backward}=await nativeControlKeys(page.context());
     await page.setViewportSize({ width: 1440, height: 1000 });
     await openLaunch(page);
     await expect(page.getByRole('heading', { level: 1, name: 'What are you working on?' })).toBeFocused();
@@ -141,15 +143,15 @@ test.describe('unified launch surface', () => {
       'Open library Browse saved instruments', 'Back up or transfer Keep an editable project copy',
     ];
     for (const name of order) {
-      await page.keyboard.press('Tab');
+      await page.keyboard.press(forward);
       await expect(launch.getByRole('button', { name, exact: true })).toBeFocused();
       const outline = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
       expect(outline, `${name} shows a focus outline`).not.toBe('none');
     }
-    await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press(backward);
+    await page.keyboard.press(backward);
+    await page.keyboard.press(backward);
+    await page.keyboard.press(backward);
     await expect(page.getByRole('button', { name: 'Open kit', exact: true })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/#\/studio\/drum$/);

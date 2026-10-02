@@ -4,6 +4,8 @@ import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 import { MainTabs, type RecorderRequest } from './MainTabs';
 import { ProjectToolbar } from './ProjectToolbar';
 import { PercussionIllustration } from './PercussionIllustration';
+import { useStudioAppearance } from '../../context/StudioTheme';
+import { OpxyCaptureArt, OpxyHeaderDisplay, OpxyNoteRangeArt, OpxyPadMapArt, OpxyTracksArt } from './opxy/OpxyLaunchArt';
 import type { SliceSourceRequest } from '../drum/SliceAudioModal';
 import type { DevicesWorkspaceProps } from '../devices/DevicesWorkspace';
 
@@ -118,6 +120,7 @@ export function StudioShell({
   themePicker?: React.ReactNode;
 }) {
   const { state, dispatch } = useAppContext();
+  const opxy = useStudioAppearance() === 'opxy';
   const [view, setView] = useState<View>(() => readStudioRoute().view);
   const routeRef = useRef(window.location.hash);
   const [task, setTask] = useState<Task>('multisample');
@@ -130,8 +133,8 @@ export function StudioShell({
   const nextRecorderRequestId = useRef(0);
   const contentRef = useRef<HTMLElement>(null);
   const guard = useCallback((action: () => void) => {
-    const recorder = document.querySelector<HTMLElement>('[data-recording-modal="true"]');
-    if (recorder) { setNotice('Finish or close Record takes before changing workspaces. Your review takes remain here.'); recorder.focus(); return false; }
+    const recorder = document.querySelector<HTMLElement>('[data-recording-modal="true"], [data-workspace-modal]');
+    if (recorder) { setNotice('Finish or close the open recording or slicing session before changing workspaces. Your work remains here.'); recorder.focus(); return false; }
     setNotice(''); action(); return true;
   }, []);
   const openHelp = useCallback((next: Topic) => setTopic(next), []);
@@ -149,8 +152,8 @@ export function StudioShell({
     const syncFromHistory = () => {
       const hash = window.location.hash;
       if (hash === routeRef.current) return;
-      if (document.querySelector('[data-recording-modal="true"]')) {
-        setNotice('Finish or close Record takes before changing workspaces. Your review takes remain here.');
+      if (document.querySelector('[data-recording-modal="true"], [data-workspace-modal]')) {
+        setNotice('Finish or close the open recording or slicing session before changing workspaces. Your work remains here.');
         window.history.pushState(null, '', routeRef.current || routeHash('start'));
         return;
       }
@@ -168,6 +171,14 @@ export function StudioShell({
     };
   }, [dispatch]);
   useEffect(() => {
+    const openWorkspace = (event: Event) => {
+      const tab = (event as CustomEvent<Tab>).detail;
+      if (tab === 'drum' || tab === 'multisample' || tab === 'library') guard(() => navigate('workspace', tab));
+    };
+    window.addEventListener('opstudio-open-workspace', openWorkspace);
+    return () => window.removeEventListener('opstudio-open-workspace', openWorkspace);
+  }, [guard, navigate]);
+  useEffect(() => {
     const listener = (event: Event) => openHelp((event as CustomEvent<Topic>).detail || 'capture');
     window.addEventListener('opstudio-open-help', listener);
     return () => window.removeEventListener('opstudio-open-help', listener);
@@ -177,7 +188,7 @@ export function StudioShell({
   useEffect(() => { recorderRequestRef.current = recorderRequest; }, [recorderRequest]);
   useEffect(() => {
     if (view === 'workspace' && recorderRequestRef.current) return;
-    if (document.querySelector('[data-recording-modal="true"]')) return;
+    if (document.querySelector('[data-recording-modal="true"], [data-workspace-modal]')) return;
     // Lazy workspaces (Library) may render their heading a few frames after navigation.
     let attempts = 0;
     let frame = 0;
@@ -212,10 +223,9 @@ export function StudioShell({
   return <div className="studio-shell">
     <header className="studio-shell-header" aria-label="Studio navigation">
       <div className="studio-shell-header-main">
-        <div className="studio-shell-brand"><strong>OP–PatchStudio</strong><small>Unofficial preset studio</small></div>
+        <div className="studio-shell-brand">{opxy && <OpxyHeaderDisplay />}<strong>OP–PatchStudio</strong><small>Unofficial preset studio</small></div>
         <nav className="studio-shell-nav studio-shell-primary-nav" aria-label="Workspace"><span>WORKSPACE</span>
           <button type="button" aria-current={view === 'start' ? 'page' : undefined} onClick={() => guard(() => navigate('start'))}>Overview</button>
-          <button type="button" aria-current={view === 'create' || view === 'source' || view === 'setup' ? 'page' : undefined} onClick={() => guard(() => navigate('create'))}>Create</button>
           <button type="button" aria-current={view === 'workspace' && state.currentTab === 'library' ? 'page' : undefined} onClick={() => workspace('library')}>Library</button>
           <button type="button" aria-current={view === 'manage' ? 'page' : undefined} onClick={() => guard(() => navigate('manage'))}>Transfer</button>
           <button type="button" aria-current={view === 'devices' ? 'page' : undefined} onClick={() => guard(() => navigate('devices'))}>Devices</button>
@@ -235,25 +245,25 @@ export function StudioShell({
           <div className="studio-launch-modules">
             <article className="studio-launch-module" data-launch-module="multisample" aria-labelledby="launch-multisample-title">
               <div className="studio-launch-module-heading"><h2 id="launch-multisample-title">Multisample a synth</h2><p>Capture notes / build an instrument</p></div>
-              <NoteRangeDiagram loaded={Math.min(multisampleCount, 24)} />
+              {opxy ? <OpxyNoteRangeArt loaded={Math.min(multisampleCount, 24)} /> : <NoteRangeDiagram loaded={Math.min(multisampleCount, 24)} />}
               <div className="studio-launch-module-footer"><span className="studio-launch-meta" data-state={multisampleCount ? 'loaded' : 'empty'}>{multisampleCount ? `${multisampleCount} / 24 zones loaded` : 'Note range'}</span>
                 <span className="studio-launch-actions"><button type="button" className="studio-launch-link" aria-label="Setup guide: multisample a synth" onClick={() => openSetupGuide('multisample')}>Setup guide</button><button type="button" className="studio-launch-cta" onClick={() => workspace('multisample', true, true)}>Open capture <span aria-hidden="true">→</span></button></span></div>
             </article>
             <article className="studio-launch-module" data-launch-module="sample" aria-labelledby="launch-sample-title">
               <div className="studio-launch-module-heading"><h2 id="launch-sample-title">Sample a sound</h2><p>Record / review / add</p></div>
-              <CaptureDiagram />
+              {opxy ? <OpxyCaptureArt /> : <CaptureDiagram />}
               <div className="studio-launch-module-footer"><span className="studio-launch-meta" data-state="capture">Record takes</span>
                 <span className="studio-launch-actions"><button type="button" className="studio-launch-link" aria-label="Setup guide: sample a sound" onClick={() => openSetupGuide('sample')}>Setup guide</button><button type="button" className="studio-launch-cta" onClick={() => workspace('multisample', true, false)}>Open sampler <span aria-hidden="true">→</span></button></span></div>
             </article>
             <article className="studio-launch-module" data-launch-module="drum" aria-labelledby="launch-drum-title">
               <div className="studio-launch-module-heading"><h2 id="launch-drum-title">Build a drum kit</h2><p>Pad map / shape / export</p></div>
-              <PadMapDiagram />
+              {opxy ? <OpxyPadMapArt /> : <PadMapDiagram />}
               <div className="studio-launch-module-footer"><span className="studio-launch-meta" data-state={drumCount ? 'loaded' : 'empty'}>{drumCount ? `${drumCount} / 24 pads loaded` : '24 sample slots'}</span>
                 <span className="studio-launch-actions"><button type="button" className="studio-launch-link" aria-label="Setup guide: build a drum kit" onClick={() => openSetupGuide('drum')}>Setup guide</button><button type="button" className="studio-launch-cta" onClick={() => workspace('drum')}>Open kit <span aria-hidden="true">→</span></button></span></div>
             </article>
             <article className="studio-launch-module" data-launch-module="tracks" aria-labelledby="launch-tracks-title">
               <div className="studio-launch-module-heading"><h2 id="launch-tracks-title">Record OP-XY tracks</h2><p>Capture / review / export</p></div>
-              <TrackRecordingDiagram />
+              {opxy ? <OpxyTracksArt /> : <TrackRecordingDiagram />}
               <div className="studio-launch-module-footer"><span className="studio-launch-meta">Separate audio tracks</span>
                 <span className="studio-launch-actions"><button type="button" className="studio-launch-cta" aria-label="Record OP-XY tracks" onClick={() => guard(() => setStemOpen(true))}>Open recorder <span aria-hidden="true">→</span></button></span></div>
             </article>

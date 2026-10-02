@@ -1,4 +1,4 @@
-import { expect, test, type Download, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {applyAudioImport} from './import-helpers';
@@ -70,6 +70,7 @@ test('zoom editor saves one atomic half-open edit and exports real converted loo
   let dialog = await openEditor(page);
   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
   await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+  const snapping=dialog.getByRole('checkbox',{name:'snap to zero crossings'});await snapping.uncheck();await expect(snapping).not.toBeChecked();await snapping.check();await expect(snapping).toBeChecked();
 
   const playhead = dialog.getByText(/^Playhead:/);
   const readPlayhead = async () => Number((await playhead.textContent())?.match(/\d+/)?.[0] ?? 0);
@@ -172,4 +173,8 @@ test('drum table opens the same frame editor and Cancel preserves its markers', 
   dialog = await openEditor(page);
   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
   await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+});
+
+test('waveform surface opens zoom and Escape preserves existing markers',async({page})=>{
+ await uploadDrum(page);const editor=page.getByRole('region',{name:'Focused sample editor'});const before=await editor.getByLabel('In point (seconds)',{exact:true}).inputValue();await editor.locator('canvas').click({position:{x:40,y:45}});const dialog=page.getByRole('dialog',{name:'zoom and edit',exact:true});await expect(dialog).toBeVisible();await dialog.getByLabel('Sample start frames').fill('100');await dialog.press('Escape');await expect(dialog).toBeHidden();await expect(editor.getByLabel('In point (seconds)',{exact:true})).toHaveValue(before);
 });

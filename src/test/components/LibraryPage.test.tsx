@@ -8,6 +8,7 @@ import type { LibraryPreset } from '../../utils/libraryUtils';
 import { AUDIO_CONSTANTS } from '../../utils/constants';
 import {encodeStoredAudio} from '../../utils/storedAudio';
 import type {PresetSummary} from '../../utils/indexedDB';
+import * as batchExports from '../../utils/libraryBatchExport';
 import {projectEditIdentityMatches} from '../../utils/projectEditIdentity';
 
 const stableDispatch = vi.hoisted(() => vi.fn());
@@ -284,6 +285,18 @@ describe('LibraryPage', () => {
       })));
     });
 
+    it('rejects a corrupt saved preset type without restoring or navigating',async()=>{
+      mockIndexedDB.getPreset.mockResolvedValueOnce({...mockPresets[0],type:'unknown'} as unknown as LibraryPreset);
+      const navigate=vi.fn();window.addEventListener('opstudio-open-workspace',navigate);
+      try {
+        render(<LibraryPage/>);await screen.findByText('Drum Kit 1');
+        fireEvent.click(screen.getAllByRole('button',{name:'load preset'})[0]);
+        await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error'})})));
+        expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
+        expect(navigate).not.toHaveBeenCalled();
+      } finally {window.removeEventListener('opstudio-open-workspace',navigate);}
+    });
+
     it('does not apply decoded preset data after the current project changes',async()=>{
       vi.mocked(projectEditIdentityMatches).mockReturnValueOnce(false);
       render(<LibraryPage/>);
@@ -463,6 +476,12 @@ describe('LibraryPage', () => {
       });
     });
 
+    it('mobile pagination advances ten summaries and returns without losing items',async()=>{
+      const width=window.innerWidth;
+      try{Object.defineProperty(window,'innerWidth',{configurable:true,value:390});fireEvent(window,new Event('resize'));await screen.findByText('Preset 10');expect(screen.queryByText('Preset 11')).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Next'}));await screen.findByText('Preset 11');expect(screen.queryByText('Preset 1')).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Previous'}));await screen.findByText('Preset 1');}
+      finally{Object.defineProperty(window,'innerWidth',{configurable:true,value:width});fireEvent(window,new Event('resize'));}
+    });
+
     it('should navigate between pages', async () => {
       // Click next page button
       const nextButton = screen.getByText('Next');
@@ -531,9 +550,13 @@ describe('LibraryPage', () => {
       expect(source.stop).toHaveBeenCalledOnce();
       fireEvent.click(screen.getByRole('button',{name:'Preview first sample of Preview Kit'}));
       await waitFor(()=>expect(source.start).toHaveBeenCalledTimes(2));
+      fireEvent.click(screen.getByRole('button',{name:'Stop library preview'}));
+      await waitFor(()=>expect(context.close).toHaveBeenCalledTimes(2));
+      fireEvent.click(screen.getByRole('button',{name:'Preview first sample of Preview Kit'}));
+      await waitFor(()=>expect(source.start).toHaveBeenCalledTimes(3));
       Object.defineProperty(document,'hidden',{configurable:true,value:true});
       act(()=>document.dispatchEvent(new Event('visibilitychange')));
-      await waitFor(()=>expect(context.close).toHaveBeenCalledTimes(2));
+      await waitFor(()=>expect(context.close).toHaveBeenCalledTimes(3));
       expect(screen.queryByRole('status',{name:'Library preview status'})).not.toBeInTheDocument();
       Object.defineProperty(document,'hidden',{configurable:true,value:false});
     });
@@ -696,6 +719,16 @@ describe('LibraryPage', () => {
     });
   });
 
+  it('reports a library read failure without claiming the preset was deleted',async()=>{
+    mockIndexedDB.getPresetSummaries.mockResolvedValue([{...mockPresets[0],hasPreview:true}]);
+    mockIndexedDB.getPreset.mockRejectedValueOnce(new Error('Storage unavailable'));
+    render(<LibraryPage/>);await screen.findByText('Drum Kit 1');
+    fireEvent.click(screen.getByRole('button',{name:'Preview first sample of Drum Kit 1'}));
+    await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type:'ADD_NOTIFICATION',payload:expect.objectContaining({message:'Could not read this saved preset. Try previewing again.'}),
+    })));
+  });
+
   describe('Error Handling', () => {
     it('should handle audio context creation failure', async () => {
       const originalAudioContext = window.AudioContext;
@@ -720,4 +753,16 @@ describe('LibraryPage', () => {
       }
     });
   });
+  it('Cancel export aborts the pending batch and never downloads its late result',async()=>{
+    let resolveArchive!:(value:Blob)=>void;
+    const build=vi.spyOn(batchExports,'buildLibraryBatchArchive').mockImplementationOnce(()=>new Promise(resolve=>{resolveArchive=resolve;}));
+    render(<LibraryPage/>);await screen.findByText('Drum Kit 1');
+    fireEvent.click(screen.getByRole('checkbox',{name:'Select Drum Kit 1'}));fireEvent.click(screen.getByRole('button',{name:'Export selected'}));
+    await waitFor(()=>expect(build).toHaveBeenCalledOnce());fireEvent.click(screen.getByRole('button',{name:'Cancel export'}));
+    expect(build.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    await act(async()=>{resolveArchive(new Blob(['not downloaded']));});
+    await waitFor(()=>expect(screen.getByRole('status',{name:'Library export status'})).toHaveTextContent('Export canceled. No ZIP was downloaded.'));
+    expect(mockDownloadBlob).not.toHaveBeenCalled();expect(screen.getByRole('button',{name:'Export selected'})).toBeEnabled();
+  });
+
 });

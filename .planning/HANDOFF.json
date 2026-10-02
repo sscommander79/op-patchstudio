@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-27",
+  "timestamp": "2026-10-02",
   "timezone_note": "Local date as verified at handoff time",
   "project": "OP-PatchStudio (unofficial, TE-inspired but original visual identity)",
   "repo_path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved",
   "branch": "codex/studio-upgrade",
-  "head_commit": "b669b7c",
+  "head_commit": "dc1e1f3515e2f2054f83b7507e1e71951f5ee80e",
   "phase": null,
   "phase_name": null,
   "phase_dir": null,
@@ -14,7 +14,7 @@
   "total_tasks": null,
   "gsd_milestone": null,
   "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
-  "status": "paused",
+  "status": "OPXY functional and reconciled visual verification passed; deferred issues, remote CI and human acceptance outstanding",
   "release_ready": false,
   "design_approved": false,
   "working_tree": {
@@ -29,10 +29,13 @@
       "git stash / reset / checkout / clean or any command that discards or moves working-tree changes",
       "npm install or dependency changes"
     ],
-    "commit_note": "The GSD pause-work skill normally commits the handoff. Not done here: this repo's instructions require separate, explicit commit authorization, and the user has not given it."
+    "commit_note": "The GSD pause-work skill normally commits the handoff. Not done here: this repo's instructions require separate, explicit commit authorization, and the user has not given it.",
+    "status_entries_before_hv007": 139,
+    "status_entries_at_new_chat_handoff": 145,
+    "status_note": "Verified2026-10-02; dynamic count must be checked again on resume. All uncommitted work is user-owned and must be preserved."
   },
   "background_processes": {
-    "dev_server_5191": "NOT RUNNING at handoff (verified: no TCP listener on 5191)",
+    "dev_server_5191": "RUNNING; live Chrome drum editor, verified2026-10-02",
     "other": "None started by the handoff session",
     "instruction": "Check that the dev server is running (and restart it if needed) before any browser work. Do not assume it is running."
   },
@@ -189,18 +192,18 @@
   ],
   "human_actions_pending": [
     {
-      "action": "Choose next priority: physical hardware test OR remaining low-priority UX/accessibility debt",
-      "context": "First question for the new session",
-      "blocking": true
+      "action": "Human Test04: subjective clarity and actual sliced-voice audition/application, followed by distinct hardware acceptance",
+      "context": "HV007 computer-based tests already complete. Inspect live state before instructions; do not repeat automated tests with user.",
+      "blocking": false
     },
     {
-      "action": "Explicitly authorize any commit/push/deploy separately if desired",
-      "context": "Nothing committed; 222+ dirty entries",
+      "action": "Any new commit/push/deploy needs explicit authorization",
+      "context": "Earlier authorized push checkpoint fulfilled; later changes remain uncommitted.",
       "blocking": false
     }
   ],
   "engine_routing": {
-    "policy": "User explicitly authorized switching to Codex and Genspark after Claude session limit (2026-09-26/27). Codex may edit; Genspark Sol 5.6 through OpenCode proxy remains read-only reviewer. Keep scope and usage minimal; never expose proxy credentials; no overlapping writers.",
+    "policy": "Latest user authorization: Codex may edit and orchestrate, Genspark read-only reviewers may use verified Sol5.6, Fable5 and Opus5.5 proxy routes. Earlier sole-Claude-editor rule superseded. Keep usage minimal; no overlapping writers; never expose credentials.",
     "claude_cli": {
       "path": "/Users/stevencommander/.local/bin/claude",
       "version_at_verification": "2.1.283",
@@ -224,11 +227,18 @@
         "del(.genspark) is required because the installed stock OpenCode rejects the generated extra key.",
         "Fresh XDG dirs per run avoid an observed local SQLite replacement_seq schema mismatch.",
         "Genspark is read-only reviewer only."
-      ]
+      ],
+      "review_models": [
+        "genspark-llm-proxy/gpt-5.6-sol",
+        "genspark-llm-proxy/claude-fable-5",
+        "genspark-llm-proxy/claude-opus-5-5"
+      ],
+      "current_review_commands": "Use per_run safeguards with the specifically requested verified model ID. Use --agent plan, explicit read-only brief, fresh XDG dirs and config del(.genspark). Route banner confirms requested route only, not independent provider identity.",
+      "log_safety": "Capture raw output to a private temporary file, sanitize API-key/config/authorization strings before printing or persisting reviewer reports. Never print raw config or key. Completed-review sanitizer is in the temporary work directory referenced in NEW-CHAT-HANDOFF."
     }
   },
-  "next_action": "Read .planning/.continue-here.md and .planning/HANDOFF.json, run `git status --porcelain | wc -l` and `git branch --show-current` to confirm state, then ASK the user whether to prioritize the physical hardware test or the remaining low-priority UX/accessibility debt. Do not perform physical-device actions without the user present. Make no edits before the user answers.",
-  "resume_file": ".planning/.continue-here.md",
+  "next_action": "Read latest OPXY-HANDOFF section and followthrough/README.md. 1172 unit tests and 783 browser cases pass (42 documented skips). User-authorized reconciliation closed all 12 visual mismatches; 27 semantic checks and two 12-test visual runs pass. Preserve Human Test04; inspect live state before listening/hardware instructions. HV001/HV004 remain deferred. Commit and push authorized in subsequent user request; no merge/deploy/install authorization.",
+  "resume_file": ".planning/OPXY-HANDOFF-2026-10-02.md",
   "latest_pass": {
     "name": "Studio restoration (unified launch, direct Open kit, drum compaction, semantic colour, dev stale-worker guard, regression gates)",
     "report": "docs/verification/studio-restoration-2026-09-27.md",
@@ -259,16 +269,328 @@
     ]
   },
   "latest_follow_up": {
-    "scope": "User requested six left-aligned percussion pads, a fourth Record OP-XY tracks card, and removal of Tools. Implemented four equal desktop cards, two columns at medium widths and one on phones; existing guarded lazy recorder entry retained. Supersedes prior centered twelve-pad illustration. Actual drum editor still has 24 slots.",
-    "validation": "Typecheck and targeted lint passed; 23 focused unit tests passed; 27 layout/navigation contract tests passed; recorder entry 2 passed. Full Chromium: 55 passed, 3 skipped, same 2 baseline-reproduced failures (audio-import.spec.ts:11 and slicing.spec.ts:61). Genspark Sol 5.6 read-only followup found all three initial findings addressed and no remaining material defects; reviewer did not execute tests. All 12 reviewed visual baselines passed twice after the intentional header/layout refresh. Logs: /tmp/opstudio-four-cards-visual.log and /tmp/opstudio-four-cards-visual-repeat.log. All twelve images changed because removing Tools changes the shared header; drum-editor content was not edited.",
-    "preview": "http://127.0.0.1:5191/#/studio/overview remains live",
-    "status_entries": 231,
-    "boundaries": "No commit, push, deploy, install or hardware verification."
+    "scope": "HV007 bounded drum slicer repair",
+    "validation": {
+      "date": "2026-10-02",
+      "issue": "HV-007",
+      "branch": "codex/studio-upgrade",
+      "baseline_status_entries": 139,
+      "production_files": [
+        "src/components/drum/SliceAudioModal.tsx",
+        "src/components/drum/SliceKeyboardMapping.tsx",
+        "src/utils/audioSlicing.ts",
+        "src/context/AppContext.tsx"
+      ],
+      "changed_files": [
+        "src/components/drum/SliceAudioModal.tsx",
+        "src/components/drum/SliceKeyboardMapping.tsx",
+        "src/utils/audioSlicing.ts",
+        "src/context/AppContext.tsx",
+        "src/test/components/SliceAudioModal.test.tsx",
+        "src/test/context/audioSlicingApplication.test.ts",
+        "tests/e2e/slicing.spec.ts"
+      ],
+      "unchanged_other_snapshot_files": 352,
+      "unexpected_source_changes": [],
+      "standard": {
+        "result": "PASS",
+        "unit_tests": 1154,
+        "files": 111,
+        "typecheck": "PASS",
+        "lint": "PASS with three existing warnings",
+        "build": "PASS",
+        "pwa": "PASS"
+      },
+      "browser": {
+        "result": "PASS",
+        "tests": 25,
+        "profiles": [
+          "Chromium",
+          "Firefox",
+          "WebKit",
+          "Mobile Chrome",
+          "Mobile Safari"
+        ],
+        "origin": "isolated production port 5187",
+        "coverage": [
+          "native occupied-source drag with Keep/Replace",
+          "existing-pad unassign",
+          "Cancel preserves project",
+          "displaced original PCM and file bytes retained",
+          "atomic Apply and Undo/Redo",
+          "keyboard disclosures and desktop/phone geometry",
+          "export and portable-project round trip",
+          "browser Back draft retention"
+        ]
+      },
+      "review": "Claude Opus 5.5 through Genspark proxy read-only initial and follow-up. Initial findings addressed; follow-up reports no remaining material findings in its limited scope and labels itself self-review. No model-run runtime tests.",
+      "human": "Pending usability and real sliced-voice listening/application/hardware. Saved Human Test04 restored:11 loaded; Pad4 Take1.opfloat; freshly detected17 sounds,0assigned. Prior unsaved18-sound draft lost during development reload; not recovered.",
+      "constraints": "No commit/push/deploy/install/baseline update/hardware; preserve prior WIP and duplicate artifacts. HV001/HV004 deferred."
+    },
+    "preview": "http://127.0.0.1:5191/#/studio/drum",
+    "git": "All edits uncommitted; prior WIP preserved, no new push."
   },
   "progress_save": {
     "authorization": "User explicitly requested committing and pushing current progress on 2026-09-27. This authorizes the current checkpoint only, not future commits, merges or deployment.",
     "branch": "codex/studio-upgrade",
     "scope": "Accumulated Studio work, latest four-card layout, tests, reviewed visual baselines, docs and handoff. Preserve duplicate AutoSamplingPanel 2.tsx and playwright-report 2 locally, excluded from this checkpoint.",
     "validation": "npm run check passed: typecheck, lint (0 errors; 3 pre-existing coverage warnings), 99 files / 1065 unit tests, build and PWA verification. Moved artwork name constant into its sole consumer to fix Fast Refresh lint without visual changes. Current browser suite: 55 passed, 3 skipped, 2 known audio-import/slicing failures; 12 visual checks passed twice. Hardware remains unverified."
+  },
+  "functional_audit": {
+    "report": "docs/verification/functional-audit-2026-09-27/README.md",
+    "reviewer": "claude-fable-5 (verified CLI modelUsage)",
+    "verdict": "FAIL functional sign-off; exhaustive coverage INCOMPLETE",
+    "confirmed_defects": [
+      "Slice draft lost on browser Back (all 5 profiles)",
+      "Project menu Open library does not update URL (all 5 profiles)"
+    ],
+    "unresolved": [
+      "WebKit launch keyboard focus",
+      "582 control-site mapping not complete; 725 production instrumented functions not reached by unit suite"
+    ],
+    "production_edits": false,
+    "human_test": "Deferred; checklist in audit directory",
+    "next": "Fix confirmed product defects only when authorized; investigate keyboard behavior; complete control mapping and missing behavior tests before human acceptance.",
+    "superseded_by": "active_remediation and final report README; original audit findings are historical."
+  },
+  "active_remediation": {
+    "updated": "2026-09-28T04:48:35.214108+00:00",
+    "status": "complete - bounded automated remediation; human acceptance pending",
+    "goal": "Functional blockers, meaningful control coverage, regression protection, then evidence-backed human/hardware handoff",
+    "branch": "codex/studio-upgrade",
+    "status_entries": 114,
+    "latest_verified": "Type/lint/build/PWA and1109 unit tests/109 files PASS. Production matrix608 PASS/42 documented skips/0 failures. Storage25 PASS. Synthetic recording6 PASS. Visual12 PASS baseline updates disabled. All554 reachable UI sites exercised;556/583 total;27 exceptions. Unit functions72.95%,781 zero-unit entries; no exhaustive claim.",
+    "new_fixes": [
+      "All previously listed functional remediation fixes",
+      "Envelope graph cancellation/unmount listener cleanup",
+      "Keyboard note-naming switch and settings disclosures",
+      "Legacy drum zero crossing draft only; missing markers stay local until Save; unchanged Save does not dispatch"
+    ],
+    "current_check_log": "docs/verification/functional-audit-2026-09-27/evidence/opstudio-final-audio-check.log",
+    "evidence_dirs_manifest": "/tmp/opstudio-current-audit-dirs.json",
+    "constraints": "Preserve all WIP and duplicate artifacts. No new commit/push/deploy/install/hardware operation. Human checklist remains pending. No release-ready or exhaustive-function claim.",
+    "production_matrix_log": "docs/verification/functional-audit-2026-09-27/evidence/opstudio-production-verified.log",
+    "pending_function_review": null,
+    "pending_function_review_session": null,
+    "next_required": "Human/listening/accessibility and physical-device checklist with the user; all rows pending. No hardware or release sign-off. Preserve uncommitted work; no new commit/push/deploy/install authorization.",
+    "production_matrix_previous": "Historical failures retained:598/41/1;603/41/1;603/41/1. Native trace diagnosed audio scheduling overlap; corrected final matrix608/42/0. WebKit folder timeout cause unproven, passed5 unchanged repeats and2 later matrices.",
+    "remaining_controls": "No unmapped reachable control site. Evidence exceptions documented in remaining-control-dispositions.md.",
+    "current_evidence": "/tmp/opstudio-current-audit-dirs.json; latest instrumented runs onlCZ8 and zsn1n5. Durable reports in docs/verification/functional-audit-2026-09-27.",
+    "latest_audio_fix": "Native trace proved adjacent value-curve overlap from currentTime clamping. Attack/decay now use equivalent Float32 point ramps. Unit RED/GREEN and old-production browser RED recorded; all1109 coverage tests pass. See audio-clock-regression.md.",
+    "function_review": "Completed and dispositioned in function-gap-triage.md; two meaningful storage gaps tested, dormant code retained.",
+    "final_review": "Sixth verified claude-fable-5 read-only audio review: no blocking findings; low-priority limits documented.",
+    "goal_complete": true
+  },
+  "human_verification": {
+    "updated": "2026-10-02",
+    "status": "in_progress",
+    "checklist": "docs/verification/functional-audit-2026-09-27/human-test-checklist.md",
+    "issues": "docs/verification/functional-audit-2026-09-27/human-issues.md",
+    "confirmed": "Demo load, three-pad audition, KD1 gain Undo/Redo, Library save/load, refresh persistence, Clear/Cancel/Undo, functional Table/Focus switching and editable .opstudio backup round trip passed by user report.",
+    "open_defects": [
+      "HV-001: Drum Table waveform/drop boxes overlap row actions and rightmost controls are clipped. Screenshot preserved; cause and repair pending.",
+      "HV-004: Safari Overview artwork overflows launch cards and overlaps labels/actions. User screenshot preserved; Safari version/viewport/zoom and cause unverified. Screenshot shows OP-1 FIELD selected; intended test device OP-XY."
+    ],
+    "hardware": "2026-10-01: reported copy/import, full sparse-kit mapping/playback and original saved-project/kit restart PASS on OP-XY 1.1.25. Subsequent Human Test 02 copy/M4 eject/fresh preset loading and qualitative kick-gain -8 to 0 comparison PASS: kick louder, other nine sounds/mapping unchanged. Exact numeric hardware gain remains unverified through slider-only screen; no software gain defect established. Preserve user-adjusted track 1. Local macOS 26.1 observed; same-folder replacement and broader tests pending. Human Test 03 manual recorded-voice preset loads without error and plays clearly on OP-XY, user reported \u201cworks perfectly\u201d on 2026-10-01. New-fixture restart persistence and exact hardware voice-key position not separately tested.",
+    "next_test": "Remaining Human Test04 subjective clarity and real-voice listening, then distinct hardware acceptance. Inspect fresh17-sound state first; prior18-sound edits no longer exist.",
+    "export": "Ten-region PCM16 mono 44.1 kHz WAV presets: local structural checks, reported copy/import, full sparse-kit mapping/playback and original saved-project/kit restart PASS on OP-XY 1.1.25. Human Test 02 explicit M4 eject/fresh loads and qualitative exported gain-change comparison PASS. Exact numeric gain, same-folder replacement, full 24-sound kit and other formats/settings remain pending.",
+    "pending_clarifications": [],
+    "gain_result": "App/export intended -8 match PASS; HV-002 resolved. Controlled Human Test 01 (-8) versus Human Test 02 (0) hardware listening comparison PASS by user report: revised kick louder, other sounds/mapping unchanged. Exact numeric hardware gain NOT OBSERVABLE through the reported slider screen and unverified. HV-003 remains a nonblocking recorded observation with successful qualitative follow-up; no gain repair indicated.",
+    "computer": {
+      "os": "macOS",
+      "version": "26.1",
+      "source": "local sw_vers -productVersion on 2026-10-01"
+    },
+    "device": {
+      "name": "OP-XY",
+      "firmware": "1.1.25",
+      "source": "user reported startup firmware and restart survival on 2026-10-01"
+    },
+    "open_observations": [],
+    "recorded_observations": [
+      "HV-003: kick-only quietness consistent with selected/exported -8; user raised sample gain on track 1. Slider-only screen prevents numeric readback by that method. Controlled track 2 comparison with exported gain 0 produced louder kick and unchanged other sounds/mapping, reported 2026-10-01. No software defect demonstrated.",
+      "HV-006: grouping/disclosure/scroll/footer and pending-reset mutation defects repaired; automated checks PASS. Human usability acceptance pending; no direct slice-count selector added. Evidence hv006-slicer-verification-summary.json.",
+      "HV007 repaired automated PASS; human usability/listening pending. Fullreload unsaved-draft loss disclosed; savedkit restored and fresh17sounds regenerated."
+    ],
+    "revised_export": {
+      "name": "Human Test 02",
+      "source": "/Users/stevencommander/Downloads/Human Test 02.preset",
+      "inspection": "docs/verification/functional-audit-2026-09-27/evidence/human-export-2026-10-01-02-summary.json",
+      "verified": "Only name and kick gain -8 to 0 changed. All ten WAVs match original bytes; framecounts/trim/header checks pass; ZIP matches extracted files.",
+      "hardware": "2026-10-01 PASS by user report: copy/explicit M4 eject/fresh import, kick louder than original -8 export at unchanged track 2 listening levels, other nine sounds and mapping unchanged. Exact numeric gain and same-folder replacement unverified."
+    },
+    "deferred_tests": [
+      {
+        "check": "Same-name preset folder replacement",
+        "status": "pending; deferred by user priority",
+        "date": "2026-10-01",
+        "reason": "User questioned the repeated gain test and accepted prioritizing real recording/export instead. A separately named re-export already passed; same-name overwrite remains untested."
+      }
+    ],
+    "recording": {
+      "status": "PASS \u2014 guided manual recording workflow through input enable, capture/stop, review audition, Pad 4 application/playback, library save, export inspection and OP-XY import/voice playback. Other recording scenarios and new-fixture persistence remain untested.",
+      "source": "MacBook Pro Microphone (Built-in), explicitly selected and verified in Chrome",
+      "stage": "2026-10-01 user reported \u201cworks perfectly\u201d when asked whether Human Test 03 loads without error and plays the recorded phrase clearly on OP-XY. This bounded manual recording round trip is complete.",
+      "later_stages": "Add to an empty drum pad, save/export as a new test preset, inspect exported files, transfer and listen on OP-XY",
+      "observed_results": [
+        "User Enable input failed: State error, Level 0%, Take time 0.00 s; Start requested enabling input.",
+        "Assistant reproduced original Capture channel dimensions changed in Chrome, diagnosed mismatch between reported and first delivered channels.",
+        "Scoped repair: final type/lint/1136 units/build/PWA gate and all five configured production fake-device workflows PASS. Read-only Genspark follow-up found no remaining scoped material findings.",
+        "Saved Human Test 02 restored and verified 10 / 24 loaded after development reload. Empty Pad 4 / SD2 selected. Actual built-in microphone now monitoring, 48000 Hz, two channels, no setup error. Level 0% observed; speech response and human recording remain unverified.",
+        "2026-10-01 user answered \u201cyes, very clearly\u201d to hearing the recorded phrase after guided Start/Stop/Audition. Manual microphone capture and clear review playback PASS by user report; application/export not yet confirmed.",
+        "2026-10-01 user answered \u201cyes!\u201d to hearing the same phrase on Pad 4 after Add selected takes / Play selected and seeing 11 / 24 loaded. Pad application and playback PASS by user report; save/export not yet confirmed.",
+        "2026-10-01 user confirmed Project \u2192 Save to library and Human Test 03.preset.zip download. Library persistence after reload of this new recording fixture not yet tested.",
+        "Local ZIP inspection PASS: name Human Test 03, 11 regions, recorded Take 1.wav at MIDI key 56 / Pad 4 SD2; mono PCM16 44.1 kHz, 249548 frames, 5.659 s, nonzero PCM and valid trim. All ten seed WAVs and their regions exactly unchanged from Human Test 02. Extracted folder matches ZIP bytes. No hardware recorded-voice playback yet.",
+        "2026-10-01 user answered \u201cworks perfectly\u201d to Human Test 03 loading without error and playing the recorded phrase clearly on OP-XY. Recorded-source import and playback PASS by user report. New-fixture restart persistence, exact hardware voice-key position and other recording modes not separately verified."
+      ],
+      "entry": "Focus \u2192 Record here",
+      "requested_target": "Empty Pad 4 / SD2, verified in Chrome Focus editor before Record here",
+      "mode": "Manual, verified in Chrome",
+      "export_name_planned": "Human Test 03; start from Human Test 02 and preserve earlier test exports",
+      "repair_evidence": "docs/verification/functional-audit-2026-09-27/human-issues.md#hv-005--enable-input-fails-on-the-built-in-microphone-start-hides-the-original-error",
+      "exported_fixture": {
+        "zip": "/Users/stevencommander/Downloads/Human Test 03.preset.zip",
+        "folder": "/Users/stevencommander/Downloads/Human Test 03.preset",
+        "inspection": "docs/verification/functional-audit-2026-09-27/evidence/human-export-2026-10-01-03-summary.json",
+        "hardware": "2026-10-01 PASS by user report: Human Test 03 loads without error and recorded phrase plays clearly. Guided destination presets/PatchStudio Tests and test track 2; assistant did not independently read hardware state. New-fixture restart persistence and exact hardware voice-key position untested."
+      }
+    },
+    "safari_overview": {
+      "status": "FAIL \u2014 screenshot-confirmed presentation defect; OPEN HV-004",
+      "reported": "2026-10-01",
+      "browser": "Safari, user reported; version unknown",
+      "selected_device_in_screenshot": "OP-1 FIELD",
+      "evidence": "docs/verification/functional-audit-2026-09-27/evidence/human-safari-overview-overflow-2026-10-01.png",
+      "image_pixels": [
+        3240,
+        2222
+      ],
+      "sha256": "a9455b6b6fc0f4cf2a021a735d189e7ca57f643035119344b0a0a174d887d107",
+      "cause": "unverified; reproduce and diagnose before repair",
+      "recording_result": "No microphone capture or audition outcome reported."
+    },
+    "slicing": {
+      "status": "HV007 repaired: automated PASS; human usability/listening/application/hardware pending",
+      "fixture": "Human Test 04, starting from saved Human Test 03 with 11 loaded sounds",
+      "source": "Pad 4 / SD2, Take 1.opfloat recorded voice; verified in live Chrome Focus editor",
+      "entry": "Close current export preflight; rename current Instrument name Human Test 04; keep Pad 4 selected; Focus \u2192 Slice this sample",
+      "stage": "Saved Human Test04 restored with11 loaded, Pad4 Take1.opfloat; fresh17-sound draft,0assigned, Sound1 selected. Earlier unsaved18-sound draft lost during full development reload; not recovered.",
+      "planned_checks": "Review/audition source and boundaries; prepare two manual slices; stage them only on empty pads; apply and audition; confirm original voice preserved; Undo/Redo; separately saved/exported fixture. Human results pending.",
+      "observed_results": [
+        "2026-10-02 user reports voice automatically chopped into 17 samples, cannot find a count selector, and asks if slice boxes can be dragged onto keys. Live Chrome confirms 17 detected sounds, zero assignments, Pad 2 / KD2 and Pad 7 / TB empty. Source confirms numbered sound buttons are draggable and destination keys accept drops; waveform canvas is not a draggable assignment item. No user drag/drop result yet.",
+        "2026-10-02 user cannot recognize Advanced as a disclosure and requests clearer grouping; vague scrolling instruction caused confusion. Read-only inspection confirms 18 sounds and pending reset, with competing Split still enabled. Genspark read-only review supports three groups and mutation guards. No browser or product changes.",
+        "2026-10-02 user approved slicer design, agent-owned computer-based tests and project feedback carry-forward. Integrated standard gate 1143/111 and production browser 20 pass. Live 18-sound draft preserved; Keep edits unlocks controls. No human slice application/listening result yet.",
+        "2026-10-02 HV007 reported occupied/source replacement, pre-existing unassignment and selector placement defects. Repaired with meaningful regressions;1154 units and25 browser tests PASS. Savedkit restored; unsaved18-sound edits lost and disclosed. Fresh17-sound slicer ready, no actualApply."
+      ],
+      "preserve": "Human Test 03 library entry and downloaded preset; original source and occupied pads; all WIP and deferred visual defects",
+      "ux_observation": "HV-006 grouping/disclosure/scroll/footer and pending-decision defects repaired with automated verification. Human usability acceptance pending. No desired-count selector added; detector failure not established.",
+      "approved_design": "Bounded approved follow-up: numbered sound strip directly below editing waveform; keys nearby; direct drag with local Replace/Keep; existing/source-pad Unassign and original retention; no duplicate drag control.",
+      "automated_verification": {
+        "date": "2026-10-02",
+        "issue": "HV-007",
+        "branch": "codex/studio-upgrade",
+        "baseline_status_entries": 139,
+        "production_files": [
+          "src/components/drum/SliceAudioModal.tsx",
+          "src/components/drum/SliceKeyboardMapping.tsx",
+          "src/utils/audioSlicing.ts",
+          "src/context/AppContext.tsx"
+        ],
+        "changed_files": [
+          "src/components/drum/SliceAudioModal.tsx",
+          "src/components/drum/SliceKeyboardMapping.tsx",
+          "src/utils/audioSlicing.ts",
+          "src/context/AppContext.tsx",
+          "src/test/components/SliceAudioModal.test.tsx",
+          "src/test/context/audioSlicingApplication.test.ts",
+          "tests/e2e/slicing.spec.ts"
+        ],
+        "unchanged_other_snapshot_files": 352,
+        "unexpected_source_changes": [],
+        "standard": {
+          "result": "PASS",
+          "unit_tests": 1154,
+          "files": 111,
+          "typecheck": "PASS",
+          "lint": "PASS with three existing warnings",
+          "build": "PASS",
+          "pwa": "PASS"
+        },
+        "browser": {
+          "result": "PASS",
+          "tests": 25,
+          "profiles": [
+            "Chromium",
+            "Firefox",
+            "WebKit",
+            "Mobile Chrome",
+            "Mobile Safari"
+          ],
+          "origin": "isolated production port 5187",
+          "coverage": [
+            "native occupied-source drag with Keep/Replace",
+            "existing-pad unassign",
+            "Cancel preserves project",
+            "displaced original PCM and file bytes retained",
+            "atomic Apply and Undo/Redo",
+            "keyboard disclosures and desktop/phone geometry",
+            "export and portable-project round trip",
+            "browser Back draft retention"
+          ]
+        },
+        "review": "Claude Opus 5.5 through Genspark proxy read-only initial and follow-up. Initial findings addressed; follow-up reports no remaining material findings in its limited scope and labels itself self-review. No model-run runtime tests.",
+        "human": "Pending usability and real sliced-voice listening/application/hardware. Saved Human Test04 restored:11 loaded; Pad4 Take1.opfloat; freshly detected17 sounds,0assigned. Prior unsaved18-sound draft lost during development reload; not recovered.",
+        "constraints": "No commit/push/deploy/install/baseline update/hardware; preserve prior WIP and duplicate artifacts. HV001/HV004 deferred."
+      }
+    }
+  },
+  "ux_guidance": {
+    "path": "docs/design-system/studio-usability-feedback.md",
+    "authority": "User explicit direction 2026-10-02: record complexity, organization, confusing-control feedback and apply forward",
+    "scope": "Use during future reviews and authorized changes; no automatic app-wide redesign or reopening deferred visual work",
+    "testing": "Agent runs computer-based checks independently in isolated fixtures. Human listening/hardware and subjective usability separately verified."
+  },
+  "proactive_review_2026_10_02": {
+    "status": "Reviews complete; project-wide bounded proactive remediation and independent computer verification explicitly authorized. Broader findings still unimplemented; reproduce before fixing.",
+    "genspark_sol": "read-only broad UX review complete, unverified findings queued",
+    "claude_backend": "session limit; no completed Fable backend review",
+    "fable_proxy": "Completed read-only via claude-fable-5 proxy route, exit0; durable report and reconciliation in report_dir. No runtime tests; historical/live-draft claims superseded by HV007 checkpoint.",
+    "opus_proxy": "scoped initial/follow-up complete; feedback addressed; no remaining material findings in limited scope",
+    "report_dir": "docs/verification/proactive-review-2026-10-02"
+  },
+  "new_chat_handoff": ".planning/OPXY-HANDOFF-2026-10-02.md",
+  "resume_summary": "Move continuation to OPXY chat. User explicitly discarded17-sound draft via Cancel; original11 loaded retained. Six production files repaired provisionally;1159 unit/full standard gate PASS. Production browser matrix intentionally interrupted:200pass,6skip,4interrupted,610notrun. Genspark review intentionally stopped with no final verdict. Broad task unfinished; read OPXY handoff.",
+  "project_wide_follow_through": {
+    "authorization": "User reaffirmed2026-10-02: proactively fix remainder based on learnings, then conduct all feasible computer tests so remaining acceptance is human/hardware.",
+    "workflow": "Review -> reproduce -> bounded repair -> regression/integration checks -> evidence matrix -> human/hardware-only checklist. Preserve WIP and current draft; no repetitive permission for in-scope fixes.",
+    "limits": "HV001/HV004 remain deferred; no global redesign/release approval or commit/push/deploy/install. Report deferred issues and concrete blocked computer checks explicitly; do not claim exhaustive every-state testing."
+  },
+  "opxy_continuation": {
+    "date": "2026-10-02",
+    "report": "docs/verification/proactive-review-2026-10-02/followthrough/README.md",
+    "standard": "PASS 1172 unit tests / 111 files, typecheck/lint/build/PWA",
+    "production": "PASS: 783 passed, 42 documented skips, zero failures; exit0",
+    "visual": "PASS: all 12 mismatches reconciled under user follow-up; semantic27 and two visual12 passes with updates disabled",
+    "live_user_state": "Last successful readback HumanTest04 11/24, Pad4 Take1.opfloat, zero unassigned, no slicer modal. Later readback blocked by unavailable Chrome extension.",
+    "review": "Genspark Sol static review and two followups completed; final async startup finding resolved",
+    "deferred": [
+      "HV001",
+      "HV004"
+    ],
+    "human": "Test04 and broader hardware/assistive acceptance pending",
+    "remote_ci": "UNEXECUTED; no push authorization",
+    "dedicated": "PASS: storage25, fake recording/guided5, stem1, dev-origin1",
+    "timing_reliability": "PASS: slice/appearance30, recorder50 repeated checks",
+    "final_status_entries": 156,
+    "processes": "Task reviewers/test servers stopped; existing preview5191 remains PID81379",
+    "visual_reconciliation": "docs/verification/proactive-review-2026-10-02/followthrough/visual-reconciliation/README.md"
+  },
+  "publication_authorization": {
+    "date": "2026-10-02",
+    "instruction": "please commit and push",
+    "scope": "Completed Studio branch changes, tests, reviewed visual references and verification documents; exclude duplicate files and temporary browser output",
+    "branch": "codex/studio-upgrade",
+    "remote": "origin",
+    "status": "Preparing authorized commit and push; read Git for final commit/remote state"
   }
 }

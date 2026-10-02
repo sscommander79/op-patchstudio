@@ -14,6 +14,7 @@ export function ProjectKeyboardShortcuts() {
       if(!undo && !redo) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if(document.querySelector('[data-project-busy="true"]')) return;
       dispatch({type:undo?'UNDO':'REDO'});
     };
     document.addEventListener('keydown',onKeyDown,true);

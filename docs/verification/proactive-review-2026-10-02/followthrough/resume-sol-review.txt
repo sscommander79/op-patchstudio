@@ -1,0 +1,112 @@
+
+> plan · gpt-5.6-sol
+
+# Todos
+[•] Read handoff and review diff to identify claims and affected paths
+[ ] Inspect current source for the three prioritized interaction areas
+[ ] Reconcile prior F3/F5/F7 claims with reachable current behavior
+[ ] Produce concise findings, nonfindings, and limitations
+
+I’ll reconstruct the interrupted review from the handoff and diff, then inspect only the affected source paths and reconcile F3/F5/F7 against reachable behavior. I’ll keep this entirely static and read-only, with no runtime commands.
+→ Read .planning/OPXY-HANDOFF-2026-10-02.md [offset=1, limit=2000]
+→ Read docs/verification/proactive-review-2026-10-02/followthrough/review.diff [offset=1, limit=2000]
+
+# Todos
+[✓] Read handoff and review diff to identify claims and affected paths
+[•] Inspect current source for the three prioritized interaction areas
+[ ] Reconcile prior F3/F5/F7 claims with reachable current behavior
+[ ] Produce concise findings, nonfindings, and limitations
+
+→ Read src/components/devices/DevicesWorkspace.tsx [offset=1, limit=310]
+→ Read src/components/common/RecordingModal.tsx [offset=1, limit=180]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=1, limit=700]
+The scoped changes confirm the open risks are lifecycle ownership rather than basic happy paths. I’m now tracing the current callbacks and state transitions around note release, deletion errors, nested dialog teardown, plus locating the original F3/F5/F7 descriptions before judging reachability.
+✱ Grep "F3|F5|F7|dormant import|restoration ownership|queued-message|capture queued" in . · 63 matches
+→ Read docs/verification/proactive-review-2026-10-02/genspark-fable-functional-review.txt [offset=1, limit=180]
+→ Read src/components/devices/useDevicesWorkspace.ts [offset=1, limit=500]
+→ Read src/hooks/useOwnedDialog.ts [offset=1, limit=300]
+✱ Grep "restore|restoration|filter|accept=|queued|queue|port.*message|message.*queue" in src · 100 matches
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=700, limit=570]
+✗ Read src/context/AudioImportProvider.tsx failed [offset=1, limit=130]
+Error: File not found: /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/context/AudioImportProvider.tsx
+→ Read src/audio/recording/captureSession.ts [offset=110, limit=190]
+→ Read src/components/common/SessionRestorationModal.tsx [offset=1, limit=180]
+✱ Grep "<VirtualMidiKeyboard|isActive=" in src · 6 matches
+✱ Grep "midi-key.*focus|focus-visible|\.midi-key" in src · 9 matches
+✱ Glob "src/**/AudioImportProvider.tsx" in . · 1 match
+→ Read src/index.css [offset=420, limit=40]
+✱ Grep "deleteSetup" in src/test/components/DevicesWorkspace.test.tsx · 0 matches
+✱ Grep "SessionRestorationModal" in src · 22 matches
+→ Read src/components/multisample/MultisampleTool.tsx [offset=370, limit=60]
+→ Read src/styles/studio.css [offset=1, limit=35]
+→ Read src/components/common/AudioImportProvider.tsx [offset=1, limit=120]
+→ Read src/App.tsx [offset=1, limit=110]
+→ Read src/components/drum/DrumSampleTable.tsx [offset=110, limit=115]
+→ Read src/components/drum/DrumKeyboardContainer.tsx [offset=380, limit=120]
+→ Read src/audio/recording/captureProcessor.ts [offset=1, limit=85]
+→ Read src/test/hooks/sessionRecovery.test.tsx [offset=40, limit=65]
+→ Read src/components/common/SessionRestorationModal.tsx [offset=180, limit=140]
+→ Read src/hooks/useSessionManagement.ts [offset=1, limit=180]
+✱ Grep "onClick=|onMouseDown=|onPointer" in src/components/multisample/VirtualMidiKeyboard.tsx · 35 matches
+✱ Grep "window\.addEventListener\('blur'|visibilitychange|isActive" in src/components/multisample/VirtualMidiKeyboard.tsx · 9 matches
+✱ Grep "Could not save setups|Setup deleted locally|Delete saved setup|Keep setup" in src/test · 4 matches
+→ Read src/utils/keyboardOwnership.ts [offset=1, limit=140]
+✱ Grep "function memoryStore|const memoryStore|class.*Store|save:" in src/test/components/DevicesWorkspace.test.tsx · 3 matches
+✱ Grep "useOwnedDialog" in src/components · 22 matches
+✱ Grep "setConfirmDiscard\(|requestClose|confirmDiscard" in src/components/common/RecordingModal.tsx · 20 matches
+→ Read src/context/AppContext.tsx [offset=180, limit=30]
+→ Read src/context/AppContext.tsx [offset=375, limit=25]
+✱ Grep "setStatus\(|status\.state|format" in src/test/audio · 18 matches
+✱ Grep "data-workspace-modal|role="dialog"|aria-modal="true"" in src/components/common/StudioShell.tsx · 15 matches
+✱ Grep "sessionRecoveryResolved|isSessionRestorationModalOpen" in src/components · 1 match
+Two concrete patterns are emerging: the virtual keyboard can leave started notes unreleased across lifecycle transitions and has no `click` activation path; the Devices confirmation always dismisses before knowing persistence succeeded and tries to restore focus to a button that becomes disabled after success. I’m doing the final reachability pass on restoration/modal coexistence and capture message ordering so theoretical concerns stay clearly separated from defects.
+• Review behavioral reachability Explore Agent
+• Review implementation standards Explore Agent
+✓ Review implementation standards Explore Agent
+✓ Review behavioral reachability Explore Agent
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=55, limit=70]
+→ Read src/components/devices/DevicesWorkspace.tsx [offset=225, limit=25]
+→ Read src/components/devices/DevicesWorkspace.tsx [offset=40, limit=22]
+→ Read src/test/components/VirtualMidiKeyboardShortcuts.test.tsx [offset=35, limit=90]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=460, limit=125]
+→ Read src/test/components/DevicesWorkspace.test.tsx [offset=875, limit=60]
+→ Read src/components/multisample/MultisampleTool.tsx [offset=245, limit=125]
+→ Read src/hooks/useAudioPlayer.ts [offset=660, limit=230]
+→ Read src/components/common/RecordingModal.tsx [offset=35, limit=20]
+→ Read src/test/components/RecordingModal.test.tsx [offset=95, limit=45]
+→ Read src/hooks/useAudioPlayer.ts [offset=380, limit=55]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=122, limit=80]
+→ Read src/components/devices/DevicesWorkspace.tsx [offset=205, limit=45]
+→ Read src/hooks/useOwnedDialog.ts [offset=10, limit=45]
+
+# Todos
+[✓] Read handoff and review diff to identify claims and affected paths
+[✓] Inspect current source for the three prioritized interaction areas
+[✓] Reconcile prior F3/F5/F7 claims with reachable current behavior
+[✓] Produce concise findings, nonfindings, and limitations
+
+**Findings**
+1. **Medium: Assistive activation can start a note without releasing it.**  
+   `src/components/multisample/VirtualMidiKeyboard.tsx:522-526`, `src/components/multisample/MultisampleTool.tsx:298-357`, `src/hooks/useAudioPlayer.ts:689-871`  
+   Reproduction: activate a loaded virtual key through a screen reader or synthetic accessibility click (`detail === 0`). The component calls async `onKeyClick` and immediately calls `onKeyRelease`. Playback does not register the note globally until after awaiting the audio context, so release finds nothing; the voice then starts without entering release. Looping samples can sustain indefinitely. Existing tests only use synchronous spies and miss this race.
+
+2. **Medium: Window blur does not release pointer- or touch-started notes.**  
+   `src/components/multisample/VirtualMidiKeyboard.tsx:73-92`, `src/components/multisample/VirtualMidiKeyboard.tsx:528-568`  
+   Reproduction: mouse-down or touch-start a sustained loaded key, then switch windows/tabs before mouse-up/touch-end. `releaseHeldNotes` releases only physical-keyboard and focused-keyboard notes; `mousePressedKey` is merely cleared, touch ownership is not tracked, and there is no `touchcancel` handler. The missing release can leave the voice sounding. Unmount/deactivation are covered for physical and focused activation, but not pointer, touch, or MIDI-held notes.
+
+3. **Medium: Pointer movement can release a note owned by another input.**  
+   `src/components/multisample/VirtualMidiKeyboard.tsx:540-553`  
+   Reproduction: hold a note using the computer keyboard or MIDI, then move the pointer into and out of the corresponding virtual key. `onMouseLeave` calls `onKeyRelease` for every assigned key without checking whether that key received the mouse-down, prematurely cutting the independently held voice.
+
+4. **Low: F5 includes a reachable focus-trap defect, although cross-dialog conflict remains theoretical.**  
+   `src/components/common/SessionRestorationModal.tsx:44-73`, `src/components/common/SessionRestorationModal.tsx:234-274`  
+   Reproduction: open restoration, move focus outside the two buttons by clicking non-focusable content, or start Restore/Start new so both buttons become disabled, then press Tab. The hand-written trap only wraps when focus is exactly on the first or last button, allowing focus into the underlying application. Escape intentionally preserving recovery is tested and is not defective. Coexistence with an owned dialog was not found reachable during normal startup.
+
+**Nonfindings**
+- **Devices deletion:** Current source correctly preserves the setup after storage failure, exposes the error, permits retry, and restores focus to Delete after failure or Saved setups after successful deletion. See `src/components/devices/DevicesWorkspace.tsx:44-57,209-245` and `src/components/devices/useDevicesWorkspace.ts:469-481`. The current tests cover both outcomes.
+- **RecordingModal ownership:** The nested confirmation is the topmost `useOwnedDialog` owner, traps focus, owns Escape, and disables/inerts underlying controls: `src/components/common/RecordingModal.tsx:44-45,89-117`; `src/hooks/useOwnedDialog.ts:15-47`. No concrete ownership failure was established. Focus restoration after Resume may vary because the captured originating control is disabled/inert during the prompt, but static inspection does not establish a user-visible failure.
+- **F3:** The inconsistent legacy AIFF/FLAC drop filters remain dormant. `AudioImportProvider` intercepts external drops during document capture and stops propagation before those handlers: `src/components/common/AudioImportProvider.tsx:59`; legacy filters at `src/components/drum/DrumSampleTable.tsx:131-143,165-171` and `src/components/drum/DrumKeyboardContainer.tsx:397-405,479-487`. This is a latent maintenance hazard, not a current reachable defect.
+- **F7:** The handler swap before buffered replay permits theoretical interleaving at `src/audio/recording/captureSession.ts:150-165`, but current `format`, meter, take, stopped, and error handling does not reveal a concrete harmful ordering. Keep classified as theoretical rather than a functional defect.
+
+**Limitations**
+Static read-only review only. No tests, browser behavior, assistive technology, audio playback, or hardware were exercised. HV001 and HV004 were not reopened. Review independence used two fresh same-family read-only passes, equivalent to cold-review rung 2.

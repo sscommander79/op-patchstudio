@@ -46,7 +46,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
   };
 
   return (
-    <div style={{
+    <div role="region" aria-label="Notifications" aria-live="polite" aria-relevant="additions text" style={{
       position: 'fixed',
       top: '20px',
       right: '20px',
@@ -106,6 +106,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                 </div>
               </div>
               <button
+                aria-label={`Dismiss ${notification.title} notification`}
                 onClick={() => onDismiss(notification.id)}
                 style={{
                   background: 'none',
@@ -114,7 +115,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                   cursor: 'pointer',
                   fontSize: '16px',
                   padding: '0',
-                  opacity: 0.7,
+                  opacity: 1,
                   flexShrink: 0
                 }}
                 onMouseEnter={(e) => {
@@ -122,11 +123,11 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                   e.currentTarget.style.color = 'var(--color-text-primary)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '0.7';
+                  e.currentTarget.style.opacity = '1';
                   e.currentTarget.style.color = 'var(--color-text-secondary)';
                 }}
               >
-                <i className="fas fa-times" />
+                <i aria-hidden="true" className="fas fa-times" />
               </button>
             </div>
           </div>

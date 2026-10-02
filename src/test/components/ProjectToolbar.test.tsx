@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ProjectKeyboardShortcuts } from '../../components/common/ProjectKeyboardShortcuts';
 import { ProjectToolbar } from '../../components/common/ProjectToolbar';
 import { AppContextProvider, initialState, useAppContext } from '../../context/AppContext';
 import * as projectArchive from '../../utils/projectArchive';
@@ -20,7 +21,7 @@ function Harness() {
     const retained={...sample,file:new File(['y'],'source.wav'),name:'source',isAssigned:false,assignedKey:undefined};
     dispatch({type:'BATCH_EDIT',payload:[{type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample,targetKeyIndex:0}},{type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}}]});
   };
-  return <><ProjectToolbar onRetrySave={vi.fn()} /><output aria-label="project name">{state.drumSettings.presetName}</output><button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'Keep me'})}>edit</button><button onClick={seed}>seed samples</button></>;
+  return <><ProjectKeyboardShortcuts /><ProjectToolbar onRetrySave={vi.fn()} /><output aria-label="project name">{state.drumSettings.presetName}</output><button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'Keep me'})}>edit</button><button onClick={seed}>seed samples</button></>;
 }
 
 function restored(name:string):RestoredProject {
@@ -106,6 +107,21 @@ describe('ProjectToolbar', () => {
     fireEvent.click(screen.getByRole('button',{name:'edit'}));
     await act(async()=>finish(restored('Opened too late')));
     expect(await screen.findByRole('alert')).toHaveTextContent(/project changed while this backup was opening.*try again/i);
+    expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
+  });
+
+  it('blocks keyboard history like the toolbar while a backup opens, then resumes Undo',async()=>{
+    let finish!:(value:RestoredProject)=>void;
+    vi.spyOn(projectArchive,'importProjectArchive').mockReturnValueOnce(new Promise(resolve=>{finish=resolve;}));
+    render(<AppContextProvider><Harness /></AppContextProvider>);
+    fireEvent.click(screen.getByRole('button',{name:'edit'}));
+    fireEvent.change(screen.getByLabelText('Project backup file'),{target:{files:[new File(['x'],'kit.opstudio')]}});
+    expect(screen.getByRole('button',{name:'Undo'})).toBeDisabled();
+    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
+    expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
+    await act(async()=>finish(restored('Opened after wait')));
+    expect(screen.getByLabelText('project name')).toHaveTextContent('Opened after wait');
+    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
     expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
   });
 

@@ -1,0 +1,157 @@
+[WebServer] (node:85604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 50 tests using 4 workers
+
+(node:85608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85607) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85606) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85609) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.6s)
+(node:85630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓   3 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.1s)
+  ✓   2 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.1s)
+(node:85635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85634) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.7s)
+(node:85659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.7s)
+  ✓   8 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.8s)
+  ✓   6 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.8s)
+(node:85662) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85667) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.6s)
+(node:85679) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  10 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.6s)
+(node:85685) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (3.3s)
+  ✓  11 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (3.2s)
+  ✓  13 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (3.0s)
+  ✓  14 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.7s)
+(node:85730) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85743) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  15 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.8s)
+  ✓  16 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (3.5s)
+  ✓  17 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (3.0s)
+  ✓  18 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (3.1s)
+(node:85839) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85845) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85861) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85866) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (3.6s)
+  ✓  21 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.3s)
+  ✓  22 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓  20 [firefox] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (3.2s)
+(node:85907) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  23 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓  24 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.1s)
+(node:85951) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85971) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+  ✓  26 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.9s)
+(node:85989) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85993) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  27 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+  ✓  28 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.8s)
+(node:86016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86023) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  29 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.8s)
+  ✓  30 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.8s)
+(node:86050) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86053) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  31 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+(node:86064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  32 [webkit] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓  33 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.7s)
+  ✓  34 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.7s)
+(node:86072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86073) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86074) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  35 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.7s)
+(node:86097) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  37 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.8s)
+  ✓  36 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.8s)
+  ✓  38 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.7s)
+(node:86109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86110) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86111) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  39 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+(node:86135) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  40 [Mobile Chrome] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+(node:86157) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  41 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.3s)
+  ✓  42 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.1s)
+(node:86172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  43 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+(node:86175) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  44 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.9s)
+(node:86212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  46 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓  45 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.3s)
+(node:86228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86227) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  47 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.9s)
+  ✓  48 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.0s)
+  ✓  49 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (2.1s)
+  ✓  50 [Mobile Safari] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (2.1s)
+
+  50 passed (1.1m)

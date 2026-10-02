@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './control-audit-test';
 import {applyAudioImport} from './import-helpers';
 import {openWorkspace,projectAction} from './workspace-actions';
 
@@ -54,6 +54,8 @@ test('library details persist and sample previews leave the working instrument u
   expect(await page.getByRole('button',{name:'Undo',exact:true}).isEnabled()).toBe(undoBefore);
   await page.reload();
   await page.getByRole('button',{name:'restore',exact:true}).click();
+  await expect(page).toHaveURL(/#\/studio\/multisample$/);
+  await expect(page.getByRole('region',{name:'Multisample instrument, 1 of 24 loaded'})).toBeVisible();
   await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Library'}).click();
   await expect(page.getByRole('button',{name:'remove from favorites',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Edit details for Library audition',exact:true}).click();
@@ -64,6 +66,8 @@ test('library details persist and sample previews leave the working instrument u
   await page.setViewportSize({width:390,height:844});
   await page.reload();
   await page.getByRole('button',{name:'restore',exact:true}).click();
+  await expect(page.getByRole('button',{name:'restore',exact:true})).toBeHidden();
+  await expect(page).toHaveURL(/#\/studio\/library$/);
   await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Library'}).click();
   await expect(page.getByRole('button',{name:'Edit details for Library audition',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Preview first sample of Library audition',exact:true})).toBeVisible();

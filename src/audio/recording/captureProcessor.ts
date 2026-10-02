@@ -18,7 +18,6 @@ class OpPatchCaptureProcessor extends AudioWorkletProcessor {
   constructor(options?:{processorOptions?:ProcessorConfig}) {
     super();
     this.config=options?.processorOptions ?? {mode:'manual'};
-    if(this.config.channels===1||this.config.channels===2)this.core=new CaptureCore({...this.config,sampleRate,channels:this.config.channels});
     this.port.onmessage=(event:MessageEvent<{type:string}>)=>{
       try {
         if(event.data.type==='arm'){this.requested='armed';this.core?.arm();}
@@ -35,6 +34,7 @@ class OpPatchCaptureProcessor extends AudioWorkletProcessor {
 
   process(inputs:Float32Array[][],outputs:Float32Array[][]) {
     for(const output of outputs)for(const channel of output)channel.fill(0);
+    if(this.failed)return true;
     const input=inputs[0];
     if(!input?.length || !input[0]?.length){
       this.missingFrames+=outputs[0]?.[0]?.length??128;
@@ -46,8 +46,8 @@ class OpPatchCaptureProcessor extends AudioWorkletProcessor {
     this.missingFrames=0;
     try {
       if(!this.core){
-        // Some browsers omit channelCount settings. This one-time startup
-        // allocation discovers the delivered format; per-take completion never allocates.
+        // Track settings can omit or misreport the delivered channel count.
+        // Allocate once from the first input block; per-take completion never allocates.
         this.core=new CaptureCore({...this.config,sampleRate,channels:input.length});
         if(this.requested==='armed')this.core.arm(); else if(this.requested==='recording')this.core.startManual();
       }

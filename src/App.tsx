@@ -14,8 +14,11 @@ import { useSessionManagement } from './hooks/useSessionManagement';
 import { registerOverlayControl } from './components/common/WaveformEditor';
 import { ProjectKeyboardShortcuts } from './components/common/ProjectKeyboardShortcuts';
 import { AudioImportProvider } from './components/common/AudioImportProvider';
+import { AppearanceSwitch } from './components/common/AppearanceSwitch';
 import './theme/device-themes.scss';
 import './styles/studio.css';
+// Scoped to [data-studio-appearance="opxy"]; must load after studio.css.
+import './styles/studio-opxy.css';
 
 const FeedbackPage = lazy(() => import('./components/common/FeedbackPage').then(module => ({ default: module.FeedbackPage })));
 const DonatePage = lazy(() => import('./components/common/DonatePage').then(module => ({ default: module.DonatePage })));
@@ -50,7 +53,7 @@ function AppContent() {
     <ProjectKeyboardShortcuts />
     <Content className="studio-content">
       {currentRoute === 'feedback' ? <Suspense fallback={<p>Loading feedback…</p>}><FeedbackPage /></Suspense> : currentRoute === 'donate' ? <Suspense fallback={<p>Loading support…</p>}><DonatePage /></Suspense> : <>
-        <StudioShell onRetrySave={saveSession} themePicker={<ThemePicker />} />
+        <StudioShell onRetrySave={saveSession} themePicker={<><AppearanceSwitch /><ThemePicker /></>} />
         <NotificationSystem notifications={state.notifications} onDismiss={id => dispatch({ type: 'REMOVE_NOTIFICATION', payload: id })} />
         <PWAInstallPrompt />
         <PWAUpdatePrompt />

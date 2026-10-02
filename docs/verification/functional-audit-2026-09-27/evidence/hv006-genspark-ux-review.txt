@@ -1,0 +1,85 @@
+
+> plan · gpt-5.6-sol
+
+→ Read src/components/drum/SliceAudioModal.tsx [offset=1, limit=2000]
+→ Read src/components/drum/SliceKeyboardMapping.tsx [offset=1, limit=2000]
+✱ Glob "**/*{Slice,slice}*.{test,spec}.{ts,tsx}" in . · 1 match
+✱ Glob "e2e/**/*{slice,Slice}*.{ts,tsx}" in . · 0 matches
+✱ Grep "<Modal|ComposedModal|ModalFooter|Accordion|Disclosure|Chevron|Cancel|Add sounds to kit" in src/components · 31 matches
+I’ll trace the two slice components, their focused tests, and the nearest established modal/disclosure/action patterns, then assess the proposal against current behavior and state-preservation risks. No files or runtime state will be changed.
+→ Read src/test/components/SliceAudioModal.test.tsx [offset=1, limit=2000]
+✱ Glob "e2e/**/*.{ts,tsx}" in . · 0 matches
+→ Read src/components/common/ConfirmationModal.tsx [offset=1, limit=180]
+✱ Grep "slice audio|Turn a loop|Detect sounds again|Reset to full source|Replace edits|Keep edits|Split sound|Add sounds to kit|OP-XY destinations" in . · 25 matches
+→ Read src/components/drum/DrumSampleSettingsModal.tsx [offset=500, limit=80]
+→ Read src/components/drum/DrumBulkEditModal.tsx [offset=340, limit=90]
+→ Read tests/e2e/slicing.spec.ts [offset=1, limit=180]
+→ Read src/components/drum/DrumSampleSettingsModal.tsx [offset=190, limit=90]
+✱ Grep "overflowY|overflow: 'auto'|flexShrink: 0|maxHeight" in src/components/drum · 8 matches
+✱ Grep "<details|<summary|aria-expanded" in src/components · 24 matches
+→ Read src/components/drum/DrumBulkEditModal.tsx [offset=80, limit=75]
+→ Read tests/e2e/slicing.spec.ts [offset=176, limit=30]
+✱ Grep "studio-advanced-disclosure|studio-library-collection-disclosure|studio-guide" in src · 37 matches
+✱ Grep "data-workspace-modal|studio-dialog-actions" in src · 1 match
+✱ Grep "SliceAudioModal|SliceKeyboardMapping" in src/test · 29 matches
+The current component already has the right behavioral primitives, but their order obscures the workflow: assignment appears before editing, while source transport, split/delete/reset, precision fields, and detection are all mixed under a visually unbounded `Advanced`. I’m checking the existing disclosure styling and the remaining slicing E2E contract to distinguish safe regrouping from behavior changes.
+**Recommended Grouping**
+The three-group proposal is sound and matches the task sequence better than the current DOM order.
+
+1. **Make slices**
+   - Source filename, duration, overview waveform, and current count such as **18 sounds**.
+   - Full-source Play/Stop.
+   - Primary automatic detection action.
+   - “Reset to whole recording” as a distinct destructive action.
+   - Detection sensitivity and minimum spacing inside a bordered, labelled disclosure such as **Detection settings**.
+   - Keep live `Mark split (M)` available, but visually associate it with manual editing rather than detection.
+
+2. **Edit and listen**
+   - Numbered sound tiles, selected count, Previous/Next, selected waveform, Start/End seconds, and preview transport.
+   - Keep **Split sound** and **Delete sound** visible. They are core editing actions, not advanced controls.
+   - Put exact frame fields inside a bordered **Precision editing** disclosure.
+   - Retain concise instructions immediately before the numbered tiles: selecting auditions a sound; dragging assigns it.
+   - Keep selected waveform outside a collapsed disclosure so canvas measurement and redraw do not become disclosure-dependent.
+
+3. **Assign to keys**
+   - Assignment status first: **0 of 18 assigned**, with unassigned consequences nearby.
+   - Place drag instructions directly above the numbered tiles/keyboard relationship, not after the keyboard as currently done at `SliceAudioModal.tsx:139-141`.
+   - Keyboard, destination selector, Assign, Unassign, and Auto-fill remain together.
+   - Keep replacement confirmation immediately below those controls, as the current implementation approximately does at `SliceAudioModal.tsx:130-131`.
+
+Use a column-flex dialog shell with fixed header/footer and only the body scrolling. This follows existing modal patterns in `DrumSampleSettingsModal.tsx:228-273` and `DrumBulkEditModal.tsx:103-127`. The current `overflow: auto` on the entire dialog at `SliceAudioModal.tsx:120` allows the footer to scroll away.
+
+For disclosures, native `<details>/<summary>` is appropriate, but apply an actual bordered container, padded summary row, visible marker/chevron, and clear open state. The established `.studio-advanced-disclosure` pattern already provides most of this at `studio.css:191-194`; the current unbordered summary at `SliceAudioModal.tsx:133` explains why **Advanced** reads like ordinary text.
+
+**Source-Backed Risks**
+- **Pending confirmation does not currently gate mutation.** `confirmAction` only renders a warning at `SliceAudioModal.tsx:135`; Split, Delete, Reset, mapping, boundary edits, and other mutation controls remain independently enabled. This directly explains Split remaining active while reset confirmation is pending.
+- **Reset is separated from its confirmation.** Reset is at the end of the mixed action row at `SliceAudioModal.tsx:137`, while its confirmation is rendered earlier at line 135. Regrouping must render each confirmation adjacent to the trigger that created it.
+- **Reset/reanalysis are intentionally destructive.** `acceptRanges` resets selection, edits, mappings, replacement state, approvals, and overflow acceptance at `SliceAudioModal.tsx:49`. Confirmation must remain mandatory whenever `hasChanges` is true.
+- **“Keep edits” must be a pure dismissal.** It currently only clears `confirmAction`; preserving that behavior is essential. It must not rerun analysis, reset ranges, stop playback unnecessarily, alter selection, or clear mappings.
+- **Avoid remounting stateful workflow sections.** Source loading is deliberately tied to the request snapshot rather than live project edits at `SliceAudioModal.tsx:58-71`. Visual regrouping should not change keys, request identity, or effects in a way that reloads or reanalyzes the source.
+- **Canvas placement matters.** Moving a waveform into a collapsed disclosure can produce zero-width drawing until another resize/state event because drawing depends on measured canvas width at `SliceAudioModal.tsx:80-86`.
+- **Assignment semantics are nuanced.** Auto-fill uses only empty keys, replacements require approval, the retained source pad cannot be replaced, and staged-to-staged replacement behaves differently from replacing an existing sample (`SliceAudioModal.tsx:111-113`). Regrouping must not simplify these into a generic assignment operation.
+- **The keyboard has separate horizontal scrolling.** It already states this at `SliceKeyboardMapping.tsx:41-42`. Main-body vertical scrolling and keyboard horizontal scrolling need distinct cues so users do not interpret one instruction as covering both.
+- **Existing tests depend on accessible names more than layout.** Labels such as `Select sound 1`, `Destination pad`, `Split sound`, and `Add sounds to kit` are exercised extensively in `SliceAudioModal.test.tsx` and `tests/e2e/slicing.spec.ts`. Preserve them even if visible wording or grouping changes.
+- **Do not turn this into a wizard.** The E2E workflow moves repeatedly between editing and assignment, including drag assignment followed by further frame edits at `tests/e2e/slicing.spec.ts:97-114`. All three groups should remain directly reachable.
+
+**Regression Invariants**
+- Opening, expanding, collapsing, or scrolling any group never reloads, re-decodes, or reanalyzes the source.
+- Cancel, backdrop close, Escape, and browser Back handling never mutate the source or project and never call `onApply`; existing draft survival is covered at `tests/e2e/slicing.spec.ts:177-190`.
+- The source `AudioBuffer` remains unchanged through selection, waveform dragging, split, delete, reset preview, reanalysis preview, and cancellation.
+- While reset or reanalysis confirmation is pending, all competing mutation controls are disabled: boundary inputs/canvas edits, Add/Split/Delete/Mark, detection/reset triggers, drag/drop assignment, Assign/Unassign/Auto-fill, replacement approval, overflow acceptance, and final Apply.
+- Cancel remains available during pending confirmation. Non-mutating selection or playback may remain available only if it cannot expose an enabled mutation such as Mark.
+- **Keep edits** restores the exact prior draft: range IDs/order/boundaries, selected sound, assignments, replacement approvals/prompt, overflow acceptance, disclosure state, and owned playback state.
+- **Replace edits** stops owned playback before replacing ranges. Confirmed reset produces one full-source range and clears assignments; confirmed reanalysis uses only the new analysis result.
+- Split preserves the original range’s assignment, selects the new range, and creates two nonempty ranges; Delete removes only the selected range and only its associated mapping/approval.
+- Selection changes stop owned playback; late-starting previews are released and cannot reclaim transport state.
+- Exact frame boundaries remain exact when seconds fields are focused but unchanged.
+- Drag/drop accepts only the internal slice MIME type and a current range ID.
+- Replacement **Keep** leaves the existing or staged assignment untouched; **Replace** changes only the approved destination.
+- Auto-fill uses only currently empty, unreserved keys and never silently replaces a loaded sample.
+- The retained source pad remains protected from replacement.
+- The footer remains visible at supported viewport sizes while only the body scrolls; keyboard horizontal scrolling remains independently operable by pointer and keyboard.
+- `Add sounds to kit` retains existing overflow acknowledgement, busy-state, atomic preparation, commit receipt, and rejection behavior.
+- Existing accessible dialog, section, field, waveform, tile, pad, and action names remain stable or receive deliberate test updates without reducing semantics.
+
+No desired-count detection behavior, wizard routing, application-wide restyling, or unrelated layout correction should be included in this change.

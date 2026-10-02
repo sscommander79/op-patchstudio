@@ -1,0 +1,97 @@
+[WebServer] (node:82386) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 30 tests using 4 workers
+
+(node:82400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82397) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82398) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82399) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [chromium] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.6s)
+  ✓   1 [chromium] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.8s)
+(node:82422) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82421) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.2s)
+(node:82439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (5.0s)
+  ✓   3 [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (5.1s)
+(node:82447) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82446) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.6s)
+(node:82465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [firefox] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (2.9s)
+  ✓  10 [firefox] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (2.4s)
+  ✓   7 [firefox] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (6.9s)
+  ✓   9 [firefox] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (7.0s)
+(node:82548) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82550) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 [firefox] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (3.4s)
+  ✓  14 [webkit] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.9s)
+(node:82635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [webkit] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (5.5s)
+  ✓  11 [firefox] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (7.3s)
+  ✓  15 [webkit] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.7s)
+(node:82670) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  16 [webkit] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.7s)
+  ✓  17 [Mobile Chrome] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.4s)
+(node:82700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82713) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 [Mobile Chrome] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.1s)
+(node:82724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  21 [Mobile Chrome] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.0s)
+(node:82731) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  18 [Mobile Chrome] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.5s)
+(node:82749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  20 [webkit] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.7s)
+  ✓  24 [Mobile Chrome] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.1s)
+(node:82768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  23 [webkit] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.6s)
+(node:82769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82787) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [Mobile Safari] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.7s)
+  ✓  22 [Mobile Chrome] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.8s)
+(node:82804) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82805) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  29 [Mobile Safari] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.6s)
+(node:82830) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  26 [Mobile Safari] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (5.2s)
+  ✓  27 [Mobile Safari] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (5.0s)
+  ✓  30 [Mobile Safari] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.5s)
+  ✓  28 [Mobile Safari] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.9s)
+
+  30 passed (50.9s)

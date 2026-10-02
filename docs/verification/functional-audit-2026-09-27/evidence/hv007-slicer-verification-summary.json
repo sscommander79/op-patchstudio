@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-02",
+  "issue": "HV-007",
+  "branch": "codex/studio-upgrade",
+  "baseline_status_entries": 139,
+  "production_files": [
+    "src/components/drum/SliceAudioModal.tsx",
+    "src/components/drum/SliceKeyboardMapping.tsx",
+    "src/utils/audioSlicing.ts",
+    "src/context/AppContext.tsx"
+  ],
+  "changed_files": [
+    "src/components/drum/SliceAudioModal.tsx",
+    "src/components/drum/SliceKeyboardMapping.tsx",
+    "src/utils/audioSlicing.ts",
+    "src/context/AppContext.tsx",
+    "src/test/components/SliceAudioModal.test.tsx",
+    "src/test/context/audioSlicingApplication.test.ts",
+    "tests/e2e/slicing.spec.ts"
+  ],
+  "unchanged_other_snapshot_files": 352,
+  "unexpected_source_changes": [],
+  "standard": {
+    "result": "PASS",
+    "unit_tests": 1154,
+    "files": 111,
+    "typecheck": "PASS",
+    "lint": "PASS with three existing warnings",
+    "build": "PASS",
+    "pwa": "PASS"
+  },
+  "browser": {
+    "result": "PASS",
+    "tests": 25,
+    "profiles": [
+      "Chromium",
+      "Firefox",
+      "WebKit",
+      "Mobile Chrome",
+      "Mobile Safari"
+    ],
+    "origin": "isolated production port 5187",
+    "coverage": [
+      "native occupied-source drag with Keep/Replace",
+      "existing-pad unassign",
+      "Cancel preserves project",
+      "displaced original PCM and file bytes retained",
+      "atomic Apply and Undo/Redo",
+      "keyboard disclosures and desktop/phone geometry",
+      "export and portable-project round trip",
+      "browser Back draft retention"
+    ]
+  },
+  "review": "Claude Opus 5.5 through Genspark proxy read-only initial and follow-up. Initial findings addressed; follow-up reports no remaining material findings in its limited scope and labels itself self-review. No model-run runtime tests.",
+  "human": "Pending usability and real sliced-voice listening/application/hardware. Saved Human Test04 restored:11 loaded; Pad4 Take1.opfloat; freshly detected17 sounds,0assigned. Prior unsaved18-sound draft lost during development reload; not recovered.",
+  "constraints": "No commit/push/deploy/install/baseline update/hardware; preserve prior WIP and duplicate artifacts. HV001/HV004 deferred.",
+  "screenshot": "hv007-slicer-ready.png",
+  "screenshot_sha256": "833b21ecea739eb8177f178c7276d1baea30735ca17cf25438febbba198b5719",
+  "broader_review": "Genspark Sol UX and Fable functional read-only reviews complete; findings reconciled/backlogged in docs/verification/proactive-review-2026-10-02/README.md. No broader fixes."
+}

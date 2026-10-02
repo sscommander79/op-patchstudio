@@ -1,4 +1,4 @@
-import { expect, test, type Download, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {expectDrumLoaded, gotoWorkspace, projectAction} from './workspace-actions';
@@ -7,7 +7,7 @@ type RecordingManifest={
   project:{drumSamples:Array<{name:string;sampleId:string}>};
   samples:Array<{id:string;name:string;type:string;sourcePath?:string;metadata:{sampleRate:number;channels:number;bitDepth:number;isFloat:boolean};audioPath:string;audio:{bytes:number;frames:number;sampleRate:number;channels:number}}>;
 };
-type SyntheticState={calls:number;tracks:MediaStreamTrack[];contexts:AudioContext[];constraints:MediaStreamConstraints[];stubInstalled:boolean;getUserMedia:MediaDevices['getUserMedia'];triggerBurst:()=>Promise<void>};
+type SyntheticState={calls:number;tracks:MediaStreamTrack[];contexts:AudioContext[];constraints:MediaStreamConstraints[];stubInstalled:boolean;getUserMedia:MediaDevices['getUserMedia'];triggerBurst:(seconds?:number)=>Promise<void>};
 declare global {interface Window {__opRecordingSynthetic:SyntheticState}}
 
 async function downloadedBytes(download:Download) {
@@ -45,9 +45,9 @@ test.beforeEach(async({page})=>{
     Object.defineProperty(getUserMedia,'__opPatchStudioSynthetic',{value:true});
     const events=new EventTarget(),facade={getUserMedia,enumerateDevices:async()=>[{deviceId:'synthetic-input',groupId:'synthetic',kind:'audioinput',label:'Synthetic input',toJSON:()=>({})} as MediaDeviceInfo],getSupportedConstraints:()=>({}),addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events),dispatchEvent:events.dispatchEvent.bind(events),ondevicechange:null};
     Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:facade});
-    const state:SyntheticState={calls:0,tracks:[],contexts:[],constraints:[],stubInstalled:navigator.mediaDevices===facade&&navigator.mediaDevices.getUserMedia===getUserMedia,getUserMedia,triggerBurst:async()=>{
+    const state:SyntheticState={calls:0,tracks:[],contexts:[],constraints:[],stubInstalled:navigator.mediaDevices===facade&&navigator.mediaDevices.getUserMedia===getUserMedia,getUserMedia,triggerBurst:async(seconds=.1)=>{
       const session=sessions.at(-1);if(!session||session.context.state==='closed')throw new Error('Synthetic input is not active');
-      const frames=Math.round(session.context.sampleRate*.1),buffer=session.context.createBuffer(1,frames,session.context.sampleRate),channel=buffer.getChannelData(0);
+      const frames=Math.round(session.context.sampleRate*seconds),buffer=session.context.createBuffer(1,frames,session.context.sampleRate),channel=buffer.getChannelData(0);
       for(let frame=0;frame<frames;frame+=1)channel[frame]=.8*Math.sin(frame*.19);
       const source=session.context.createBufferSource();source.buffer=buffer;source.connect(session.destination);session.sources.add(source);source.onended=()=>{session.sources.delete(source);source.disconnect();};source.start(session.context.currentTime+.35);
     }};
@@ -101,4 +101,32 @@ test('manual Start and Stop can repeat, and Cancel releases every input without 
   await dialog.getByRole('alertdialog',{name:'Discard recording work'}).getByRole('button',{name:'Stop and discard'}).click();
   await expect(dialog).toBeHidden();await expectDrumLoaded(page,0);
   await expect.poll(()=>page.evaluate(()=>window.__opRecordingSynthetic.tracks.every(track=>track.readyState==='ended'))).toBe(true);
+});
+
+for (const width of [390, 1280]) test(`recorder keeps actions visible and owns discard focus at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:500});
+  await gotoWorkspace(page,'drum');
+  const dialog=await openDrumRecorder(page);
+  const apply=dialog.getByRole('button',{name:'Add selected takes'});
+  const bounds=await apply.boundingBox();expect(bounds).not.toBeNull();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(500);
+  await dialog.getByRole('button',{name:'Start recording'}).click();
+  await expect(dialog.getByText(/State: recording/)).toBeVisible();
+  // Initial WebKit frames can be silent; an all-silent manual take is intentionally discarded.
+  await page.evaluate(()=>window.__opRecordingSynthetic.triggerBurst(.5));
+  await expect.poll(async()=>Number((await dialog.getByText(/Take time/).textContent())?.match(/Level ([\d.]+)%/)?.[1]??0),{intervals:[20,50,100]}).toBeGreaterThan(1);
+  await dialog.getByRole('button',{name:'Stop recording'}).click();
+  await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(1);
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  const resume=dialog.getByRole('button',{name:'Resume recording'});
+  await expect(resume).toBeFocused();await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button',{name:'Stop and discard'})).toBeFocused();
+  await page.keyboard.press('Tab');await expect(resume).toBeFocused();
+  await expect(dialog.locator('input[aria-label^="Name for take"]')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
+  await expect(dialog.locator('input[aria-label^="Name for take"]')).toBeEnabled();
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await dialog.getByRole('button',{name:'Stop and discard'}).click();
+  await expect(dialog).toHaveCount(0);await expectDrumLoaded(page,0);
 });

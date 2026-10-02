@@ -1,4 +1,4 @@
-import {expect,test} from '@playwright/test';
+import {expect,test} from './control-audit-test';
 import {copyFile,mkdir,readFile} from 'node:fs/promises';
 import JSZip from 'jszip';
 import {downloadDevicePreset,expectMultisampleLoaded,gotoWorkspace,openWorkspace,projectAction} from './workspace-actions';

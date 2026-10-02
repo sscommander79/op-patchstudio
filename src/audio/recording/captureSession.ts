@@ -123,7 +123,8 @@ export class CaptureSession {
     if(reportedRate!==undefined&&(reportedRate<8_000||reportedRate>96_000)){await this.releaseSetupAttempt(attempt);return this.reject('The selected input sample rate is outside the supported 8–96 kHz range.');}
     if(reportedChannels!==undefined&&(reportedChannels<1||reportedChannels>2)){await this.releaseSetupAttempt(attempt);return this.reject('Choose a mono or stereo input. Multichannel capture is not yet supported.');}
     const retained=this.deps.getRetainedUsage?.()??{count:0,bytes:0};
-    const reservation=this.reservationBytes(reportedRate??48_000,reportedChannels??2);
+    // The processor discovers the delivered layout, which may differ from track settings.
+    const reservation=this.reservationBytes(reportedRate??48_000,2);
     if(retained.count>=RECORDING_LIMITS.takes||retained.bytes+reservation>RECORDING_LIMITS.ownedBytes){await this.releaseSetupAttempt(attempt);return this.reject('Recording capacity is full. Remove or add reviewed takes before enabling input.');}
     let context:AudioContext|undefined;
     let stage='creating the audio capture context';
@@ -132,6 +133,7 @@ export class CaptureSession {
       attempt.context=context;
       if(context.sampleRate<8_000||context.sampleRate>96_000)throw new Error('The browser capture rate is outside the supported 8–96 kHz range.');
       if(reportedRate!==undefined&&context.sampleRate!==reportedRate)throw new Error(`The browser could not preserve the reported ${reportedRate} Hz input rate.`);
+      if(retained.bytes+this.reservationBytes(context.sampleRate,2)>RECORDING_LIMITS.ownedBytes)throw new Error('Recording capacity is full. Remove or add reviewed takes before enabling input.');
       if(context.state==='running'){
         stage='suspending the audio capture context for graph setup';
         await context.suspend();
@@ -157,7 +159,10 @@ export class CaptureSession {
       track.addEventListener('ended',this.trackEnded); node.addEventListener('processorerror',this.processorError); context.addEventListener('statechange',this.contextState);
       node.port.onmessage=event=>{void this.handleMessage(event.data,generation);};
       this.setStatus({state:'monitoring',sampleRate:context.sampleRate,channels:reportedChannels,settingsReported:reportedRate!==undefined});
-      for(const message of pendingMessages)void this.handleMessage(message,generation);
+      for(const message of pendingMessages){
+        await this.handleMessage(message,generation);
+        if(generation!==this.generation||this.disposed)return false;
+      }
       return true;
     } catch(reason) {
       await this.releaseSetupAttempt(attempt);

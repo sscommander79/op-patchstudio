@@ -1,4 +1,4 @@
-import {expect,test,type Download} from '@playwright/test';
+import {expect,test,type Download} from './control-audit-test';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
 import JSZip from 'jszip';
@@ -18,16 +18,16 @@ test('actual codec files stay truthful through chooser review, one Apply, and Un
   const compressed=dialog.getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li');
   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(/decoded 48000 Hz/);
   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
-  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,expectedPrepared);
+  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
 
   const backupEvent=page.waitForEvent('download');await projectAction(page,'Download project');const backup=await backupEvent,backupBytes=await downloadedBytes(backup);
   const saved=await inspectProject(backupBytes),mp3=saved.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
   expect(mp3?.sourcePath).toBeTruthy();expect(mp3?.metadata).not.toHaveProperty('bitDepth');expect(mp3?.metadata).not.toHaveProperty('sampleRate');expect(mp3?.metadata).not.toHaveProperty('channels');
   expect(mp3?.audio.sampleRate).toBe(48_000);expect(mp3?.audio.frames).toBeGreaterThan(8_000);
   expect(Buffer.from(await saved.zip.file(mp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
-  await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(0);
   const chooser=page.waitForEvent('filechooser');await projectAction(page,'Open project');await (await chooser).setFiles({name:backup.suggestedFilename(),mimeType:'application/zip',buffer:backupBytes});
-  await expectDrumLoaded(page,expectedPrepared);
+  await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
   const restoredEvent=page.waitForEvent('download');await projectAction(page,'Download project');const restored=await inspectProject(await downloadedBytes(await restoredEvent));const restoredMp3=restored.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
   expect(restoredMp3?.metadata).not.toHaveProperty('sampleRate');expect(Buffer.from(await restored.zip.file(restoredMp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
 });

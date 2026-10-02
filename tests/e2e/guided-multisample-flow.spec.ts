@@ -1,7 +1,8 @@
-import {expect,test} from '@playwright/test';
+import {expect,test} from './control-audit-test';
+import {gotoWorkspace} from './workspace-actions';
 
 // Run only with the isolated fake-device configuration; never touches physical devices.
-test('guided hardware flow checks, auditions, captures and commits real browser audio',async({page,context,baseURL})=>{
+for(const finishAction of ['Continue editing','Save to library','Review OP-XY export'])test(`guided hardware flow checks captures and finishes with ${finishAction}`,async({page,context,baseURL})=>{
   test.setTimeout(60_000);
   test.skip(!process.env.PLAYWRIGHT_FAKE_AUDIO_FILE,'Requires explicitly configured fake audio');
   if(!baseURL)throw new Error('A local test origin is required');
@@ -19,9 +20,11 @@ test('guided hardware flow checks, auditions, captures and commits real browser 
     Object.defineProperty(window,'guidedTestEvidence',{get:()=>({requests,messages})});
   });
   await context.grantPermissions(['microphone'],{origin:new URL(baseURL).origin});
-  await page.goto('/',{waitUntil:'domcontentloaded'});
-  await page.getByRole('button',{name:'Create',exact:true}).click();
-  await page.getByRole('button',{name:/Multisample a synth Capture notes/}).click();
+  await gotoWorkspace(page,'multisample');
+  await page.getByLabel('Instrument name',{exact:true}).fill('Guided audit capture');
+  await page.getByLabel('Instrument name',{exact:true}).blur();
+  await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Overview',exact:true}).click();
+  await page.getByRole('button',{name:'Setup guide: multisample a synth'}).click();
   await page.getByRole('button',{name:'Continue to setup'}).click();
   await page.getByRole('button',{name:'Open editor and Record takes'}).click();
   const recorder=page.getByRole('dialog',{name:'Record takes'});
@@ -60,6 +63,8 @@ test('guided hardware flow checks, auditions, captures and commits real browser 
   await expect(recorder.getByRole('heading',{name:'Review tray'})).toBeHidden();
   await expect(recorder.getByRole('button',{name:'Save to library',exact:true})).toBeVisible();
   await expect(recorder.getByRole('button',{name:'Review OP-XY export'})).toBeVisible();
-  await recorder.getByRole('button',{name:'Continue editing',exact:true}).click();
+  await recorder.getByRole('button',{name:finishAction,exact:true}).click();
   await expect(recorder).toBeHidden();
+  if(finishAction==='Save to library')await expect(page.getByText('Saved Guided audit capture to the library.',{exact:true})).toBeVisible();
+  if(finishAction==='Review OP-XY export')await expect(page.getByRole('dialog',{name:'Export OP-XY preset',exact:true})).toBeVisible();
 });

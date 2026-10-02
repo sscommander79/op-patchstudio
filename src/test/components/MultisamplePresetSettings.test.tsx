@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialState } from '../../context/AppContext';
 import { MultisamplePresetSettings } from '../../components/multisample/MultisamplePresetSettings';
@@ -42,4 +42,8 @@ describe('MultisamplePresetSettings import', () => {
     });
     expect(initialState.multisampleSettings.transpose).toBe(0);
   });
+  for(const [name,initial] of [['Basic settings','true'],['Advanced settings','false'],['Envelopes and filters','true']])it(`${name} disclosure responds to keyboard without editing the instrument`,()=>{
+    render(<MultisamplePresetSettings/>);const header=screen.getByRole('button',{name});expect(header).toHaveAttribute('aria-expanded',initial);expect(header).toHaveAttribute('tabindex','0');fireEvent.keyDown(header,{key:'Enter'});expect(header).toHaveAttribute('aria-expanded',initial==='true'?'false':'true');fireEvent.keyDown(header,{key:' '});expect(header).toHaveAttribute('aria-expanded',initial);expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
 });

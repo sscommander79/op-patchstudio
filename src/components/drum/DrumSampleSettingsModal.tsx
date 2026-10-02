@@ -6,6 +6,7 @@ import { Slider } from '@carbon/react';
 import React from 'react';
 import { WaveformZoomModal } from '../common/WaveformZoomModal';
 import { useOwnedDialog } from '../../hooks/useOwnedDialog';
+import { applyZeroCrossingToMarkers } from '../../utils/audio';
 
 interface DrumSampleSettingsModalProps {
   isOpen: boolean;
@@ -60,21 +61,9 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
       setLocalInPoint(actualInPoint);
       setLocalOutPoint(actualOutPoint);
       
-      // Set default marker positions if not already set
-      if ((sample.inPoint === undefined || sample.outPoint === undefined) && sample.audioBuffer) {
-        dispatch({
-          type: 'UPDATE_DRUM_SAMPLE',
-          payload: {
-            index: sampleIndex,
-            updates: {
-              inPoint: 0,
-              outPoint: sample.audioBuffer.duration
-            }
-          }
-        });
-      }
+
     }
-  }, [isOpen, sample, sampleIndex, dispatch]);
+  }, [isOpen, sample]);
 
   // Use local marker state for sample index calculations
   const getInPointSampleIndex = () => {
@@ -106,13 +95,15 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
         gain: sample.gain || 0,
         pan: sample.pan || 0
       };
+      const markersChanged = (localInPoint !== null && localInPoint !== (sample.inPoint ?? 0)) ||
+        (localOutPoint !== null && localOutPoint !== (sample.outPoint ?? sample.audioBuffer?.duration ?? 0));
       const valuesChanged =
         settings.playmode !== originalValues.playmode ||
         settings.reverse !== originalValues.reverse ||
         settings.transpose !== originalValues.transpose ||
         settings.gain !== originalValues.gain ||
         settings.pan !== originalValues.pan;
-      dispatch({
+      if (valuesChanged || markersChanged || sample.inPoint === undefined || sample.outPoint === undefined) dispatch({
         type: 'UPDATE_DRUM_SAMPLE',
         payload: {
           index: sampleIndex,
@@ -120,7 +111,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             ...settings,
             inPoint: localInPoint !== null ? localInPoint : sample.inPoint,
             outPoint: localOutPoint !== null ? localOutPoint : sample.outPoint,
-            hasBeenEdited: sample.hasBeenEdited || valuesChanged
+            hasBeenEdited: sample.hasBeenEdited || valuesChanged || markersChanged
           }
         }
       });
@@ -418,7 +409,15 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                     alignItems: 'center',
                     gap: '0.5rem',
                   }}
-                  onClick={() => dispatch({ type: 'APPLY_ZERO_CROSSING_TO_DRUM_SAMPLE', payload: sampleIndex })}
+                  onClick={() => {
+                    if (!sample.audioBuffer) return;
+                    const snapped = applyZeroCrossingToMarkers(sample.audioBuffer,
+                      localInPoint ?? sample.inPoint, localOutPoint ?? sample.outPoint);
+                    // Keep the draft intact when no positive-length snapped range exists.
+                    if (snapped.outPoint <= snapped.inPoint) return;
+                    setLocalInPoint(snapped.inPoint);
+                    setLocalOutPoint(snapped.outPoint);
+                  }}
                 >
                   <i aria-hidden="true" className="fas fa-wave-square" style={{ fontSize: '1rem' }}></i>
                   apply zero crossing

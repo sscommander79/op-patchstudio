@@ -239,7 +239,7 @@ export function LibraryTableContent({
                 {sortBy === 'name' ? (
                   <i className={`fas fa-sort-${sortOrder === 'asc' ? 'up' : 'down'}`}></i>
                 ) : (
-                  <i className="fas fa-sort" style={{ color: 'var(--color-text-secondary)', opacity: 0.5 }}></i>
+                  <i className="fas fa-sort" style={{ color: 'var(--color-text-secondary)' }}></i>
                 )}
               </div>
             </th>

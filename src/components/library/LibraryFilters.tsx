@@ -23,7 +23,7 @@ export function LibraryFilters({searchTerm,onSearchChange,filterType,onFilterTyp
         <option value="all">All types</option><option value="drum">Drums</option><option value="multisample">Multisamples</option>
       </select>
     </label>
-    <label className="studio-library-filter"><span className="sr-only">Sort presets</span>
+    <label className="studio-library-filter studio-library-sort"><span className="sr-only">Sort presets</span>
       <select aria-label="Sort presets" value={sortBy} onChange={event=>onSortChange(event.target.value as 'name'|'date'|'type'|'collection')}>
         {inCollection&&<option value="collection">Collection order</option>}
         <option value="date">Recently updated</option><option value="name">Name</option><option value="type">Type</option>

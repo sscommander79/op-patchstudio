@@ -1,0 +1,38 @@
+
+> plan · gpt-5.6-sol
+
+✱ Glob "**/MultisampleTool.tsx" in . · 1 match
+✱ Glob "**/MultisampleTool.test.tsx" in . · 1 match
+✱ Glob "**/VirtualMidiKeyboard*.tsx" in . · 2 matches
+✱ Glob "**/useAudioPlayer.test.ts" in . · 1 match
+✱ Glob "**/useAudioPlayer.ts" in . · 1 match
+I’ll inspect only the specified startup/release lifecycle code and targeted tests, then assess whether the original race is closed and whether these edits introduce any material residual.
+✱ Grep "AbortController|playWithADSR|handleKeyRelease|pending|abort|useEffect|stopNote" in src/components/multisample/MultisampleTool.tsx · 22 matches
+✱ Grep "onNote|handle.*(?:Start|Release)|pointer|mouse|touch|key|useEffect" in src/components/multisample/VirtualMidiKeyboard.tsx · 100 matches
+✱ Grep "pending|AbortController|abort|release|unmount|playWithADSR" in src/test/components/MultisampleTool.test.tsx · 17 matches
+✱ Grep "signal|aborted|Abort|playWithADSR|acquir" in src/hooks/useAudioPlayer.ts · 9 matches
+✱ Grep "abort|signal|acquir|playWithADSR" in src/test/hooks/useAudioPlayer.test.ts · 29 matches
+→ Read src/components/multisample/MultisampleTool.tsx [offset=20, limit=45]
+→ Read src/components/multisample/MultisampleTool.tsx [offset=292, limit=82]
+→ Read src/test/components/MultisampleTool.test.tsx [offset=280, limit=75]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=480, limit=140]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=55, limit=170]
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=235, limit=130]
+→ Read src/hooks/useAudioPlayer.ts [offset=670, limit=110]
+→ Read src/test/hooks/useAudioPlayer.test.ts [offset=720, limit=55]
+→ Read src/hooks/useAudioPlayer.ts [offset=760, limit=180]
+✱ Grep "assigned-key-|VirtualMidiKeyboard|vi\.mock\(.*VirtualMidiKeyboard" in src/test/components/MultisampleTool.test.tsx · 17 matches
+→ Read src/components/multisample/MultisampleTool.tsx [offset=350, limit=78]
+→ Read src/test/components/MultisampleTool.test.tsx [offset=1, limit=280]
+**Verdict: Resolved.**
+
+- `MultisampleTool.tsx:316-319` registers each `AbortController` before calling `playWithADSR`.
+- `MultisampleTool.tsx:332-334` passes that controller’s signal into playback.
+- `MultisampleTool.tsx:356-359` aborts all pending starts for the released MIDI note.
+- `MultisampleTool.tsx:32-37` aborts all remaining pending starts during unmount.
+- `MultisampleTool.tsx:348-350` removes only the completing controller and avoids deleting a newer pending set for the same note.
+- `VirtualMidiKeyboard.tsx:74-95, 193-207, 247-326, 491-561` consistently routes held-note cleanup, keyboard release, MIDI note-off, pointer/touch release, blur, and unmount through `onKeyRelease`.
+- `useAudioPlayer.ts:688-690, 693-719, 729-739, 765-767` checks cancellation before and after asynchronous context acquisition/resume waits and immediately before synchronous source construction/startup. There is no asynchronous yield between the final check and `source.start()`.
+- `MultisampleTool.test.tsx:312-326` covers release and unmount while startup is pending. `useAudioPlayer.test.ts:736-747` confirms abort during context acquisition returns `null` without creating or starting a source.
+
+No material residual directly caused by these edits was found. Tests were reviewed but not executed, as requested.

@@ -80,7 +80,7 @@ export function AudioProcessingSection({
   const hasLoadedSamples = samples.some(sample => sample.isLoaded);
 
   return (
-    <div style={{
+    <div className="studio-settings-panel" style={{
       backgroundColor: 'var(--color-bg-primary)',
       border: '1px solid var(--color-border-light)',
       borderRadius: '15px',
@@ -96,7 +96,7 @@ export function AudioProcessingSection({
         alignItems: 'center',
         gap: '0.5rem',
       }}>
-        <i className="fas fa-cog" style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }} />
+        <i aria-hidden="true" className="fas fa-cog" style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }} />
         audio processing
       </div>
 
@@ -144,12 +144,14 @@ export function AudioProcessingSection({
           <div style={{ width: isMobile ? '90%' : '100%', margin: isMobile ? '0 auto' : undefined }}>
             <Slider
               id="normalize-level"
-              min={-6.0}
-              max={0.0}
-              step={0.1}
-              value={normalizeLevel}
+              // Use integer tenths: Carbon's floating-step calculation skips -0.1 at the upper bound.
+              min={-60}
+              max={0}
+              step={1}
+              value={Math.round(normalizeLevel * 10)}
+              formatLabel={value => `${(value / 10).toFixed(1)} dB`}
               onChange={({ value }) => {
-                onNormalizeLevelChange(value);
+                onNormalizeLevelChange(value / 10);
               }}
               onRelease={normalizeGesture.end}
               onKeyUp={normalizeGesture.end}
@@ -315,7 +317,7 @@ export function AudioProcessingSection({
               }
             }}
           >
-            <i className={`fas ${isZeroCrossingClicked ? 'fa-check' : 'fa-wave-square'}`} style={{ fontSize: '1rem' }} />
+            <i aria-hidden="true" className={`fas ${isZeroCrossingClicked ? 'fa-check' : 'fa-wave-square'}`} style={{ fontSize: '1rem' }} />
             {isZeroCrossingClicked ? 'applied' : 'auto zero crossing'}
           </button>
         </EnhancedTooltip>
@@ -370,7 +372,7 @@ export function AudioProcessingSection({
               }
             }}
           >
-            <i className="fas fa-undo" style={{ fontSize: '1rem' }} />
+            <i aria-hidden="true" className="fas fa-undo" style={{ fontSize: '1rem' }} />
             reset audio settings
           </button>
         </div>

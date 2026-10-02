@@ -990,7 +990,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         const expectedStores=committed.actions.filter((candidate):candidate is Extract<AppAction,{type:'STORE_DRUM_SAMPLE_ASSET'}>=>candidate.type==='STORE_DRUM_SAMPLE_ASSET');
         const appliedStores=expectedStores.map(candidate=>{
           const {sample,targetKeyIndex}=candidate.payload;
-          if(targetKeyIndex===null)return next.drumSamples.find(item=>item.audioBuffer===sample.audioBuffer&&item.file===sample.file&&!item.isAssigned);
+          if(targetKeyIndex===null)return next.drumSamples.find(item=>item.audioBuffer===sample.audioBuffer&&item.file===sample.file&&item.sourceIdentity===sample.sourceIdentity&&!item.isAssigned);
           const applied=next.drumSamples[targetKeyIndex];
           return applied?.audioBuffer===sample.audioBuffer&&applied.file===sample.file&&applied.isAssigned&&applied.assignedKey===targetKeyIndex?applied:undefined;
         });
@@ -1007,7 +1007,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
         if(appliedSlices.some(sample=>!sample)||appliedSlices.length!==action.payload.prepared.ranges.length||actualAssigned!==committed.assignedCount) {
           throw new Error('The complete slice operation could not be committed. No slices were added; retry.');
         }
-        if(action.payload.prepared.source.existingIndex!==null&&next.drumSamples[action.payload.prepared.source.existingIndex]?.sourceIdentity!==committed.sourceIdentity) {
+        const sliceSource=action.payload.prepared.source;
+        const sourceMoved=sliceSource.existingIndex!==null&&(action.payload.prepared.mapping?.includes(sliceSource.existingIndex)||action.payload.prepared.unassignmentSnapshots?.some(snapshot=>snapshot.targetKeyIndex===sliceSource.existingIndex));
+        const sourceIdentityCommitted=sourceMoved?expectedStores.some((candidate,index)=>candidate.payload.targetKeyIndex===null&&candidate.payload.sample.audioBuffer===sliceSource.audioBuffer&&candidate.payload.sample.file===sliceSource.file&&candidate.payload.sample.sourceIdentity===committed.sourceIdentity&&appliedStores[index]?.sourceIdentity===committed.sourceIdentity):sliceSource.existingIndex===null||next.drumSamples[sliceSource.existingIndex]?.sourceIdentity===committed.sourceIdentity;
+        if(!sourceIdentityCommitted) {
           throw new Error('The slice source identity could not be committed. No slices were added; retry.');
         }
         validateProjectArchiveMetadata(next);

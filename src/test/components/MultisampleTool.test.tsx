@@ -287,6 +287,7 @@ describe('MultisampleTool ADSR Integration', () => {
         mockAudioBuffer,
         expect.stringMatching(/multisample-60-\d+/),
         {
+          signal: expect.any(AbortSignal),
           playbackRate: 1, // No pitch offset for root note
           gain: 0,
           pan: 0,
@@ -306,6 +307,22 @@ describe('MultisampleTool ADSR Integration', () => {
         }
       );
     });
+  });
+
+  it.each(['release','unmount'])('cancels pending playback on %s before audio initialization completes',async(reason)=>{
+    let finish!:()=>void;
+    let captured:AbortSignal|undefined;
+    let started=false;
+    mockPlayWithADSR.mockImplementationOnce((_buffer,_id,options)=>new Promise<void>(resolve=>{
+      captured=options.signal;
+      finish=()=>{if(!captured?.aborted)started=true;resolve();};
+    }));
+    const view=render(<MultisampleTool/>);
+    fireEvent.click(screen.getByTestId('assigned-key-60'));
+    if(reason==='release')fireEvent.mouseUp(screen.getByTestId('assigned-key-60'));else view.unmount();
+    finish();
+    await waitFor(()=>expect(started).toBe(false));
+    expect(captured?.aborted).toBe(true);
   });
 
   it('should release note when key is released', async () => {

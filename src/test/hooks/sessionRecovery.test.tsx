@@ -163,3 +163,22 @@ it('detects an overwritten recovery on focus when live cross-tab messaging was u
   window.dispatchEvent(navigation);
   expect(navigation.defaultPrevented).toBe(true);
 });
+
+it('retains keyboard ownership while recovery buttons are pending', () => {
+  render(<SessionRestorationModal isOpen pending onLoadSession={vi.fn()} onStartNew={vi.fn(async()=>{})} />);
+  const event=new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
+  document.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  expect(screen.getByRole('dialog')).toHaveFocus();
+});
+
+it('requires an explicit recovery choice and wraps focus between available actions', () => {
+  const restore=vi.fn(),discard=vi.fn(async()=>{});
+  render(<SessionRestorationModal isOpen onLoadSession={restore} onStartNew={discard} />);
+  const buttons=screen.getByRole('dialog').querySelectorAll('button');
+  buttons[0].focus();fireEvent.keyDown(buttons[0],{key:'Tab',shiftKey:true});expect(buttons[1]).toHaveFocus();
+  fireEvent.keyDown(buttons[1],{key:'Tab'});expect(buttons[0]).toHaveFocus();
+  fireEvent.keyDown(buttons[0],{key:'Escape'});
+  expect(restore).not.toHaveBeenCalled();expect(discard).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toBeVisible();
+});

@@ -578,7 +578,7 @@ describe('DevicesWorkspace', () => {
     await user.type(screen.getByLabelText('Setup name'), 'Metadata-safe setup');
     await user.click(screen.getByRole('button', { name: 'Save setup' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Setup saved locally');
+    expect(screen.getByRole('status')).toHaveTextContent('Setup saved locally');
     expect(store.load()).toEqual([
       expect.objectContaining({
         name: 'Metadata-safe setup',
@@ -879,6 +879,42 @@ describe('DevicesWorkspace', () => {
     expect(screen.queryByRole('button', { name: 'Confirm Apply' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Confirmed' })).not.toBeInTheDocument();
     expect(replacement.send).not.toHaveBeenCalled();
+  });
+
+  it('requires a local decision before deleting a saved setup and keeps Cancel byte-silent', async () => {
+    const user = userEvent.setup(), session = fakeSession(), store = memoryStore([savedSetup()]);
+    render(<DevicesWorkspace session={session} store={store} supported />);
+    await user.selectOptions(screen.getByLabelText('Saved setups'), 'studio-nina');
+    await user.click(screen.getByRole('button', {name: 'Delete setup'}));
+    expect(store.snapshot()).toHaveLength(1);
+    expect(screen.getByRole('button', {name: 'Keep setup'})).toHaveFocus();
+    expect(screen.getByRole('button', {name: 'Rename setup'})).toBeDisabled();
+    await user.click(screen.getByRole('button', {name: 'Keep setup'}));
+    expect(store.save).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', {name: 'Delete setup'})).toHaveFocus();
+    await user.click(screen.getByRole('button', {name: 'Delete setup'}));
+    await user.click(screen.getByRole('button', {name: 'Delete saved setup'}));
+    expect(store.snapshot()).toHaveLength(0);
+    expect(session.sendCc).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Setup deleted locally');
+    expect(screen.getByLabelText('Saved setups')).toHaveFocus();
+  });
+
+  it('preserves the saved setup on a storage failure and allows an explicit retry', async () => {
+    const user=userEvent.setup(), session=fakeSession(), store=memoryStore([savedSetup()]);
+    store.save.mockImplementationOnce(()=>{throw new Error('Storage unavailable');});
+    render(<DevicesWorkspace session={session} store={store} supported />);
+    await user.selectOptions(screen.getByLabelText('Saved setups'),'studio-nina');
+    await user.click(screen.getByRole('button',{name:'Delete setup'}));
+    await user.click(screen.getByRole('button',{name:'Delete saved setup'}));
+    expect(store.snapshot()).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent('Storage unavailable');
+    expect(screen.getByRole('button',{name:'Delete setup'})).toHaveFocus();
+    await user.click(screen.getByRole('button',{name:'Delete setup'}));
+    await user.click(screen.getByRole('button',{name:'Delete saved setup'}));
+    expect(store.snapshot()).toHaveLength(0);
+    expect(screen.getByLabelText('Saved setups')).toHaveFocus();
+    expect(session.sendCc).not.toHaveBeenCalled();
   });
 
   it('keeps save, rename, delete, profile, and port changes byte-silent', async () => {

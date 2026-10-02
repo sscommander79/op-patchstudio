@@ -1,0 +1,401 @@
+--- before/src/components/library/LibraryPage.tsx
++++ after/src/components/library/LibraryPage.tsx
+@@ -67,14 +67,15 @@
+   const stopLibraryPreview=useCallback((announce=true)=>{latestPreviewRequestRef.current++;stopPreview(announce);},[stopPreview]);
+   const previewSummary=useCallback(async(summary:PresetSummary)=>{
+     const requestId=++latestPreviewRequestRef.current;
++    let failureMessage = 'Could not read this saved preset. Try previewing again.';
+     try{
+       const preset=await indexedDB.getPreset(summary.id);
+       if(!mountedRef.current||requestId!==latestPreviewRequestRef.current)return;
+-      if(!preset)throw new Error('Saved preset no longer exists');
+-      if(preset.type!=='drum'&&preset.type!=='multisample')throw new Error('Unsupported saved preset type');
++      if(!preset){failureMessage='This preset is no longer in the library. Refresh the library to update the list.';throw new Error('Saved preset no longer exists');}
++      if(preset.type!=='drum'&&preset.type!=='multisample'){failureMessage='This saved preset type cannot be previewed.';throw new Error('Unsupported saved preset type');}
+       await preview(preset as LibraryPreset);
+     }catch{
+-      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'preview failed',message:'saved preset is no longer available'}});
++      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'preview failed',message:failureMessage}});
+     }
+   },[dispatch,preview]);
+ 
+--- before/src/components/common/RecordingModal.tsx
++++ after/src/components/common/RecordingModal.tsx
+@@ -26,7 +26,7 @@
+   const checkBytesRef=useRef(0),[,setCheckBytesState]=useState(0),setCheckBytes=useCallback((bytes:number)=>{checkBytesRef.current=bytes;setCheckBytesState(bytes);},[]),guidedIntentRef=useRef(guidedIntent);
+   guidedIntentRef.current=guidedIntent;
+   const sessionRef=useRef<CaptureSession|undefined>(undefined),previewRef=useRef<{context:AudioContext;source:AudioBufferSourceNode;id:string}|undefined>(undefined),operationRef=useRef<string|undefined>(undefined),generationRef=useRef(0),applyGenerationRef=useRef(0),applyAbortRef=useRef<AbortController|undefined>(undefined),previewGenerationRef=useRef(0),pendingPreviewContextsRef=useRef(new Set<AudioContext>()),stateRef=useRef(state);
+-  const dialogRef=useRef<HTMLElement>(null),resumeRef=useRef<HTMLButtonElement>(null);
++  const dialogRef=useRef<HTMLElement>(null),discardRef=useRef<HTMLDivElement>(null),resumeRef=useRef<HTMLButtonElement>(null);
+   stateRef.current=state;
+   const updateTakes=useCallback((update:(current:ReviewTake[])=>ReviewTake[])=>{
+     const next=update(takesRef.current);takesRef.current=next;setTakes(next);
+@@ -42,7 +42,7 @@
+   const close=useCallback(()=>{generationRef.current+=1;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;setApplying(false);setAutomaticActive(false);setConfirmDiscard(false);void stopPreview();void dispose();onClose();},[dispose,onClose,stopPreview]);
+   const requestClose=useCallback(()=>{if(takesRef.current.length||automaticActive||['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state)){setConfirmDiscard(true);return;}close();},[automaticActive,close,status.state]);
+   useOwnedDialog({active:isOpen,dialogRef,onClose:requestClose});
+-  useEffect(()=>{if(confirmDiscard)resumeRef.current?.focus();},[confirmDiscard]);
++  useOwnedDialog({active:isOpen&&confirmDiscard,dialogRef:discardRef,onClose:()=>setConfirmDiscard(false)});
+   useEffect(()=>{if(!isOpen){applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;setApplying(false);setAutomaticActive(false);void dispose();void stopPreview();return;}const generation=++generationRef.current;applyGenerationRef.current+=1;applyAbortRef.current?.abort();applyAbortRef.current=undefined;operationRef.current=undefined;checkBytesRef.current=0;takesRef.current=[];setTakes([]);setStatus({state:'idle'});setError('');setFeedback('');setResolution('');setApplying(false);setAutomaticActive(false);setConfirmDiscard(false);setGuidedStep('connect');setCommittedCount(0);setGuidedAudioVersion(0);
+     const refresh=()=>{void navigator.mediaDevices?.enumerateDevices?.().then(items=>{if(generation===generationRef.current)setDevices(items.filter(item=>item.kind==='audioinput').map((item,index)=>({deviceId:item.deviceId,label:item.label||'Input '+(index+1)})));}).catch(()=>{if(generation===generationRef.current)setDevices([]);});};
+     refresh();navigator.mediaDevices?.addEventListener?.('devicechange',refresh);
+@@ -86,9 +86,10 @@
+   if(!isOpen)return null;
+   const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current&&status.state!=='error',used=usage(),guided=instrument==='multisample'&&!!guidedIntent;
+   return <div onMouseDown={event=>{if(event.target===event.currentTarget)requestClose();}} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',display:'grid',placeItems:'center',padding:16}}>
+-    <section ref={dialogRef} data-recording-modal="true" role="dialog" aria-modal="true" aria-labelledby="record-takes-title" tabIndex={-1} style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',overflow:'auto',padding:20,borderRadius:8}}>
+-      <div style={{display:'flex',justifyContent:'space-between',gap:8}}><h2 id="record-takes-title">Record takes</h2><div style={{display:'flex',gap:8}}><button type="button" onClick={event=>{event.currentTarget.focus();window.dispatchEvent(new CustomEvent('opstudio-open-help',{detail:'capture'}));}} style={button}>Recording help</button><button aria-label="Close" onClick={requestClose} style={button}>Close</button></div></div>
+-      {confirmDiscard&&<div role="alertdialog" aria-label="Discard recording work" style={{...box,marginBottom:12,borderColor:'var(--studio-warning)'}}><strong>Discard recording work?</strong><p>Recording will stop and any takes still in review will be lost. Added takes stay in the project.</p><div style={{display:'flex',gap:8}}><button ref={resumeRef} type="button" onClick={()=>setConfirmDiscard(false)} style={button}>Resume recording</button><button type="button" onClick={close} style={button}>Stop and discard</button></div></div>}
++    <section ref={dialogRef} data-recording-modal="true" role="dialog" aria-modal="true" aria-labelledby="record-takes-title" tabIndex={-1} style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',display:'flex',flexDirection:'column',overflow:'hidden',padding:20,boxSizing:'border-box',borderRadius:8}}>
++      <fieldset disabled={confirmDiscard} inert={confirmDiscard} aria-hidden={confirmDiscard||undefined} style={{border:0,padding:0,margin:0,minWidth:0}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}> <h2 id="record-takes-title">Record takes</h2><div style={{display:'flex',gap:8}}><button type="button" onClick={event=>{event.currentTarget.focus();window.dispatchEvent(new CustomEvent('opstudio-open-help',{detail:'capture'}));}} style={button}>Recording help</button><button aria-label="Close" onClick={requestClose} style={button}>Close</button></div></div></fieldset>
++      {confirmDiscard&&<div ref={discardRef} role="alertdialog" aria-modal="true" aria-label="Discard recording work" style={{...box,flexShrink:0,overflowY:'auto',marginBottom:12,borderColor:'var(--studio-warning)'}}><strong>Discard recording work?</strong><p>Recording will stop and any takes still in review will be lost. Added takes stay in the project.</p><div style={{display:'flex',gap:8}}><button ref={resumeRef} type="button" onClick={()=>setConfirmDiscard(false)} style={button}>Resume recording</button><button type="button" onClick={close} style={button}>Stop and discard</button></div></div>}
++      <div role="region" aria-label="Recording controls" style={{overflowY:'auto',minHeight:0}}><fieldset disabled={confirmDiscard} inert={confirmDiscard} aria-hidden={confirmDiscard||undefined} style={{border:0,padding:0,margin:0,minWidth:0}}>
+       {guided&&<><p>Guided {guidedIntent.source} instrument capture</p><nav className="studio-guided-steps" aria-label="Automatic multisampling steps">{(['connect','capture','review','finish'] as GuidedSamplingStep[]).map((step,index)=><span key={step} aria-current={guidedStep===step?'step':undefined} data-complete={(step==='connect'&&guidedStep!=='connect')||(step==='capture'&&(guidedStep==='review'||guidedStep==='finish'))||(step==='review'&&guidedStep==='finish')}>{index+1}. {step==='connect'?'Connect and check':step==='capture'?'Capture range':step==='review'?'Review':'Finish'}</span>)}</nav></>}
+       {!guided&&<p>Browser-delivered mono/stereo PCM. Input processing is requested off; actual settings appear after permission. Maximum take: {durationLimit} seconds.</p>}
+       {!supported&&<p role="alert">Recording requires a supported browser on HTTPS; import an audio file instead.</p>}
+@@ -110,8 +111,10 @@
+         <button aria-label={'Audition take '+take.id} disabled={applying||automaticActive} onClick={()=>void audition(take)} style={button}>Audition</button><button aria-label={'Remove take '+take.id} disabled={applying||automaticActive} onClick={()=>{void stopPreview();updateTakes(current=>current.filter(item=>item.id!==take.id));}} style={button}>Remove</button>{take.warnings?.map(warning=><span key={warning} role="alert">{warning} Retry this MIDI note before selecting it.</span>)}
+       </div>)}
+       {occupied&&<fieldset disabled={automaticActive||applying}><legend>Occupied target</legend><p>Replacement approval is bound to the current target sample.</p><label><input type="radio" name="resolution" onChange={()=>{setResolution('replace');if(target.kind==='multisample'&&target.rootNote!==undefined)updateTakes(current=>{const first=current.find(item=>item.selected);return first?current.map(take=>take.id===first.id?{...take,rootNote:target.rootNote!}:take):current;});}}/> Replace</label>{' '}<label><input type="radio" name="resolution" onChange={()=>{setResolution(target.kind==='drum'?'choose-empty':'choose-free');if(target.kind==='multisample'){updateTakes(current=>{const first=current.find(item=>item.selected);if(!first)return current;const reserved=current.filter(item=>item.id!==first.id).map(item=>item.rootNote),note=proposeUnusedRootNotes(stateRef.current.multisampleFiles,1,target.rootNote??60,reserved)[0];if(note===undefined){setError('All MIDI root notes are already reserved. Remove a reviewed take or choose Replace.');return current;}return current.map(take=>take.id===first.id?{...take,rootNote:note}:take);});}}}/> Choose {target.kind==='drum'?'empty pad':'free note'}</label>{' '}<label><input type="radio" name="resolution" onChange={()=>setResolution('cancel')}/> Cancel</label></fieldset>}
+-      <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14}}><button onClick={requestClose} style={button}>{guided?'Continue editing':'Cancel'}</button><button onClick={()=>void apply()} disabled={automaticActive||applying||!takes.some(take=>take.selected)||resolution==='cancel'} style={button}>{applying?'Preparing takes…':'Add selected takes'}</button></div></section>
++</section>
+       {guided&&guidedStep==='finish'&&<section className="studio-guided-finish"><p className="studio-eyebrow">Capture committed</p><h3>{committedCount} take{committedCount===1?'':'s'} added to this multisample instrument</h3><p>Your project now contains the committed takes. Saving to the library and exporting an OP-XY preset remain separate actions.</p><div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={close}>Continue editing</button><button type="button" className="studio-button-secondary" onClick={()=>{close();requestAnimationFrame(()=>window.dispatchEvent(new Event('opstudio-save-library')));}}>Save to library</button><button type="button" className="studio-button-secondary" onClick={()=>{close();requestAnimationFrame(()=>window.dispatchEvent(new Event('opstudio-open-export')));}}>Review OP-XY export</button></div></section>}
++      </fieldset></div>
++      {(!guided||guidedStep==='review')&&(<fieldset disabled={confirmDiscard} inert={confirmDiscard} aria-hidden={confirmDiscard||undefined} style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14,border:0,padding:0,flexShrink:0}}><button onClick={requestClose} style={button}>{guided?'Continue editing':'Cancel'}</button><button onClick={()=>void apply()} disabled={automaticActive||applying||!takes.some(take=>take.selected)||resolution==='cancel'} style={button}>{applying?'Preparing takes…':'Add selected takes'}</button></fieldset>)}
+     </section></div>;
+ }
+ 
+--- before/src/components/common/ProjectKeyboardShortcuts.tsx
++++ after/src/components/common/ProjectKeyboardShortcuts.tsx
+@@ -14,6 +14,7 @@
+       if(!undo && !redo) return;
+       event.preventDefault();
+       event.stopImmediatePropagation();
++      if(document.querySelector('[data-project-busy="true"]')) return;
+       dispatch({type:undo?'UNDO':'REDO'});
+     };
+     document.addEventListener('keydown',onKeyDown,true);
+--- before/src/components/common/ProjectToolbar.tsx
++++ after/src/components/common/ProjectToolbar.tsx
+@@ -104,7 +104,7 @@
+           : 'Unsaved changes';
+   const revisionConflict = state.sessionSaveStatus === 'error' && state.sessionSaveError?.includes('another tab');
+ 
+-  return <section aria-label="Instrument project controls" className="studio-toolbar">
++  return <section data-project-busy={busy !== null ? 'true' : undefined} aria-label="Instrument project controls" className="studio-toolbar">
+     <div className="studio-toolbar-main">
+       <label className="studio-name-field" htmlFor="instrument-name">
+         <span>Instrument name</span>
+--- before/src/components/multisample/VirtualMidiKeyboard.tsx
++++ after/src/components/multisample/VirtualMidiKeyboard.tsx
+@@ -57,6 +57,8 @@
+   const [activeOctave, setActiveOctave] = useState(4); // Default to middle C (C4)
+   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+   const physicalNotesRef = useRef(new Map<string, number>());
++  const [focusedNote, setFocusedNote] = useState(72);
++  const focusedHeldNote = useRef<number | null>(null);
+ 
+   const [mousePressedKey, setMousePressedKey] = useState<number | null>(null);
+   const { onMidiEvent, state: midiState, refreshDevices } = useWebMidi();
+@@ -463,7 +465,36 @@
+   const createKeyEventHandlers = useCallback((midiNote: number) => {
+     const isAssigned = assignedNotes.includes(midiNote);
+ 
++    const releaseFocused = () => {
++      if (focusedHeldNote.current !== midiNote) return;
++      focusedHeldNote.current = null;
++      setMousePressedKey(null);
++      onKeyRelease?.(midiNote);
++    };
+     return {
++      role: 'button',
++      tabIndex: focusedNote === midiNote ? 0 : -1,
++      'aria-label': `MIDI note ${midiNote}, ${isAssigned ? 'loaded' : 'empty'}`,
++      onFocus: () => setFocusedNote(midiNote),
++      onBlur: releaseFocused,
++      onKeyDown: (event: React.KeyboardEvent) => {
++        if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return;
++        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
++          event.preventDefault(); event.stopPropagation();
++          const next = Math.max(0, Math.min(127, midiNote + (event.key === 'ArrowLeft' ? -1 : 1)));
++          containerRef.current?.querySelector<HTMLElement>(`[data-multisample-root="${next}"]`)?.focus();
++          return;
++        }
++        if (event.key !== 'Enter' && event.key !== ' ') return;
++        event.preventDefault(); event.stopPropagation();
++        if (event.repeat || focusedHeldNote.current !== null || !isActive) return;
++        if (isAssigned) { focusedHeldNote.current = midiNote; setMousePressedKey(midiNote); onKeyClick?.(midiNote); }
++        else onUnassignedKeyClick?.(midiNote);
++      },
++      onKeyUp: (event: React.KeyboardEvent) => {
++        if (event.key !== 'Enter' && event.key !== ' ') return;
++        event.preventDefault(); event.stopPropagation(); releaseFocused();
++      },
+       onMouseDown: () => {
+         // Don't set pressed key if we're starting to drag
+         if (!isDragging) {
+@@ -512,7 +543,7 @@
+       'data-audio-import': 'multisample',
+       'data-multisample-root': midiNote,
+     };
+-  }, [assignedNotes, isDragging, onKeyClick, onKeyRelease, onUnassignedKeyClick, handleKeyMouseLeave, handleKeyMouseEnter, handleKeyDragOver, handleKeyDragLeave, handleKeyDrop]);
++  }, [assignedNotes, focusedNote, isActive, isDragging, onKeyClick, onKeyRelease, onUnassignedKeyClick, handleKeyMouseLeave, handleKeyMouseEnter, handleKeyDragOver, handleKeyDragLeave, handleKeyDrop]);
+ 
+   // Mouse drag handlers for keyboard scrolling
+   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+--- before/src/components/devices/DevicesWorkspace.tsx
++++ after/src/components/devices/DevicesWorkspace.tsx
+@@ -1,4 +1,4 @@
+-import { useRef, useState } from 'react';
++import { useEffect, useRef, useState } from 'react';
+ import { BrowserMidiSession } from '../../midi/browserSession';
+ import { DeviceSetupStore } from '../../midi/deviceSetup';
+ import { NINA_PROFILE } from '../../midi/ninaProfile';
+@@ -41,6 +41,12 @@
+   const fileInput = useRef<HTMLInputElement>(null);
+   const { state, actions } = useDevicesWorkspace({ session, store, supported });
+ 
++  const [deleteCandidate, setDeleteCandidate] = useState<{id:string; name:string} | null>(null);
++  const keepSetup = useRef<HTMLButtonElement>(null);
++  const deleteSetup = useRef<HTMLButtonElement>(null);
++  useEffect(() => { if (deleteCandidate) keepSetup.current?.focus(); }, [deleteCandidate]);
++  const finishDeleteDecision = () => { setDeleteCandidate(null); queueMicrotask(() => deleteSetup.current?.focus()); };
++
+   return <div className="studio-devices-workspace">
+     <p className="studio-eyebrow">MIDI tools</p>
+     <h1>Devices</h1>
+@@ -52,7 +58,7 @@
+     {!state.browserSupported && <p role="alert" className="studio-message studio-message-warning">
+       Web MIDI is unavailable in this browser. Use a supported secure browser to connect a device.
+     </p>}
+-    {state.status && <p role="alert" className={`studio-message studio-message-${state.status.kind}`}>
++    {state.status && <p role={state.status.kind === 'error' ? 'alert' : 'status'} className={`studio-message studio-message-${state.status.kind}`}>
+       {state.status.message}
+     </p>}
+ 
+@@ -191,7 +197,7 @@
+     <section className="studio-setup-panel" aria-label="Local setup management">
+       <h2 id="devices-setups-heading">Saved setups</h2>
+       <p>Saving, loading, importing, renaming, deleting, and exporting are local file or browser-storage actions. They do not send MIDI.</p>
+-      <div className="studio-setup-fields"><label>Setup name
++      <fieldset disabled={Boolean(deleteCandidate)} style={{border:0,padding:0,margin:0,minWidth:0}}><div className="studio-setup-fields"><label>Setup name
+           <input aria-label="Setup name" value={state.setupName} onChange={event => actions.setSetupName(event.target.value)} />
+         </label>
+         <label>Saved setups
+@@ -204,7 +210,10 @@
+         <button type="button" className="studio-button-primary" onClick={actions.saveSetup}>Save setup</button>
+         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.loadSetup}>Load setup</button>
+         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.renameSetup}>Rename setup</button>
+-        <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.deleteSetup}>Delete setup</button>
++        <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} ref={deleteSetup} onClick={() => {
++          const selected = state.setups.find(setup => setup.id === state.selectedSetupId);
++          if (selected) setDeleteCandidate({id:selected.id,name:selected.name});
++        }}>Delete setup</button>
+         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.exportSetup}>Export setup</button>
+         <button type="button" className="studio-button-secondary" onClick={() => fileInput.current?.click()}>Import setup</button>
+       </div>
+@@ -219,7 +228,14 @@
+           if (file) void actions.importSetup(file);
+           event.target.value = '';
+         }}
+-      />
++      /></fieldset>
++      {deleteCandidate && <div role="group" aria-label="Delete saved setup confirmation" className="studio-message studio-message-warning">
++        <p>Delete “{deleteCandidate.name}” from saved setups? This cannot be undone. Current controls stay unchanged.</p>
++        <div className="studio-action-row">
++          <button ref={keepSetup} type="button" className="studio-button-secondary" onClick={finishDeleteDecision}>Keep setup</button>
++          <button type="button" className="studio-button-secondary" disabled={state.selectedSetupId !== deleteCandidate.id || !state.setups.some(setup => setup.id === deleteCandidate.id && setup.name === deleteCandidate.name)} onClick={() => { actions.deleteSetup(); finishDeleteDecision(); }}>Delete saved setup</button>
++        </div>
++      </div>}
+     </section>
+ 
+     <section className="studio-setup-panel" aria-labelledby="devices-test-heading">
+--- before/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
++++ after/src/test/components/VirtualMidiKeyboardShortcuts.test.tsx
+@@ -43,6 +43,19 @@
+     fireEvent.keyDown(document,{key:'a'});
+     expect(onKeyClick).toHaveBeenCalledWith(84);
+   });
++  it('allows focused note activation and releases held notes on blur without repeats',()=>{
++    const play=vi.fn(),release=vi.fn(),empty=vi.fn();
++    render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[72]} onKeyClick={play} onKeyRelease={release} onUnassignedKeyClick={empty} isPinned={false} onTogglePin={()=>{}} /></AppContextProvider>);
++    const key=screen.getByRole('button',{name:'MIDI note 72, loaded'});
++    key.focus();fireEvent.keyDown(key,{key:'Enter'});fireEvent.keyDown(key,{key:'Enter',repeat:true});
++    expect(play).toHaveBeenCalledTimes(1);expect(play).toHaveBeenCalledWith(72);
++    fireEvent.blur(key);expect(release).toHaveBeenCalledTimes(1);expect(release).toHaveBeenCalledWith(72);
++    fireEvent.keyUp(key,{key:'Enter'});expect(release).toHaveBeenCalledTimes(1);
++    const unassigned=screen.getByRole('button',{name:'MIDI note 73, empty'});
++    fireEvent.keyDown(unassigned,{key:' '});fireEvent.keyUp(unassigned,{key:' '});
++    expect(empty).toHaveBeenCalledWith(73);
++  });
++
+   it('opens the MIDI panel and publishes channel changes without playing a note',()=>{
+     const change=vi.fn(),play=vi.fn();
+     render(<AppContextProvider><VirtualMidiKeyboard assignedNotes={[]} onKeyClick={play} onKeyRelease={vi.fn()} onMidiChannelChange={change} isPinned={false} onTogglePin={vi.fn()}/></AppContextProvider>);
+--- before/src/test/components/LibraryPage.test.tsx
++++ after/src/test/components/LibraryPage.test.tsx
+@@ -719,6 +719,16 @@
+     });
+   });
+ 
++  it('reports a library read failure without claiming the preset was deleted',async()=>{
++    mockIndexedDB.getPresetSummaries.mockResolvedValue([{...mockPresets[0],hasPreview:true}]);
++    mockIndexedDB.getPreset.mockRejectedValueOnce(new Error('Storage unavailable'));
++    render(<LibraryPage/>);await screen.findByText('Drum Kit 1');
++    fireEvent.click(screen.getByRole('button',{name:'Preview first sample of Drum Kit 1'}));
++    await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
++      type:'ADD_NOTIFICATION',payload:expect.objectContaining({message:'Could not read this saved preset. Try previewing again.'}),
++    })));
++  });
++
+   describe('Error Handling', () => {
+     it('should handle audio context creation failure', async () => {
+       const originalAudioContext = window.AudioContext;
+--- before/src/test/components/RecordingModal.test.tsx
++++ after/src/test/components/RecordingModal.test.tsx
+@@ -114,6 +114,22 @@
+     expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('0');
+   });
+ 
++  it('isolates the discard decision from editing and loops focus until Resume or discard',async()=>{
++    const user=userEvent.setup();render(<ClosingHarness/>);
++    await user.click(screen.getByRole('button',{name:'Start recording'}));
++    await screen.findByLabelText('Name for take take-1');
++    await user.click(screen.getByRole('button',{name:'Close'}));
++    const resume=screen.getByRole('button',{name:'Resume recording'});
++    expect(resume).toHaveFocus();
++    await user.tab();expect(screen.getByRole('button',{name:'Stop and discard'})).toHaveFocus();
++    await user.tab();expect(resume).toHaveFocus();
++    expect(screen.getByLabelText('Name for take take-1')).toBeDisabled();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
++    expect(screen.getByLabelText('Name for take take-1')).toBeEnabled();
++    expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('0');
++  });
++
+   it('opens and closes shell Help without disposing a recorder or its unaccepted take',async()=>{
+     const user=userEvent.setup();render(<ShellHelpHarness/>);
+     await user.click(screen.getByRole('button',{name:'Start recording'}));
+--- before/src/test/components/ProjectToolbar.test.tsx
++++ after/src/test/components/ProjectToolbar.test.tsx
+@@ -1,6 +1,7 @@
+ import { StrictMode } from 'react';
+ import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+ import { afterEach, describe, expect, it, vi } from 'vitest';
++import { ProjectKeyboardShortcuts } from '../../components/common/ProjectKeyboardShortcuts';
+ import { ProjectToolbar } from '../../components/common/ProjectToolbar';
+ import { AppContextProvider, initialState, useAppContext } from '../../context/AppContext';
+ import * as projectArchive from '../../utils/projectArchive';
+@@ -20,7 +21,7 @@
+     const retained={...sample,file:new File(['y'],'source.wav'),name:'source',isAssigned:false,assignedKey:undefined};
+     dispatch({type:'BATCH_EDIT',payload:[{type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample,targetKeyIndex:0}},{type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}}]});
+   };
+-  return <><ProjectToolbar onRetrySave={vi.fn()} /><output aria-label="project name">{state.drumSettings.presetName}</output><button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'Keep me'})}>edit</button><button onClick={seed}>seed samples</button></>;
++  return <><ProjectKeyboardShortcuts /><ProjectToolbar onRetrySave={vi.fn()} /><output aria-label="project name">{state.drumSettings.presetName}</output><button onClick={()=>dispatch({type:'SET_DRUM_PRESET_NAME',payload:'Keep me'})}>edit</button><button onClick={seed}>seed samples</button></>;
+ }
+ 
+ function restored(name:string):RestoredProject {
+@@ -109,6 +110,21 @@
+     expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
+   });
+ 
++  it('blocks keyboard history like the toolbar while a backup opens, then resumes Undo',async()=>{
++    let finish!:(value:RestoredProject)=>void;
++    vi.spyOn(projectArchive,'importProjectArchive').mockReturnValueOnce(new Promise(resolve=>{finish=resolve;}));
++    render(<AppContextProvider><Harness /></AppContextProvider>);
++    fireEvent.click(screen.getByRole('button',{name:'edit'}));
++    fireEvent.change(screen.getByLabelText('Project backup file'),{target:{files:[new File(['x'],'kit.opstudio')]}});
++    expect(screen.getByRole('button',{name:'Undo'})).toBeDisabled();
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
++    expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
++    await act(async()=>finish(restored('Opened after wait')));
++    expect(screen.getByLabelText('project name')).toHaveTextContent('Opened after wait');
++    fireEvent.keyDown(document,{key:'z',ctrlKey:true});
++    expect(screen.getByLabelText('project name')).toHaveTextContent('Keep me');
++  });
++
+   it('opens a valid project when musical state stayed unchanged',async()=>{
+     vi.spyOn(projectArchive,'importProjectArchive').mockResolvedValueOnce(restored('Opened cleanly'));
+     render(<AppContextProvider><Harness /></AppContextProvider>);
+--- before/src/test/components/DevicesWorkspace.test.tsx
++++ after/src/test/components/DevicesWorkspace.test.tsx
+@@ -578,7 +578,7 @@
+     await user.type(screen.getByLabelText('Setup name'), 'Metadata-safe setup');
+     await user.click(screen.getByRole('button', { name: 'Save setup' }));
+ 
+-    expect(screen.getByRole('alert')).toHaveTextContent('Setup saved locally');
++    expect(screen.getByRole('status')).toHaveTextContent('Setup saved locally');
+     expect(store.load()).toEqual([
+       expect.objectContaining({
+         name: 'Metadata-safe setup',
+@@ -881,6 +881,24 @@
+     expect(replacement.send).not.toHaveBeenCalled();
+   });
+ 
++  it('requires a local decision before deleting a saved setup and keeps Cancel byte-silent', async () => {
++    const user = userEvent.setup(), session = fakeSession(), store = memoryStore([savedSetup()]);
++    render(<DevicesWorkspace session={session} store={store} supported />);
++    await user.selectOptions(screen.getByLabelText('Saved setups'), 'studio-nina');
++    await user.click(screen.getByRole('button', {name: 'Delete setup'}));
++    expect(store.snapshot()).toHaveLength(1);
++    expect(screen.getByRole('button', {name: 'Keep setup'})).toHaveFocus();
++    expect(screen.getByRole('button', {name: 'Rename setup'})).toBeDisabled();
++    await user.click(screen.getByRole('button', {name: 'Keep setup'}));
++    expect(store.save).not.toHaveBeenCalled();
++    expect(screen.getByRole('button', {name: 'Delete setup'})).toHaveFocus();
++    await user.click(screen.getByRole('button', {name: 'Delete setup'}));
++    await user.click(screen.getByRole('button', {name: 'Delete saved setup'}));
++    expect(store.snapshot()).toHaveLength(0);
++    expect(session.sendCc).not.toHaveBeenCalled();
++    expect(screen.getByRole('status')).toHaveTextContent('Setup deleted locally');
++  });
++
+   it('keeps save, rename, delete, profile, and port changes byte-silent', async () => {
+     const user = userEvent.setup();
+     const session = fakeSession();
+--- before/tests/e2e/recording.spec.ts
++++ after/tests/e2e/recording.spec.ts
+@@ -102,3 +102,28 @@
+   await expect(dialog).toBeHidden();await expectDrumLoaded(page,0);
+   await expect.poll(()=>page.evaluate(()=>window.__opRecordingSynthetic.tracks.every(track=>track.readyState==='ended'))).toBe(true);
+ });
++
++for (const width of [390, 1280]) test(`recorder keeps actions visible and owns discard focus at ${width}px`,async({page})=>{
++  await page.setViewportSize({width,height:500});
++  await gotoWorkspace(page,'drum');
++  const dialog=await openDrumRecorder(page);
++  const apply=dialog.getByRole('button',{name:'Add selected takes'});
++  const bounds=await apply.boundingBox();expect(bounds).not.toBeNull();
++  expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(500);
++  await dialog.getByRole('button',{name:'Start recording'}).click();
++  await expect(dialog.getByText(/State: recording/)).toBeVisible();
++  await dialog.getByRole('button',{name:'Stop recording'}).click();
++  await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(1);
++  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
++  const resume=dialog.getByRole('button',{name:'Resume recording'});
++  await expect(resume).toBeFocused();await page.keyboard.press('Shift+Tab');
++  await expect(dialog.getByRole('button',{name:'Stop and discard'})).toBeFocused();
++  await page.keyboard.press('Tab');await expect(resume).toBeFocused();
++  await expect(dialog.locator('input[aria-label^="Name for take"]')).toBeDisabled();
++  await page.keyboard.press('Escape');
++  await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
++  await expect(dialog.locator('input[aria-label^="Name for take"]')).toBeEnabled();
++  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
++  await dialog.getByRole('button',{name:'Stop and discard'}).click();
++  await expect(dialog).toHaveCount(0);await expectDrumLoaded(page,0);
++});
+--- before/tests/e2e/devices-workspace.spec.ts
++++ after/tests/e2e/devices-workspace.spec.ts
+@@ -166,6 +166,12 @@
+   await expect(page.getByLabel('Cutoff desired value', { exact: true })).toHaveValue('64');
+   await expect(page.getByLabel('MIDI channel')).toHaveValue('16');
+   await page.getByRole('button', { name: 'Delete setup', exact: true }).click();
++  await expect(page.getByRole('option', { name: 'Selected route import' })).toBeAttached();
++  await expect(page.getByRole('button', { name: 'Keep setup' })).toBeFocused();
++  await page.getByRole('button', { name: 'Keep setup' }).click();
++  await expect(page.getByRole('option', { name: 'Selected route import' })).toBeAttached();
++  await page.getByRole('button', { name: 'Delete setup', exact: true }).click();
++  await page.getByRole('button', { name: 'Delete saved setup', exact: true }).click();
+   await expect(page.getByRole('option', { name: 'Selected route import' })).toHaveCount(0);
+   await expect(page.getByLabel('MIDI output')).toHaveValue('nina-primary');
+   await expect(page.getByRole('button', { name: 'Send Cutoff', exact: true })).toBeDisabled();

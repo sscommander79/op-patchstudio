@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { EnhancedWaveformEditor } from '../../components/common/EnhancedWaveformEditor';
 
@@ -26,6 +26,7 @@ describe('EnhancedWaveformEditor marker bounds', () => {
     fireEvent.mouseMove(canvas, { clientX: 800 });
 
     expect(onMarkersChange).toHaveBeenLastCalledWith({ inPoint: 795, outPoint: 2_000 });
+    fireEvent.mouseUp(canvas);fireEvent.click(screen.getByRole('checkbox',{name:'snap to zero'}));fireEvent.mouseDown(canvas,{clientX:0});fireEvent.mouseMove(canvas,{clientX:800});expect(onMarkersChange).toHaveBeenLastCalledWith({inPoint:800,outPoint:2_000});fireEvent.mouseUp(canvas);
   });
 
   it('keeps marker ranges valid for clips shorter than the normal minimum gap', () => {

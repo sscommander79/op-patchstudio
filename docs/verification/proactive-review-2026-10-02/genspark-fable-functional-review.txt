@@ -1,0 +1,94 @@
+**Checkout verified:** `codex/studio-upgrade`, HEAD `dc1e1f3`, 139 dirty status entries (all WIP preserved; nothing executed or written). Context read in required order: studio-usability-feedback.md → HANDOFF.json (`human_verification`, `ux_guidance`) → last section of `.continue-here.md` → all five audit documents. No tests, builds, servers, browsers, git mutations, or subagents were used. All claims below are from current source reading; none constitute execution proof.
+
+---
+
+## Material findings
+
+### F-1 — Root cause identified for OPEN defect HV-001: drum Table actions column is 72 px too narrow for its fixed-width buttons
+- **Status:** Known open defect (HV-001); the **cause diagnosis is new** — human-issues.md records "screenshot establishes the visible defect, not its CSS cause."
+- **Severity:** medium (presentation defect on every loaded Table row). **Confidence:** high (arithmetic from source; not browser-reproduced in this read-only pass).
+- **Where:** `src/components/drum/DrumSampleTable.tsx:529` and `:575` — `gridTemplateColumns: '120px minmax(200px, 1fr) minmax(200px, 1fr) 180px'`; actions cell `:757–799` renders **five** `IconButton`s; `src/components/common/IconButton.tsx:18–23` hard-fixes each at 44 px (`min/maxWidth`, `flexShrink: 0`).
+- **Trigger → consequence:** Any loaded row renders 5×44 px buttons + 4×4 px gaps + 16 px `paddingRight` = **252 px** inside a **180 px** grid track. With `justifyContent: 'center'` the overflow spills symmetrically: ~36 px leftward into the waveform column (overlapping the Play area — exactly the user screenshot), and ~36 px rightward where the row container's `overflow: 'hidden'` (`:548`) clips the rightmost control. The column presumably fit when rows had 3 buttons (3×44+8+16 = 156 ≤ 180); adding Record and Slice buttons broke it silently.
+- **Adjacent:** the mobile card header (`:355–393`) has the same 236 px fixed icon strip beside a shrinkable name in a no-wrap flex row; on ~375 px viewports the icons can overflow the card. Not user-reported; check during the same repair.
+- **Remediation direction:** widen the track (`minmax(252px, max-content)` or `auto`) or allow wrap in the actions cell; update the header grid to match; then the HV-001 human retest per human-issues.md.
+- **Test coverage:** component-map.md shows `DrumSampleTable.tsx` has **0/0 unit-executed functions**; the 12-baseline visual contract passed repeatedly while this defect exists, so current baselines don't assert this geometry. **Missing regression:** a bounding-box containment assertion (actions cell fits its grid track; no sibling-column intersection) at the failing and nearby widths, per the retest plan already written in human-issues.md.
+
+### F-2 — HV-004 Safari Overview overflow: concrete CSS hypothesis (cause still unproven)
+- **Status:** Known open defect; this is a **new hypothesis**, explicitly not proof.
+- **Severity:** medium (matches existing triage). **Confidence:** low-medium — consistent with Safari's known percent-height-SVG-in-fr-grid-row sizing bugs, but unverified against real Safari.
+- **Where:** `src/styles/studio.css:392` (`.studio-launch-module { grid-template-rows: auto minmax(112px, 1fr) auto; }`) + `:397` (`.studio-launch-diagram { height: 100%; min-height: 112px; overflow: visible; }`) + `src/components/common/StudioShell.tsx:52/62/74/88` (`preserveAspectRatio="none"`, viewBox 280×112).
+- **Trigger → inferred consequence:** `height: 100%` against a `1fr` row is resolution-order-sensitive; Safari historically falls back to the replaced element's intrinsic ratio (112/280 of the rendered width). On wide launch cards that yields an SVG much taller than the row, and `overflow: visible` lets it paint over the footer/labels — matching the screenshot (artwork extending into card footers, External Gear strip overlapping). The OP-1 Field selection in the screenshot is plausibly orthogonal (both appearance arts share the same classes, `OpxyLaunchArt.tsx:11–78`).
+- **Remediation direction:** give the diagram a definite height (`aspect-ratio: 280/112` + `height: auto`, or a fixed row height) and change `overflow: visible` to `hidden`; then reproduce/verify in real Safari per the HV-004 retest plan.
+- **Missing regression:** a WebKit Playwright geometry check (diagram bbox ⊆ module bbox; footer not intersected). Playwright-WebKit is not Safari, but it is the best computer-verifiable proxy before the mandatory human Safari retest.
+
+### F-3 — Legacy external-drop filters silently reject AIFF/FLAC without MIME types — currently dead code, but a data-loss trap if ever re-enabled
+- **New observation.** **Severity:** low (paths are presently unreachable). **Confidence:** high on the source analysis; medium on "unreachable in all browsers."
+- **Where:** `src/components/drum/DrumSampleTable.tsx:131–143` and `:169–171`; `src/components/drum/DrumKeyboardContainer.tsx:403–405` and `:485–487` — filters accept only `file.type.startsWith('audio/') || name.endsWith('.wav')`, excluding `.aif/.aiff/.flac/.m4a/.ogg` files that arrive with an empty MIME type (common for AIFF on some configurations), while `DrumTool.handleFileUpload` (`DrumTool.tsx:109–116`) and `AUDIO_FILE_ACCEPT` (`audioFormats.ts:17`) accept all of them.
+- **Why currently dormant:** `AudioImportProvider.tsx:59` installs a **document-capture** `drop` listener that intercepts every external drop on `[data-audio-import]` elements and calls `stopImmediatePropagation()`, so React's bubble-phase `onDrop` handlers never fire for external files; internal sample drags (typed `INTERNAL_SAMPLE_DRAG_TYPE`, `externalFileIntake.ts:19`) deliberately pass through to the swap logic.
+- **Consequence if the provider is removed/unmounted or the capture listener fails:** supported-format files are silently dropped (no notification), i.e., latent supported-format data loss.
+- **Remediation direction:** delete the legacy per-component file-drop filtering (keep internal drag/swap handling), or align the filter with `AUDIO_FILE_ACCEPT`. **Test gap:** no test pins "external drops on drum rows route through AudioImportProvider, not the legacy filter."
+
+### F-4 — Keyboard Undo/Redo is not gated by Project-toolbar busy states; safety currently rests entirely on identity guards
+- **New observation; defensively mitigated — robustness note, not a proven data-loss bug.** **Severity:** low. **Confidence:** high.
+- **Where:** `src/components/common/ProjectKeyboardShortcuts.tsx:8–18` dispatches UNDO/REDO whenever no modal/editable target is active; `ProjectToolbar.tsx:119–120` disables the equivalent buttons whenever `busy !== null` (download/open/library).
+- **Trigger → consequence:** Cmd+Z while "Open project" is decoding mutates edit identity; `openProject`'s `projectEditIdentityMatches` check (`ProjectToolbar.tsx:60–62`) then correctly fails the import with "Your current project was kept" — safe, but the user's intentional import is aborted by a shortcut the equivalent button forbids. Same asymmetry during library save (snapshot taken synchronously, so no corruption).
+- **Remediation direction:** either expose busy state to the shortcut handler or accept and document the asymmetry; a unit test asserting the identity-guard failure path under mid-import UNDO would convert the mitigation from incidental to guaranteed.
+
+### F-5 — SessionRestorationModal is a hand-rolled dialog outside the owned-dialog system
+- **New observation.** **Severity:** low (works; a11y-debt adjacent to the recorded backlog). **Confidence:** high.
+- **Where:** `src/components/common/SessionRestorationModal.tsx:44–73` — bespoke two-button focus trap; Escape is swallowed (`preventDefault`, no action — plausibly intentional to force an explicit restore/discard choice); it does not register with `useOwnedDialog`'s `dialogStack` (`useOwnedDialog.ts:4`), so if any other owned dialog ever coexisted, Escape/trap ownership would conflict. Today it renders before other dialogs can open, so no live conflict.
+- **Remediation direction:** migrate to `useOwnedDialog`/`AccessibleDialog` when touching this file; keep Escape-as-no-op explicit and commented. Existing coverage: `sessionRecovery.test.tsx:50` exercises discard; no test asserts trap/Escape semantics.
+
+### F-6 — Library preview error message conflates failure modes
+- **New, minor.** **Severity:** low. **Confidence:** high. `LibraryPage.tsx:76–78` catches every `previewSummary` failure (missing preset, unsupported type, decode error, playback error) and always reports "saved preset is no longer available", which misdirects retry behavior for decode/playback failures. Direction: branch the message on the thrown error. No test asserts the distinct messages.
+
+### F-7 — Capture-session queued-message replay can interleave with newly arriving port messages
+- **New, theoretical.** **Severity:** low. **Confidence:** low (ordering-window analysis only).
+- **Where:** `src/audio/recording/captureSession.ts:150–165` — during `enableInput`, early processor messages are buffered, the live handler is swapped in at `:160`, then the buffer is replayed with `await`s (`:162–165`). A message arriving between the swap and a replay `await` is processed before older buffered messages. For `format`→`take` or `stopped` orderings this is benign in current `handleMessage` logic, but it is an invariant held by accident. Direction: replay the buffer before swapping the live handler, or route live messages through the same queue until drained. HV-005's extensive channel/startup tests don't cover this interleaving.
+
+---
+
+## Verified-fixed items (not re-reported)
+- **Slice draft lost on Back** (2026-09-27 audit defect 1): now guarded — `StudioShell.tsx:152–159` re-pushes the owned route when `[data-workspace-modal]` is open, with a notice; plus slicer source-snapshot retention (`SliceAudioModal.tsx:59–62`). Covered by the 20-case production slicing suite per hv006 summary.
+- **Project menu Open library stale URL** (audit defect 2): `ProjectToolbar.tsx:129` now dispatches `opstudio-open-workspace`, handled by `StudioShell.tsx:173–180` → `navigate()` which pushes the hash.
+- **HV-005 microphone channel mismatch**: `captureSession.ts` format-from-delivered-block, terminal failures, capacity reservation and setup-attempt release (`:97–172`, `:269–279`) match the documented repair; human round trip passed per record.
+- **HV-006 regrouping**: `SliceAudioModal.tsx` implements the three groups, native `<details>` disclosures (`:143`, `:176`), fixed footer (`:202`), adjacent confirmation (`:155–158`) and `decisionPending → mutationsDisabled` guards including the M path (`:42`, `:103–105`). Human usability acceptance remains pending, as recorded — I make no acceptance claim.
+
+Destructive/async paths spot-checked and found sound: slicer atomic commit with post-commit verification and rejection receipts (`AppContext.tsx:986–1020`); recording/import/seed commits with `validateProjectArchiveMetadata` and error receipts (`:1022–1065`); `openProject`/`actuallyLoadPreset` edit-identity races (`ProjectToolbar.tsx:52–74`, `LibraryPage.tsx:178–188`); IndexedDB revision-token conflict handling incl. restore adoption and stale-write rejection (`sessionStorageIndexedDB.ts:59–101`, `indexedDB.ts:373–451`); collection/preset deletes in single transactions with collection-membership cleanup (`indexedDB.ts:640–658`); batch-export abort with unmount abort (`LibraryPage.tsx:451–476`, `:62`); stem/auto-sampler cleanup barriers, lease release, visibility-stop (`StemRecordingModal.tsx:149–174,246–255`; `AutoSamplingPanel.tsx:45,57–59`); preview AudioContext lifecycle incl. pending-context sets (`RecordingModal.tsx:37–42,77–79`); history asset-byte bounding with user-visible "earlier undo steps discarded" notice (`projectHistory.ts:45–57`, `ProjectToolbar.tsx:136`).
+
+---
+
+## Test gaps (separate from runtime findings)
+
+| ID | Gap | Why it matters |
+|---|---|---|
+| T-1 | No geometry regression for the Table actions column (F-1); `DrumSampleTable` has zero unit-executed functions; drag assign/swap/reorder drop logic (`:165–210`) untested | The defect survived 12 passing visual baselines and the full matrix; HANDOFF's `ux-dragover-stale` also lives here unconfirmed |
+| T-2 | No WebKit overflow containment check for Overview diagrams (F-2) | Cheapest computer-verifiable proxy before the required human Safari retest |
+| T-3 | WebKit launch Tab-order failure still unresolved (audit §3) | Explicitly open; human Safari keyboard testing blocked on investigation |
+| T-4 | 781 production V8 entries with zero unit execution; triage covered only 34 names; dormant modules (`FileDropZone`, `GeneratePresetSection`/`PatchSizeIndicator` chain, `MultisampleAdvancedSettings`, legacy `sessionStorage.ts`) retained with stale mocks noted in function-gap-triage.md | The patch-size-warning chain is an undecided product removal; stale mocks in two Tool tests assert wrong shapes |
+| T-5 | 2 baseline E2E failures retained: `audio-import.spec.ts:11`, `slicing.spec.ts:61` | Documented pre-existing; still unfixed |
+| T-6 | No test pins external-drop routing through `AudioImportProvider` vs legacy filters (F-3), nor Undo-during-import identity-guard behavior (F-4), nor replay-ordering invariant (F-7) | Each mitigation currently holds by incident, not by assertion |
+| T-7 | `SessionRestorationModal` trap/Escape semantics unasserted (F-5) | Intentional Escape-no-op could regress silently |
+
+---
+
+## Coverage matrix
+
+| Surface | Inspected | Depth / basis | Finding |
+|---|---|---|---|
+| Drum Table / Focus / bulk-settings dialogs | Yes | Full read of Table, Focus, DrumTool handlers; settings modals via tests/map | **F-1**, F-3 |
+| Slice modal + commit path | Yes | Full read + reducer commit + tests | Clean; HV-006 human acceptance pending |
+| Recording modal / capture session / auto-sampler | Yes | Full reads | F-7 (low) |
+| Stem recording | Yes | Full read | Clean (barriers, leases, visibility-stop) |
+| Multisample tool / tables / focus | Partial | Clear/reset/record paths, consumers of shared SmallWaveform; tables mostly via shared components | None material |
+| Devices/MIDI | Inventory only | Prior sixth-pass reviews + cancellation evidence accepted as historical, not current proof | Not re-audited |
+| Library (restore/open/delete/collections/export) | Yes | Full read + IndexedDB transactions | F-6 (low) |
+| Persistence/import/export/Undo-Redo | Yes | sessionStorageIndexedDB, indexedDB, projectHistory, projectToolbar, libraryUtils | F-4 (low) |
+| Navigation/shell/help/theme | Yes | StudioShell full read, MainTabs, useOwnedDialog | F-2 hypothesis, F-5 |
+| Export preflight / patch generation | Yes (preflight), partial (generation internals) | ExportPreflight + usePatchGeneration; DSP/format conversion internals not re-derived (per contract: no DSP) | None |
+
+**Omissions:** `useAudioPlayer.ts` (1,060 lines) and waveform-zoom editing internals read only partially (recent audio-clock regression work has dedicated RED/GREEN evidence); `DevicesWorkspace`/`browserSession` not re-reviewed this pass; AIFF/WAV codec internals, PWA/service-worker, and `projectArchive` byte format inspected only at API boundaries. No browser, hardware, or test execution occurred — automated-PASS claims above are quoted from project evidence, not re-verified.
+
+**Computer-verifiable acceptance:** F-1/F-2 geometry regressions in the existing Playwright matrix; F-3/F-4/F-6/F-7 via unit/browser tests in isolated fixtures (never the live 18-sound draft). **Human/hardware-only:** HV-006 usability + sliced-voice listening (Human Test 04), HV-001/HV-004 visual confirmation after repair on the user's environment, real-Safari behavior, same-name preset folder replacement, new-fixture restart persistence, assistive technology, remote CI.
+
+No release-readiness, exhaustive-coverage, or design-approval claim is made or implied. The user's unapplied 18-sound voice-slicing draft and all WIP were untouched.

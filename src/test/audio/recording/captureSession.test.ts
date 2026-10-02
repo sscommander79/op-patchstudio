@@ -24,6 +24,58 @@ function graph(track:MediaStreamTrack) {
 }
 
 describe('CaptureSession lifecycle', () => {
+  it('materializes distinct delivered stereo channels when the device reports mono',async()=>{
+    const g=graph(fakeTrack()),onTake=vi.fn();
+    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onTake});
+    await session.enableInput('');
+    g.port.onmessage?.({data:{type:'format',sampleRate:48_000,channels:2}} as MessageEvent);
+    expect(session.status.channels).toBe(2);
+    g.port.onmessage?.({data:{type:'take',take:{frames:2,startFrame:0,endFrame:2,preRollFrames:0,reason:'manual',sampleRate:48_000,
+      channels:[Float32Array.from([.25,-.5]),Float32Array.from([-.125,.75])]}}} as MessageEvent);
+    await vi.waitFor(()=>expect(onTake).toHaveBeenCalledOnce());
+    const take=onTake.mock.calls[0][0];expect(take.channels).toBe(2);
+    expect(Array.from(take.audioBuffer.getChannelData(0))).toEqual([.25,-.5]);
+    expect(Array.from(take.audioBuffer.getChannelData(1))).toEqual([-.125,.75]);
+    await session.dispose();
+  });
+  it('checks capacity against the actual context rate when the input omits its rate',async()=>{
+    const g=graph(fakeTrack({channelCount:1})),onError=vi.fn();g.context.sampleRate=96_000;
+    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',
+      getRetainedUsage:()=>({count:1,bytes:196*1024*1024}),onError});
+    await expect(session.enableInput('')).resolves.toBe(false);
+    expect(session.status.state).toBe('error');
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/capacity is full/i));
+    expect(g.context.audioWorklet.addModule).not.toHaveBeenCalled();
+    expect(g.context.close).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {type:'error',message:'Capture channel dimensions changed'},
+    {type:'format',sampleRate:48_000,channels:3},
+  ])('rejects a queued startup $type before reporting successful input setup',async(message)=>{
+    const g=graph(fakeTrack()),onError=vi.fn();
+    g.context.resume.mockImplementationOnce(async()=>{g.port.onmessage?.({data:message} as MessageEvent);});
+    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onError});
+    await expect(session.enableInput('')).resolves.toBe(false);
+    expect(session.status.state).toBe('error');
+    expect(onError).toHaveBeenCalledOnce();
+    expect(g.context.close).toHaveBeenCalledOnce();
+  });
+
+  it('reserves stereo capture capacity even when the device reports mono',async()=>{
+    const g=graph(fakeTrack({sampleRate:48_000,channelCount:1})),onError=vi.fn();
+    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
+      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',
+      getRetainedUsage:()=>({count:1,bytes:231*1024*1024}),onError});
+    await expect(session.enableInput('')).resolves.toBe(false);
+    expect(session.status.state).toBe('error');
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/capacity is full/i));
+    expect(g.context.createMediaStreamSource).not.toHaveBeenCalled();
+  });
+
   it('reports permission denial without allocating a capture context',async()=>{
     const onError=vi.fn(),createContext=vi.fn(),session=new CaptureSession({mediaDevices:{getUserMedia:async()=>{throw new DOMException('denied','NotAllowedError')},enumerateDevices:async()=>[]} as unknown as MediaDevices,
       createContext,createWorkletNode:vi.fn(),workletUrl:'/capture.js',onError});

@@ -1,4 +1,4 @@
-import {expect,test} from '@playwright/test';
+import {expect,test} from './control-audit-test';
 import {openWorkspace} from './workspace-actions';
 
 for (const width of [1440, 1024]) {

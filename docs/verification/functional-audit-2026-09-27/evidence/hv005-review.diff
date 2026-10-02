@@ -1,0 +1,264 @@
+--- before/src/audio/recording/captureProcessor.ts
++++ after/src/audio/recording/captureProcessor.ts
+@@ -18,7 +18,6 @@
+   constructor(options?:{processorOptions?:ProcessorConfig}) {
+     super();
+     this.config=options?.processorOptions ?? {mode:'manual'};
+-    if(this.config.channels===1||this.config.channels===2)this.core=new CaptureCore({...this.config,sampleRate,channels:this.config.channels});
+     this.port.onmessage=(event:MessageEvent<{type:string}>)=>{
+       try {
+         if(event.data.type==='arm'){this.requested='armed';this.core?.arm();}
+@@ -35,6 +34,7 @@
+ 
+   process(inputs:Float32Array[][],outputs:Float32Array[][]) {
+     for(const output of outputs)for(const channel of output)channel.fill(0);
++    if(this.failed)return true;
+     const input=inputs[0];
+     if(!input?.length || !input[0]?.length){
+       this.missingFrames+=outputs[0]?.[0]?.length??128;
+@@ -46,8 +46,8 @@
+     this.missingFrames=0;
+     try {
+       if(!this.core){
+-        // Some browsers omit channelCount settings. This one-time startup
+-        // allocation discovers the delivered format; per-take completion never allocates.
++        // Track settings can omit or misreport the delivered channel count.
++        // Allocate once from the first input block; per-take completion never allocates.
+         this.core=new CaptureCore({...this.config,sampleRate,channels:input.length});
+         if(this.requested==='armed')this.core.arm(); else if(this.requested==='recording')this.core.startManual();
+       }
+--- before/src/audio/recording/captureSession.ts
++++ after/src/audio/recording/captureSession.ts
+@@ -123,7 +123,8 @@
+     if(reportedRate!==undefined&&(reportedRate<8_000||reportedRate>96_000)){await this.releaseSetupAttempt(attempt);return this.reject('The selected input sample rate is outside the supported 8–96 kHz range.');}
+     if(reportedChannels!==undefined&&(reportedChannels<1||reportedChannels>2)){await this.releaseSetupAttempt(attempt);return this.reject('Choose a mono or stereo input. Multichannel capture is not yet supported.');}
+     const retained=this.deps.getRetainedUsage?.()??{count:0,bytes:0};
+-    const reservation=this.reservationBytes(reportedRate??48_000,reportedChannels??2);
++    // The processor discovers the delivered layout, which may differ from track settings.
++    const reservation=this.reservationBytes(reportedRate??48_000,2);
+     if(retained.count>=RECORDING_LIMITS.takes||retained.bytes+reservation>RECORDING_LIMITS.ownedBytes){await this.releaseSetupAttempt(attempt);return this.reject('Recording capacity is full. Remove or add reviewed takes before enabling input.');}
+     let context:AudioContext|undefined;
+     let stage='creating the audio capture context';
+@@ -132,6 +133,7 @@
+       attempt.context=context;
+       if(context.sampleRate<8_000||context.sampleRate>96_000)throw new Error('The browser capture rate is outside the supported 8–96 kHz range.');
+       if(reportedRate!==undefined&&context.sampleRate!==reportedRate)throw new Error(`The browser could not preserve the reported ${reportedRate} Hz input rate.`);
++      if(retained.bytes+this.reservationBytes(context.sampleRate,2)>RECORDING_LIMITS.ownedBytes)throw new Error('Recording capacity is full. Remove or add reviewed takes before enabling input.');
+       if(context.state==='running'){
+         stage='suspending the audio capture context for graph setup';
+         await context.suspend();
+@@ -157,7 +159,10 @@
+       track.addEventListener('ended',this.trackEnded); node.addEventListener('processorerror',this.processorError); context.addEventListener('statechange',this.contextState);
+       node.port.onmessage=event=>{void this.handleMessage(event.data,generation);};
+       this.setStatus({state:'monitoring',sampleRate:context.sampleRate,channels:reportedChannels,settingsReported:reportedRate!==undefined});
+-      for(const message of pendingMessages)void this.handleMessage(message,generation);
++      for(const message of pendingMessages){
++        await this.handleMessage(message,generation);
++        if(generation!==this.generation||this.disposed)return false;
++      }
+       return true;
+     } catch(reason) {
+       await this.releaseSetupAttempt(attempt);
+--- before/src/components/common/RecordingModal.tsx
++++ after/src/components/common/RecordingModal.tsx
+@@ -72,7 +72,7 @@
+   const retainAutomaticTake=useCallback((result:AutoSampleResult,replaceRoot:boolean)=>{if(generationRef.current<1)return;updateTakes(current=>{const review:ReviewTake={...result.take,name:`MIDI ${result.rootNote}`,rootNote:result.rootNote,selected:result.selected,warnings:result.warnings};if(replaceRoot){const existing=current.findIndex(take=>take.rootNote===result.rootNote);if(existing>=0){const next=[...current];next[existing]=review;return next;}}return[...current,review];});},[updateTakes]);
+   const enable=async()=>{if(!supported){setError('Recording requires a supported browser on HTTPS; import an audio file instead.');return;}const generation=generationRef.current;setError('');await stopPreview();if(generation!==generationRef.current)return;await dispose();if(generation!==generationRef.current)return;
+     const session=makeSession(generation);sessionRef.current=session;const enabled=await session.enableInput(deviceId);if(generation!==generationRef.current){await session.dispose();if(sessionRef.current===session)sessionRef.current=undefined;return;}if(enabled){const found=await session.enumerateInputs();if(generation===generationRef.current&&found.length)setDevices(found);}};
+-  const start=async(kind:'start'|'arm')=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(!sessionRef.current)await enable();if(generation!==generationRef.current)return;try{if(kind==='arm')sessionRef.current?.arm();else sessionRef.current?.start();}catch(reason){setError(reason instanceof Error?reason.message:'Recording could not start.');}};
++  const start=async(kind:'start'|'arm')=>{const generation=generationRef.current;await stopPreview();if(generation!==generationRef.current)return;if(!sessionRef.current)await enable();if(generation!==generationRef.current||sessionRef.current?.status.state==='error')return;try{if(kind==='arm')sessionRef.current?.arm();else sessionRef.current?.start();}catch(reason){setError(reason instanceof Error?reason.message:'Recording could not start.');}};
+   const stop=async()=>{const owned=sessionRef.current;if(!owned)return;await owned.stop();if(sessionRef.current===owned)sessionRef.current=undefined;};
+   const auditionBuffer=async(audioBuffer:AudioBuffer,id:string)=>{const generation=generationRef.current,previewGeneration=++previewGenerationRef.current;setPreviewActive(true);await releasePreview(false);if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;if(sessionRef.current&&['armed','recording','waiting-for-quiet'].includes(sessionRef.current.status.state))await stop();if(generation!==generationRef.current||previewGeneration!==previewGenerationRef.current)return;
+     const context=new AudioContext();pendingPreviewContextsRef.current.add(context);
+@@ -84,7 +84,7 @@
+       if(generation!==generationRef.current||applyGeneration!==applyGenerationRef.current)return;applyAbortRef.current=undefined;const operationId=crypto.randomUUID();operationRef.current=operationId;dispatch({type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId,prepared}});
+     }catch(reason){if(generation===generationRef.current&&applyGeneration===applyGenerationRef.current){applyAbortRef.current=undefined;setApplying(false);setError(reason instanceof Error?reason.message:'Takes could not be prepared.');}}};
+   if(!isOpen)return null;
+-  const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current,used=usage(),guided=instrument==='multisample'&&!!guidedIntent;
++  const active=['requesting-permission','armed','recording','waiting-for-quiet'].includes(status.state),configured=!!sessionRef.current&&status.state!=='error',used=usage(),guided=instrument==='multisample'&&!!guidedIntent;
+   return <div onMouseDown={event=>{if(event.target===event.currentTarget)requestClose();}} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',display:'grid',placeItems:'center',padding:16}}>
+     <section ref={dialogRef} data-recording-modal="true" role="dialog" aria-modal="true" aria-labelledby="record-takes-title" tabIndex={-1} style={{background:'var(--color-bg-primary, #fff)',color:'var(--color-text-primary, #222)',width:'min(760px, 100%)',maxHeight:'94vh',overflow:'auto',padding:20,borderRadius:8}}>
+       <div style={{display:'flex',justifyContent:'space-between',gap:8}}><h2 id="record-takes-title">Record takes</h2><div style={{display:'flex',gap:8}}><button type="button" onClick={event=>{event.currentTarget.focus();window.dispatchEvent(new CustomEvent('opstudio-open-help',{detail:'capture'}));}} style={button}>Recording help</button><button aria-label="Close" onClick={requestClose} style={button}>Close</button></div></div>
+@@ -99,7 +99,7 @@
+         {mode==='sound'&&<><Numeric label="Trigger threshold" value={thresholdDb} min={-72} max={-6} step={1} disabled={configured||automaticActive} set={setThresholdDb}/><Numeric label="Trigger hysteresis" value={hysteresisDb} min={3} max={24} step={1} disabled={configured||automaticActive} set={setHysteresisDb}/><Numeric label="Pre-roll" value={preRoll} min={0} max={2} step={.05} disabled={configured||automaticActive} set={setPreRoll}/><Numeric label="Silence stop" value={silenceStop} min={.1} max={5} step={.1} disabled={configured||automaticActive} set={setSilenceStop}/></>}
+       </div>
+       {!guided&&<><p aria-live="polite"><strong>State:</strong> {status.state}. {status.sampleRate?status.sampleRate+' Hz, '+(status.channels||'unknown')+' channels. '+(status.settingsReported?'Input rate reported by the browser. ':'Input rate was not reported; capture context rate shown. '):''}Level {Math.round(Math.max(0,...(status.peaks||[0]))*100)}%. Take time {((status.elapsedFrames||0)/(status.sampleRate||1)).toFixed(2)} s.</p>
+-      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>void enable()} disabled={!supported||active||automaticActive} style={button}>Enable input</button><button onClick={()=>void start('start')} disabled={automaticActive||mode!=='manual'||status.state==='recording'} style={button}>Start recording</button><button onClick={()=>void start('arm')} disabled={automaticActive||mode!=='sound'||active} style={button}>Arm sound trigger</button><button onClick={()=>void stop()} disabled={!sessionRef.current||automaticActive} style={button}>Stop recording</button><button onClick={()=>void stopPreview()} disabled={!previewActive||automaticActive} style={button}>Stop preview</button></div></>}
++      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>void enable()} disabled={!supported||active||automaticActive} style={button}>Enable input</button><button onClick={()=>void start('start')} disabled={automaticActive||mode!=='manual'||active||status.state==='error'} style={button}>Start recording</button><button onClick={()=>void start('arm')} disabled={automaticActive||mode!=='sound'||active||status.state==='error'} style={button}>Arm sound trigger</button><button onClick={()=>void stop()} disabled={!sessionRef.current||automaticActive} style={button}>Stop recording</button><button onClick={()=>void stopPreview()} disabled={!previewActive||automaticActive} style={button}>Stop preview</button></div></>}
+       {instrument==='multisample'&&<AutoSamplingPanel initialFocus={guided} audioDeviceId={deviceId} audioDevices={devices} audioSelectionVersion={audioSelectionVersion+guidedAudioVersion} onAudioDeviceChange={setDeviceId} onExplicitAudioDeviceChange={id=>{setDeviceId(id);setGuidedAudioVersion(value=>value+1);}} disabled={!supported||active||configured||applying} retainedCount={used.count} retainedBytes={used.bytes} existingRoots={[...state.multisampleFiles.map(file=>file.rootNote),...takes.map(take=>take.rootNote)]} createCapture={makeAutomaticCapture} onTake={retainAutomaticTake} onRunningChange={setAutomaticActive} guidedStep={guided?guidedStep:undefined} onGuidedStepChange={setGuidedStep} onCaptureReview={()=>setGuidedStep('review')} onAuditionCheck={buffer=>void auditionBuffer(buffer,'guided-check')} onStopAudition={stopPreview} onCheckBytesChange={setCheckBytes} previewActive={previewActive}/>}
+       {error&&<p role="alert">{error}</p>}{feedback&&<p role="status">{feedback}</p>}
+       <section hidden={guided&&guidedStep!=='review'} className={guided?'studio-guided-review':undefined}><div className="studio-tray-heading"><h3>Review tray</h3>{guided&&<button type="button" onClick={()=>void stopPreview()} disabled={!previewActive||automaticActive} style={button}>Stop preview</button>}</div><p>{takes.length}/{RECORDING_LIMITS.takes} takes · {Math.min(100,Math.round(used.bytes/RECORDING_LIMITS.ownedBytes*100))}% of 256 MiB</p>
+--- before/src/test/audio/recording/captureProcessor.test.ts
++++ after/src/test/audio/recording/captureProcessor.test.ts
+@@ -28,11 +28,64 @@
+ describe('bundled capture processor',()=>{
+   beforeEach(loadProcessor);
+ 
++  it.each([
++    {reported:1,delivered:2},
++    {reported:2,delivered:1},
++  ])('records the delivered $delivered channels when the device reports $reported',({reported,delivered})=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:reported,maxSeconds:1}});
++    const input=delivered===1?[new Float32Array(128).fill(.25)]:[new Float32Array(128).fill(.25),new Float32Array(128).fill(-.5)];
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
++    processAt(processor,0,input);
++    processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
++    expect(errors(processor)).toEqual([]);
++    expect(processor.port.posted.find(item=>item.message.type==='format')?.message).toMatchObject({channels:delivered,sampleRate:48_000});
++    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {frames:number;channels:Float32Array[]}|undefined;
++    expect(take?.frames).toBe(128);
++    expect(take?.channels).toHaveLength(delivered);
++    expect(Array.from(take!.channels[0].subarray(0,128))).toEqual(Array(128).fill(.25));
++    if(delivered===2)expect(Array.from(take!.channels[1].subarray(0,128))).toEqual(Array(128).fill(-.5));
++  });
++
++  it.each([{initial:1,later:2},{initial:2,later:1}])('rejects a channel change from $initial to $later after the initial format is established',({initial,later})=>{
++    const processor=new Registered({processorOptions:{mode:'manual',maxSeconds:1}}),input=new Float32Array(128);
++    processAt(processor,0,Array(initial).fill(input));
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
++    processAt(processor,128,Array(later).fill(input));
++    expect(errors(processor)).toEqual(['Capture channel dimensions changed']);
++    expect(processor.port.posted.filter(item=>item.message.type==='take')).toHaveLength(0);
++  });
++
++  it('preserves Arm before the first stereo block and seals both channels',()=>{
++    const processor=new Registered({processorOptions:{mode:'sound',channels:1,maxSeconds:1,preRollSeconds:0,silenceSeconds:.1,thresholdDb:-20}});
++    const left=new Float32Array(4_801),right=new Float32Array(4_801);left[0]=.75;right[0]=-.25;
++    processor.port.onmessage?.({data:{type:'arm'}} as MessageEvent<{type:string}>);
++    processAt(processor,0,[left,right]);
++    expect(errors(processor)).toEqual([]);
++    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {frames:number;channels:Float32Array[]}|undefined;
++    expect(take?.frames).toBe(4_801);
++    expect(Array.from(take!.channels[0].subarray(0,4_801))).toEqual([.75,...Array(4_800).fill(0)]);
++    expect(Array.from(take!.channels[1].subarray(0,4_801))).toEqual([-.25,...Array(4_800).fill(0)]);
++  });
++
++  it('rejects an unsupported delivered channel layout before advertising a usable format',()=>{
++    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),input=new Float32Array(128);
++    processAt(processor,0,[input,input,input]);
++    processAt(processor,128,[input,input,input]);
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
++    processAt(processor,256,[input]);
++    expect(errors(processor)).toEqual([expect.stringMatching(/mono or stereo/i)]);
++    expect(processor.port.posted.filter(item=>item.message.type==='format'||item.message.type==='take')).toHaveLength(0);
++  });
++
+   it('zeros its output and reports one visible error after the bounded setup grace',()=>{
+     const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),output=new Float32Array(128).fill(.75);
+     for(let block=0;block<189;block+=1)processor.process([[]],[[output]]);
+     expect(Array.from(output)).toEqual(Array(128).fill(0));
+     const errors=processor.port.posted.filter(item=>item.message.type==='error');expect(errors).toHaveLength(1);expect(errors[0].message.message).toMatch(/no audio frames/i);
++    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
++    processAt(processor,189*128,[new Float32Array(128).fill(.5)]);
++    expect(processor.port.posted.filter(item=>item.message.type==='error')).toHaveLength(1);
++    expect(processor.port.posted.filter(item=>item.message.type==='format'||item.message.type==='take')).toHaveLength(0);
+   });
+ 
+   it('aborts an active take on its first missing input quantum',()=>{
+--- before/src/test/audio/recording/captureSession.test.ts
++++ after/src/test/audio/recording/captureSession.test.ts
+@@ -24,6 +24,58 @@
+ }
+ 
+ describe('CaptureSession lifecycle', () => {
++  it('materializes distinct delivered stereo channels when the device reports mono',async()=>{
++    const g=graph(fakeTrack()),onTake=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onTake});
++    await session.enableInput('');
++    g.port.onmessage?.({data:{type:'format',sampleRate:48_000,channels:2}} as MessageEvent);
++    expect(session.status.channels).toBe(2);
++    g.port.onmessage?.({data:{type:'take',take:{frames:2,startFrame:0,endFrame:2,preRollFrames:0,reason:'manual',sampleRate:48_000,
++      channels:[Float32Array.from([.25,-.5]),Float32Array.from([-.125,.75])]}}} as MessageEvent);
++    await vi.waitFor(()=>expect(onTake).toHaveBeenCalledOnce());
++    const take=onTake.mock.calls[0][0];expect(take.channels).toBe(2);
++    expect(Array.from(take.audioBuffer.getChannelData(0))).toEqual([.25,-.5]);
++    expect(Array.from(take.audioBuffer.getChannelData(1))).toEqual([-.125,.75]);
++    await session.dispose();
++  });
++  it('checks capacity against the actual context rate when the input omits its rate',async()=>{
++    const g=graph(fakeTrack({channelCount:1})),onError=vi.fn();g.context.sampleRate=96_000;
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',
++      getRetainedUsage:()=>({count:1,bytes:196*1024*1024}),onError});
++    await expect(session.enableInput('')).resolves.toBe(false);
++    expect(session.status.state).toBe('error');
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/capacity is full/i));
++    expect(g.context.audioWorklet.addModule).not.toHaveBeenCalled();
++    expect(g.context.close).toHaveBeenCalledOnce();
++  });
++
++  it.each([
++    {type:'error',message:'Capture channel dimensions changed'},
++    {type:'format',sampleRate:48_000,channels:3},
++  ])('rejects a queued startup $type before reporting successful input setup',async(message)=>{
++    const g=graph(fakeTrack()),onError=vi.fn();
++    g.context.resume.mockImplementationOnce(async()=>{g.port.onmessage?.({data:message} as MessageEvent);});
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',onError});
++    await expect(session.enableInput('')).resolves.toBe(false);
++    expect(session.status.state).toBe('error');
++    expect(onError).toHaveBeenCalledOnce();
++    expect(g.context.close).toHaveBeenCalledOnce();
++  });
++
++  it('reserves stereo capture capacity even when the device reports mono',async()=>{
++    const g=graph(fakeTrack({sampleRate:48_000,channelCount:1})),onError=vi.fn();
++    const session=new CaptureSession({mediaDevices:{getUserMedia:async()=>g.stream,enumerateDevices:async()=>[]} as unknown as MediaDevices,
++      createContext:()=>g.context as unknown as AudioContext,createWorkletNode:()=>g.node as unknown as AudioWorkletNode,workletUrl:'/capture.js',
++      getRetainedUsage:()=>({count:1,bytes:231*1024*1024}),onError});
++    await expect(session.enableInput('')).resolves.toBe(false);
++    expect(session.status.state).toBe('error');
++    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/capacity is full/i));
++    expect(g.context.createMediaStreamSource).not.toHaveBeenCalled();
++  });
++
+   it('reports permission denial without allocating a capture context',async()=>{
+     const onError=vi.fn(),createContext=vi.fn(),session=new CaptureSession({mediaDevices:{getUserMedia:async()=>{throw new DOMException('denied','NotAllowedError')},enumerateDevices:async()=>[]} as unknown as MediaDevices,
+       createContext,createWorkletNode:vi.fn(),workletUrl:'/capture.js',onError});
+--- before/src/test/components/RecordingModal.test.tsx
++++ after/src/test/components/RecordingModal.test.tsx
+@@ -12,6 +12,7 @@
+ vi.mock('webmidi',()=>({WebMidi:midi}));
+ vi.mock('../../audio/recording/captureProcessor.ts?worker&url',()=>({default:'/assets/capture-test.js'}));
+ let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined,captureOnStart=true;
++let enableError:string|undefined;
+ interface FakeDeps {onStatus:(status:{state:string;elapsedFrames?:number})=>void;onTake:(take:SessionTake)=>void|Promise<void>;onError?:(message:string)=>void}
+ const sessions:Array<{disposed:boolean;deps:FakeDeps}>=[];
+ vi.mock('../../audio/recording/captureSession',()=>({
+@@ -19,9 +20,9 @@
+   CaptureSession:class {
+     status={state:'idle'}; deps:FakeDeps;disposed=false;
+     constructor(deps:FakeDeps){this.deps=deps;sessions.push(this)}
+-    async enableInput(){await enableGate;this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
++    async enableInput(){await enableGate;if(enableError){this.status={state:'error'};this.deps.onStatus(this.status);this.deps.onError?.(enableError);return false;}this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
+     async enumerateInputs(){return [{deviceId:'synthetic',label:'Synthetic input'}]}
+-    start(){this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
++    start(){if(this.status.state==='error')throw new Error('Enable input before recording');this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
+       void Promise.resolve(this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'})).catch(reason=>this.deps.onError?.(reason instanceof Error?reason.message:String(reason)));this.status={state:'monitoring'};this.deps.onStatus(this.status);}
+     arm(){this.start()} async stop(){await stopGate;this.status={state:'stopped'};this.deps.onStatus(this.status)} async dispose(){this.disposed=true;this.status={state:'closed'}}
+   }
+@@ -50,6 +51,23 @@
+ function LegacyRootsHarness({instrument}:{instrument:'drum'|'multisample'}){return <AppContextProvider><SeedLegacyRoots/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={{kind:instrument}}/></AppContextProvider>}
+ 
+ describe('RecordingModal review workflow',()=>{
++  beforeEach(()=>{enableError=undefined;});
++  it.each(['Enable input','Start recording'])('keeps the failed setup explanation and permits recovery after %s',async(trigger)=>{
++    const user=userEvent.setup();enableError='Capture channel dimensions changed';render(<Harness/>);
++    await user.click(screen.getByRole('button',{name:trigger}));
++    expect(await screen.findByRole('alert')).toHaveTextContent('Capture channel dimensions changed');
++    expect(screen.getByRole('button',{name:'Start recording'})).toBeDisabled();
++    expect(screen.getByRole('button',{name:'Arm sound trigger'})).toBeDisabled();
++    expect(screen.getByLabelText('Input device')).toBeEnabled();
++    expect(screen.getByLabelText('Capture mode')).toBeEnabled();
++    enableError=undefined;
++    await user.click(screen.getByRole('button',{name:'Enable input'}));
++    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
++    expect(screen.getByRole('button',{name:'Start recording'})).toBeEnabled();
++    await user.click(screen.getByRole('button',{name:'Start recording'}));
++    expect(await screen.findByLabelText('Name for take take-1')).toHaveValue('Take 1');
++  });
++
+   beforeEach(()=>{sequence=0;enableGate=stopGate=undefined;captureOnStart=true;sessions.length=0;midi.enabled=false;midi.outputs[0].send.mockClear();autoSamplingPreferences=null;vi.mocked(localStorage.getItem).mockReset().mockImplementation(key=>key===autoSamplingKey?autoSamplingPreferences:null);vi.mocked(localStorage.setItem).mockReset().mockImplementation((key,value)=>{if(key===autoSamplingKey)autoSamplingPreferences=value;});localStorage.removeItem(autoSamplingKey);Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true});Object.defineProperty(globalThis,'AudioWorkletNode',{value:class{},configurable:true});Object.defineProperty(window,'isSecureContext',{value:true,configurable:true});
+     Object.assign(navigator.mediaDevices,{getUserMedia:vi.fn(),enumerateDevices:vi.fn().mockResolvedValue([]),addEventListener:vi.fn(),removeEventListener:vi.fn()});});
+   afterEach(()=>Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true}));

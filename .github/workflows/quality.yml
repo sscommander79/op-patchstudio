@@ -82,3 +82,45 @@ jobs:
           PLAYWRIGHT_FAKE_AUDIO_FILE: /tmp/opstudio-ci-stem-audio.wav
           PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
         run: npx playwright test --config=playwright.stem-recording.config.ts
+
+  browser-regressions:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Functional regressions across desktop and mobile browser profiles
+        env:
+          PLAYWRIGHT_PRODUCTION: '1'
+        run: >-
+          npx playwright test
+          tests/e2e/audio-settings-audit.spec.ts
+          tests/e2e/settings-control-audit.spec.ts
+          tests/e2e/slicing.spec.ts
+          tests/e2e/keyboard-platform.spec.ts
+          tests/e2e/studio-design-contract.spec.ts
+          tests/e2e/table-control-audit.spec.ts
+          tests/e2e/multisample-table-audit.spec.ts
+          tests/e2e/focus-control-audit.spec.ts
+          tests/e2e/library-control-audit.spec.ts tests/e2e/instrument-utility-audit.spec.ts tests/e2e/shell-utility-audit.spec.ts tests/e2e/library-order-audit.spec.ts tests/e2e/drum-row-actions-audit.spec.ts tests/e2e/focus-entry-audit.spec.ts tests/e2e/envelope-control-audit.spec.ts tests/e2e/marker-actions-audit.spec.ts
+          tests/e2e/guide-control-audit.spec.ts
+          tests/e2e/demo-control-audit.spec.ts
+          tests/e2e/file-entry-audit.spec.ts
+          tests/e2e/modal-cancellation-audit.spec.ts
+          tests/e2e/mobile-row-drop-audit.spec.ts
+          --project=firefox --project=webkit
+          --project='Mobile Chrome' --project='Mobile Safari'
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-regression-failures
+          path: test-results
+          retention-days: 14

@@ -10,7 +10,7 @@ This contract states what the launch surface and drum workbench must keep. Autom
 ## 1. Header and navigation
 
 - One horizontal application header with one brand (`.studio-shell-brand`). There is no sidebar and no second brand header.
-- One navigation landmark, **Workspace:** Overview · Create · Library · Transfer · Devices, all on one row at desktop. No Tools row.
+- One navigation landmark, **Workspace:** Overview · Library · Transfer · Devices, all on one row at desktop. No Tools row or Create navigation tab. Guided setup remains accessible through card links and the existing create route.
 - Outside Overview, a compact noninteractive "Studio / …" breadcrumb remains below the header to identify the current editor or page. Overview uses its current navigation item and heading.
 - At narrow widths primary navigation scrolls horizontally; Help and current location remain visible.
 

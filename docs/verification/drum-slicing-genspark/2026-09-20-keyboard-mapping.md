@@ -20,3 +20,8 @@ Genspark gpt-5.6-sol implemented the approved bounded design and followup correc
 No physical OP-XY transfer test; mapping verified against existing project keyboard/export contract and exported patch. Existing loaded keys are displayed as Loaded (full name in title); staged slice keys audition. The original source pad cannot be replaced while slicing that same source. No commit, push, public deployment, audio upload, or audio detector change.
 
 Logs: /tmp/opstudio-mapping-verified-tests.log, /tmp/opstudio-mapping-verified-build.log, /tmp/opstudio-mapping-verified-lint.log, /tmp/opstudio-mapping-verified-e2e.log. Genspark logs are local in /tmp/opstudio-genspark-stage2; private configurations must not be published.
+
+
+## Superseding change — 2026-10-02
+
+The historical source-pad prohibition above is superseded by HV-007. The source pad may now be replaced with exact current-state approval and its original retained in Unassigned sounds. Existing pad sounds may also be explicitly unassigned without deletion. Atomic commit, stale-source checks and Undo/Redo are covered by current evidence in ../functional-audit-2026-09-27/evidence/hv007-slicer-verification-summary.json. This dated note preserves the older review as historical evidence.

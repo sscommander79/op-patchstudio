@@ -103,7 +103,7 @@ export function DrumPresetSettings() {
   );
 
   return (
-    <div style={{
+    <div className="studio-settings-panel" style={{
       background: 'var(--color-bg-primary)',
       borderRadius: '15px',
       boxShadow: '0 2px 8px var(--color-shadow-primary)',
@@ -112,7 +112,7 @@ export function DrumPresetSettings() {
       marginBottom: '2rem'
     }}>
         {/* Header */}
-        <div style={{
+        <div className="studio-settings-panel-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

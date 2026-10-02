@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 
 interface KnobConfig {
   label: string;
@@ -20,9 +20,12 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragCleanup.current?.(), []);
 
   const handlePointerDown = useCallback((event: React.MouseEvent | React.TouchEvent, knobIndex: number) => {
     event.preventDefault();
+    dragCleanup.current?.();
     setIsDragging(knobIndex);
     
     // Get coordinates from mouse or touch event
@@ -46,18 +49,25 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
       onValueChange(knobIndex, Math.round(newValue));
     };
 
-    const handleGlobalEnd = () => {
-      setIsDragging(null);
+    const cleanupDrag = () => {
       document.removeEventListener('mousemove', handleGlobalMove);
       document.removeEventListener('touchmove', handleGlobalMove);
       document.removeEventListener('mouseup', handleGlobalEnd);
       document.removeEventListener('touchend', handleGlobalEnd);
+      document.removeEventListener('touchcancel', handleGlobalEnd);
+      dragCleanup.current = null;
     };
+    const handleGlobalEnd = () => {
+      setIsDragging(null);
+      cleanupDrag();
+    };
+    dragCleanup.current = cleanupDrag;
 
     document.addEventListener('mousemove', handleGlobalMove);
     document.addEventListener('touchmove', handleGlobalMove);
     document.addEventListener('mouseup', handleGlobalEnd);
     document.addEventListener('touchend', handleGlobalEnd);
+    document.addEventListener('touchcancel', handleGlobalEnd);
   }, [knobs, onValueChange]);
 
   const renderKnob = useCallback((knob: KnobConfig, index: number) => {
@@ -83,6 +93,20 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}
       >
         <div
+          role="slider"
+          tabIndex={0}
+          aria-label={knob.label}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(knob.value)}
+          aria-valuetext={`${Math.round(knob.value)} percent`}
+          onKeyDown={event => {
+            const delta = {ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10}[event.key];
+            if (delta === undefined && event.key !== 'Home' && event.key !== 'End') return;
+            event.preventDefault();
+            const value = event.key === 'Home' ? 0 : event.key === 'End' ? 100 : Math.max(0, Math.min(100, Math.round(knob.value) + delta!));
+            onValueChange(index, value);
+          }}
           style={{
             width: '50px',
             height: '50px',
@@ -137,7 +161,7 @@ export const FourKnobControl: React.FC<FourKnobControlProps> = ({
         </span>
       </div>
     );
-  }, [isDragging, handlePointerDown]);
+  }, [isDragging, handlePointerDown, onValueChange]);
 
   return (
     <div 

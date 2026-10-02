@@ -1,7 +1,7 @@
-import { expect, test, type Download, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
-import {downloadDevicePreset, expectDrumLoaded, openAdvanced, openWorkspace, projectAction} from './workspace-actions';
+import {downloadDevicePreset, gotoWorkspace, expectDrumLoaded, openAdvanced, openWorkspace, projectAction} from './workspace-actions';
 
 function transientWav(name = 'browser-break.wav') {
   const sampleRate=48_000,frames=48_000,buffer=Buffer.alloc(44+frames*2);
@@ -27,6 +27,19 @@ async function openExternalSlicer(page:Page) {
   return dialog;
 }
 
+// Keep both controls within the modal body before a native browser drag. Playwright's
+// target auto-scroll after mouse-down can otherwise move the drag source behind the fixed header.
+async function dragSoundToPad(dialog:ReturnType<Page['getByRole']>,number:number,pad:string) {
+  const source=dialog.getByRole('button',{name:`Select sound ${number}`,exact:true}),target=dialog.getByRole('button',{name:pad,exact:true});
+  await source.scrollIntoViewIfNeeded();await target.scrollIntoViewIfNeeded();
+  const from=await source.boundingBox(),to=await target.boundingBox();expect(from).not.toBeNull();expect(to).not.toBeNull();
+  const top=Math.min(from!.y,to!.y),bottom=Math.max(from!.y+from!.height,to!.y+to!.height);
+  await dialog.getByRole('main',{name:'Slicing controls'}).evaluate((node,bounds)=>{const rect=node.getBoundingClientRect();if(bounds.top<rect.top+8)node.scrollTop+=bounds.top-rect.top-8;else if(bounds.bottom>rect.bottom-8)node.scrollTop+=bounds.bottom-rect.bottom+8;},{top,bottom});
+  const body=await dialog.getByRole('main',{name:'Slicing controls'}).boundingBox(),start=await source.boundingBox(),end=await target.boundingBox();
+  expect(start!.y).toBeGreaterThanOrEqual(body!.y);expect(end!.y+end!.height).toBeLessThanOrEqual(body!.y+body!.height);
+  await source.dragTo(target);
+}
+
 async function downloadedBytes(download:Download) {
   expect(await download.failure()).toBeNull();
   const path=await download.path();
@@ -46,10 +59,12 @@ function wavFrames(bytes:Uint8Array) {
   throw new Error('Exported WAV has no data chunk');
 }
 
+const projectPadState=(manifest:ProjectManifest)=>manifest.project.drumSamples.map(({sampleId,...fields})=>{void sampleId;return fields;});
+
 type SliceProvenance={sourceIdentity:string;sourceName:string;startFrame:number;endFrame:number;sourceFrameCount:number;sourceSampleRate:number;sourceChannels:number};
 type ProjectManifest={
   project:{drumSamples:Array<{name:string;sampleId:string;assignedKey?:number;sourceIdentity?:string;sliceProvenance?:SliceProvenance}>};
-  samples:Array<{id:string;name:string;sourcePath?:string;metadata:{sampleRate:number;channels:number};audio:{frames:number;sampleRate:number;channels:number}}>;
+  samples:Array<{id:string;name:string;audioPath:string;sourcePath?:string;metadata:{sampleRate:number;channels:number};audio:{frames:number;sampleRate:number;channels:number}}>;
 };
 
 async function readProject(bytes:Buffer) {
@@ -57,6 +72,54 @@ async function readProject(bytes:Buffer) {
   if(!file)throw new Error('Project backup has no manifest.json');
   return JSON.parse(await file.async('string')) as ProjectManifest;
 }
+
+test('direct slice replacement and existing-pad unassignment preserve originals, cancel, and atomic Undo/Redo',async({page})=>{
+  await gotoWorkspace(page,'drum');await page.getByRole('button',{name:'Load demo kit',exact:true}).click();await expectDrumLoaded(page,10);
+  const backup=async()=>{const event=page.waitForEvent('download');await projectAction(page,'Download project');return downloadedBytes(await event);};
+  const before=await backup();
+  const open=async()=>{await page.getByRole('button',{name:'Slice this sample',exact:true}).click();const dialog=page.getByRole('dialog',{name:'slice audio'});await expect(dialog.getByRole('button',{name:'Select sound 1',exact:true})).toBeVisible();return dialog;};
+  let dialog=await open();
+  const selector=dialog.getByRole('button',{name:'Select sound 1',exact:true}),waveform=dialog.getByLabel('Sound 1 waveform');
+  await selector.scrollIntoViewIfNeeded();const soundBox=await selector.boundingBox(),waveBox=await waveform.boundingBox();
+  expect(soundBox!.y).toBeGreaterThanOrEqual(waveBox!.y+waveBox!.height-1);
+  expect(soundBox!.y-waveBox!.y-waveBox!.height).toBeLessThan(100);
+  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
+  await expect(dialog.getByRole('alert')).toContainText('preserve the existing sound');
+  await expect(dialog.getByRole('button',{name:'Keep',exact:true})).toBeFocused();
+  await expect(dialog.getByRole('button',{name:'Add sounds to kit'})).toBeDisabled();
+  await dialog.getByRole('button',{name:'Keep',exact:true}).click();
+  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
+  await dialog.getByRole('button',{name:'Replace',exact:true}).click();
+  await expect(dialog.getByRole('button',{name:'Pad 1, KD1, Sound 1',exact:true})).toBeVisible();
+  await dialog.getByRole('button',{name:'Pad 3, SD1, Seed Snare',exact:true}).click();
+  await expect(dialog.getByLabel('Destination pad')).toHaveValue('2');
+  await dialog.getByRole('button',{name:'Unassign pad sound',exact:true}).click();
+  await expect(dialog.getByRole('button',{name:'Pad 3, SD1, Empty',exact:true})).toBeVisible();
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expectDrumLoaded(page,10);
+  const afterCancel=await backup();expect(projectPadState(await readProject(afterCancel))).toEqual(projectPadState(await readProject(before)));
+  dialog=await open();
+  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
+  await dialog.getByRole('button',{name:'Replace',exact:true}).click();
+  await dialog.getByRole('button',{name:'Pad 3, SD1, Seed Snare',exact:true}).click();
+  await dialog.getByRole('button',{name:'Unassign pad sound',exact:true}).click();
+  const overflow=dialog.getByRole('checkbox');if(await overflow.count())await overflow.check();
+  await dialog.getByRole('button',{name:'Add sounds to kit'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,9);
+  const committed=await backup(),committedProject=await readProject(committed),originalProject=await readProject(before);
+  for(const name of ['Seed Kick','Seed Snare']){
+    const originalRef=originalProject.project.drumSamples.find(sample=>sample.name===name),retainedRef=committedProject.project.drumSamples.find(sample=>sample.name===name);
+    expect(originalRef).toBeDefined();expect(retainedRef).toBeDefined();expect(retainedRef!.assignedKey).toBeUndefined();
+    const original=originalProject.samples.find(sample=>sample.id===originalRef!.sampleId)!,retained=committedProject.samples.find(sample=>sample.id===retainedRef!.sampleId)!;
+    expect(original).toBeDefined();expect(retained).toBeDefined();
+    const oldZip=await JSZip.loadAsync(before),newZip=await JSZip.loadAsync(committed);
+    expect(await newZip.file(retained.audioPath)!.async('uint8array')).toEqual(await oldZip.file(original.audioPath)!.async('uint8array'));
+    if(original.sourcePath){expect(retained.sourcePath).toBeDefined();expect(await newZip.file(retained.sourcePath!)!.async('uint8array')).toEqual(await oldZip.file(original.sourcePath)!.async('uint8array'));}
+  }
+  expect(committedProject.project.drumSamples.find(sample=>sample.assignedKey===0)?.sliceProvenance).toBeTruthy();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,10);
+  expect(projectPadState(await readProject(await backup()))).toEqual(projectPadState(originalProject));
+  await page.getByRole('button',{name:'Redo',exact:true}).click();await expectDrumLoaded(page,9);
+  expect(projectPadState(await readProject(await backup()))).toEqual(projectPadState(committedProject));
+});
 
 test('slice source, live clock mark, apply, export, undo, and portable provenance round trip',async({page})=>{
   await page.goto('/',{waitUntil:'domcontentloaded'});
@@ -76,10 +139,11 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await expect(page.getByRole('textbox',{name:'Instrument name',exact:true})).toHaveValue('Sliced break');
 
   dialog=await openExternalSlicer(page);
-  await dialog.getByText('Advanced').click();
+  await dialog.getByText('Detection settings',{exact:true}).click();
+  await dialog.getByText('Detailed timing',{exact:true}).click();
   await dialog.getByRole('button',{name:'Reset to full source'}).click();
-  const sourceFrames=48_000;
-  expect(sourceFrames).toBeGreaterThan(12_000);
+  const sourceFrames=Number(await dialog.getByLabel('Sound 1 End frame').inputValue());
+  expect(sourceFrames).toBe(48_000);
   await dialog.getByRole('button',{name:'Play source'}).click();
   await expect(dialog.getByRole('button',{name:'Mark split (M)'})).toBeEnabled();
   await page.waitForTimeout(80);
@@ -95,25 +159,29 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await typedMarker.press('Enter');
   await expect(dialog.getByText('Sound 2 of 2',{exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:'Select sound 1'}).click();
-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
+  // Short slice previews may finish before a Stop click becomes actionable.
+  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
   const firstEnd=dialog.getByLabel('Sound 1 End frame');
   await firstEnd.click();
   await firstEnd.press('ControlOrMeta+A');
   await firstEnd.pressSequentially('10000');
   await firstEnd.press('Enter');
   await dialog.getByRole('button',{name:'Select sound 2'}).click();
-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
+  // Short slice previews may finish before a Stop click becomes actionable.
+  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
   await expect(dialog.getByLabel('Sound 2 Start frame')).toHaveValue('12000');
   await dialog.getByRole('button',{name:'Select sound 1'}).click();
-  await dialog.getByRole('button',{name:'Select sound 1',exact:true}).dragTo(dialog.getByRole('button',{name:'Pad 9, CH, Empty',exact:true}));
+  await dragSoundToPad(dialog,1,'Pad 9, CH, Empty');
   await expect(dialog.getByRole('button',{name:'Pad 9, CH, Sound 1',exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:'Select sound 2'}).click();
-  await dialog.getByRole('button',{name:'Stop',exact:true}).click();
+  // Short slice previews may finish before a Stop click becomes actionable.
+  await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeDisabled();
   await dialog.getByLabel('Destination pad').selectOption('2');
   await dialog.getByRole('button',{name:'Assign selected sound',exact:true}).click();
   await dialog.getByRole('button',{name:'Add sounds to kit'}).click();
   await expect(dialog).not.toBeVisible();
-  await expectDrumLoaded(page,3);
+  await expectDrumLoaded(page,2);
+  await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('button',{name:'browser-break.wav',exact:true})).toBeVisible();
   await expect(page.locator('#bit-depth')).toHaveValue('16');
 
   const backupEvent=page.waitForEvent('download');
@@ -163,7 +231,8 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   const openChooser=page.waitForEvent('filechooser');
   await projectAction(page,'Open project');
   await (await openChooser).setFiles({name:backupDownload.suggestedFilename(),mimeType:'application/zip',buffer:backupBytes});
-  await expectDrumLoaded(page,3);
+  await expectDrumLoaded(page,2);
+  await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('button',{name:'browser-break.wav',exact:true})).toBeVisible();
   const restoredBackupEvent=page.waitForEvent('download');
   await projectAction(page,'Download project');
   const restored=await readProject(await downloadedBytes(await restoredBackupEvent));
@@ -171,3 +240,47 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
     manifest.project.drumSamples.filter(ref=>ref.sliceProvenance).map(ref=>ref.sliceProvenance),
   );
 });
+
+// Regression contract: draft slice edits must not disappear via browser history.
+test('edited slicing session survives browser Back until explicitly discarded',async({page})=>{
+  await gotoWorkspace(page,'drum');
+  const dialog=await openExternalSlicer(page);
+  await dialog.getByLabel('Destination pad').selectOption('2');
+  await dialog.getByRole('button',{name:'Assign selected sound',exact:true}).click();
+  await page.goBack();
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/#\/studio\/drum$/);
+  await expect(dialog.locator('[data-slice-pad="2"]')).toHaveAttribute('aria-label',/Sound 1/);
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/studio\/overview$/);
+});
+
+
+// A scrolling dialog must keep its final actions reachable, including at short/phone viewports.
+for(const viewport of [{width:1280,height:720},{width:390,height:640}]) {
+  test(`slicer groups, disclosure keyboard access and fixed footer at ${viewport.width}x${viewport.height}`,async({page},testInfo)=>{
+    await page.setViewportSize(viewport);await gotoWorkspace(page,'drum');const dialog=await openExternalSlicer(page);
+    const cancel=dialog.getByRole('button',{name:'Cancel',exact:true}),apply=dialog.getByRole('button',{name:'Add sounds to kit'});
+    const footerBefore=await cancel.boundingBox();expect(footerBefore).not.toBeNull();
+    expect(footerBefore!.y).toBeGreaterThanOrEqual(0);expect(footerBefore!.y+footerBefore!.height).toBeLessThanOrEqual(viewport.height);
+    expect((await apply.boundingBox())!.x+(await apply.boundingBox())!.width).toBeLessThanOrEqual(viewport.width);
+    const body=dialog.getByRole('main',{name:'Slicing controls'});await body.focus();await body.press('Home');
+    const detection=dialog.getByText('Detection settings',{exact:true});await detection.focus();await detection.press('Enter');
+    await expect(dialog.getByLabel('Detection sensitivity')).toBeVisible();
+    await expect(detection).toBeFocused();
+    await detection.press('Enter');await expect(dialog.getByLabel('Detection sensitivity')).not.toBeVisible();
+    await dialog.getByRole('button',{name:'Split sound',exact:true}).scrollIntoViewIfNeeded();
+    await expect(dialog.getByRole('button',{name:'Split sound',exact:true})).toBeVisible();
+    const timing=dialog.getByText('Detailed timing',{exact:true});await timing.focus();await timing.press('Enter');
+    await expect(dialog.getByLabel('Sound 1 Start frame')).toBeVisible();
+    await dialog.getByLabel('Destination pad').scrollIntoViewIfNeeded();
+    await expect(dialog.getByRole('region',{name:'Assign to keys'})).toBeVisible();
+    const footerAfter=await cancel.boundingBox();expect(footerAfter!.y).toBeCloseTo(footerBefore!.y,1);
+    const geometry=await body.evaluate(el=>({client:el.clientHeight,scroll:el.scrollHeight,width:el.clientWidth,contentWidth:el.scrollWidth,top:el.scrollTop}));
+    expect(geometry.scroll).toBeGreaterThan(geometry.client);expect(geometry.top).toBeGreaterThan(0);expect(geometry.contentWidth).toBeLessThanOrEqual(geometry.width+1);
+    await expect(cancel).toBeVisible();await expect(apply).toBeVisible();
+    await page.screenshot({path:testInfo.outputPath('slicer-grouped.png')});
+    await cancel.click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);
+  });
+}

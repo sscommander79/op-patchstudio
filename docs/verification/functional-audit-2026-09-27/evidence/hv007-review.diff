@@ -1,0 +1,521 @@
+--- before/src/components/drum/SliceAudioModal.tsx
++++ after/src/components/drum/SliceAudioModal.tsx
+@@ -38,8 +38,11 @@
+   const [edited,setEdited]=useState(false),[confirmAction,setConfirmAction]=useState<ConfirmAction|null>(null),[overflowAccepted,setOverflowAccepted]=useState(false);
+   const [mapping,setMapping]=useState<Record<string,number>>({}),[destination,setDestination]=useState(0),[replacement,setReplacement]=useState<{rangeId:string;keyIndex:number;stagedRangeId?:string}|null>(null);
+   const [replacementApprovals,setReplacementApprovals]=useState<Record<number,DrumSample>>({});
+-
+-  const decisionPending=confirmAction!==null,mutationsDisabled=Boolean(busy)||decisionPending;
++  const [unassignments,setUnassignments]=useState<Record<number,DrumSample>>({});
++  const focusReplacement=useCallback((node:HTMLDivElement|null)=>{if(node){node.scrollIntoView?.({block:'nearest'});node.querySelector<HTMLButtonElement>('button:last-child')?.focus();}},[]);
++  useEffect(()=>{const stale=Object.keys(unassignments).filter(key=>unassignments[Number(key)]!==existingSamples[Number(key)]);if(!stale.length)return;setUnassignments(current=>Object.fromEntries(Object.entries(current).filter(([key])=>!stale.includes(key))));setError(`Pad ${stale.map(key=>Number(key)+1).join(', ')} changed. Its unassignment was cancelled; select it again to review the current sound.`);},[existingSamples,unassignments]);
++
++  const decisionPending=confirmAction!==null||replacement!==null,mutationsDisabled=Boolean(busy)||decisionPending;
+   openRef.current=isOpen;
+   const setSource=useCallback((value:SliceSource|null)=>{sourceRef.current=value;setSourceState(value);},[]);
+   const setBusyValue=useCallback((value:string)=>{busyRef.current=Boolean(value);setBusy(value);},[]);
+@@ -47,7 +50,7 @@
+   const setTransport=useCallback((value:'stopped'|'playing')=>{transportRef.current=value;setTransportState(value);},[]);
+   const stop=useCallback(()=>{playRequestRef.current+=1;const note=noteRef.current;noteRef.current=null;if(note)releaseNote(note,true);clockRef.current=null;setTransport('stopped');},[releaseNote,setTransport]);
+   const selectSound=useCallback((id:string)=>{if(id!==selectedId)stop();setSelectedIdState(id);setDrafts({});},[selectedId,stop]);
+-  const acceptRanges=useCallback((values:readonly FrameRange[])=>{const next=values.filter(value=>value.end>value.start).slice(0,SLICE_LIMITS.sliceCount).map(value=>({id:`sound-${++rangeSequenceRef.current}`,start:value.start,end:value.end}));setRanges(next);setSelectedIdState(next[0]?.id??null);setDrafts({});setEdited(false);setMapping({});setReplacement(null);setReplacementApprovals({});setConfirmAction(null);setOverflowAccepted(false);},[setRanges]);
++  const acceptRanges=useCallback((values:readonly FrameRange[])=>{const next=values.filter(value=>value.end>value.start).slice(0,SLICE_LIMITS.sliceCount).map(value=>({id:`sound-${++rangeSequenceRef.current}`,start:value.start,end:value.end}));setRanges(next);setSelectedIdState(next[0]?.id??null);setDrafts({});setEdited(false);setMapping({});setReplacement(null);setReplacementApprovals({});setUnassignments({});setConfirmAction(null);setOverflowAccepted(false);},[setRanges]);
+ 
+   const runAnalysis=useCallback(async(loaded:SliceSource,controller:AbortController)=>{const editGeneration=++editGenerationRef.current;setBusyValue('Finding sounds...');setError('');setProgress(0);try{
+     const result=await analyzeAudio(loaded.audioBuffer,{sensitivity,minimumSpacingFrames:Math.max(1,Math.round(spacingMs*loaded.audioBuffer.sampleRate/1000))},{signal:controller.signal,onProgress:setProgress});
+@@ -80,6 +83,8 @@
+ 
+   const selectedIndex=Math.max(0,ranges.findIndex(range=>range.id===selectedId)),selected=ranges[selectedIndex];
+   const assignedCount=Object.keys(mapping).length,overflowCount=Math.max(0,ranges.length-assignedCount);
++  const destinationRangeId=Object.entries(mapping).find(([,key])=>key===destination)?.[0];
++  const visibleSamples=existingSamples.map((sample,index)=>unassignments[index]===sample?{...sample,isLoaded:false}:sample);
+   const longCount=source?ranges.filter(range=>(range.end-range.start)/source.audioBuffer.sampleRate>20).length:0;
+   const selectedZoom=useCallback((range:SoundRange):FrameRange=>{if(!source)return range;const context=Math.max(1,Math.round(Math.max(range.end-range.start,source.audioBuffer.sampleRate*.05)*.12));return {start:Math.max(0,range.start-context),end:Math.min(source.audioBuffer.length,range.end+context)};},[source]);
+   const drawWave=useCallback((canvas:HTMLCanvasElement|null,windowRange:FrameRange,highlight?:SoundRange)=>{if(!canvas||!source)return;const context=canvas.getContext('2d');if(!context)return;const rect=canvas.getBoundingClientRect(),width=Math.max(1,Math.round(rect.width||640)),height=Math.round(rect.height||100);canvas.width=width;canvas.height=height;
+@@ -104,7 +109,7 @@
+   const mark=useCallback(()=>{const clock=clockRef.current;if(!source||transportRef.current!=='playing'||busyRef.current||!clock)return;const now=audioContextManager.getCurrentTime();if(now===null)return;splitAt(Math.min(source.audioBuffer.length-1,previewFrameAtTime(clock,now)),true);},[source,splitAt]);
+   useEffect(()=>{if(!isOpen)return;const key=(event:KeyboardEvent)=>{if(event.key.toLowerCase()!=='m'||!modalRef.current?.contains(document.activeElement)||shouldIgnoreKeyboardKeyDown(event,{modalOwner:modalRef.current}))return;event.preventDefault();mark();};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[isOpen,mark]);
+ 
+-  const hasChanges=edited||assignedCount>0;
++  const hasChanges=edited||assignedCount>0||Object.keys(unassignments).length>0;
+   const analyze=()=>{if(!source||busyRef.current||decisionPending)return;if(hasChanges){setConfirmAction('analyze');return;}stop();abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;void runAnalysis(source,controller);};
+   const reset=()=>{if(!source||busyRef.current||decisionPending)return;if(hasChanges){setConfirmAction('reset');return;}stop();acceptRanges([{start:0,end:source.audioBuffer.length}]);};
+   const confirmReplacement=()=>{if(!source||!confirmAction)return;const action=confirmAction;setConfirmAction(null);stop();if(action==='reset'){acceptRanges([{start:0,end:source.audioBuffer.length}]);return;}abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;void runAnalysis(source,controller);};
+@@ -113,10 +118,15 @@
+   const startManualEditing=()=>{if(!source)return;abortRef.current?.abort();editGenerationRef.current+=1;setBusyValue('');stop();if(!rangesRef.current.length)acceptRanges([{start:0,end:source.audioBuffer.length}]);setError('');};
+   const addSound=()=>{if(!source||busyRef.current||decisionPending||transportRef.current!=='stopped'||ranges.length>=SLICE_LIMITS.sliceCount)return;const gaps=[{start:0,end:ranges[0]?.start??source.audioBuffer.length},...ranges.map((range,index)=>({start:range.end,end:ranges[index+1]?.start??source.audioBuffer.length}))].filter(range=>range.end>range.start);const widest=gaps.sort((a,b)=>(b.end-b.start)-(a.end-a.start))[0];if(widest){const added={id:`sound-${++rangeSequenceRef.current}`,...widest};setRanges(current=>[...current,added].sort((a,b)=>a.start-b.start));setSelectedIdState(added.id);}else if(selected)splitAt(selected.start+Math.floor((selected.end-selected.start)/2));setEdited(true);setOverflowAccepted(false);};
+   const removeSelected=()=>{if(!selected||busyRef.current||decisionPending||transportRef.current!=='stopped')return;const remaining=ranges.filter(range=>range.id!==selected.id);const removedTarget=mapping[selected.id];setRanges(remaining);setMapping(current=>{const next={...current};delete next[selected.id];return next;});if(removedTarget!==undefined)setReplacementApprovals(current=>{const next={...current};delete next[removedTarget];return next;});setReplacement(current=>current?.rangeId===selected.id?null:current);setSelectedIdState(remaining[Math.min(selectedIndex,remaining.length-1)]?.id??null);setEdited(true);setOverflowAccepted(false);};
+-  const stageAssignment=useCallback((rangeId:string,keyIndex:number,approved=false)=>{if(busyRef.current||decisionPending||!rangesRef.current.some(range=>range.id===rangeId)||!Number.isInteger(keyIndex)||keyIndex<0||keyIndex>=24)return;if(sourceRef.current?.existingIndex===keyIndex){setError('The source pad cannot be replaced because the original source is retained. Choose another pad.');return;}const oldTarget=mapping[rangeId],staged=Object.entries(mapping).find(([id,key])=>id!==rangeId&&key===keyIndex);const occupied=existingSamples[keyIndex]?.isLoaded?existingSamples[keyIndex]:null;if(!approved&&(staged||occupied&&replacementApprovals[keyIndex]!==occupied)){setReplacement({rangeId,keyIndex,stagedRangeId:staged?.[0]});return;}setMapping(current=>{const next={...current};for(const [id,key] of Object.entries(next))if(id!==rangeId&&key===keyIndex)delete next[id];next[rangeId]=keyIndex;return next;});setReplacementApprovals(current=>{const next={...current};if(oldTarget!==undefined&&oldTarget!==keyIndex)delete next[oldTarget];if(occupied)next[keyIndex]=occupied;return next;});if(staged)setSelectedIdState(rangeId);setReplacement(null);setOverflowAccepted(false);setError('');},[decisionPending,existingSamples,mapping,replacementApprovals]);
+-  const unassignSelected=()=>{if(!selectedId||mutationsDisabled)return;const target=mapping[selectedId];setMapping(current=>{const next={...current};delete next[selectedId];return next;});if(target!==undefined)setReplacementApprovals(current=>{const next={...current};delete next[target];return next;});setReplacement(null);setOverflowAccepted(false);};
+-  const autoFill=()=>{if(mutationsDisabled)return;const reserved=new Set(Object.values(mapping));const empty=existingSamples.slice(0,24).flatMap((sample,index)=>!sample?.isLoaded&&!reserved.has(index)?[index]:[]);setMapping(current=>{const next={...current};let cursor=0;for(const range of ranges)if(next[range.id]===undefined&&cursor<empty.length)next[range.id]=empty[cursor++];return next;});setReplacement(null);setOverflowAccepted(false);};
+-  const apply=async()=>{if(!source||!ranges.length||busyRef.current||decisionPending||overflowCount>0&&!overflowAccepted)return;abortRef.current?.abort();editGenerationRef.current+=1;stop();const controller=new AbortController();abortRef.current=controller;setBusyValue('Preparing sounds...');setProgress(0);setError('');const draftRanges=ranges.map(({start,end})=>({start,end})),explicitMapping=ranges.map(range=>mapping[range.id]??null),approvals=Object.entries(replacementApprovals).filter(([key,sample])=>Object.values(mapping).includes(Number(key))&&existingSamples[Number(key)]===sample).map(([key,sample])=>({targetKeyIndex:Number(key),sample}));try{const prepared=await prepareApplication({source,ranges:draftRanges,mapping:explicitMapping,replacementApprovals:approvals,existingSamples,projectAssets,signal:controller.signal,onProgress:setProgress});if(controller.signal.aborted||!openRef.current)return;const operationId=crypto.randomUUID();pendingCommitRef.current=operationId;setBusyValue('Adding sounds...');onApply(operationId,prepared);}catch(reason){if((reason as Error).name!=='AbortError')setError(reason instanceof Error?reason.message:'Could not add sounds');}finally{if(!controller.signal.aborted&&openRef.current&&!pendingCommitRef.current)setBusyValue('');}};
++  const stageAssignment=useCallback((rangeId:string,keyIndex:number,approved=false)=>{if(busyRef.current||(decisionPending&&!(approved&&replacement?.rangeId===rangeId&&replacement.keyIndex===keyIndex&&!confirmAction))||!rangesRef.current.some(range=>range.id===rangeId)||!Number.isInteger(keyIndex)||keyIndex<0||keyIndex>=24)return;setDestination(keyIndex);setError('');const oldTarget=mapping[rangeId],staged=Object.entries(mapping).find(([id,key])=>id!==rangeId&&key===keyIndex);const occupied=existingSamples[keyIndex]?.isLoaded?existingSamples[keyIndex]:null;if(!approved&&(staged||occupied&&replacementApprovals[keyIndex]!==occupied&&unassignments[keyIndex]!==occupied)){setReplacement({rangeId,keyIndex,stagedRangeId:staged?.[0]});return;}setMapping(current=>{const next={...current};for(const [id,key] of Object.entries(next))if(id!==rangeId&&key===keyIndex)delete next[id];next[rangeId]=keyIndex;return next;});setReplacementApprovals(current=>{const next={...current};if(oldTarget!==undefined&&oldTarget!==keyIndex)delete next[oldTarget];if(occupied)next[keyIndex]=occupied;return next;});if(staged)setSelectedIdState(rangeId);setReplacement(null);setOverflowAccepted(false);setError('');},[decisionPending,existingSamples,mapping,replacementApprovals,unassignments,replacement,confirmAction]);
++  const unassignPad=()=>{if(mutationsDisabled)return;const occupied=existingSamples[destination]?.isLoaded?existingSamples[destination]:null;if(!destinationRangeId&&(!occupied||unassignments[destination]))return;
++    setMapping(current=>Object.fromEntries(Object.entries(current).filter(([,key])=>key!==destination)));
++    setReplacementApprovals(current=>{const next={...current};delete next[destination];return next;});
++    if(occupied&&!destinationRangeId)setUnassignments(current=>({...current,[destination]:occupied}));
++    setReplacement(null);setOverflowAccepted(false);setError('');
++  };
++  const autoFill=()=>{if(mutationsDisabled)return;const reserved=new Set(Object.values(mapping));const empty=existingSamples.slice(0,24).flatMap((sample,index)=>(!sample?.isLoaded||unassignments[index]===sample)&&!reserved.has(index)?[index]:[]);setMapping(current=>{const next={...current};let cursor=0;for(const range of ranges)if(next[range.id]===undefined&&cursor<empty.length)next[range.id]=empty[cursor++];return next;});setReplacement(null);setOverflowAccepted(false);};
++  const apply=async()=>{if(!source||!ranges.length||busyRef.current||decisionPending||overflowCount>0&&!overflowAccepted)return;abortRef.current?.abort();editGenerationRef.current+=1;stop();const controller=new AbortController();abortRef.current=controller;setBusyValue('Preparing sounds...');setProgress(0);setError('');const draftRanges=ranges.map(({start,end})=>({start,end})),explicitMapping=ranges.map(range=>mapping[range.id]??null),approvals=Object.values(mapping).flatMap(key=>{const sample=replacementApprovals[key];return sample&&existingSamples[key]===sample?[{targetKeyIndex:key,sample}]:[];}),unassignmentApprovals=Object.entries(unassignments).filter(([key])=>!Object.values(mapping).includes(Number(key))).map(([key,sample])=>({targetKeyIndex:Number(key),sample}));for(const key of Object.values(mapping)){if(unassignments[key]&&existingSamples[key]===unassignments[key]&&!approvals.some(approval=>approval.targetKeyIndex===key))approvals.push({targetKeyIndex:key,sample:unassignments[key]});}try{const prepared=await prepareApplication({source,ranges:draftRanges,mapping:explicitMapping,replacementApprovals:approvals,unassignmentApprovals,existingSamples,projectAssets,signal:controller.signal,onProgress:setProgress});if(controller.signal.aborted||!openRef.current)return;const operationId=crypto.randomUUID();pendingCommitRef.current=operationId;setBusyValue('Adding sounds...');onApply(operationId,prepared);}catch(reason){if((reason as Error).name!=='AbortError')setError(reason instanceof Error?reason.message:'Could not add sounds');}finally{if(!controller.signal.aborted&&openRef.current&&!pendingCommitRef.current)setBusyValue('');}};
+   const cancel=()=>{abortRef.current?.abort();editGenerationRef.current+=1;pendingCommitRef.current=null;stop();onClose();};
+   useOwnedDialog({active:isOpen,dialogRef:modalRef,onClose:cancel});
+   if(!isOpen)return null;
+@@ -159,40 +169,41 @@
+           </section>
+           <section className="studio-slicer-group" aria-labelledby="slice-edit-heading">
+             <h4 id="slice-edit-heading"><span aria-hidden="true">2</span> Edit and listen</h4>
+-            <p>Click a numbered sound to hear it. Adjust Start and End, or split it into smaller sounds.</p>
+-            <section aria-label="Sound selection">
+-              <div className="studio-slicer-selection"><strong aria-live="polite">Sound {ranges.length?selectedIndex+1:0} of {ranges.length}</strong><div className="studio-slicer-actions">
+-                <button type="button" aria-label="Previous sound" disabled={mutationsDisabled||!selected||selectedIndex===0} onClick={()=>selectSound(ranges[selectedIndex-1].id)} style={buttonStyle}>Previous</button>
+-                <button type="button" aria-label="Next sound" disabled={mutationsDisabled||!selected||selectedIndex===ranges.length-1} onClick={()=>selectSound(ranges[selectedIndex+1].id)} style={buttonStyle}>Next</button>
+-              </div></div>
+-              <div className="studio-slicer-sounds">{ranges.map((range,index)=><button key={range.id} type="button" disabled={mutationsDisabled} draggable={!mutationsDisabled} onDragStart={event=>{if(mutationsDisabled){event.preventDefault();return;}event.dataTransfer.setData(SLICE_DRAG_TYPE,range.id);event.dataTransfer.effectAllowed='move';}} aria-label={`Select sound ${index+1}`} title={`Select and play sound ${index+1}${mapping[range.id]!==undefined?`, assigned to pad ${mapping[range.id]+1}`:', unassigned'}`} aria-pressed={range.id===selectedId} onClick={()=>auditionSound(range)} style={{...buttonStyle,minWidth:'44px',padding:'.45rem',background:range.id===selectedId?colors.action:colors.alt,color:range.id===selectedId?'var(--studio-accent-text)':colors.text}}>{index+1}{mapping[range.id]!==undefined?<small style={{display:'block'}}>Pad {mapping[range.id]+1}</small>:null}</button>)}</div>
+-            </section>
++            <p>Click a numbered sound to hear it, or drag it directly onto a key below. Replacing a loaded pad keeps its old sound in Unassigned sounds.</p>
++
++            <div className="studio-slicer-actions">
++              <button type="button" onClick={addSound} disabled={mutationsDisabled||transport==='playing'||ranges.length>=SLICE_LIMITS.sliceCount} style={buttonStyle}>Add sound</button>
++              <button type="button" onClick={()=>selected&&splitAt(selected.start+Math.floor((selected.end-selected.start)/2))} disabled={!selected||mutationsDisabled||transport==='playing'||selected.end-selected.start<2||ranges.length>=SLICE_LIMITS.sliceCount} style={buttonStyle}>Split sound</button>
++              <button type="button" onClick={removeSelected} disabled={!selected||mutationsDisabled||transport==='playing'} style={buttonStyle}>Delete sound</button>
++            </div>
+             {selected&&<section aria-label={`Sound ${selectedIndex+1} editor`}>
+-              <canvas ref={selectedCanvasRef} aria-label={`Sound ${selectedIndex+1} waveform`} aria-disabled={mutationsDisabled||transport==='playing'} onPointerDown={onSelectedPointerDown} className="studio-slicer-waveform"/>
+               <div className="studio-slicer-fields">{rangeInput('start','seconds')}{rangeInput('end','seconds')}
+                 <button type="button" onClick={()=>void playRange(selected)} disabled={mutationsDisabled||transport==='playing'} style={buttonStyle}>Play sound</button>
+                 <button type="button" onClick={stop} disabled={Boolean(busy)||transport==='stopped'} style={buttonStyle}>Stop</button>
+               </div>
+               <details className="studio-slicer-disclosure"><summary>Detailed timing</summary><div className="studio-slicer-fields">{rangeInput('start','frames')}{rangeInput('end','frames')}</div></details>
++
++              <div className="studio-slicer-selection"><strong aria-live="polite">Sound {ranges.length?selectedIndex+1:0} of {ranges.length}</strong><div className="studio-slicer-actions">
++                <button type="button" aria-label="Previous sound" disabled={mutationsDisabled||!selected||selectedIndex===0} onClick={()=>selectSound(ranges[selectedIndex-1].id)} style={buttonStyle}>Previous</button>
++                <button type="button" aria-label="Next sound" disabled={mutationsDisabled||!selected||selectedIndex===ranges.length-1} onClick={()=>selectSound(ranges[selectedIndex+1].id)} style={buttonStyle}>Next</button>
++              </div></div>
++              <canvas ref={selectedCanvasRef} aria-label={`Sound ${selectedIndex+1} waveform`} aria-disabled={mutationsDisabled||transport==='playing'} onPointerDown={onSelectedPointerDown} className="studio-slicer-waveform"/>
++              <div className="studio-slicer-sounds" role="region" aria-label="Sound selection">{ranges.map((range,index)=><button key={range.id} type="button" disabled={mutationsDisabled} draggable={!mutationsDisabled} onDragStart={event=>{if(mutationsDisabled){event.preventDefault();return;}event.dataTransfer.setData(SLICE_DRAG_TYPE,range.id);event.dataTransfer.effectAllowed='move';}} aria-label={`Select sound ${index+1}`} title={`Select and play sound ${index+1}${mapping[range.id]!==undefined?`, assigned to pad ${mapping[range.id]+1}`:', unassigned'}`} aria-pressed={range.id===selectedId} onClick={()=>auditionSound(range)} style={{...buttonStyle,minWidth:'44px',padding:'.45rem',background:range.id===selectedId?colors.action:colors.alt,color:range.id===selectedId?'var(--studio-accent-text)':colors.text}}>{index+1}{mapping[range.id]!==undefined?<small style={{display:'block'}}>Pad {mapping[range.id]+1}</small>:null}</button>)}</div>
++
+             </section>}
+-            <div className="studio-slicer-actions">
+-              <button type="button" onClick={addSound} disabled={mutationsDisabled||transport==='playing'||ranges.length>=SLICE_LIMITS.sliceCount} style={buttonStyle}>Add sound</button>
+-              <button type="button" onClick={()=>selected&&splitAt(selected.start+Math.floor((selected.end-selected.start)/2))} disabled={!selected||mutationsDisabled||transport==='playing'||selected.end-selected.start<2||ranges.length>=SLICE_LIMITS.sliceCount} style={buttonStyle}>Split sound</button>
+-              <button type="button" onClick={removeSelected} disabled={!selected||mutationsDisabled||transport==='playing'} style={buttonStyle}>Delete sound</button>
+-            </div>
++            {!selected&&<p role="status">Sound 0 of 0. Use Add sound to create a slice.</p>}
+           </section>
+           <section className="studio-slicer-group" aria-labelledby="slice-assign-heading">
+             <h4 id="slice-assign-heading"><span aria-hidden="true">3</span> Assign to keys</h4>
+-            <p>Choose a sound in Edit and listen, then drag it onto a key below. Or choose a Destination and press Assign selected sound. Auto-fill uses only currently empty keys.</p>
+-            {selected&&<button type="button" aria-label={`Drag sound ${selectedIndex+1} to a key`} disabled={mutationsDisabled} draggable={!mutationsDisabled} onDragStart={event=>{if(mutationsDisabled){event.preventDefault();return;}event.dataTransfer.setData(SLICE_DRAG_TYPE,selected.id);event.dataTransfer.effectAllowed='move';}} onClick={()=>auditionSound(selected)} style={{...buttonStyle,background:colors.action,color:'var(--studio-accent-text)'}}>Sound {selectedIndex+1} <span aria-hidden="true">→</span> drag to a key</button>}
+-            <SliceKeyboardMapping existingSamples={existingSamples} ranges={ranges} mapping={mapping} disabled={mutationsDisabled} onAssign={stageAssignment} onPreview={id=>{const range=rangesRef.current.find(item=>item.id===id);if(range)auditionSound(range);}}/>
+-            <div className="studio-slicer-fields"><label>Destination <select aria-label="Destination pad" value={destination} onChange={event=>setDestination(Number(event.target.value))} disabled={mutationsDisabled} style={{minHeight:'44px',maxWidth:'100%',minWidth:0}}>{SLICE_PAD_GROUPS.flatMap(group=>[...group.lower,...group.upper]).sort((a,b)=>a.index-b.index).map(key=><option key={key.index} value={key.index}>{key.label} (Pad {key.index+1}){existingSamples[key.index]?.isLoaded?` - ${existingSamples[key.index].name}`:' - Empty'}</option>)}</select></label>
++
++            <SliceKeyboardMapping existingSamples={visibleSamples} ranges={ranges} mapping={mapping} disabled={mutationsDisabled} onAssign={stageAssignment} selectedKey={destination} onSelect={setDestination} onPreview={id=>{const range=rangesRef.current.find(item=>item.id===id);if(range)auditionSound(range);}}/>
++            <div className="studio-slicer-fields"><label>Destination <select aria-label="Destination pad" value={destination} onChange={event=>setDestination(Number(event.target.value))} disabled={mutationsDisabled} style={{minHeight:'44px',maxWidth:'100%',minWidth:0}}>{SLICE_PAD_GROUPS.flatMap(group=>[...group.lower,...group.upper]).sort((a,b)=>a.index-b.index).map(key=><option key={key.index} value={key.index}>{key.label} (Pad {key.index+1}){visibleSamples[key.index]?.isLoaded?` - ${visibleSamples[key.index].name}`:' - Empty'}</option>)}</select></label>
+               <button type="button" disabled={!selected||mutationsDisabled} onClick={()=>selectedId&&stageAssignment(selectedId,destination)} style={buttonStyle}>Assign selected sound</button>
+-              <button type="button" disabled={!selectedId||mapping[selectedId]===undefined||mutationsDisabled} onClick={unassignSelected} style={buttonStyle}>Unassign selected sound</button>
++              <button type="button" disabled={mutationsDisabled||(!destinationRangeId&&!visibleSamples[destination]?.isLoaded)} onClick={unassignPad} style={buttonStyle}>Unassign pad sound</button>
+               <button type="button" disabled={mutationsDisabled} onClick={autoFill} style={buttonStyle}>Auto-fill empty keys</button>
+             </div>
+-            {replacement&&<div role="alert" className="studio-slicer-confirmation"><p>{replacement.stagedRangeId?`Sound ${ranges.findIndex(range=>range.id===replacement.stagedRangeId)+1} is already assigned to Pad ${replacement.keyIndex+1}. Replace it and move that sound to Unassigned?`:`Pad ${replacement.keyIndex+1} contains ${existingSamples[replacement.keyIndex]?.name}. Replace it and preserve the existing sound in Unassigned sounds?`}</p><div className="studio-slicer-actions"><button type="button" disabled={mutationsDisabled} onClick={()=>stageAssignment(replacement.rangeId,replacement.keyIndex,true)} style={buttonStyle}>Replace</button><button type="button" disabled={mutationsDisabled} onClick={()=>setReplacement(null)} style={buttonStyle}>Keep</button></div></div>}
+-            <p role="status">{assignedCount} {assignedCount===1?'sound is':'sounds are'} assigned. {overflowCount} {overflowCount===1?'remains':'remain'} in Unassigned sounds. The original loop is preserved.</p>
++            {replacement&&<div role="alert" className="studio-slicer-confirmation" ref={focusReplacement}><p>{replacement.stagedRangeId?`Sound ${ranges.findIndex(range=>range.id===replacement.stagedRangeId)+1} is already assigned to Pad ${replacement.keyIndex+1}. Replace it and move that sound to Unassigned?`:`Pad ${replacement.keyIndex+1} contains ${existingSamples[replacement.keyIndex]?.name}. Replace it and preserve the existing sound in Unassigned sounds?`}</p><div className="studio-slicer-actions"><button type="button" disabled={Boolean(busy)||confirmAction!==null} onClick={()=>stageAssignment(replacement.rangeId,replacement.keyIndex,true)} style={buttonStyle}>Replace</button><button type="button" disabled={Boolean(busy)||confirmAction!==null} onClick={()=>setReplacement(null)} style={buttonStyle}>Keep</button></div></div>}
++            <p role="status">{assignedCount} {assignedCount===1?'sound is':'sounds are'} assigned. {overflowCount} {overflowCount===1?'remains':'remain'} in Unassigned sounds. The original loop is preserved. {Object.keys(unassignments).length>0?`${Object.keys(unassignments).length} existing pad sound(s) will be moved to Unassigned sounds when you add sounds to the kit.`:null}</p>
+             {overflowCount>0&&<label className="studio-slicer-overflow"><input type="checkbox" checked={overflowAccepted} disabled={mutationsDisabled} onChange={event=>setOverflowAccepted(event.target.checked)}/>I understand that {overflowCount} {overflowCount===1?'sound':'sounds'} will remain unassigned.</label>}
+             {longCount>0&&<p role="alert">{longCount} output {longCount===1?'region is':'regions are'} longer than 20 seconds. Device export preflight will require handling before download.</p>}
+             <p>Overlapping or mixed instruments cannot be separated into individual sounds.</p>
+--- before/src/components/drum/SliceKeyboardMapping.tsx
++++ after/src/components/drum/SliceKeyboardMapping.tsx
+@@ -15,9 +15,11 @@
+   disabled:boolean;
+   onAssign:(rangeId:string,keyIndex:number)=>void;
+   onPreview:(rangeId:string)=>void;
++  selectedKey?:number;
++  onSelect?:(keyIndex:number)=>void;
+ }
+ 
+-export function SliceKeyboardMapping({existingSamples,ranges,mapping,disabled,onAssign,onPreview}:Props) {
++export function SliceKeyboardMapping({existingSamples,ranges,mapping,disabled,onAssign,onPreview,selectedKey,onSelect}:Props) {
+   const rangeNumber=new Map(ranges.map((range,index)=>[range.id,index+1]));
+   const assignedByKey=new Map(Object.entries(mapping).map(([id,key])=>[key,id]));
+   const drop=(event:DragEvent<HTMLButtonElement>,keyIndex:number)=>{
+@@ -31,8 +33,9 @@
+     const detail=soundNumber?`Sound ${soundNumber}`:existing?.name||'Empty';
+     return <button key={index} type="button" disabled={disabled} aria-label={`Pad ${index+1}, ${label}, ${detail}`} title={detail} data-slice-pad={index}
+       onDragOver={event=>{if(event.dataTransfer.types.includes(SLICE_DRAG_TYPE))event.preventDefault();}} onDrop={event=>drop(event,index)}
+-      onClick={()=>{if(rangeId)onPreview(rangeId);}}
+-      style={{gridColumn:`${column} / span 2`,gridRow:row,width:'48px',minWidth:'48px',minHeight:'64px',padding:'.25rem',border:'1px solid var(--color-border-medium)',borderRadius:'4px',background:soundNumber?'var(--color-interactive-focus)':existing?'var(--color-bg-tertiary)':'var(--color-bg-secondary)',color:soundNumber?'var(--studio-accent-text)':'var(--color-text-primary)',cursor:rangeId?'pointer':'default',display:'grid',alignContent:'center',gap:'.1rem'}}>
++      aria-pressed={selectedKey===index}
++      onClick={()=>{onSelect?.(index);if(rangeId)onPreview(rangeId);}}
++      style={{gridColumn:`${column} / span 2`,gridRow:row,width:'48px',minWidth:'48px',minHeight:'64px',padding:'.25rem',border:'1px solid var(--color-border-medium)',outline:selectedKey===index?'2px solid var(--color-text-primary)':undefined,outlineOffset:'-2px',borderRadius:'4px',background:soundNumber?'var(--color-interactive-focus)':existing?'var(--color-bg-tertiary)':'var(--color-bg-secondary)',color:soundNumber?'var(--studio-accent-text)':'var(--color-text-primary)',cursor:'pointer',display:'grid',alignContent:'center',gap:'.1rem'}}>
+       <strong>{label}</strong><span>{index+1}</span><small style={{fontSize:'11px',lineHeight:1.05,display:'grid'}}>{soundNumber?<><span>Sound</span><span>{soundNumber}</span></>:existing?'Loaded':'Empty'}</small>
+     </button>;
+   };
+--- before/src/utils/audioSlicing.ts
++++ after/src/utils/audioSlicing.ts
+@@ -441,6 +441,8 @@
+   /** Omit to retain legacy commit-time empty-pad auto-fill. Null is explicitly unassigned. */
+   mapping?: readonly (number | null)[];
+   replacementApprovals?: readonly SliceReplacementApproval[];
++  /** Loaded pads explicitly moved to Unassigned sounds in this same atomic operation. */
++  unassignmentApprovals?: readonly SliceReplacementApproval[];
+   projectAssets?: readonly ProjectAudioAsset[];
+   signal?: AbortSignal;
+   onProgress?: (progress: number) => void;
+@@ -505,9 +507,16 @@
+   const destinationSnapshots=explicitMapping===undefined?undefined:Object.freeze(explicitMapping.flatMap(targetKeyIndex=>{
+     if(targetKeyIndex===null)return [];
+     const current=existingSamples[targetKeyIndex];
+-    if(source.existingIndex===targetKeyIndex)throw new Error('The source pad cannot be replaced because the original source is retained');
+     if(current?.isLoaded&&approvalByKey.get(targetKeyIndex)!==current)throw new Error(`Pad ${targetKeyIndex+1} is occupied and its replacement was not approved`);
+     return [Object.freeze({targetKeyIndex,sample:current?.isLoaded?current:null,file:current?.file??null,audioBuffer:current?.audioBuffer??null,state:current?.isLoaded?sampleState(current):'',replacementApproved:Boolean(current?.isLoaded)} satisfies SliceDestinationSnapshot)];
++  }));
++  const unassignmentKeys=new Set<number>();
++  const unassignmentSnapshots=Object.freeze((options.unassignmentApprovals??[]).map(({targetKeyIndex,sample})=>{
++    if(!Number.isInteger(targetKeyIndex)||targetKeyIndex<0||targetKeyIndex>=24||unassignmentKeys.has(targetKeyIndex)||explicitMapping?.includes(targetKeyIndex))throw new Error('Slice unassignments are invalid');
++    const current=existingSamples[targetKeyIndex];
++    if(!current?.isLoaded||current!==sample)throw new Error(`Pad ${targetKeyIndex+1} changed before unassignment was prepared`);
++    unassignmentKeys.add(targetKeyIndex);
++    return Object.freeze({targetKeyIndex,sample:current,file:current.file,audioBuffer:current.audioBuffer,state:sampleState(current),replacementApproved:true} satisfies SliceDestinationSnapshot);
+   }));
+   const names = new Set(existingSamples.filter(sample => sample?.isLoaded).map(sample => sample.name.toLocaleLowerCase('en-US')));
+   const targetKeys: number[] = [];
+@@ -549,6 +558,7 @@
+     overflowCount: canonicalRanges.length - targetKeys.length,
+     mapping:explicitMapping,
+     destinationSnapshots,
++    unassignmentSnapshots,
+   };
+ }
+ 
+@@ -585,6 +595,16 @@
+   } else if(!currentDrumSamples[source.existingIndex]?.sourceIdentity) {
+     actions.push({type:'UPDATE_DRUM_SAMPLE',payload:{index:source.existingIndex,updates:{sourceIdentity}}});
+   }
++  // Move loaded pad assets, never delete them. Bind each decision to its exact current state.
++  const movedKeys=new Set<number>();
++  for(const snapshot of prepared.unassignmentSnapshots??[]) {
++    const target=snapshot.targetKeyIndex,current=currentDrumSamples[target];
++    if(!Number.isInteger(target)||target<0||target>=24||movedKeys.has(target)||prepared.mapping?.includes(target)||!snapshot.sample||!current?.isLoaded||current.file!==snapshot.file||current.audioBuffer!==snapshot.audioBuffer||sampleState(current)!==snapshot.state)throw new Error(`Pad ${target+1} changed while Apply was preparing. No sounds were moved; retry.`);
++    movedKeys.add(target);
++    const retained=target===source.existingIndex?{...current,sourceIdentity}:current;
++    actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}});
++    actions.push({type:'CLEAR_DRUM_SAMPLE',payload:target});
++  }
+   if(prepared.mapping!==undefined) {
+     if(prepared.mapping.length!==preparedStores.length||!prepared.destinationSnapshots)throw new Error('Prepared slice mapping is incomplete; retry Apply.');
+     const targets=prepared.mapping.filter((target):target is number=>target!==null);
+@@ -605,7 +625,8 @@
+       if(target!==null) {
+         const snapshot=snapshots.get(target)!;
+         if(snapshot.sample) {
+-          actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:snapshot.sample,targetKeyIndex:null}});
++          const retained=target===source.existingIndex?{...snapshot.sample,sourceIdentity}:snapshot.sample;
++          actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}});
+           actions.push({type:'CLEAR_DRUM_SAMPLE',payload:target});
+         }
+       }
+--- before/src/context/AppContext.tsx
++++ after/src/context/AppContext.tsx
+@@ -990,7 +990,7 @@
+         const expectedStores=committed.actions.filter((candidate):candidate is Extract<AppAction,{type:'STORE_DRUM_SAMPLE_ASSET'}>=>candidate.type==='STORE_DRUM_SAMPLE_ASSET');
+         const appliedStores=expectedStores.map(candidate=>{
+           const {sample,targetKeyIndex}=candidate.payload;
+-          if(targetKeyIndex===null)return next.drumSamples.find(item=>item.audioBuffer===sample.audioBuffer&&item.file===sample.file&&!item.isAssigned);
++          if(targetKeyIndex===null)return next.drumSamples.find(item=>item.audioBuffer===sample.audioBuffer&&item.file===sample.file&&item.sourceIdentity===sample.sourceIdentity&&!item.isAssigned);
+           const applied=next.drumSamples[targetKeyIndex];
+           return applied?.audioBuffer===sample.audioBuffer&&applied.file===sample.file&&applied.isAssigned&&applied.assignedKey===targetKeyIndex?applied:undefined;
+         });
+@@ -1007,7 +1007,10 @@
+         if(appliedSlices.some(sample=>!sample)||appliedSlices.length!==action.payload.prepared.ranges.length||actualAssigned!==committed.assignedCount) {
+           throw new Error('The complete slice operation could not be committed. No slices were added; retry.');
+         }
+-        if(action.payload.prepared.source.existingIndex!==null&&next.drumSamples[action.payload.prepared.source.existingIndex]?.sourceIdentity!==committed.sourceIdentity) {
++        const sliceSource=action.payload.prepared.source;
++        const sourceMoved=sliceSource.existingIndex!==null&&(action.payload.prepared.mapping?.includes(sliceSource.existingIndex)||action.payload.prepared.unassignmentSnapshots?.some(snapshot=>snapshot.targetKeyIndex===sliceSource.existingIndex));
++        const sourceIdentityCommitted=sourceMoved?expectedStores.some((candidate,index)=>candidate.payload.targetKeyIndex===null&&candidate.payload.sample.audioBuffer===sliceSource.audioBuffer&&candidate.payload.sample.file===sliceSource.file&&candidate.payload.sample.sourceIdentity===committed.sourceIdentity&&appliedStores[index]?.sourceIdentity===committed.sourceIdentity):sliceSource.existingIndex===null||next.drumSamples[sliceSource.existingIndex]?.sourceIdentity===committed.sourceIdentity;
++        if(!sourceIdentityCommitted) {
+           throw new Error('The slice source identity could not be committed. No slices were added; retry.');
+         }
+         validateProjectArchiveMetadata(next);
+--- before/src/test/components/SliceAudioModal.test.tsx
++++ after/src/test/components/SliceAudioModal.test.tsx
+@@ -4,10 +4,11 @@
+ import { SliceAudioModal } from '../../components/drum/SliceAudioModal';
+ import { SLICE_DRAG_TYPE } from '../../components/drum/SliceKeyboardMapping';
+ import type { DrumSample } from '../../context/AppContext';
++import { prepareSliceApplication } from '../../utils/audioSlicing';
+ 
+ const audioFormatMocks=vi.hoisted(()=>({read:vi.fn()}));
+ vi.mock('../../utils/audioFormats',()=>({readAudioMetadataFromArrayBuffer:audioFormatMocks.read}));
+-const playWithADSR=vi.fn(async(_audio:AudioBuffer,id:string)=>id),releaseNote=vi.fn();
++const playWithADSR=vi.fn(async(_audio:AudioBuffer,id:string,options?:{onEnded?:()=>void})=>{void options;return id;}),releaseNote=vi.fn();
+ vi.mock('../../hooks/useAudioPlayer',()=>({useAudioPlayer:()=>({playWithADSR,releaseNote})}));
+ let audioClock=10;
+ vi.mock('../../utils/audioContext',()=>({audioContextManager:{getCurrentTime:()=>audioClock,getSampleRate:()=>10_000}}));
+@@ -95,7 +96,7 @@
+ 
+   it('starts manually unmapped and auto-fills only empty keys',async()=>{render(<SliceAudioModal {...props(1)}/>);await ready();expect(screen.getByText(/0 sounds are assigned\. 2 remain in Unassigned sounds/i)).toBeInTheDocument();const apply=screen.getByRole('button',{name:'Add sounds to kit'});expect(apply).toBeDisabled();await userEvent.click(screen.getByRole('button',{name:'Auto-fill empty keys'}));expect(screen.getByText(/1 sound is assigned\. 1 remains in Unassigned sounds/i)).toBeInTheDocument();expect(screen.getByRole('button',{name:/Pad 2, KD2, Sound 1/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('checkbox'));expect(apply).toBeEnabled();});
+ 
+-  it('supports non-drag assignment, moving, replacement confirmation, preview, and unassign',async()=>{const input=props(1);render(<SliceAudioModal {...input}/>);await ready();const destination=screen.getByLabelText('Destination pad');await userEvent.selectOptions(destination,'8');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/preserve the existing sound/i);await userEvent.click(screen.getByRole('button',{name:'Keep'}));await userEvent.selectOptions(destination,'1');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('button',{name:/Pad 2, KD2, Sound 1/i})).toBeInTheDocument();await userEvent.selectOptions(destination,'2');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/preserve the existing sound/i);await userEvent.click(screen.getByRole('button',{name:'Replace'}));expect(screen.getByRole('button',{name:/Pad 3, SD1, Sound 1/i})).toBeInTheDocument();expect(screen.getByRole('button',{name:/Pad 2, KD2, Empty/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:/Pad 3, SD1, Sound 1/i}));expect(playWithADSR).toHaveBeenLastCalledWith(input.request.source.audioBuffer,expect.any(String),expect.objectContaining({inFrame:100,outFrame:500}));await userEvent.click(screen.getByRole('button',{name:'Unassign selected sound'}));expect(screen.getByText(/0 sounds are assigned/i)).toBeInTheDocument();});
++  it('supports non-drag assignment, moving, replacement confirmation, preview, and unassign',async()=>{const input=props(1);render(<SliceAudioModal {...input}/>);await ready();const destination=screen.getByLabelText('Destination pad');await userEvent.selectOptions(destination,'8');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/preserve the existing sound/i);await userEvent.click(screen.getByRole('button',{name:'Keep'}));await userEvent.selectOptions(destination,'1');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('button',{name:/Pad 2, KD2, Sound 1/i})).toBeInTheDocument();await userEvent.selectOptions(destination,'2');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/preserve the existing sound/i);await userEvent.click(screen.getByRole('button',{name:'Replace'}));expect(screen.getByRole('button',{name:/Pad 3, SD1, Sound 1/i})).toBeInTheDocument();expect(screen.getByRole('button',{name:/Pad 2, KD2, Empty/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:/Pad 3, SD1, Sound 1/i}));expect(playWithADSR).toHaveBeenLastCalledWith(input.request.source.audioBuffer,expect.any(String),expect.objectContaining({inFrame:100,outFrame:500}));await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));expect(screen.getByText(/0 sounds are assigned/i)).toBeInTheDocument();});
+ 
+   it('confirms before replacing another staged sound and Keep preserves it',async()=>{render(<SliceAudioModal {...props()}/>);await ready();const destination=screen.getByLabelText('Destination pad');await userEvent.selectOptions(destination,'1');await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));await userEvent.click(screen.getByRole('button',{name:'Select sound 2'}));await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));expect(screen.getByRole('alert')).toHaveTextContent(/Sound 1.*Unassigned/i);await userEvent.click(screen.getByRole('button',{name:'Keep'}));expect(screen.getByRole('button',{name:/Pad 2, KD2, Sound 1/i})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));await userEvent.click(screen.getByRole('button',{name:'Replace'}));expect(screen.getByRole('button',{name:/Pad 2, KD2, Sound 2/i})).toBeInTheDocument();expect(screen.getByText(/1 sound is assigned\. 1 remains in Unassigned sounds/i)).toBeInTheDocument();});
+ 
+@@ -124,6 +125,73 @@
+ 
+ 
+ describe('slicer organization and decision safety',()=>{
++  it('unassigns a staged replacement first and restores the original before a second unassignment',async()=>{
++    const input=props(1),prepareApplication=vi.fn(prepareSliceApplication);render(<SliceAudioModal {...input} prepareApplication={prepareApplication}/>);await ready();
++    await userEvent.click(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'}));await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));await userEvent.click(screen.getByRole('button',{name:'Replace'}));
++    await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));
++    expect(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'})).toBeInTheDocument();
++    await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));expect(screen.getByRole('button',{name:'Pad 3, SD1, Empty'})).toBeInTheDocument();
++    await userEvent.click(screen.getByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Add sounds to kit'}));await waitFor(()=>expect(input.onApply).toHaveBeenCalledOnce());
++    expect(prepareApplication.mock.calls[0][0].unassignmentApprovals).toEqual([{targetKeyIndex:2,sample:input.existingSamples[2]}]);
++  });
++
++  it('shows a changed loaded pad and allows its unassignment to be reviewed again',async()=>{
++    const input=props(1),prepareApplication=vi.fn(prepareSliceApplication),view=render(<SliceAudioModal {...input} prepareApplication={prepareApplication}/>);await ready();
++    await userEvent.click(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'}));await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));
++    const changed={...input.existingSamples[2],name:'changed.wav',gain:8},existingSamples=input.existingSamples.map((sample,index)=>index===2?changed:sample);
++    view.rerender(<SliceAudioModal {...input} existingSamples={existingSamples} projectAssets={existingSamples} prepareApplication={prepareApplication}/>);
++    expect(screen.getByRole('button',{name:'Pad 3, SD1, changed.wav'})).toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent(/changed.*unassignment.*cancelled/i);
++    await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));await userEvent.click(screen.getByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Add sounds to kit'}));await waitFor(()=>expect(input.onApply).toHaveBeenCalledOnce());
++    expect(prepareApplication.mock.calls[0][0].unassignmentApprovals).toEqual([{targetKeyIndex:2,sample:changed}]);
++  });
++
++  it('auto-fills an explicitly freed source pad with the exact approval and keeps manual Add available with no slices',async()=>{
++    const input=props(0),prepareApplication=vi.fn(prepareSliceApplication);render(<SliceAudioModal {...input} prepareApplication={prepareApplication}/>);await ready();
++    await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));await userEvent.click(screen.getByRole('button',{name:'Auto-fill empty keys'}));
++    await userEvent.click(screen.getByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Add sounds to kit'}));await waitFor(()=>expect(input.onApply).toHaveBeenCalledOnce());
++    expect(prepareApplication.mock.calls[0][0].replacementApprovals).toEqual([{targetKeyIndex:0,sample:input.existingSamples[0]}]);
++    expect(prepareApplication.mock.calls[0][0].unassignmentApprovals).toEqual([]);
++  });
++
++  it('does not steal replacement focus when the preview ends',async()=>{
++    render(<SliceAudioModal {...props(1)}/>);await ready();await userEvent.click(screen.getByRole('button',{name:'Play sound'}));
++    await userEvent.click(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'}));await userEvent.click(screen.getByRole('button',{name:'Assign selected sound'}));
++    const replace=screen.getByRole('button',{name:'Replace'});replace.focus();
++    const options=playWithADSR.mock.calls.at(-1)![2] as {onEnded:()=>void};act(()=>options.onEnded());expect(replace).toHaveFocus();
++  });
++
++  it('can add a manual sound after deleting every detected sound',async()=>{
++    render(<SliceAudioModal {...props()}/>);await ready();await userEvent.click(screen.getByRole('button',{name:'Delete sound'}));await userEvent.click(screen.getByRole('button',{name:'Delete sound'}));
++    expect(screen.getByRole('button',{name:'Add sound'})).toBeEnabled();await userEvent.click(screen.getByRole('button',{name:'Add sound'}));expect(screen.getByRole('button',{name:'Select sound 1'})).toBeInTheDocument();
++  });
++
++  it('places numbered sounds below the waveform and lets loaded pads be selected and unassigned without applying',async()=>{
++    const input=props(1);render(<SliceAudioModal {...input}/>);await ready();
++    const waveform=screen.getByLabelText('Sound 1 waveform'),selector=screen.getByRole('button',{name:'Select sound 1'});
++    expect(waveform.nextElementSibling).toContainElement(selector);
++    expect(waveform.nextElementSibling).toHaveClass('studio-slicer-sounds');
++    await userEvent.click(screen.getByRole('button',{name:'Pad 3, SD1, break.wav'}));
++    expect(screen.getByLabelText('Destination pad')).toHaveValue('2');
++    await userEvent.click(screen.getByRole('button',{name:'Unassign pad sound'}));
++    expect(screen.getByRole('button',{name:'Pad 3, SD1, Empty'})).toBeInTheDocument();
++    expect(input.existingSamples[2].isLoaded).toBe(true);expect(input.onApply).not.toHaveBeenCalled();
++    await userEvent.click(screen.getByRole('button',{name:'Cancel'}));expect(input.onApply).not.toHaveBeenCalled();
++  });
++
++  it('accepts a dropped replacement on the original source pad after an explicit Keep or Replace decision',async()=>{
++    const input=props();render(<SliceAudioModal {...input}/>);await ready();
++    const dataTransfer={types:[SLICE_DRAG_TYPE],getData:()=> 'sound-1'};
++    fireEvent.drop(screen.getByRole('button',{name:'Pad 1, KD1, break.wav'}),{dataTransfer});
++    expect(screen.getByRole('alert')).toHaveTextContent(/preserve the existing sound/i);
++    await userEvent.click(screen.getByRole('button',{name:'Keep'}));
++    expect(screen.getByRole('button',{name:'Pad 1, KD1, break.wav'})).toBeInTheDocument();
++    fireEvent.drop(screen.getByRole('button',{name:'Pad 1, KD1, break.wav'}),{dataTransfer});
++    await userEvent.click(screen.getByRole('button',{name:'Replace'}));
++    expect(screen.getByRole('button',{name:'Pad 1, KD1, Sound 1'})).toBeInTheDocument();
++    expect(screen.getByLabelText('Destination pad')).toHaveValue('0');
++    expect(input.existingSamples[0].audioBuffer).toBe(input.request.source.audioBuffer);
++  });
++
+   it('keeps slice editing discoverable without expanding detection settings',async()=>{
+     render(<SliceAudioModal {...props()}/>);await ready();
+     const make=screen.getByRole('region',{name:'Make slices'});
+@@ -151,7 +219,7 @@
+     fireEvent.dragStart(tile,{dataTransfer});
+     await userEvent.click(screen.getByRole('button',{name:action}));
+     expect(screen.getByRole('alert')).toHaveTextContent(/replace your boundary edits and assignments/i);
+-    for(const name of ['Split sound','Add sound','Delete sound','Assign selected sound','Unassign selected sound','Auto-fill empty keys','Add sounds to kit','Reset to full source','Detect sounds again','Drag sound 1 to a key']) expect(screen.getByRole('button',{name})).toBeDisabled();
++    for(const name of ['Split sound','Add sound','Delete sound','Assign selected sound','Unassign pad sound','Auto-fill empty keys','Add sounds to kit','Reset to full source','Detect sounds again','Select sound 1']) expect(screen.getByRole('button',{name})).toBeDisabled();
+     expect(screen.getByLabelText('Sound 1 End')).toBeDisabled();expect(screen.getByLabelText('Sound 1 End frame')).toBeDisabled();
+     fireEvent.drop(screen.getByRole('button',{name:'Pad 9, CH, Empty'}),{dataTransfer});
+     fireEvent.pointerDown(screen.getByLabelText('Sound 1 waveform'),{clientX:100,pointerId:1});
+@@ -203,7 +271,7 @@
+   const input=props();render(<SliceAudioModal {...input}/>);await ready();
+   await userEvent.click(screen.getByRole('button',{name:'Next sound'}));
+   const assign=screen.getByRole('region',{name:'Assign to keys'});
+-  const drag=within(assign).getByRole('button',{name:'Drag sound 2 to a key'});
++  const drag=screen.getByRole('button',{name:'Select sound 2'});
+   const values=new Map<string,string>(),dataTransfer={types:[SLICE_DRAG_TYPE],effectAllowed:'none',setData:(type:string,value:string)=>values.set(type,value),getData:(type:string)=>values.get(type)??''};
+   fireEvent.dragStart(drag,{dataTransfer});fireEvent.drop(within(assign).getByRole('button',{name:'Pad 9, CH, Empty'}),{dataTransfer});
+   expect(screen.getByRole('button',{name:'Pad 9, CH, Sound 2'})).toBeInTheDocument();
+--- before/src/test/context/audioSlicingApplication.test.ts
++++ after/src/test/context/audioSlicingApplication.test.ts
+@@ -39,6 +39,53 @@
+ }
+ 
+ describe('atomic slice application through project history', () => {
++  it('replaces the source pad and unassigns an existing pad atomically while preserving both originals and Undo/Redo',async()=>{
++    const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});
++    const source=sourceAudio(12),file=new File(['source'],'source.wav',{type:'audio/wav'}),other=sourceAudio(3),otherFile=new File(['other'],'other.wav',{type:'audio/wav'});
++    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));
++    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:otherFile,audioBuffer:other,metadata:metadata(other)}}));
++    const before=result.current.state.drumSamples;
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[3],replacementApprovals:[{targetKeyIndex:3,sample:before[3]}],unassignmentApprovals:[{targetKeyIndex:8,sample:before[8]}],existingSamples:before,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
++    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'source-and-clear',prepared}}));
++    expect(result.current.state.sliceCommitResult?.status).toBe('committed');
++    expect(result.current.state.drumSamples[3].sliceProvenance).toMatchObject({startFrame:2,endFrame:8});
++    expect(result.current.state.drumSamples[8].isLoaded).toBe(false);
++    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
++    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file:otherFile,audioBuffer:other,isAssigned:false}));
++    act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples).toEqual(before);
++    act(()=>result.current.dispatch({type:'REDO'}));expect(result.current.state.drumSamples[8].isLoaded).toBe(false);expect(result.current.state.drumSamples[3].sliceProvenance?.startFrame).toBe(2);
++    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
++    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file:otherFile,audioBuffer:other,isAssigned:false}));
++  });
++
++  it('unassigns the source itself without mapping a replacement and retains its identity through Undo/Redo',async()=>{
++    const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
++    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));const before=result.current.state.drumSamples;
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[null],unassignmentApprovals:[{targetKeyIndex:3,sample:before[3]}],existingSamples:before,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
++    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'unassign-source',prepared}}));
++    expect(result.current.state.sliceCommitResult).toMatchObject({status:'committed',assignedCount:0,overflowCount:1});expect(result.current.state.drumSamples[3].isLoaded).toBe(false);
++    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
++    act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples).toEqual(before);
++    act(()=>result.current.dispatch({type:'REDO'}));expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
++  });
++
++  it('rejects a changed source while preparing replacement on its own pad without moving originals',async()=>{
++    const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
++    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[3],replacementApprovals:[{targetKeyIndex:3,sample:result.current.state.drumSamples[3]}],existingSamples:result.current.state.drumSamples,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
++    const changed=sourceAudio(9);act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file:new File(['new'],'new.wav'),audioBuffer:changed,metadata:metadata(changed)}}));const before=result.current.state.drumSamples;
++    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'changed-source',prepared}}));expect(result.current.state.sliceCommitResult?.status).toBe('rejected');expect(result.current.state.drumSamples).toBe(before);
++  });
++
++  it('rejects a stale unassignment without applying any slices or moving any samples',async()=>{
++    const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
++    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file,audioBuffer:source,metadata:metadata(source)}}));
++    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4}],mapping:[2],unassignmentApprovals:[{targetKeyIndex:8,sample:result.current.state.drumSamples[8]}],existingSamples:result.current.state.drumSamples,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
++    act(()=>result.current.dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:8,updates:{gain:7}}}));const before=result.current.state.drumSamples;
++    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'stale-unassign',prepared}}));
++    expect(result.current.state.sliceCommitResult?.status).toBe('rejected');expect(result.current.state.drumSamples).toBe(before);
++  });
++
+   it('applies explicit non-sequential destinations and leaves null slices unassigned',async()=>{const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'mapped.wav',{type:'audio/wav'});const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4},{start:4,end:8},{start:8,end:12}],mapping:[8,2,null],existingSamples:result.current.state.drumSamples,allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'mapped',prepared}}));expect(result.current.state.drumSamples[8].sliceProvenance?.startFrame).toBe(0);expect(result.current.state.drumSamples[2].sliceProvenance?.startFrame).toBe(4);expect(result.current.state.drumSamples.slice(24).filter(sample=>sample.sliceProvenance).map(sample=>sample.sliceProvenance?.startFrame)).toEqual([8]);expect(result.current.state.sliceCommitResult).toMatchObject({status:'committed',assignedCount:2,overflowCount:1});act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples.filter(sample=>sample.isLoaded)).toHaveLength(0);});
+ 
+   it('rejects duplicate, invalid, and incomplete explicit mappings',async()=>{const source=sourceAudio(12),file=new File(['source'],'invalid-map.wav',{type:'audio/wav'}),base={source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4},{start:4,end:12}],existingSamples:[] as never[],allocator:(channels:number,frames:number,sampleRate:number)=>new AudioContext().createBuffer(channels,frames,sampleRate)};await expect(prepareSliceApplication({...base,mapping:[2,2]})).rejects.toThrow(/one sound.*each pad/i);await expect(prepareSliceApplication({...base,mapping:[24,null]})).rejects.toThrow(/0 to 23/i);await expect(prepareSliceApplication({...base,mapping:[2]})).rejects.toThrow(/one destination/i);});
+@@ -49,7 +96,7 @@
+ 
+   it('rejects stale explicit empty and occupied targets atomically',async()=>{const make=async(occupied:boolean)=>{const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const oldAudio=sourceAudio(2),oldFile=new File(['old'],'old.wav',{type:'audio/wav'});if(occupied)act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:oldFile,audioBuffer:oldAudio,metadata:metadata(oldAudio)}}));const snapshot=result.current.state.drumSamples[8],source=sourceAudio(12),file=new File(['source'],'stale-map.wav',{type:'audio/wav'});const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:12}],mapping:[8],replacementApprovals:occupied?[{targetKeyIndex:8,sample:snapshot}]:[],existingSamples:result.current.state.drumSamples,allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});if(occupied)act(()=>result.current.dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:8,updates:{gain:11,hasBeenEdited:true}}}));else {const changed=sourceAudio(4),changedFile=new File(['changed'],'changed.wav',{type:'audio/wav'});act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:changedFile,audioBuffer:changed,metadata:metadata(changed)}}));}const before=result.current.state.drumSamples;act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:`stale-${occupied}`,prepared}}));expect(result.current.state.drumSamples).toBe(before);expect(result.current.state.sliceCommitResult).toMatchObject({status:'rejected',error:expect.stringMatching(/changed while Apply/i)});};await make(false);await make(true);});
+ 
+-  it('disallows replacing the retained source pad',async()=>{const source=sourceAudio(12),file=new File(['source'],'own-source.wav',{type:'audio/wav'}),existing={file,audioBuffer:source,name:file.name,isLoaded:true,inPoint:0,outPoint:source.duration,playmode:'oneshot' as const,reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:0,originalBitDepth:24,originalSampleRate:48000,originalChannels:2,fileSize:file.size,duration:source.duration,isFloat:false};await expect(prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:0},ranges:[{start:0,end:12}],mapping:[0],replacementApprovals:[{targetKeyIndex:0,sample:existing}],existingSamples:[existing],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)})).rejects.toThrow(/source pad cannot be replaced/i);});
++  it('requires explicit replacement approval even for the source pad',async()=>{const source=sourceAudio(12),file=new File(['source'],'own-source.wav',{type:'audio/wav'}),existing={file,audioBuffer:source,name:file.name,isLoaded:true,inPoint:0,outPoint:source.duration,playmode:'oneshot' as const,reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:0,originalBitDepth:24,originalSampleRate:48000,originalChannels:2,fileSize:file.size,duration:source.duration,isFloat:false};await expect(prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:0},ranges:[{start:0,end:12}],mapping:[0],existingSamples:[existing],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)})).rejects.toThrow(/replacement was not approved/i);});
+ 
+   it('keeps an existing source in place, fills only ascending empty pads, retains overflow, and undoes once', async () => {
+     const { result } = renderHook(() => ({ ...useAppContext(), ...useProjectHistory() }), { wrapper: AppContextProvider });
+--- before/tests/e2e/slicing.spec.ts
++++ after/tests/e2e/slicing.spec.ts
+@@ -27,6 +27,19 @@
+   return dialog;
+ }
+ 
++// Keep both controls within the modal body before a native browser drag. Playwright's
++// target auto-scroll after mouse-down can otherwise move the drag source behind the fixed header.
++async function dragSoundToPad(dialog:ReturnType<Page['getByRole']>,number:number,pad:string) {
++  const source=dialog.getByRole('button',{name:`Select sound ${number}`,exact:true}),target=dialog.getByRole('button',{name:pad,exact:true});
++  await source.scrollIntoViewIfNeeded();await target.scrollIntoViewIfNeeded();
++  const from=await source.boundingBox(),to=await target.boundingBox();expect(from).not.toBeNull();expect(to).not.toBeNull();
++  const top=Math.min(from!.y,to!.y),bottom=Math.max(from!.y+from!.height,to!.y+to!.height);
++  await dialog.getByRole('main',{name:'Slicing controls'}).evaluate((node,bounds)=>{const rect=node.getBoundingClientRect();if(bounds.top<rect.top+8)node.scrollTop+=bounds.top-rect.top-8;else if(bounds.bottom>rect.bottom-8)node.scrollTop+=bounds.bottom-rect.bottom+8;},{top,bottom});
++  const body=await dialog.getByRole('main',{name:'Slicing controls'}).boundingBox(),start=await source.boundingBox(),end=await target.boundingBox();
++  expect(start!.y).toBeGreaterThanOrEqual(body!.y);expect(end!.y+end!.height).toBeLessThanOrEqual(body!.y+body!.height);
++  await source.dragTo(target);
++}
++
+ async function downloadedBytes(download:Download) {
+   expect(await download.failure()).toBeNull();
+   const path=await download.path();
+@@ -46,10 +59,12 @@
+   throw new Error('Exported WAV has no data chunk');
+ }
+ 
++const projectPadState=(manifest:ProjectManifest)=>manifest.project.drumSamples.map(({sampleId,...fields})=>{void sampleId;return fields;});
++
+ type SliceProvenance={sourceIdentity:string;sourceName:string;startFrame:number;endFrame:number;sourceFrameCount:number;sourceSampleRate:number;sourceChannels:number};
+ type ProjectManifest={
+   project:{drumSamples:Array<{name:string;sampleId:string;assignedKey?:number;sourceIdentity?:string;sliceProvenance?:SliceProvenance}>};
+-  samples:Array<{id:string;name:string;sourcePath?:string;metadata:{sampleRate:number;channels:number};audio:{frames:number;sampleRate:number;channels:number}}>;
++  samples:Array<{id:string;name:string;audioPath:string;sourcePath?:string;metadata:{sampleRate:number;channels:number};audio:{frames:number;sampleRate:number;channels:number}}>;
+ };
+ 
+ async function readProject(bytes:Buffer) {
+@@ -57,6 +72,54 @@
+   if(!file)throw new Error('Project backup has no manifest.json');
+   return JSON.parse(await file.async('string')) as ProjectManifest;
+ }
++
++test('direct slice replacement and existing-pad unassignment preserve originals, cancel, and atomic Undo/Redo',async({page})=>{
++  await gotoWorkspace(page,'drum');await page.getByRole('button',{name:'Load demo kit',exact:true}).click();await expectDrumLoaded(page,10);
++  const backup=async()=>{const event=page.waitForEvent('download');await projectAction(page,'Download project');return downloadedBytes(await event);};
++  const before=await backup();
++  const open=async()=>{await page.getByRole('button',{name:'Slice this sample',exact:true}).click();const dialog=page.getByRole('dialog',{name:'slice audio'});await expect(dialog.getByRole('button',{name:'Select sound 1',exact:true})).toBeVisible();return dialog;};
++  let dialog=await open();
++  const selector=dialog.getByRole('button',{name:'Select sound 1',exact:true}),waveform=dialog.getByLabel('Sound 1 waveform');
++  await selector.scrollIntoViewIfNeeded();const soundBox=await selector.boundingBox(),waveBox=await waveform.boundingBox();
++  expect(soundBox!.y).toBeGreaterThanOrEqual(waveBox!.y+waveBox!.height-1);
++  expect(soundBox!.y-waveBox!.y-waveBox!.height).toBeLessThan(100);
++  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
++  await expect(dialog.getByRole('alert')).toContainText('preserve the existing sound');
++  await expect(dialog.getByRole('button',{name:'Keep',exact:true})).toBeFocused();
++  await expect(dialog.getByRole('button',{name:'Add sounds to kit'})).toBeDisabled();
++  await dialog.getByRole('button',{name:'Keep',exact:true}).click();
++  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
++  await dialog.getByRole('button',{name:'Replace',exact:true}).click();
++  await expect(dialog.getByRole('button',{name:'Pad 1, KD1, Sound 1',exact:true})).toBeVisible();
++  await dialog.getByRole('button',{name:'Pad 3, SD1, Seed Snare',exact:true}).click();
++  await expect(dialog.getByLabel('Destination pad')).toHaveValue('2');
++  await dialog.getByRole('button',{name:'Unassign pad sound',exact:true}).click();
++  await expect(dialog.getByRole('button',{name:'Pad 3, SD1, Empty',exact:true})).toBeVisible();
++  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expectDrumLoaded(page,10);
++  const afterCancel=await backup();expect(projectPadState(await readProject(afterCancel))).toEqual(projectPadState(await readProject(before)));
++  dialog=await open();
++  await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
++  await dialog.getByRole('button',{name:'Replace',exact:true}).click();
++  await dialog.getByRole('button',{name:'Pad 3, SD1, Seed Snare',exact:true}).click();
++  await dialog.getByRole('button',{name:'Unassign pad sound',exact:true}).click();
++  const overflow=dialog.getByRole('checkbox');if(await overflow.count())await overflow.check();
++  await dialog.getByRole('button',{name:'Add sounds to kit'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,9);
++  const committed=await backup(),committedProject=await readProject(committed),originalProject=await readProject(before);
++  for(const name of ['Seed Kick','Seed Snare']){
++    const originalRef=originalProject.project.drumSamples.find(sample=>sample.name===name),retainedRef=committedProject.project.drumSamples.find(sample=>sample.name===name);
++    expect(originalRef).toBeDefined();expect(retainedRef).toBeDefined();expect(retainedRef!.assignedKey).toBeUndefined();
++    const original=originalProject.samples.find(sample=>sample.id===originalRef!.sampleId)!,retained=committedProject.samples.find(sample=>sample.id===retainedRef!.sampleId)!;
++    expect(original).toBeDefined();expect(retained).toBeDefined();
++    const oldZip=await JSZip.loadAsync(before),newZip=await JSZip.loadAsync(committed);
++    expect(await newZip.file(retained.audioPath)!.async('uint8array')).toEqual(await oldZip.file(original.audioPath)!.async('uint8array'));
++    if(original.sourcePath){expect(retained.sourcePath).toBeDefined();expect(await newZip.file(retained.sourcePath!)!.async('uint8array')).toEqual(await oldZip.file(original.sourcePath)!.async('uint8array'));}
++  }
++  expect(committedProject.project.drumSamples.find(sample=>sample.assignedKey===0)?.sliceProvenance).toBeTruthy();
++  await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,10);
++  expect(projectPadState(await readProject(await backup()))).toEqual(projectPadState(originalProject));
++  await page.getByRole('button',{name:'Redo',exact:true}).click();await expectDrumLoaded(page,9);
++  expect(projectPadState(await readProject(await backup()))).toEqual(projectPadState(committedProject));
++});
+ 
+ test('slice source, live clock mark, apply, export, undo, and portable provenance round trip',async({page})=>{
+   await page.goto('/',{waitUntil:'domcontentloaded'});
+@@ -106,7 +169,7 @@
+   await dialog.getByRole('button',{name:'Stop',exact:true}).click();
+   await expect(dialog.getByLabel('Sound 2 Start frame')).toHaveValue('12000');
+   await dialog.getByRole('button',{name:'Select sound 1'}).click();
+-  await dialog.getByRole('button',{name:'Drag sound 1 to a key',exact:true}).dragTo(dialog.getByRole('button',{name:'Pad 9, CH, Empty',exact:true}));
++  await dragSoundToPad(dialog,1,'Pad 9, CH, Empty');
+   await expect(dialog.getByRole('button',{name:'Pad 9, CH, Sound 1',exact:true})).toBeVisible();
+   await dialog.getByRole('button',{name:'Select sound 2'}).click();
+   await dialog.getByRole('button',{name:'Stop',exact:true}).click();

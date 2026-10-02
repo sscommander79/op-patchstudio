@@ -1,4 +1,4 @@
-import {expect,test} from '@playwright/test';
+import {expect,test} from './control-audit-test';
 import {readFile} from 'node:fs/promises';
 import JSZip from 'jszip';
 
@@ -21,12 +21,18 @@ test('generated audio through the real worklet produces reviewed WAVs and a ZIP'
   await modal.getByRole('button',{name:'Enable audio',exact:true}).click();
   await expect(modal.getByLabel('Audio input').locator('option').filter({hasText:/Fake .*Audio Input/}).first()).toBeAttached();
   const inputId=await modal.getByLabel('Audio input').locator('option').filter({hasText:/Fake .*Audio Input/}).first().getAttribute('value');
+  await modal.getByRole('button',{name:'Refresh inputs',exact:true}).click();
   await modal.getByLabel('Audio input').selectOption(inputId!);
   await modal.getByRole('button',{name:'Enable MIDI',exact:true}).click();
   await modal.getByLabel('MIDI output').selectOption('synthetic-midi');
   await modal.getByRole('checkbox',{name:/I understand recording/}).check();
   await modal.getByLabel('Bars (4/4)',{exact:true}).fill('1');
   await modal.getByLabel('Tail seconds',{exact:true}).fill('0');
+  await modal.getByText('Advanced timing',{exact:true}).click();
+  const settle=modal.getByLabel('Mute settling ms',{exact:true}),initialSettle=await settle.inputValue();
+  await settle.fill('250');await expect(settle).toHaveValue('250');await settle.fill(initialSettle);
+  const latency=modal.getByLabel('Input latency adjustment ms',{exact:true}),initialLatency=await latency.inputValue();
+  await latency.fill('10');await expect(latency).toHaveValue('10');await latency.fill(initialLatency);
   await modal.getByLabel('Track 1 name',{exact:true}).fill('Kick / test');
   expect(await page.evaluate(()=>Reflect.get(window,'__stemReviewMidi').length)).toBe(0);
   await modal.getByRole('button',{name:'Record test',exact:true}).click();
@@ -56,6 +62,14 @@ test('generated audio through the real worklet produces reviewed WAVs and a ZIP'
   expect(manifest.tracks).toHaveLength(2);
   expect(manifest.tracks.map((track:{settings:{bpm:number}})=>track.settings.bpm)).toEqual([120,120]);
   expect(manifest.tracks.every((track:{frames:number;sampleRate:number})=>track.frames===track.sampleRate*2)).toBe(true);
+  await first.getByLabel('Name',{exact:true}).fill('Reviewed kick');
+  await expect(first.getByLabel('Name',{exact:true})).toHaveValue('Reviewed kick');
+  await first.getByRole('button',{name:'Play Reviewed kick',exact:true}).click();
+  await expect(first.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  await first.getByRole('button',{name:'Stop playback',exact:true}).click();
+  await expect(first.getByRole('button',{name:'Stop playback',exact:true})).toBeDisabled();
+  await first.getByRole('button',{name:'Retry track 1',exact:true}).click();
+  await expect(first).toContainText('2.40 s',{timeout:20_000});
   await first.getByRole('button',{name:'Slice this recording',exact:true}).click();
   const slicer=page.getByRole('dialog',{name:'slice audio',exact:true});await expect(slicer).toBeVisible();
   await page.keyboard.press('Escape');await expect(slicer).toHaveCount(0);await expect(first).toBeVisible();
@@ -63,8 +77,13 @@ test('generated audio through the real worklet produces reviewed WAVs and a ZIP'
   const discard=page.getByRole('alertdialog',{name:'Discard reviewed recordings?',exact:true});
   await expect(discard).toBeVisible();
   await expect(discard.getByRole('button',{name:'Keep reviewing',exact:true})).toBeFocused();
+  await discard.getByRole('button',{name:'Keep reviewing',exact:true}).click();await expect(discard).toHaveCount(0);await expect(first).toBeVisible();
+  await modal.getByRole('button',{name:'Close',exact:true}).last().click();
   await page.keyboard.press('Escape');await expect(discard).toHaveCount(0);await expect(first).toBeVisible();
   const events=await page.evaluate(()=>Reflect.get(window,'__stemReviewMidi') as Array<{bytes:number[]}>);
-  expect(events.filter(event=>event.bytes[0]===0xfa)).toHaveLength(3);
+  expect(events.filter(event=>event.bytes[0]===0xfa)).toHaveLength(4);
   expect(events.filter(event=>event.bytes[0]>=0xb0&&event.bytes[0]<=0xbf).every(event=>event.bytes[0]<=0xb7&&event.bytes[1]===9)).toBe(true);
+  await modal.getByRole('button',{name:'Close',exact:true}).last().click();
+  await discard.getByRole('button',{name:'Discard and close',exact:true}).click();
+  await expect(modal).toBeHidden();
 });

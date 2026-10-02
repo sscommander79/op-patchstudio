@@ -39,6 +39,53 @@ function wavDataFrames(bytes:Uint8Array) {
 }
 
 describe('atomic slice application through project history', () => {
+  it('replaces the source pad and unassigns an existing pad atomically while preserving both originals and Undo/Redo',async()=>{
+    const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});
+    const source=sourceAudio(12),file=new File(['source'],'source.wav',{type:'audio/wav'}),other=sourceAudio(3),otherFile=new File(['other'],'other.wav',{type:'audio/wav'});
+    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));
+    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:otherFile,audioBuffer:other,metadata:metadata(other)}}));
+    const before=result.current.state.drumSamples;
+    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[3],replacementApprovals:[{targetKeyIndex:3,sample:before[3]}],unassignmentApprovals:[{targetKeyIndex:8,sample:before[8]}],existingSamples:before,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
+    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'source-and-clear',prepared}}));
+    expect(result.current.state.sliceCommitResult?.status).toBe('committed');
+    expect(result.current.state.drumSamples[3].sliceProvenance).toMatchObject({startFrame:2,endFrame:8});
+    expect(result.current.state.drumSamples[8].isLoaded).toBe(false);
+    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
+    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file:otherFile,audioBuffer:other,isAssigned:false}));
+    act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples).toEqual(before);
+    act(()=>result.current.dispatch({type:'REDO'}));expect(result.current.state.drumSamples[8].isLoaded).toBe(false);expect(result.current.state.drumSamples[3].sliceProvenance?.startFrame).toBe(2);
+    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
+    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file:otherFile,audioBuffer:other,isAssigned:false}));
+  });
+
+  it('unassigns the source itself without mapping a replacement and retains its identity through Undo/Redo',async()=>{
+    const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
+    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));const before=result.current.state.drumSamples;
+    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[null],unassignmentApprovals:[{targetKeyIndex:3,sample:before[3]}],existingSamples:before,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
+    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'unassign-source',prepared}}));
+    expect(result.current.state.sliceCommitResult).toMatchObject({status:'committed',assignedCount:0,overflowCount:1});expect(result.current.state.drumSamples[3].isLoaded).toBe(false);
+    expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
+    act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples).toEqual(before);
+    act(()=>result.current.dispatch({type:'REDO'}));expect(result.current.state.drumSamples.slice(24)).toContainEqual(expect.objectContaining({file,audioBuffer:source,isAssigned:false,sourceIdentity:prepared.sourceIdentity}));
+  });
+
+  it('rejects a changed source while preparing replacement on its own pad without moving originals',async()=>{
+    const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
+    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file,audioBuffer:source,metadata:metadata(source)}}));
+    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:3},ranges:[{start:2,end:8}],mapping:[3],replacementApprovals:[{targetKeyIndex:3,sample:result.current.state.drumSamples[3]}],existingSamples:result.current.state.drumSamples,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
+    const changed=sourceAudio(9);act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:3,file:new File(['new'],'new.wav'),audioBuffer:changed,metadata:metadata(changed)}}));const before=result.current.state.drumSamples;
+    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'changed-source',prepared}}));expect(result.current.state.sliceCommitResult?.status).toBe('rejected');expect(result.current.state.drumSamples).toBe(before);
+  });
+
+  it('rejects a stale unassignment without applying any slices or moving any samples',async()=>{
+    const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'source.wav');
+    act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file,audioBuffer:source,metadata:metadata(source)}}));
+    const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4}],mapping:[2],unassignmentApprovals:[{targetKeyIndex:8,sample:result.current.state.drumSamples[8]}],existingSamples:result.current.state.drumSamples,allocator:(c,f,r)=>new AudioContext().createBuffer(c,f,r)});
+    act(()=>result.current.dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:8,updates:{gain:7}}}));const before=result.current.state.drumSamples;
+    act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'stale-unassign',prepared}}));
+    expect(result.current.state.sliceCommitResult?.status).toBe('rejected');expect(result.current.state.drumSamples).toBe(before);
+  });
+
   it('applies explicit non-sequential destinations and leaves null slices unassigned',async()=>{const {result}=renderHook(()=>({...useAppContext(),...useProjectHistory()}),{wrapper:AppContextProvider});const source=sourceAudio(12),file=new File(['source'],'mapped.wav',{type:'audio/wav'});const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4},{start:4,end:8},{start:8,end:12}],mapping:[8,2,null],existingSamples:result.current.state.drumSamples,allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:'mapped',prepared}}));expect(result.current.state.drumSamples[8].sliceProvenance?.startFrame).toBe(0);expect(result.current.state.drumSamples[2].sliceProvenance?.startFrame).toBe(4);expect(result.current.state.drumSamples.slice(24).filter(sample=>sample.sliceProvenance).map(sample=>sample.sliceProvenance?.startFrame)).toEqual([8]);expect(result.current.state.sliceCommitResult).toMatchObject({status:'committed',assignedCount:2,overflowCount:1});act(()=>result.current.dispatch({type:'UNDO'}));expect(result.current.state.drumSamples.filter(sample=>sample.isLoaded)).toHaveLength(0);});
 
   it('rejects duplicate, invalid, and incomplete explicit mappings',async()=>{const source=sourceAudio(12),file=new File(['source'],'invalid-map.wav',{type:'audio/wav'}),base={source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:4},{start:4,end:12}],existingSamples:[] as never[],allocator:(channels:number,frames:number,sampleRate:number)=>new AudioContext().createBuffer(channels,frames,sampleRate)};await expect(prepareSliceApplication({...base,mapping:[2,2]})).rejects.toThrow(/one sound.*each pad/i);await expect(prepareSliceApplication({...base,mapping:[24,null]})).rejects.toThrow(/0 to 23/i);await expect(prepareSliceApplication({...base,mapping:[2]})).rejects.toThrow(/one destination/i);});
@@ -49,7 +96,7 @@ describe('atomic slice application through project history', () => {
 
   it('rejects stale explicit empty and occupied targets atomically',async()=>{const make=async(occupied:boolean)=>{const {result}=renderHook(()=>useAppContext(),{wrapper:AppContextProvider});const oldAudio=sourceAudio(2),oldFile=new File(['old'],'old.wav',{type:'audio/wav'});if(occupied)act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:oldFile,audioBuffer:oldAudio,metadata:metadata(oldAudio)}}));const snapshot=result.current.state.drumSamples[8],source=sourceAudio(12),file=new File(['source'],'stale-map.wav',{type:'audio/wav'});const prepared=await prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:null},ranges:[{start:0,end:12}],mapping:[8],replacementApprovals:occupied?[{targetKeyIndex:8,sample:snapshot}]:[],existingSamples:result.current.state.drumSamples,allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)});if(occupied)act(()=>result.current.dispatch({type:'UPDATE_DRUM_SAMPLE',payload:{index:8,updates:{gain:11,hasBeenEdited:true}}}));else {const changed=sourceAudio(4),changedFile=new File(['changed'],'changed.wav',{type:'audio/wav'});act(()=>result.current.dispatch({type:'LOAD_DRUM_SAMPLE',payload:{index:8,file:changedFile,audioBuffer:changed,metadata:metadata(changed)}}));}const before=result.current.state.drumSamples;act(()=>result.current.dispatch({type:'COMMIT_PREPARED_SLICES',payload:{operationId:`stale-${occupied}`,prepared}}));expect(result.current.state.drumSamples).toBe(before);expect(result.current.state.sliceCommitResult).toMatchObject({status:'rejected',error:expect.stringMatching(/changed while Apply/i)});};await make(false);await make(true);});
 
-  it('disallows replacing the retained source pad',async()=>{const source=sourceAudio(12),file=new File(['source'],'own-source.wav',{type:'audio/wav'}),existing={file,audioBuffer:source,name:file.name,isLoaded:true,inPoint:0,outPoint:source.duration,playmode:'oneshot' as const,reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:0,originalBitDepth:24,originalSampleRate:48000,originalChannels:2,fileSize:file.size,duration:source.duration,isFloat:false};await expect(prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:0},ranges:[{start:0,end:12}],mapping:[0],replacementApprovals:[{targetKeyIndex:0,sample:existing}],existingSamples:[existing],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)})).rejects.toThrow(/source pad cannot be replaced/i);});
+  it('requires explicit replacement approval even for the source pad',async()=>{const source=sourceAudio(12),file=new File(['source'],'own-source.wav',{type:'audio/wav'}),existing={file,audioBuffer:source,name:file.name,isLoaded:true,inPoint:0,outPoint:source.duration,playmode:'oneshot' as const,reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned:true,assignedKey:0,originalBitDepth:24,originalSampleRate:48000,originalChannels:2,fileSize:file.size,duration:source.duration,isFloat:false};await expect(prepareSliceApplication({source:{audioBuffer:source,file,metadata:metadata(source),existingIndex:0},ranges:[{start:0,end:12}],mapping:[0],existingSamples:[existing],allocator:(channels,frames,sampleRate)=>new AudioContext().createBuffer(channels,frames,sampleRate)})).rejects.toThrow(/replacement was not approved/i);});
 
   it('keeps an existing source in place, fills only ascending empty pads, retains overflow, and undoes once', async () => {
     const { result } = renderHook(() => ({ ...useAppContext(), ...useProjectHistory() }), { wrapper: AppContextProvider });

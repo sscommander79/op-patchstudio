@@ -278,3 +278,7 @@ Typecheck and targeted lint passed; 23 focused unit tests and 27 layout/navigati
 ## Progress checkpoint validation (2026-09-27)
 
 User authorized saving accumulated work with a commit and push to codex/studio-upgrade. npm run check passed: typecheck, lint (0 errors; 3 pre-existing generated-coverage warnings), 99 files / 1065 unit tests, build and PWA verification. Log: /tmp/opstudio-progress-save-check.log. Fixed artwork Fast Refresh lint by moving the name constant to its sole consumer; no visual change. Existing two browser workflow failures remain as documented. Duplicate source/report artifacts are preserved locally but excluded from this checkpoint. This is a progress save, not release or hardware verification.
+
+## Follow-up: remove redundant Create navigation (2026-09-27)
+
+User approved removing Create from the header while retaining Setup guide links and the direct create route. Updated navigation assertions and guided workflow tests to use the card links. Typecheck, targeted lint, 13 focused unit tests and 27 layout/navigation checks passed. Genspark read-only review found no material defects; existing direct-route coverage resolves its minor coverage suggestion. All twelve pixel differences were verified to be confined to header navigation. All 12 visual checks passed twice (38.1s, 37.6s); the guided workflow passed with simulated audio/MIDI devices (1 test). No physical hardware verification. This follow-up remains uncommitted after pushed checkpoint dc1e1f3.

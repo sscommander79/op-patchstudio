@@ -1,0 +1,30 @@
+**Slicer fix: final read-only follow-up (rung 4, self-review)**
+
+**Limits.** This was a self-review, with no independent reviewer. The rules for this pass ruled out subagents, and no other CLI was used. I ran no tests, builds, browser checks or hardware checks, and I'm not reporting results from the integrated checks you have running. I read only the current versions of:
+- `SliceAudioModal.tsx:36–216`
+- `audioSlicing.ts:436–638`
+- `AppContext.tsx:986–1019`
+- the new cases in `SliceAudioModal.test.tsx:127–188` and `audioSlicingApplication.test.ts:40–89`
+
+I did not read `useOwnedDialog`, `SliceKeyboardMapping`, or the `STORE_DRUM_SAMPLE_ASSET` / `CLEAR_DRUM_SAMPLE` reducer cases.
+
+**Result: no remaining material findings in scope.**
+
+**Prior findings, checked against current code**
+- **M1 (staged replacement unassign):** fixed. In `unassignPad` (`SliceAudioModal.tsx:122–127`), when a sound is staged on the pad it clears only the mapping and its approval, and does not add an unassignment. The pad goes back to its previous state: the original sound, or still unassigned if it had been unassigned before. The test at line 128 covers restoring the original and then unassigning it a second time, and checks that the approval sent to Apply is for the exact original sample.
+- **M2 (stale unassignment):** fixed. The effect at line 43 drops unassignments whose sample no longer matches the pad and shows a notice saying what to do. `visibleSamples` (line 87) only hides a pad while the stored sample is the same object as the current one, so a changed pad stays visible. The test at line 138 covers the recovery path.
+- **M3 (source identity check too broad):** fixed. At `AppContext.tsx:1011–1012`, the check now requires the identity at the exact source pad unless this operation moves the original. If it does move it, the moved copy must have the expected identity both in the planned store and in the applied tray item. In `audioSlicing.ts`, the moved original gets the source identity at 604 and 628, and the source is re-checked at 574–581. Tests at lines 61 and 72 cover unassigning the source on its own and a changed source during replacement on its own pad.
+- **L1 (focus stealing):** fixed. `focusReplacement` is a stable `useCallback` with no dependencies, and the test at line 156 checks that the end of a preview doesn't move focus. While the prompt is open, pads and actions are disabled, so a second prompt can't reuse the same element without focus moving.
+- **L2 (mixed state maps):** fixed. Unassignments and replacement approvals are now separate maps. Apply (line 129) leaves mapped keys out of `unassignmentApprovals` and turns an unassignment under a mapped key into an exact replacement approval. Prepare rejects a pad that is both mapped and unassigned (`audioSlicing.ts:515`), and so does finalize (line 602). The auto-fill test at line 148 checks the exact approval and an empty unassignment list.
+- **L3 (layout):** fixed. Previous/Next and the timing controls come before the canvas (lines 184–189). The numbered sounds `div` is the canvas's next sibling (190–191), and the test at line 168 asserts this.
+- **Zero ranges:** fixed. Add sound sits outside the `selected` section and doesn't depend on there being any sounds (175). Line 194 explains what to do, and the test at line 163 covers it.
+
+**Low or informational notes (not blocking)**
+1. **No way to undo a single unassignment inside the modal.** Once a loaded pad is unassigned, the only ways back are Cancel or Reset/Detect again, and those discard all edits (with confirmation). Assigning a sound to that pad and then unassigning it returns the pad to unassigned, not to the original. The behaviour is consistent and the status line at 206 explains what will happen, so this is a usability gap, not a correctness problem.
+2. **A changed pad under an auto-filled or replaced slot fails at Apply, not in the UI.** If a pad that was unassigned (or approved for replacement) also has a staged slice, and the project changes that pad, the M2 notice appears but the mapping stays. Apply then fails in prepare with "occupied and its replacement was not approved" (`audioSlicing.ts:510`). That is safe and fails cleanly, but the message is less specific. Stale replacement approvals have no matching cleanup step.
+3. **Unverified: focus after Replace/Keep.** Once a choice is made, the prompt and its focused button disappear. I didn't read `useOwnedDialog`, so I can't confirm whether focus stays inside the dialog or falls back to `body`.
+4. **Unverified: matching the moved original in `appliedStores`.** The lookup at `AppContext.tsx:993` matches on buffer, file and identity among unassigned items. In theory an older tray item with the same buffer, file and identity could satisfy it. I didn't find a path that creates such a duplicate, but I didn't check the reducer's store and clear cases.
+
+**Tests for previously missing cases:** these are all present now. They cover unassigning the source on its own with Undo/Redo, a stale source during replacement on its own pad, a stale unassignment being rejected atomically, auto-fill approvals, recovery in the UI after a stale unassignment, restoring the original before a second unassignment, preview end not stealing focus, and recovery from zero sounds.
+
+**Out of scope:** the five-browser real drag-and-drop/round-trip results (I did not re-run them), the deferred Table and Safari work, and the broader audit.

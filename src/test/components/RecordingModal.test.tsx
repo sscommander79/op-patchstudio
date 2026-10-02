@@ -12,6 +12,7 @@ const midi=vi.hoisted(()=>({supported:true,enabled:false,outputs:[{id:'virtual',
 vi.mock('webmidi',()=>({WebMidi:midi}));
 vi.mock('../../audio/recording/captureProcessor.ts?worker&url',()=>({default:'/assets/capture-test.js'}));
 let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined,captureOnStart=true;
+let enableError:string|undefined;
 interface FakeDeps {onStatus:(status:{state:string;elapsedFrames?:number})=>void;onTake:(take:SessionTake)=>void|Promise<void>;onError?:(message:string)=>void}
 const sessions:Array<{disposed:boolean;deps:FakeDeps}>=[];
 vi.mock('../../audio/recording/captureSession',()=>({
@@ -19,9 +20,9 @@ vi.mock('../../audio/recording/captureSession',()=>({
   CaptureSession:class {
     status={state:'idle'}; deps:FakeDeps;disposed=false;
     constructor(deps:FakeDeps){this.deps=deps;sessions.push(this)}
-    async enableInput(){await enableGate;this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
+    async enableInput(){await enableGate;if(enableError){this.status={state:'error'};this.deps.onStatus(this.status);this.deps.onError?.(enableError);return false;}this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
     async enumerateInputs(){return [{deviceId:'synthetic',label:'Synthetic input'}]}
-    start(){this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
+    start(){if(this.status.state==='error')throw new Error('Enable input before recording');this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
       void Promise.resolve(this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'})).catch(reason=>this.deps.onError?.(reason instanceof Error?reason.message:String(reason)));this.status={state:'monitoring'};this.deps.onStatus(this.status);}
     arm(){this.start()} async stop(){await stopGate;this.status={state:'stopped'};this.deps.onStatus(this.status)} async dispose(){this.disposed=true;this.status={state:'closed'}}
   }
@@ -50,6 +51,23 @@ function SeedLegacyRoots(){const {dispatch}=useAppContext();useEffect(()=>{const
 function LegacyRootsHarness({instrument}:{instrument:'drum'|'multisample'}){return <AppContextProvider><SeedLegacyRoots/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={{kind:instrument}}/></AppContextProvider>}
 
 describe('RecordingModal review workflow',()=>{
+  beforeEach(()=>{enableError=undefined;});
+  it.each(['Enable input','Start recording'])('keeps the failed setup explanation and permits recovery after %s',async(trigger)=>{
+    const user=userEvent.setup();enableError='Capture channel dimensions changed';render(<Harness/>);
+    await user.click(screen.getByRole('button',{name:trigger}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Capture channel dimensions changed');
+    expect(screen.getByRole('button',{name:'Start recording'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Arm sound trigger'})).toBeDisabled();
+    expect(screen.getByLabelText('Input device')).toBeEnabled();
+    expect(screen.getByLabelText('Capture mode')).toBeEnabled();
+    enableError=undefined;
+    await user.click(screen.getByRole('button',{name:'Enable input'}));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Start recording'})).toBeEnabled();
+    await user.click(screen.getByRole('button',{name:'Start recording'}));
+    expect(await screen.findByLabelText('Name for take take-1')).toHaveValue('Take 1');
+  });
+
   beforeEach(()=>{sequence=0;enableGate=stopGate=undefined;captureOnStart=true;sessions.length=0;midi.enabled=false;midi.outputs[0].send.mockClear();autoSamplingPreferences=null;vi.mocked(localStorage.getItem).mockReset().mockImplementation(key=>key===autoSamplingKey?autoSamplingPreferences:null);vi.mocked(localStorage.setItem).mockReset().mockImplementation((key,value)=>{if(key===autoSamplingKey)autoSamplingPreferences=value;});localStorage.removeItem(autoSamplingKey);Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true});Object.defineProperty(globalThis,'AudioWorkletNode',{value:class{},configurable:true});Object.defineProperty(window,'isSecureContext',{value:true,configurable:true});
     Object.assign(navigator.mediaDevices,{getUserMedia:vi.fn(),enumerateDevices:vi.fn().mockResolvedValue([]),addEventListener:vi.fn(),removeEventListener:vi.fn()});});
   afterEach(()=>Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true}));
@@ -93,6 +111,22 @@ describe('RecordingModal review workflow',()=>{
     expect(screen.getByRole('dialog',{name:'Record takes'})).toBeInTheDocument();
     await user.click(screen.getByRole('button',{name:'Stop and discard'}));
     expect(screen.queryByRole('dialog',{name:'Record takes'})).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('0');
+  });
+
+  it('isolates the discard decision from editing and loops focus until Resume or discard',async()=>{
+    const user=userEvent.setup();render(<ClosingHarness/>);
+    await user.click(screen.getByRole('button',{name:'Start recording'}));
+    await screen.findByLabelText('Name for take take-1');
+    await user.click(screen.getByRole('button',{name:'Close'}));
+    const resume=screen.getByRole('button',{name:'Resume recording'});
+    expect(resume).toHaveFocus();
+    await user.tab();expect(screen.getByRole('button',{name:'Stop and discard'})).toHaveFocus();
+    await user.tab();expect(resume).toHaveFocus();
+    expect(screen.getByLabelText('Name for take take-1')).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name for take take-1')).toBeEnabled();
     expect(screen.getByLabelText('Loaded drum count')).toHaveTextContent('0');
   });
 
@@ -218,6 +252,7 @@ describe('RecordingModal review workflow',()=>{
     const user=userEvent.setup();render(<OccupiedMultisampleHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));
     await user.click(screen.getByLabelText('Select take take-1'));await user.click(screen.getByRole('radio',{name:/Choose free note/}));expect(screen.getByLabelText('Root note for take take-2')).toHaveValue(65);
     await user.click(screen.getByRole('radio',{name:'Replace'}));expect(screen.getByLabelText('Root note for take take-2')).toHaveValue(64);
+    await user.click(screen.getByRole('radio',{name:'Cancel'}));expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1');
   });
 
   it('reports full-kit recorded takes as added and kept unassigned',async()=>{

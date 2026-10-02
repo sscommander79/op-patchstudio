@@ -1,0 +1,176 @@
+[
+  {
+    "view": "drum-desktop-dark",
+    "before": [
+      1440,
+      1738
+    ],
+    "after": [
+      1440,
+      1870
+    ],
+    "old_sha256": "ac97b7447556d0b8c89c7765f184ad917f79991b58f7aaefbd2d1a0bd9a2f1b2",
+    "new_sha256": "50d9756515ff9f02834a550d27f3f9bbbebecb365ae7f9b81293f2e0cceaa1de",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-desktop-light",
+    "before": [
+      1440,
+      1738
+    ],
+    "after": [
+      1440,
+      1870
+    ],
+    "old_sha256": "0ec143bbfb5e386b92dd594d7e1eb33eab05191b3c0e43c1397a409eda54d1db",
+    "new_sha256": "d9d021417de8a6a88b6e3b3113672eb718fc39e091a2e27fda24d44a44fc0f9b",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-empty-desktop-dark",
+    "before": [
+      1440,
+      1297
+    ],
+    "after": [
+      1440,
+      1297
+    ],
+    "old_sha256": "934eee6a11943e085a100da1e4cb70adde00e9d8509d9771e5ae930327d54253",
+    "new_sha256": "54db4d2fbbc7f8c7b24621cfc2d82ff70af5077966fa8d7e8f68e2c8ce34c806",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-empty-desktop-light",
+    "before": [
+      1440,
+      1297
+    ],
+    "after": [
+      1440,
+      1297
+    ],
+    "old_sha256": "b076ab5366284acf7690a679e91d95b7eb6eb3d499b9554d7c9ebf3eb1ace9c5",
+    "new_sha256": "4373660fabb82ab5ca5b90be182aa1c35bfff790d2a03d31c14bd581c3ac737c",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-empty-narrow-dark",
+    "before": [
+      390,
+      2304
+    ],
+    "after": [
+      390,
+      2366
+    ],
+    "old_sha256": "785620513aa14ab9078ab44bef66e9e937b017591d31c8efa3a97bccd093dae7",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "2cf44bf884764f9d64c72909d4fec391c00b7413086ecd40cc4d6fef5e1931ec",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-empty-narrow-light",
+    "before": [
+      390,
+      2304
+    ],
+    "after": [
+      390,
+      2366
+    ],
+    "old_sha256": "055c6fec8912ea08dc109267d53426fc01b14106fae822ecc26450d96b62ad24",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "f6f56aea5e5a2697dbd8a11fe25d6814c2d73ad6512004316db1a93777b4a0e2",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-narrow-dark",
+    "before": [
+      390,
+      3435
+    ],
+    "after": [
+      390,
+      3497
+    ],
+    "old_sha256": "2cc69a8b58331f3262170c084e04d77690e0a0a0b5fb593ff1853d882dae08ec",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "a7e236e4c73661f58ba9d2d66317de817e7b845b34274f71d158a30ab2dbffd7",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "drum-narrow-light",
+    "before": [
+      390,
+      3435
+    ],
+    "after": [
+      390,
+      3497
+    ],
+    "old_sha256": "c8014c89c4b6101dc8a9c5705bd989d316b3f70333949af294c6fb6ad87de5b8",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "c22bb0dcf500ac50c42404e7acfb28da5938169f1dd549d5335e7b7561237088",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "launch-desktop-dark",
+    "before": [
+      1440,
+      1108
+    ],
+    "after": [
+      1440,
+      1108
+    ],
+    "old_sha256": "8bf75e6829440aaa17a7c01cbeee3c9864a1bf1e9b24b6f2bf00c5d7b5f2ea76",
+    "new_sha256": "104ee81a0772cc65126aea60c0d6613d660417a9999d68612727973fa37df2b7",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "launch-desktop-light",
+    "before": [
+      1440,
+      1108
+    ],
+    "after": [
+      1440,
+      1108
+    ],
+    "old_sha256": "2b64e4426c8a5d7f91f26bf63876ca87ff69077731afef00dbc503184e05bd3b",
+    "new_sha256": "64366029e8ca502608df2b5de75cef2e6ef5403c193c4f48dacf828d0e513503",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "launch-narrow-dark",
+    "before": [
+      390,
+      2514
+    ],
+    "after": [
+      390,
+      2576
+    ],
+    "old_sha256": "ddeefa42af1eaddbecfded36d5cda6c4195b01313992a0774be474f111513a46",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "4986e01135055c607fce3aca428b75affc7ed177ceaa0a9874276e5e6160e163",
+    "matches_reviewed_actual": true
+  },
+  {
+    "view": "launch-narrow-light",
+    "before": [
+      390,
+      2514
+    ],
+    "after": [
+      390,
+      2576
+    ],
+    "old_sha256": "3582831c76699e40ed858cada12bf9eec01ddf75aac80d13a81aefc26c86bebc",
+    "body_identical_after_header_shift": false,
+    "new_sha256": "eda2d3868035f819354c5617bd31c2d0f532aa7173295748361bfd4c2d5450a7",
+    "matches_reviewed_actual": true
+  }
+]

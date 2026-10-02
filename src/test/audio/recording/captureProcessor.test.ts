@@ -28,11 +28,64 @@ async function loadProcessor(){
 describe('bundled capture processor',()=>{
   beforeEach(loadProcessor);
 
+  it.each([
+    {reported:1,delivered:2},
+    {reported:2,delivered:1},
+  ])('records the delivered $delivered channels when the device reports $reported',({reported,delivered})=>{
+    const processor=new Registered({processorOptions:{mode:'manual',channels:reported,maxSeconds:1}});
+    const input=delivered===1?[new Float32Array(128).fill(.25)]:[new Float32Array(128).fill(.25),new Float32Array(128).fill(-.5)];
+    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
+    processAt(processor,0,input);
+    processor.port.onmessage?.({data:{type:'stop'}} as MessageEvent<{type:string}>);
+    expect(errors(processor)).toEqual([]);
+    expect(processor.port.posted.find(item=>item.message.type==='format')?.message).toMatchObject({channels:delivered,sampleRate:48_000});
+    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {frames:number;channels:Float32Array[]}|undefined;
+    expect(take?.frames).toBe(128);
+    expect(take?.channels).toHaveLength(delivered);
+    expect(Array.from(take!.channels[0].subarray(0,128))).toEqual(Array(128).fill(.25));
+    if(delivered===2)expect(Array.from(take!.channels[1].subarray(0,128))).toEqual(Array(128).fill(-.5));
+  });
+
+  it.each([{initial:1,later:2},{initial:2,later:1}])('rejects a channel change from $initial to $later after the initial format is established',({initial,later})=>{
+    const processor=new Registered({processorOptions:{mode:'manual',maxSeconds:1}}),input=new Float32Array(128);
+    processAt(processor,0,Array(initial).fill(input));
+    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
+    processAt(processor,128,Array(later).fill(input));
+    expect(errors(processor)).toEqual(['Capture channel dimensions changed']);
+    expect(processor.port.posted.filter(item=>item.message.type==='take')).toHaveLength(0);
+  });
+
+  it('preserves Arm before the first stereo block and seals both channels',()=>{
+    const processor=new Registered({processorOptions:{mode:'sound',channels:1,maxSeconds:1,preRollSeconds:0,silenceSeconds:.1,thresholdDb:-20}});
+    const left=new Float32Array(4_801),right=new Float32Array(4_801);left[0]=.75;right[0]=-.25;
+    processor.port.onmessage?.({data:{type:'arm'}} as MessageEvent<{type:string}>);
+    processAt(processor,0,[left,right]);
+    expect(errors(processor)).toEqual([]);
+    const take=processor.port.posted.find(item=>item.message.type==='take')?.message.take as {frames:number;channels:Float32Array[]}|undefined;
+    expect(take?.frames).toBe(4_801);
+    expect(Array.from(take!.channels[0].subarray(0,4_801))).toEqual([.75,...Array(4_800).fill(0)]);
+    expect(Array.from(take!.channels[1].subarray(0,4_801))).toEqual([-.25,...Array(4_800).fill(0)]);
+  });
+
+  it('rejects an unsupported delivered channel layout before advertising a usable format',()=>{
+    const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),input=new Float32Array(128);
+    processAt(processor,0,[input,input,input]);
+    processAt(processor,128,[input,input,input]);
+    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
+    processAt(processor,256,[input]);
+    expect(errors(processor)).toEqual([expect.stringMatching(/mono or stereo/i)]);
+    expect(processor.port.posted.filter(item=>item.message.type==='format'||item.message.type==='take')).toHaveLength(0);
+  });
+
   it('zeros its output and reports one visible error after the bounded setup grace',()=>{
     const processor=new Registered({processorOptions:{mode:'manual',channels:1,maxSeconds:1}}),output=new Float32Array(128).fill(.75);
     for(let block=0;block<189;block+=1)processor.process([[]],[[output]]);
     expect(Array.from(output)).toEqual(Array(128).fill(0));
     const errors=processor.port.posted.filter(item=>item.message.type==='error');expect(errors).toHaveLength(1);expect(errors[0].message.message).toMatch(/no audio frames/i);
+    processor.port.onmessage?.({data:{type:'start'}} as MessageEvent<{type:string}>);
+    processAt(processor,189*128,[new Float32Array(128).fill(.5)]);
+    expect(processor.port.posted.filter(item=>item.message.type==='error')).toHaveLength(1);
+    expect(processor.port.posted.filter(item=>item.message.type==='format'||item.message.type==='take')).toHaveLength(0);
   });
 
   it('aborts an active take on its first missing input quantum',()=>{

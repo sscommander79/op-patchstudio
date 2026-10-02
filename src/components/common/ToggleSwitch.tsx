@@ -17,8 +17,8 @@ export function ToggleSwitch({
   const knobLeft = isRight ? 19 : 3;
 
   // Colors to match amp/filter toggle
-  const activeColor = '#000';
-  const inactiveColor = '#999';
+  const activeColor = 'var(--studio-appearance-ink-strong, #000)';
+  const inactiveColor = 'var(--studio-appearance-ink-muted, #999)';
   const pillBg = '#393939';
   const knobBg = '#fff';
 
@@ -33,7 +33,17 @@ export function ToggleSwitch({
       }}>
         {leftLabel}
       </span>
-      <div 
+      <div
+        role="switch"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={rightLabel}
+        aria-checked={isRight}
+        aria-disabled={disabled}
+        onKeyDown={event => {
+          if (disabled || (event.key !== ' ' && event.key !== 'Enter')) return;
+          event.preventDefault();
+          if (!event.repeat) onToggle();
+        }}
         onClick={disabled ? undefined : onToggle}
         style={{
           width: '32px',

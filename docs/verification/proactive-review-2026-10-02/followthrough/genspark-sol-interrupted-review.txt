@@ -1,0 +1,9 @@
+
+> plan · gpt-5.6-sol
+
+→ Skill "gsd-code-review"
+I’ll compare the review diff with the current implementations and usability requirements, then run separate SPEC and STANDARDS review passes. I’ll report only material findings, labeling source-proven issues separately from runtime hypotheses.
+→ Read docs/verification/proactive-review-2026-10-02/followthrough/review.diff [offset=1, limit=4000]
+→ Read docs/design-system/studio-usability-feedback.md [offset=1, limit=4000]
+• Review scoped behavior Explore Agent
+• Review code standards Explore Agent

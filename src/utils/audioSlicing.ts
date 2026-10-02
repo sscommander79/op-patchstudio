@@ -441,6 +441,8 @@ interface PrepareOptions {
   /** Omit to retain legacy commit-time empty-pad auto-fill. Null is explicitly unassigned. */
   mapping?: readonly (number | null)[];
   replacementApprovals?: readonly SliceReplacementApproval[];
+  /** Loaded pads explicitly moved to Unassigned sounds in this same atomic operation. */
+  unassignmentApprovals?: readonly SliceReplacementApproval[];
   projectAssets?: readonly ProjectAudioAsset[];
   signal?: AbortSignal;
   onProgress?: (progress: number) => void;
@@ -505,9 +507,16 @@ export async function prepareSliceApplication(options: PrepareOptions) {
   const destinationSnapshots=explicitMapping===undefined?undefined:Object.freeze(explicitMapping.flatMap(targetKeyIndex=>{
     if(targetKeyIndex===null)return [];
     const current=existingSamples[targetKeyIndex];
-    if(source.existingIndex===targetKeyIndex)throw new Error('The source pad cannot be replaced because the original source is retained');
     if(current?.isLoaded&&approvalByKey.get(targetKeyIndex)!==current)throw new Error(`Pad ${targetKeyIndex+1} is occupied and its replacement was not approved`);
     return [Object.freeze({targetKeyIndex,sample:current?.isLoaded?current:null,file:current?.file??null,audioBuffer:current?.audioBuffer??null,state:current?.isLoaded?sampleState(current):'',replacementApproved:Boolean(current?.isLoaded)} satisfies SliceDestinationSnapshot)];
+  }));
+  const unassignmentKeys=new Set<number>();
+  const unassignmentSnapshots=Object.freeze((options.unassignmentApprovals??[]).map(({targetKeyIndex,sample})=>{
+    if(!Number.isInteger(targetKeyIndex)||targetKeyIndex<0||targetKeyIndex>=24||unassignmentKeys.has(targetKeyIndex)||explicitMapping?.includes(targetKeyIndex))throw new Error('Slice unassignments are invalid');
+    const current=existingSamples[targetKeyIndex];
+    if(!current?.isLoaded||current!==sample)throw new Error(`Pad ${targetKeyIndex+1} changed before unassignment was prepared`);
+    unassignmentKeys.add(targetKeyIndex);
+    return Object.freeze({targetKeyIndex,sample:current,file:current.file,audioBuffer:current.audioBuffer,state:sampleState(current),replacementApproved:true} satisfies SliceDestinationSnapshot);
   }));
   const names = new Set(existingSamples.filter(sample => sample?.isLoaded).map(sample => sample.name.toLocaleLowerCase('en-US')));
   const targetKeys: number[] = [];
@@ -549,6 +558,7 @@ export async function prepareSliceApplication(options: PrepareOptions) {
     overflowCount: canonicalRanges.length - targetKeys.length,
     mapping:explicitMapping,
     destinationSnapshots,
+    unassignmentSnapshots,
   };
 }
 
@@ -585,6 +595,16 @@ export function finalizeSliceApplication(
   } else if(!currentDrumSamples[source.existingIndex]?.sourceIdentity) {
     actions.push({type:'UPDATE_DRUM_SAMPLE',payload:{index:source.existingIndex,updates:{sourceIdentity}}});
   }
+  // Move loaded pad assets, never delete them. Bind each decision to its exact current state.
+  const movedKeys=new Set<number>();
+  for(const snapshot of prepared.unassignmentSnapshots??[]) {
+    const target=snapshot.targetKeyIndex,current=currentDrumSamples[target];
+    if(!Number.isInteger(target)||target<0||target>=24||movedKeys.has(target)||prepared.mapping?.includes(target)||!snapshot.sample||!current?.isLoaded||current.file!==snapshot.file||current.audioBuffer!==snapshot.audioBuffer||sampleState(current)!==snapshot.state)throw new Error(`Pad ${target+1} changed while Apply was preparing. No sounds were moved; retry.`);
+    movedKeys.add(target);
+    const retained=target===source.existingIndex?{...current,sourceIdentity}:current;
+    actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}});
+    actions.push({type:'CLEAR_DRUM_SAMPLE',payload:target});
+  }
   if(prepared.mapping!==undefined) {
     if(prepared.mapping.length!==preparedStores.length||!prepared.destinationSnapshots)throw new Error('Prepared slice mapping is incomplete; retry Apply.');
     const targets=prepared.mapping.filter((target):target is number=>target!==null);
@@ -605,7 +625,8 @@ export function finalizeSliceApplication(
       if(target!==null) {
         const snapshot=snapshots.get(target)!;
         if(snapshot.sample) {
-          actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:snapshot.sample,targetKeyIndex:null}});
+          const retained=target===source.existingIndex?{...snapshot.sample,sourceIdentity}:snapshot.sample;
+          actions.push({type:'STORE_DRUM_SAMPLE_ASSET',payload:{sample:retained,targetKeyIndex:null}});
           actions.push({type:'CLEAR_DRUM_SAMPLE',payload:target});
         }
       }

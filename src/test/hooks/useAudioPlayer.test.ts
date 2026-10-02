@@ -264,6 +264,31 @@ describe('useAudioPlayer', () => {
       expect(Math.pow(0 / 32767, 2) * 30).toBeCloseTo(0, 1);
     });
 
+    it('starts a note when the audio clock advances while scheduling adjacent envelope segments', async () => {
+      const { result } = renderHook(() => useAudioPlayer());
+      let clock = 0;
+      let curveEnd = -1;
+      // Model native start-time clamping after an audio render quantum advances.
+      mockGainParam.setValueAtTime.mockImplementation(() => {
+        clock = 0.02;
+        return mockGainParam;
+      });
+      mockGainParam.setValueCurveAtTime.mockImplementation((_values, start, duration) => {
+        const actualStart = Math.max(start, clock);
+        if (actualStart < curveEnd) throw new DOMException('Overlapping curves', 'NotSupportedError');
+        curveEnd = actualStart + duration;
+        return mockGainParam;
+      });
+      let note: string | null = null;
+      await act(async () => {
+        note = await result.current.playWithADSR(mockBuffer, 'clock-advance', {
+          adsr: { attack: 500, decay: 6000, sustain: 16000, release: 1000 },
+        });
+      });
+      expect(note).toBe('clock-advance');
+      expect(mockSource.start).toHaveBeenCalledTimes(1);
+    });
+
     it('should play with ADSR envelope', async () => {
       const { result } = renderHook(() => useAudioPlayer());
       
@@ -277,7 +302,7 @@ describe('useAudioPlayer', () => {
 
       // Verify ADSR envelope was applied
       expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(0, 0);
-      expect(mockGainParam.setValueCurveAtTime).toHaveBeenCalled();
+      expect(mockGainParam.linearRampToValueAtTime).toHaveBeenCalled();
       
       // Verify the note is tracked
       expect(result.current.getActiveNotesCount()).toBe(1);
@@ -455,9 +480,11 @@ describe('useAudioPlayer', () => {
         });
       });
 
-      // Verify ADSR envelope was applied with maximum values
+      // Attack ends at 30 seconds, decay at 60; the existing curve samples remain intact.
       expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(0, 0);
-      expect(mockGainParam.setValueCurveAtTime).toHaveBeenCalled();
+      expect(mockGainParam.linearRampToValueAtTime.mock.calls[49]).toEqual([Math.fround(1 - Math.exp(-1.5)), 30]);
+      expect(mockGainParam.linearRampToValueAtTime.mock.calls[99]).toEqual([1, 60]);
+      expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(1, 60);
     });
 
     it('should handle velocity scaling correctly', async () => {
@@ -470,9 +497,10 @@ describe('useAudioPlayer', () => {
         });
       });
 
-      // Verify ADSR envelope was applied with velocity scaling
-      expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(0, 0);
-      expect(mockGainParam.setValueCurveAtTime).toHaveBeenCalled();
+      const peak = 64 / 127;
+      const attackEnd = Math.pow(defaultADSR.attack / 32767, 2) * 30;
+      expect(mockGainParam.linearRampToValueAtTime.mock.calls[49]).toEqual([Math.fround(peak * (1 - Math.exp(-1.5))), attackEnd]);
+      expect(mockGainParam.setValueAtTime).toHaveBeenCalledWith(peak * defaultADSR.sustain / 32767, attackEnd * 2);
     });
 
     it.each([-6, 6])('combines %s dB gain with velocity in the ADSR envelope and release', async (gain) => {

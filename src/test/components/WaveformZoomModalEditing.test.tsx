@@ -261,27 +261,28 @@ describe('WaveformZoomModal frame editor', () => {
     { reverse: false, marker: 'Sample end frames', value: '40', expectedStart: 0, nextFrame: 10 },
     { reverse: true, marker: 'Sample end frames', value: '40', expectedStart: 40, nextFrame: 30 },
   ])('restarts a paused voice and clock at a valid boundary after editing $marker with reverse=$reverse', async ({ reverse, marker, value, expectedStart, nextFrame }) => {
-    let animationFrame: FrameRequestCallback | undefined;
-    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { animationFrame = callback; return 1; }));
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    let frameId=0;const frames=new Map<number,FrameRequestCallback>();
+    vi.stubGlobal('requestAnimationFrame',vi.fn((callback:FrameRequestCallback)=>{const id=++frameId;frames.set(id,callback);return id;}));
+    vi.stubGlobal('cancelAnimationFrame',vi.fn((id:number)=>frames.delete(id)));
+    const tick=(time:number)=>{const pending=[...frames.values()];frames.clear();act(()=>pending.forEach(callback=>callback(time)));};
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} reverse={reverse}
       onSave={() => {}} onSaveForAll={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'play' }));});
     await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
     clock.now = 0.5;
-    act(() => animationFrame?.(500));
+    tick(500);
     expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'pause' }));
     fireEvent.change(screen.getByLabelText(marker), { target: { value } });
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'play' }));});
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
     const options = audio.playWithADSR.mock.calls[1][2];
     expect(options).toMatchObject({ inFrame: reverse ? 0 : Number(value === '80' ? 80 : 0), outFrame: reverse ? 40 : Number(value === '40' ? 40 : 100), startTime: 0 });
     expect(screen.getByText(`Playhead: ${expectedStart} frames`)).toBeInTheDocument();
     clock.now = 0.6;
-    act(() => animationFrame?.(600));
+    tick(600);
     expect(screen.getByText(`Playhead: ${nextFrame} frames`)).toBeInTheDocument();
   });
 });

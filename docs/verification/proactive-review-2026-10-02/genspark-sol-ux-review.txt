@@ -1,0 +1,187 @@
+
+> plan · gpt-5.6-sol
+
+→ Read docs/design-system/studio-usability-feedback.md [offset=1, limit=2000]
+I’ll establish the current UX guidance and verification baseline first, then inventory each requested workspace and trace high-risk JSX/CSS/test paths. The report will distinguish source-supported findings, known browser-confirmed defects, and unverified geometry hypotheses.
+→ Read .planning/HANDOFF.json [offset=1, limit=2000]
+→ Read docs/verification/functional-audit-2026-09-27/README.md [offset=1, limit=2000]
+→ Read docs/verification/functional-audit-2026-09-27/component-map.md [offset=1, limit=2000]
+→ Read docs/verification/functional-audit-2026-09-27/remaining-control-dispositions.md [offset=1, limit=2000]
+→ Read docs/verification/functional-audit-2026-09-27/human-issues.md [offset=1, limit=2000]
+→ Read docs/verification/functional-audit-2026-09-27/function-gap-triage.md [offset=1, limit=2000]
+✱ Grep "^#{1,6} |latest|human_verification|ux_guidance" in .planning/.continue-here.md · 31 matches
+→ Read .planning/.continue-here.md [offset=291, limit=100]
+✱ Glob "src/components/**/*.{tsx,ts}" in . · 71 matches
+✱ Glob "src/**/*.{css,scss}" in . · 6 matches
+✱ Glob "tests/e2e/**/*.spec.ts" in . · 40 matches
+✱ Glob "src/test/**/*.{test,spec}.{ts,tsx}" in . · 100 matches
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled" in src/components/drum · 100 matches
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled" in src/components/library · 88 matches
+✱ Grep "overview|launch|illustration|art|drum-table|sample-table|table|modal|dialog|overflow|position:|grid-template|min-width|max-width|height:|footer|focus-within" in src/styles · 100 matches
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled" in src/components/devices · 68 matches
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled|Dialog|Modal" in src/components/common/StudioShell.tsx · 88 matches
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled|Dialog|Modal" in src/components/common · 100 matches
+The baseline confirms HV-001 and HV-004 are presentation failures observed in user screenshots, while their CSS causes remain unproven; HV-005 is resolved within its bounded hardware workflow and HV-006 is automated-only pending human usability/listening. I’m now tracing rendered workspace structure against cascade rules and current regressions, without treating the historical interaction map as state-complete coverage.
+✱ Grep "className=|<button|<Button|<details|<summary|overflow|role=|aria-|disabled" in src/components/multisample · 100 matches
+→ Read src/styles/studio.css [offset=130, limit=240]
+→ Read src/styles/studio.css [offset=370, limit=260]
+→ Read src/styles/studio-opxy.css [offset=130, limit=170]
+→ Read src/components/drum/DrumSampleTable.tsx [offset=1, limit=500]
+→ Read src/components/drum/DrumTool.tsx [offset=340, limit=220]
+→ Read src/components/common/StudioShell.tsx [offset=215, limit=100]
+→ Read tests/e2e/table-control-audit.spec.ts [offset=1, limit=400]
+→ Read tests/e2e/studio-design-contract.spec.ts [offset=1, limit=320]
+→ Read src/components/drum/DrumSampleTable.tsx [offset=500, limit=330]
+→ Read src/styles/studio.css [offset=630, limit=160]
+✗ Read src/components/common/RecordingModal.tsx failed [offset=500, limit=320]
+Error: Offset 500 is out of range for this file (121 lines)
+→ Read src/components/common/AutoSamplingPanel.tsx [offset=50, limit=210]
+→ Read src/components/multisample/MultisampleTool.tsx [offset=370, limit=150]
+→ Read src/components/devices/DevicesWorkspace.tsx [offset=40, limit=280]
+→ Read src/components/library/LibraryPage.tsx [offset=500, limit=150]
+→ Read src/hooks/useOwnedDialog.ts [offset=1, limit=300]
+→ Read src/components/common/RecordingModal.tsx [offset=1, limit=200]
+→ Read src/components/common/opxy/OpxyLaunchArt.tsx [offset=1, limit=300]
+→ Read src/components/common/SmallWaveform.tsx [offset=1, limit=280]
+→ Read src/components/drum/DrumSampleSettingsModal.tsx [offset=1, limit=300]
+→ Read src/components/drum/DrumBulkEditModal.tsx [offset=70, limit=180]
+→ Read src/components/multisample/MultisamplePresetSettings.tsx [offset=250, limit=300]
+✱ Grep "boundingBox|scrollWidth|clientWidth|overflow|footer|visible|focus|Escape|Tab|aria-live|role=.alert" in tests/e2e · 23 matches
+✱ Grep "role="button"|tabIndex|onKeyDown|studio-settings-section-header" in src/components · 13 matches
+✱ Grep "confirm\(|alert\(|setStatus|status:|deleteSetup|renameSetup|saveSetup" in src/components/devices/useDevicesWorkspace.ts · 47 matches
+✱ Grep "position: 'sticky'|footer|cancel|save|apply|overflowY|maxHeight" in src/components/drum/DrumSampleSettingsModal.tsx · 11 matches
+✱ Grep "footer|apply to|cancel|position: 'sticky'|overflowY|maxHeight" in src/components/drum/DrumBulkEditModal.tsx · 5 matches
+✱ Grep "aria-label|role=|onKeyDown|tabIndex|onClick|canvas" in src/components/common/SmallWaveform.tsx · 39 matches
+→ Read src/components/common/SmallWaveform.tsx [offset=270, limit=130]
+✱ Grep "RecordingModal|Add selected takes|footer|boundingBox|maxHeight|scroll|review tray|discard" in src/test · 59 matches
+✱ Grep "Delete setup|role="alert"|status|Confirmed|Not observed|Skip|Preview Apply" in src/test/components/DevicesWorkspace.test.tsx · 20 matches
+✱ Grep "focus|keyboard|Enter|Space|Advanced settings|Basic settings|Envelope settings" in src/test/components/MultisamplePresetSettings.test.tsx · 2 matches
+✱ Grep "<SmallWaveform" in src · 6 matches
+→ Read src/components/devices/useDevicesWorkspace.ts [offset=380, limit=110]
+→ Read src/test/components/DevicesWorkspace.test.tsx [offset=885, limit=35]
+→ Read src/components/drum/DrumBulkEditModal.tsx [offset=360, limit=90]
+→ Read src/components/drum/DrumSampleSettingsModal.tsx [offset=535, limit=140]
+→ Read tests/e2e/slicing.spec.ts [offset=180, limit=60]
+→ Read tests/e2e/devices-workspace.spec.ts [offset=1, limit=260]
+→ Read tests/e2e/export-workflow.spec.ts [offset=80, limit=60]
+✱ Grep "studio-dialog-actions|studio-dialog|studio-library-selection-bar|studio-library-toolbar|studio-library-collection-actions" in src/styles/studio.css · 15 matches
+✱ Grep "Record takes|Add selected takes|Discard recording work|Tab|focus|geometry|short|viewport" in tests/e2e/recording.spec.ts · 5 matches
+✱ Grep "Delete setup|deleted|confirm|role.*alert|MIDI route confirmed|Setup saved" in tests/e2e/devices-workspace.spec.ts · 1 match
+✱ Grep "Transfer|Back up or transfer|Download project|Export OP-XY|Open library" in tests/e2e · 31 matches
+✱ Grep "studio-launch-diagram|studio-launch-module-footer|data-launch-diagram|boundingBox" in tests · 41 matches
+✱ Grep "scrollWidth|clientWidth|boundingBox|data-drum-pad-start|waveform|drop samples" in tests/e2e · 0 matches
+→ Read src/components/multisample/VirtualMidiKeyboard.tsx [offset=560, limit=150]
+→ Read src/components/common/ExportPreflight.tsx [offset=35, limit=65]
+→ Read src/components/common/ConfirmationModal.tsx [offset=45, limit=150]
+✱ Grep "Delete setup|setup deleted|alert|role" in src/test/components/DevicesWorkspace.test.tsx · 13 matches
+✱ Grep "Download preset|Final instrument checks|File naming|scroll|viewport|boundingBox" in tests/e2e · 65 matches
+✱ Grep "role=.alert.|aria-live|status" in src/test/components/DevicesWorkspace.test.tsx · 0 matches
+✱ Grep "SmallWaveform|zoom and edit|canvas|keyboard" in src/test/components · 60 matches
+**Material Findings**
+
+### UX-NEW-001: Recording discard decision does not isolate or block competing controls
+- **Severity:** High
+- **Confidence:** High
+- **Evidence type:** Source-proven behavior; not browser-confirmed in this review.
+- **Location:** `src/components/common/RecordingModal.tsx:43-45`, `src/components/common/RecordingModal.tsx:89-113`
+- **Trigger:** Record or retain a take, then request Close or press Escape.
+- **Consequence:** The inline `alertdialog` appears, but the parent dialog remains the active `useOwnedDialog` owner. The focus trap still enumerates every enabled control in the parent dialog, including recording, review, removal, resolution, and apply controls. Pointer interaction is also not blocked. A user can therefore continue mutating recording state while the discard decision is pending, contrary to the approved rule that pending destructive decisions block competing mutations. A second Escape only calls `requestClose` again rather than clearly choosing “Resume” or “Discard.”
+- **Minimal remediation:** Give the confirmation exclusive dialog ownership and make the rest of the recording UI inert/hidden to accessibility APIs while pending. Keep “Resume recording” as the initial safe action and preserve all takes unless “Stop and discard” is explicitly chosen.
+- **Existing coverage:** `src/test/components/RecordingModal.test.tsx:99-126` checks that Escape preserves takes and focuses Resume.
+- **Missing regression:** Tab/Shift+Tab must remain within the two confirmation actions; underlying recording/removal/apply controls must reject pointer and keyboard activation; Escape behavior during the pending decision must be explicit.
+
+### UX-NEW-002: Recording’s core commit action is at the bottom of a whole-dialog scroll
+- **Severity:** Medium
+- **Confidence:** High
+- **Evidence type:** Source-proven structure; exact viewport impact inferred.
+- **Location:** `src/components/common/RecordingModal.tsx:89`, `src/components/common/RecordingModal.tsx:95-113`
+- **Trigger:** Use recording on a short viewport, particularly after configuration controls, automatic sampling controls, errors, or several review takes increase content height.
+- **Consequence:** The entire dialog scrolls (`maxHeight: 94vh; overflow: auto`), and “Cancel / Add selected takes” is ordinary content at the end. The core final action can leave the viewport with no persistent action area, requiring the user to discover that the whole modal scrolls. This reproduces the interaction pattern explicitly rejected during HV-006, although no clipping is claimed without browser measurement.
+- **Minimal remediation:** Use a flex-column dialog with a named scrollable body and a fixed/sticky action footer containing the draft-preserving exit and “Add selected takes.” Keep error/status feedback close to the affected task.
+- **Existing coverage:** Recording unit and E2E tests exercise capture, review, apply, discard, and retained-take behavior.
+- **Missing regression:** Short desktop and phone geometry asserting the final actions remain visible while setup/review content scrolls; keyboard traversal through the scroll boundary.
+
+### UX-KNOWN-001: Drum Table’s fixed minimum grid is clipped by its containing panel
+- **Severity:** Medium
+- **Confidence:** High
+- **Evidence type:** Browser-confirmed existing defect (HV-001); source-supported causal rules. No browser access used here.
+- **Location:** `src/components/drum/DrumSampleTable.tsx:527-542`, `src/components/drum/DrumSampleTable.tsx:545-551`, `src/components/drum/DrumSampleTable.tsx:572-585`, `src/components/drum/DrumSampleTable.tsx:724-799`, `src/styles/studio.css:556-560`
+- **Trigger:** Open Drum Table while the table is in the right side of the desktop split workbench at widths where that column is narrower than the table’s intrinsic minimum.
+- **Observed consequence:** The preserved HV-001 screenshot shows waveform/drop boxes extending into actions and rightmost controls clipped.
+- **Supported cause:** Both header and rows require `120px + minmax(200px,1fr) + minmax(200px,1fr) + 180px`, plus three `0.5rem` gaps, an intrinsic minimum of roughly 724px before surrounding borders. The desktop editor stage remains split down to 980px, and `.studio-management-panel` applies `overflow: hidden`. The oversized grid is therefore clipped rather than exposed through a discoverable horizontal scroll region. This mechanism directly supports right-edge clipping. Exact waveform/action overlap geometry still needs runtime measurement.
+- **Minimal remediation:** Make the table responsive to its actual container, or place one explicit, keyboard-focusable horizontal scroll region around both header and rows. Keep waveform/drop and action columns non-overlapping and expose all focus outlines.
+- **Existing coverage:** `tests/e2e/table-control-audit.spec.ts:4-47` checks actions and settings behavior at 1440px and 390px, but 390px uses the separate card layout.
+- **Missing regression:** Loaded and empty row geometry near the split-layout threshold, asserting waveform/drop bounds end before action bounds and every action lies inside the visible or intentionally scrollable region.
+
+### UX-NEW-003: Device setups are deleted immediately without confirmation
+- **Severity:** Medium
+- **Confidence:** High
+- **Evidence type:** Source-proven behavior.
+- **Location:** `src/components/devices/DevicesWorkspace.tsx:191-210`, `src/components/devices/useDevicesWorkspace.ts:469-481`
+- **Trigger:** Select a saved setup and activate “Delete setup.”
+- **Consequence:** The setup is immediately removed and persisted, then the selection/name are cleared. There is no adjacent confirmation, undo path, or recovery mechanism. This is inconsistent with destructive project, library, reset, and clear operations elsewhere.
+- **Minimal remediation:** Add a local confirmation naming the setup, focus the safe keep/cancel action first, block setup mutations while pending, and retain the selected setup unless deletion is confirmed.
+- **Existing coverage:** `src/test/components/DevicesWorkspace.test.tsx:885-904` and `tests/e2e/devices-workspace.spec.ts:165-170` explicitly exercise immediate deletion.
+- **Missing regression:** Cancel preserves setup and form state; confirm removes only the named setup; keyboard focus is contained and restored.
+
+### UX-KNOWN-004: Safari Overview artwork overflow remains open; source suggests but does not prove the cause
+- **Severity:** Medium
+- **Confidence:** Medium for the risk; Low for a specific browser cause.
+- **Evidence type:** Browser-confirmed existing defect (HV-004), with source-level hypothesis only.
+- **Location:** `src/components/common/StudioShell.tsx:245-269`, `src/styles/studio.css:391-397`, `src/styles/studio.css:419-429`, `src/components/common/opxy/OpxyLaunchArt.tsx:11-89`
+- **Trigger:** Actual Safari in the user-reported Overview configuration and unknown viewport/zoom.
+- **Observed consequence:** The preserved screenshot shows all four illustrations overflowing into card footers and the External Gear strip.
+- **Hypothesis, not proven:** Each module uses rows `auto minmax(112px,1fr) auto`; each SVG uses `height:100%`, `min-height:112px`, and `overflow:visible`. Safari percentage sizing inside the flexible grid track, combined with visible SVG overflow, is a plausible amplification path. Current source inspection does not prove which rule or browser condition caused the screenshot.
+- **Minimal remediation:** Reproduce with actual Safari version, CSS viewport, zoom, selected device, and computed card/SVG/footer rectangles before changing CSS. A repair should bound illustration geometry without altering approved artwork or palette.
+- **Existing coverage:** `tests/e2e/studio-design-contract.spec.ts:54-129`, `255-287` checks Playwright desktop/narrow geometry and WebKit profiles indirectly.
+- **Missing regression:** Assert each diagram’s bottom is at or above its own footer top, each footer is within its card, and External Gear begins below all cards. Playwright WebKit is useful but does not replace actual Safari retest.
+
+### A11Y-KNOWN-001: Virtual MIDI keys remain pointer-only generic elements
+- **Severity:** Low
+- **Confidence:** High
+- **Evidence type:** Source-proven; previously recorded debt.
+- **Location:** `src/components/multisample/VirtualMidiKeyboard.tsx:592-637`, `src/components/multisample/VirtualMidiKeyboard.tsx:670-699`
+- **Trigger:** Navigate the multisample keyboard with a screen reader or Tab rather than the separate computer-key mapping.
+- **Consequence:** Individual piano keys are clickable `<div>` elements without button role, accessible name, state, or tab stop. Assigned/unassigned and pressed state is primarily visual. Global computer-key shortcuts do not make each on-screen destination discoverable or operable to assistive technology.
+- **Minimal remediation:** Expose an appropriate keyboard interaction model, preferably native buttons or a documented composite widget with roving focus, note names, assignment state, and key activation.
+- **Existing coverage:** Shortcut tests cover computer-key playback and key naming.
+- **Missing regression:** Tab/arrow navigation, accessible names and states, Enter/Space operation, and focus visibility for individual notes.
+
+### A11Y-KNOWN-002: All Devices feedback, including routine success and information, is announced as an alert
+- **Severity:** Low
+- **Confidence:** High
+- **Evidence type:** Source-proven; previously recorded debt.
+- **Location:** `src/components/devices/DevicesWorkspace.tsx:52-57`; representative informational updates at `src/components/devices/useDevicesWorkspace.ts:275`, `348`, `380`, `428`, `447-452`
+- **Trigger:** Confirm a route, preview Apply, save/load a setup, complete Apply, or encounter an error.
+- **Consequence:** Every status uses assertive `role="alert"`, so routine confirmations can interrupt assistive-technology output as if they were errors.
+- **Minimal remediation:** Reserve alerts for failures or urgent route changes; expose success/information through polite status regions.
+- **Existing coverage:** Devices tests repeatedly query all messages through `getByRole('alert')`, including “Setup saved locally.”
+- **Missing regression:** Semantic role assertions by severity and live-region replacement behavior.
+
+**Additional Source-Level Observation**
+
+`ExportPreflight` has the same whole-dialog scrolling pattern: `.studio-dialog` scrolls as one surface and its Close/Download actions are ordinary trailing content (`src/styles/studio.css:68-69`, `src/components/common/ExportPreflight.tsx:69-89`). After download, lengthy transfer instructions are inserted before those actions. This is a lower-confidence usability risk rather than a confirmed defect; short-height geometry and keyboard testing should establish whether a fixed footer is required.
+
+**Coverage Matrix**
+
+| Surface | Source inspected | Relevant tests inspected | Result / limitation |
+|---|---|---|---|
+| Overview | Shell, OP-XY SVGs, launch CSS | Design contract, appearance | HV-004 retained; actual Safari cause unproven |
+| Drum Focus/Table | Tool, Focus, Table, waveform, CSS | Table audit, file-entry, pad access | HV-001 source mechanism identified; no runtime retest |
+| Slicer | Modal, mapping, slicer CSS | Unit and five-profile slicing source | Approved regrouping present; no new material source defect; human usability/listening pending |
+| Recording | Recording modal, auto-sampling, dialog ownership | Recording unit/E2E | Two new modal-state/action-visibility risks |
+| Sample/bulk settings | Sample settings, bulk modal | Table/file-entry/settings tests | Scrollable body and persistent action section present; no material finding |
+| Project/export/Transfer | Toolbar, preflight, Transfer view | Export, shell, guide tests | Export trailing-action risk; transfer instructions otherwise task-oriented |
+| Multisample/auto-capture | Tool, Focus, preset settings, keyboard, auto-sampling | Guided flow, table, settings tests | Virtual-key accessibility debt retained |
+| Sampler/stems | Launch entry, recording and stem modals | Stem unit/E2E | Stem footer/discard isolation is stronger than general recorder; no new material finding |
+| Devices | Workspace and state hook | Devices unit/E2E | Immediate delete and alert-semantics findings |
+| Library | Page, filters, table/actions, dialogs | Workflow, collections, control audits | No new material source finding |
+| Dialog/focus infrastructure | `AccessibleDialog`, `ConfirmationModal`, `useOwnedDialog` | Modal cancellation tests | General trap works; recording’s nested pending decision is the exception |
+
+**Acceptance Boundaries**
+
+- **Computer-verifiable next:** Table and Overview rectangle containment, short-height recording/export action visibility, pending-confirmation inertness/focus containment, Devices confirmation semantics, and virtual-key accessibility tree/keyboard behavior.
+- **Human-only:** Whether the regrouped slicer is understandable without coaching and whether real voice slices sound acceptable.
+- **Human/hardware-only:** Physical OP-XY/MIDI response, exact device behavior, browser/OS permission experience, listening judgments, and actual assistive-technology usability.
+- HV-005’s bounded microphone-to-OP-XY workflow remains passed; broader recording modes and hardware combinations are not certified.
+- No tests, builds, browsers, servers, hardware, or repository mutations were used. This was a read-only source/document/test review, cold-review rung 1. It does not establish release readiness, every-state coverage, or absence of additional defects.

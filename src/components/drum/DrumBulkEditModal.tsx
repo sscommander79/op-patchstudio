@@ -100,17 +100,20 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
         }
       }}
     >
-      <div style={{
+      <div className="studio-bulk-edit" style={{
         backgroundColor: 'var(--color-bg-primary)',
         color: 'var(--color-text-primary)',
         borderRadius: '8px',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         width: '90%',
         maxWidth: '500px',
-        maxHeight: '90vh',
-        overflow: 'auto'
+        maxHeight: 'calc(100dvh - 2rem)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
       }}>
-        <div style={{
+        <div className="studio-bulk-edit-header" style={{
+          flex: '0 0 auto',
           padding: '1.5rem 2rem',
           borderBottom: '1px solid var(--color-border-light)'
         }}>
@@ -121,8 +124,9 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             fontWeight: '300'
           }}>bulk edit samples</h3>
         </div>
-        <div style={{ padding: '2rem' }}>
+        <div className="studio-bulk-edit-body" style={{ padding: '2rem', flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
           <div
+            className="studio-bulk-edit-note"
             style={{
               fontSize: '0.9rem',
               background: 'var(--color-bg-secondary)',
@@ -138,7 +142,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Playmode */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{
+            <label className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -148,6 +152,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               playmode
             </label>
             <select
+              className="studio-bulk-edit-field"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -170,7 +175,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Direction */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{
+            <label className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -180,6 +185,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               direction
             </label>
             <select
+              className="studio-bulk-edit-field"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -200,7 +206,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Transpose */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{
+            <label className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -210,6 +216,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                className="studio-bulk-edit-range"
                 min="-48"
                 max="48"
                 value={settings.transpose}
@@ -227,6 +234,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               />
               <input
                 type="number"
+                className="studio-bulk-edit-field"
                 min="-48"
                 max="48"
                 value={settings.transpose}
@@ -250,7 +258,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Gain */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{
+            <label className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -260,6 +268,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                className="studio-bulk-edit-range"
                 min="-30"
                 max="20"
                 value={settings.gain}
@@ -277,6 +286,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               />
               <input
                 type="number"
+                className="studio-bulk-edit-field"
                 min="-30"
                 max="20"
                 value={settings.gain}
@@ -300,7 +310,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
 
           {/* Pan */}
           <div style={{ marginBottom: '2rem' }}>
-            <label style={{
+            <label className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
@@ -310,6 +320,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                className="studio-bulk-edit-range"
                 min="-100"
                 max="100"
                 value={settings.pan}
@@ -327,6 +338,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               />
               <input
                 type="number"
+                className="studio-bulk-edit-field"
                 min="-100"
                 max="100"
                 value={settings.pan}
@@ -350,7 +362,8 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
           </div>
         </div>
 
-        <div style={{
+        <div className="studio-bulk-edit-actions" style={{
+          flex: '0 0 auto',
           padding: '1.5rem 2rem',
           borderTop: '1px solid #e5e7eb',
           display: 'flex',
@@ -360,6 +373,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
           <button
             data-initial-focus="true"
             type="button"
+            className="studio-bulk-edit-cancel"
             style={{
               padding: '0.625rem 1.25rem',
               border: '1px solid #d1d5db',

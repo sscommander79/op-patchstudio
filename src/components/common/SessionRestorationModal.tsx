@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 
 interface SessionRestorationModalProps {
   isOpen: boolean;
@@ -22,55 +23,21 @@ export function SessionRestorationModal({
   error
 }: SessionRestorationModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
-  const firstButtonRef = useRef<HTMLButtonElement>(null);
-  const lastButtonRef = useRef<HTMLButtonElement>(null);
+  // Recovery requires an explicit Restore/Start new decision; Escape never discards it.
+  useOwnedDialog({ active: isOpen, dialogRef: modalRef, onClose: () => {} });
 
-  // Focus management
   useEffect(() => {
-    if (isOpen) {
-      // Focus the first button when modal opens
-      firstButtonRef.current?.focus();
-
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
   }, [isOpen]);
 
-  // Handle keyboard navigation and escape key
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          break;
-        case 'Tab':
-          // Trap focus within the modal
-          if (event.shiftKey) {
-            if (document.activeElement === firstButtonRef.current) {
-              event.preventDefault();
-              lastButtonRef.current?.focus();
-            }
-          } else {
-            if (document.activeElement === lastButtonRef.current) {
-              event.preventDefault();
-              firstButtonRef.current?.focus();
-            }
-          }
-          break;
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, onStartNew]);
+    if (!isOpen) return;
+    if (pending) modalRef.current?.focus();
+    else modalRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+  }, [isOpen, pending]);
 
   if (!isOpen) return null;
 
@@ -140,6 +107,7 @@ export function SessionRestorationModal({
       <div
         className="session-modal-container"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="session-restoration-title"
         aria-describedby="session-restoration-description"
@@ -232,7 +200,6 @@ export function SessionRestorationModal({
             justifyContent: 'flex-end'
           }}>
             <button
-              ref={firstButtonRef}
               disabled={pending}
               onClick={async () => {
                 try {
@@ -269,7 +236,6 @@ export function SessionRestorationModal({
               start new
             </button>
             <button
-              ref={lastButtonRef}
               disabled={pending}
               onClick={onLoadSession}
               style={{

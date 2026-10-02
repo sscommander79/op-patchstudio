@@ -35,6 +35,8 @@ button, summary, input, select { min-height: 44px; }
 }
 .studio-content { padding: 2rem; max-width: 1120px; margin: 0 auto; width: 100%; box-sizing: border-box; background: var(--studio-page); color: var(--studio-text); }
 .studio-pwa-notice { position: fixed; right: 1rem; bottom: 1rem; z-index: 9000; max-width: 24rem; padding: 1rem; border: 1px solid var(--studio-border); border-radius: 8px; background: var(--studio-panel); color: var(--studio-text); box-shadow: 0 8px 24px var(--color-shadow-primary); }
+/* Nonurgent offline/update notices wait until modal work is closed. */
+body:has([role="dialog"][aria-modal="true"]) .studio-pwa-notice { visibility: hidden; }
 .studio-pwa-notice p { margin: 0 0 .75rem; }
 .studio-build-notice { position: fixed; left: 1rem; bottom: 1rem; z-index: 9000; display: flex; align-items: center; gap: .75rem; max-width: min(40rem, calc(100vw - 2rem)); box-sizing: border-box; padding: .75rem 1rem; border: 1px solid var(--studio-text); border-left: 4px solid var(--studio-system-orange); background: var(--studio-panel); color: var(--studio-text); box-shadow: 0 8px 24px var(--color-shadow-primary); }
 .studio-build-notice p { margin: 0; font-size: .85rem; line-height: 1.45; }
@@ -680,4 +682,87 @@ button, summary, input, select { min-height: 44px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Bulk edit: the inline gradient range styling combined with the global 44px control height painted each
+ * slider as a large filled block. Native sliders keep the 44px target with a thin themed track. */
+.studio-bulk-edit-range { appearance: auto !important; -webkit-appearance: auto !important; min-width: 0; background: transparent !important; accent-color: var(--studio-text); }
+
+/* Focused sample editors live in a narrow editor column beside the performance surface, so their
+ * layout responds to the column width rather than the viewport. */
+.studio-focus { container-type: inline-size; min-width: 0; box-sizing: border-box; }
+.studio-focus-main, .studio-sample-controls, .studio-assignment { min-width: 0; }
+.studio-sample-controls > *, .studio-assignment > * { min-width: 0; }
+.studio-sample-controls input[type="range"] { margin-inline: 0; }
+/* The two-column grid needs 240px + 320px + 1rem gap; stack only when that no longer fits. */
+@container (max-width: 575px) {
+  .studio-focus-main { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 520px) {
+  .studio-assignment { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .studio-assignment button { justify-self: start; }
+}
+@container (max-width: 300px) {
+  .studio-sample-controls { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Library filters at phone width: search takes its own row; type and sort share the next row. */
+@media (max-width: 560px) {
+  .studio-library-search { flex: 1 1 100%; }
+  /* Sort labels ("Recently updated", "Collection order") are longer than type labels, so the row is split
+   * roughly 2:3 with a floor that keeps them unclipped; below that the two selects wrap to full rows. */
+  .studio-library-filter { flex: 2 1 8.75rem; min-width: 8.75rem; }
+  .studio-library-filter.studio-library-sort { flex: 3 1 11.5rem; min-width: 11.5rem; }
+  .studio-library-sort-direction, .studio-library-favorites-filter { order: 1; }
+}
+
+/* Guided capture fields share one label row so a wrapped label does not offset its control. */
+.studio-guided-fields > label { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.studio-guided-fields > label > :is(select, input) { margin-top: auto; }
+
+/* The zone picker in the focused multisample heading had no styles and rendered with the browser's
+ * default (bluish-gray in Firefox/WebKit) text. */
+.studio-focus-heading label { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.studio-focus-heading select { min-width: 0; max-width: 100%; padding: 0 .5rem; border: 1px solid var(--studio-border); background: var(--studio-panel); color: var(--studio-text); }
+
+
+/* Slicing keeps the source, boundary edits and key assignments in distinct working groups. */
+.studio-slicer-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+.studio-slicer-shell { width: min(920px, 100%); max-height: 100%; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border: 1px solid var(--color-border-medium); border-radius: 4px; background: var(--color-bg-primary); color: var(--color-text-primary); }
+.studio-slicer-header, .studio-slicer-footer { flex: 0 0 auto; padding: 1rem 1.5rem; background: var(--color-bg-secondary); }
+.studio-slicer-header { border-bottom: 1px solid var(--color-border-medium); }
+.studio-slicer-header h3, .studio-slicer-header p { margin: 0; }
+.studio-slicer-header p { margin-top: .4rem; font-size: .875rem; }
+.studio-slicer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 1rem 1.5rem; }
+.studio-slicer-group { min-width: 0; padding-block: .25rem 1rem; }
+.studio-slicer-group + .studio-slicer-group { padding-top: 1rem; border-top: 1px solid var(--color-border-medium); }
+.studio-slicer-group h4 { display: flex; gap: .65rem; align-items: center; margin: 0 0 .75rem; font-size: 1.125rem; }
+.studio-slicer-group h4 span { width: 1.7rem; height: 1.7rem; display: grid; place-items: center; border: 1px solid var(--color-border-medium); font-size: .875rem; }
+.studio-slicer-group p { margin: .65rem 0; }
+.studio-slicer-source { overflow-wrap: anywhere; }
+.studio-slicer-overview, .studio-slicer-waveform { display: block; width: 100%; box-sizing: border-box; border: 1px solid var(--color-border-medium); }
+.studio-slicer-overview { height: 72px; }
+.studio-slicer-waveform { height: 150px; touch-action: none; }
+.studio-slicer-actions, .studio-slicer-fields, .studio-slicer-sounds { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; min-width: 0; }
+.studio-slicer-fields { align-items: end; gap: .75rem; }
+.studio-slicer-fields > label { display: grid; gap: .25rem; min-width: 0; max-width: 100%; }
+.studio-slicer-fields select { min-width: 0; width: 100%; }
+.studio-slicer-selection { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.studio-slicer-selection .studio-slicer-actions { margin-top: 0; }
+.studio-slicer-sounds { margin-bottom: .75rem; }
+.studio-slicer-disclosure { margin-top: .75rem; border: 1px solid var(--color-border-medium); }
+.studio-slicer-disclosure > summary { display: list-item; min-height: 44px; box-sizing: border-box; padding: .7rem .85rem; cursor: pointer; background: var(--color-bg-secondary); font-weight: 600; }
+.studio-slicer-disclosure[open] > summary { border-bottom: 1px solid var(--color-border-medium); }
+.studio-slicer-disclosure > .studio-slicer-fields { padding: .85rem; margin-top: 0; }
+.studio-slicer-confirmation { border: 1px solid var(--color-border-medium); padding: .75rem; margin-top: .75rem; background: var(--color-bg-secondary); }
+.studio-slicer-confirmation p { margin-top: 0; }
+.studio-slicer-overflow { display: flex; align-items: start; gap: .5rem; }
+.studio-slicer-footer { display: flex; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; border-top: 1px solid var(--color-border-medium); }
+.studio-slicer-shell button { background: var(--color-bg-secondary); color: inherit; }
+.studio-slicer-shell button:disabled { opacity: .5; cursor: not-allowed !important; }
+.studio-slicer-shell :is(button, input, select, summary):focus-visible { outline: 2px solid var(--color-interactive-focus); outline-offset: 3px; }
+@media (max-width: 560px) {
+  .studio-slicer-overlay { padding: .5rem; }
+  .studio-slicer-header, .studio-slicer-body, .studio-slicer-footer { padding: .75rem; }
+  .studio-slicer-footer { gap: .5rem; }
 }

@@ -28,6 +28,14 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
   const consumedRecorderRequest = useRef<number | null>(null);
   const { handleMultisampleUpload, clearMultisampleFile } = useFileUpload();
   const { playWithADSR, releaseNote, stopAllNotes } = useAudioPlayer();
+  const pendingNoteStarts = useRef(new Map<number, Set<AbortController>>());
+  useEffect(() => {
+    const pending = pendingNoteStarts.current;
+    return () => {
+      pending.forEach(controllers => controllers.forEach(controller => controller.abort()));
+      pending.clear();
+    };
+  }, []);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const browseInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
@@ -305,6 +313,10 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
     const rootSample = state.multisampleFiles.find(f => f.rootNote === rootNote);
 
     if (rootSample && rootSample.audioBuffer) {
+      const controller = new AbortController();
+      const pending = pendingNoteStarts.current.get(midiNote) ?? new Set<AbortController>();
+      pending.add(controller);
+      pendingNoteStarts.current.set(midiNote, pending);
       try {
         // Apply pitch shifting
         const playbackRate = Math.pow(2, pitchOffset / 12);
@@ -318,6 +330,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
         // Use the ADSR-enabled audio player
         const noteId = `multisample-${midiNote}-${Date.now()}`;
         await playWithADSR(rootSample.audioBuffer, noteId, {
+          signal: controller.signal,
           playbackRate,
           gain: state.multisampleSettings.gain || 0,
           pan: 0, // No pan control for multisample
@@ -332,12 +345,18 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
         });
       } catch (error) {
         console.error("Error playing pitched sample:", error);
+      } finally {
+        pending.delete(controller);
+        if (!pending.size && pendingNoteStarts.current.get(midiNote) === pending) pendingNoteStarts.current.delete(midiNote);
       }
     }
   }, [zoneMap, state.multisampleFiles, playWithADSR, state.multisampleSettings.gain, state.multisampleSettings.ampEnvelope, state.multisampleSettings.playmode, state.multisampleSettings.loopEnabled, state.multisampleSettings.loopOnRelease]);
 
   // Handler for releasing a key (for ADSR release phase)
   const handleKeyRelease = useCallback((midiNote: number) => {
+    // A release can precede async audio-context initialization and voice registration.
+    pendingNoteStarts.current.get(midiNote)?.forEach(controller => controller.abort());
+    pendingNoteStarts.current.delete(midiNote);
     // Release all notes that match this MIDI note (could be multiple if same note played multiple times)
     // The audio player will handle finding and releasing the correct note(s)
     // We'll try all possible noteIds for this midiNote

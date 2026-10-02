@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-01",
+  "source": "/Users/stevencommander/Downloads/Human Test 02.preset",
+  "compared_patch": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved/docs/verification/functional-audit-2026-09-27/evidence/human-export-2026-10-01-patch.json",
+  "region_count": 10,
+  "patch_differences": [
+    {
+      "path": "name",
+      "old": "Human Test 01",
+      "new": "Human Test 02"
+    },
+    {
+      "path": "regions[0].gain",
+      "old": -8,
+      "new": 0
+    }
+  ],
+  "audio": [
+    {
+      "file": "Seed Kick.wav",
+      "sha256": "53ed20fd0feecc1ebf721d8526449966b11e70012094ef49b045f9e90577355a",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 21168,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Snare.wav",
+      "sha256": "511abeb443a6160943eaa2f33afa6bb6ec597953eb024862d3305f0b1a276379",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 13230,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Rim.wav",
+      "sha256": "b74b9c4bfda8ab740b411ecae06d313ec5af8544b1d6e89f24e5957d04bac8a3",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 4410,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Clap.wav",
+      "sha256": "2ac8ab310c3e4e18b53dc12d70f16225eb3421c95f934e56794d09ac2a1f6416",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 11466,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Shaker.wav",
+      "sha256": "0fadbf873111e7a5a32b428436ccd0fe61f7a8f5ad7a988da59708f776fb5711",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 6174,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Closed Hat.wav",
+      "sha256": "e1e2e99a205c8c3ead3e50cf8491328fee6144fac3a1ad4b0d91a4dd97b5381c",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 4410,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Open Hat.wav",
+      "sha256": "a4d11d27ced788a33a3ef4d5ad41bed63a3c6d01121553b86a4ebf4078e23bda",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 24255,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Low Tom.wav",
+      "sha256": "d639687541e61ebe91b58404a06c84bf091204b1ef6ed9ea23eae181d539f3e5",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 18522,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed High Tom.wav",
+      "sha256": "f4ec9e858a34b1f0d7f172d4ace3f1caf54d66d6512224a29f816fcc799bfe1c",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 11466,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    },
+    {
+      "file": "Seed Dual Bell.wav",
+      "sha256": "55f3d6ec8adce007c90a93c0537bc8a659c3d973a8d581d5aa806ad0b5b17a2b",
+      "matches_original": true,
+      "headers": {
+        "channels": 1,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "frames": 19404,
+        "compression": "NONE"
+      },
+      "framecount_matches": true,
+      "trim_in_bounds": true
+    }
+  ],
+  "zip_matches_extracted_files": true,
+  "hardware_comparison": {
+    "date": "2026-10-01",
+    "status": "PASS — user-reported qualitative comparison",
+    "user_report": "yes and yes, it was louder",
+    "guided_check": "Copy/eject with M4/freshly load Human Test 01 then Human Test 02 on the same track 2 at unchanged listening levels; expect louder kick and unchanged other nine sounds/mapping",
+    "confirmed": [
+      "copy/eject/fresh loading",
+      "revised kick louder",
+      "other nine sounds and mapping unchanged"
+    ],
+    "numeric_hardware_gain": "unverified; reported screen shows only a slider",
+    "same_folder_replacement": "not tested; revised preset used a new name"
+  },
+  "controlled_comparison_valid": true
+}

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-02",
+  "branch": "codex/studio-upgrade",
+  "head": "dc1e1f3515e2f2054f83b7507e1e71951f5ee80e",
+  "standard": {
+    "status": "PASS",
+    "unit_tests": 1172,
+    "files": 111,
+    "log": "resume-final-check-3.log"
+  },
+  "production": {
+    "status": "PASS",
+    "passed": 783,
+    "skipped": 42,
+    "failed": 0,
+    "exit": 0,
+    "log": "resume-complete-production.log"
+  },
+  "dedicated": {
+    "storage": 25,
+    "fake_recording": 5,
+    "stem": 1,
+    "dev_origin": 1,
+    "status": "PASS"
+  },
+  "visual": {
+    "status": "PASS",
+    "mismatches": 0,
+    "previous_mismatches": 12,
+    "baseline_updates": true,
+    "authorization": "User: please fix those open mismatches",
+    "semantic_passed": 27,
+    "verification_runs": [
+      {
+        "passed": 12,
+        "updates": "none",
+        "log": "visual-reconciliation/verify-1.log"
+      },
+      {
+        "passed": 12,
+        "updates": "none",
+        "log": "visual-reconciliation/verify-2.log"
+      }
+    ],
+    "report": "visual-reconciliation/README.md"
+  },
+  "deferred": [
+    "HV001",
+    "HV004"
+  ],
+  "remote_ci": "BLOCKED: no push authorization",
+  "human_hardware": "PENDING: Test04 plus actual assistive/device acceptance",
+  "committed": false,
+  "release_ready": false,
+  "design_approved": false
+}

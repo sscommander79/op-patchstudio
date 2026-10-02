@@ -88,7 +88,7 @@ export function MultisampleSampleTable({
 
   // MIDI note conversion helpers
   const parseNoteInput = (input: string): number => {
-    const trimmed = input.trim().toUpperCase();
+    const trimmed = input.trim();
     
     // Check if it's a MIDI number
     if (/^\d+$/.test(trimmed)) {
@@ -97,7 +97,11 @@ export function MultisampleSampleTable({
     }
     
     // Try to parse as note name, using current mapping
-    return noteStringToMidiValue(trimmed, state.midiNoteMapping);
+    try {
+      return noteStringToMidiValue(trimmed, state.midiNoteMapping);
+    } catch {
+      return -1;
+    }
   };
 
   // File drag and drop handlers for the entire table
@@ -409,7 +413,7 @@ export function MultisampleSampleTable({
               alignItems: 'center',
               justifyContent: 'center',
               padding: '4rem 2rem',
-              color: '#9ca3af',
+              color: c.textSecondary,
               textAlign: 'center',
               minHeight: '200px',
               cursor: 'pointer',
@@ -424,7 +428,7 @@ export function MultisampleSampleTable({
             onDragLeave={handleTableDragLeave}
             onDrop={handleTableDrop}
           >
-            <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}></i>
+            <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem' }}></i>
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: '500' }}>
               no samples loaded
             </p>
@@ -475,7 +479,7 @@ export function MultisampleSampleTable({
                       <div style={{ textAlign: 'left' }}>
                         <input
                           type="text"
-                          value={editingNotes[index] ?? midiNoteToString(sample.rootNote || 60, state.midiNoteMapping)}
+                          value={editingNotes[index] ?? midiNoteToString(sample.rootNote ?? 60, state.midiNoteMapping)}
                           onChange={(e) => handleNoteChange(index, e.target.value)}
                           onBlur={() => handleNoteBlur(index)}
                           onKeyDown={(e) => handleNoteKeyDown(index, e)}
@@ -503,7 +507,7 @@ export function MultisampleSampleTable({
                           color: c.textSecondary,
                           textAlign: 'center'
                         }}>
-                          midi {sample.rootNote || 60}
+                          midi {sample.rootNote ?? 60}
                         </div>
                       </div>
                     ) : (
@@ -526,7 +530,20 @@ export function MultisampleSampleTable({
                             onMouseDown={() => playSample(index).catch(error => {
                               console.error('Error playing sample:', error);
                             })}
-                            onMouseUp={stopPlayback}
+                            onKeyDown={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              if (!event.repeat) void playSample(index);
+                            }
+                          }}
+                          onKeyUp={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              stopPlayback();
+                            }
+                          }}
+                          onBlur={stopPlayback}
+                          onMouseUp={stopPlayback}
                             onMouseLeave={stopPlayback}
                             onTouchStart={() => playSample(index).catch(error => {
                               console.error('Error playing sample:', error);
@@ -797,7 +814,7 @@ export function MultisampleSampleTable({
               transition: 'all 0.2s ease',
               color: isDragOver ? c.action : c.textSecondary
             }}>
-              <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}></i>
+              <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem' }}></i>
               <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '300' }}>
                 {isDragOver ? 'drop files here' : 'no samples loaded'}
               </h3>
@@ -868,7 +885,7 @@ export function MultisampleSampleTable({
                       <div style={{ textAlign: 'center' }}>
                         <input
                           type="text"
-                          value={editingNotes[index] ?? midiNoteToString(sample.rootNote || 60, state.midiNoteMapping)}
+                          value={editingNotes[index] ?? midiNoteToString(sample.rootNote ?? 60, state.midiNoteMapping)}
                           onChange={(e) => handleNoteChange(index, e.target.value)}
                           onBlur={() => handleNoteBlur(index)}
                           onKeyDown={(e) => handleNoteKeyDown(index, e)}
@@ -892,7 +909,7 @@ export function MultisampleSampleTable({
                           }}
                         />
                         <div style={{ fontSize: '0.7rem', color: c.textSecondary }}>
-                          midi {sample.rootNote || 60}
+                          midi {sample.rootNote ?? 60}
                         </div>
                       </div>
                     ) : (
@@ -1027,6 +1044,19 @@ export function MultisampleSampleTable({
                           onMouseDown={() => playSample(index).catch(error => {
                             console.error('Error playing sample:', error);
                           })}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              if (!event.repeat) void playSample(index);
+                            }
+                          }}
+                          onKeyUp={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              stopPlayback();
+                            }
+                          }}
+                          onBlur={stopPlayback}
                           onMouseUp={stopPlayback}
                           onMouseLeave={stopPlayback}
                           onTouchStart={() => playSample(index).catch(error => {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrowserMidiSession } from '../../midi/browserSession';
 import { DeviceSetupStore } from '../../midi/deviceSetup';
 import { NINA_PROFILE } from '../../midi/ninaProfile';
@@ -41,6 +41,21 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
   const fileInput = useRef<HTMLInputElement>(null);
   const { state, actions } = useDevicesWorkspace({ session, store, supported });
 
+  const [deleteCandidate, setDeleteCandidate] = useState<{id:string; name:string} | null>(null);
+  const keepSetup = useRef<HTMLButtonElement>(null);
+  const deleteSetup = useRef<HTMLButtonElement>(null);
+  const savedSetups = useRef<HTMLSelectElement>(null);
+  const restoreDeleteFocus = useRef(false);
+  useEffect(() => {
+    if (deleteCandidate) keepSetup.current?.focus();
+    else if (restoreDeleteFocus.current) {
+      restoreDeleteFocus.current = false;
+      if (deleteSetup.current && !deleteSetup.current.disabled) deleteSetup.current.focus();
+      else savedSetups.current?.focus();
+    }
+  }, [deleteCandidate]);
+  const finishDeleteDecision = () => { restoreDeleteFocus.current = true; setDeleteCandidate(null); };
+
   return <div className="studio-devices-workspace">
     <p className="studio-eyebrow">MIDI tools</p>
     <h1>Devices</h1>
@@ -52,7 +67,7 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
     {!state.browserSupported && <p role="alert" className="studio-message studio-message-warning">
       Web MIDI is unavailable in this browser. Use a supported secure browser to connect a device.
     </p>}
-    {state.status && <p role="alert" className={`studio-message studio-message-${state.status.kind}`}>
+    {state.status && <p role={state.status.kind === 'error' ? 'alert' : 'status'} className={`studio-message studio-message-${state.status.kind}`}>
       {state.status.message}
     </p>}
 
@@ -191,11 +206,11 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
     <section className="studio-setup-panel" aria-label="Local setup management">
       <h2 id="devices-setups-heading">Saved setups</h2>
       <p>Saving, loading, importing, renaming, deleting, and exporting are local file or browser-storage actions. They do not send MIDI.</p>
-      <div className="studio-setup-fields"><label>Setup name
+      <fieldset disabled={Boolean(deleteCandidate)} style={{border:0,padding:0,margin:0,minWidth:0}}><div className="studio-setup-fields"><label>Setup name
           <input aria-label="Setup name" value={state.setupName} onChange={event => actions.setSetupName(event.target.value)} />
         </label>
         <label>Saved setups
-          <select aria-label="Saved setups" value={state.selectedSetupId} onChange={event => actions.setSelectedSetupId(event.target.value)}>
+          <select ref={savedSetups} aria-label="Saved setups" value={state.selectedSetupId} onChange={event => actions.setSelectedSetupId(event.target.value)}>
             <option value="">Choose saved setup</option>
             {state.setups.map(setup => <option key={setup.id} value={setup.id}>{setup.name}</option>)}
           </select>
@@ -204,7 +219,10 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
         <button type="button" className="studio-button-primary" onClick={actions.saveSetup}>Save setup</button>
         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.loadSetup}>Load setup</button>
         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.renameSetup}>Rename setup</button>
-        <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.deleteSetup}>Delete setup</button>
+        <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} ref={deleteSetup} onClick={() => {
+          const selected = state.setups.find(setup => setup.id === state.selectedSetupId);
+          if (selected) setDeleteCandidate({id:selected.id,name:selected.name});
+        }}>Delete setup</button>
         <button type="button" className="studio-button-secondary" disabled={!state.selectedSetupId} onClick={actions.exportSetup}>Export setup</button>
         <button type="button" className="studio-button-secondary" onClick={() => fileInput.current?.click()}>Import setup</button>
       </div>
@@ -219,7 +237,14 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
           if (file) void actions.importSetup(file);
           event.target.value = '';
         }}
-      />
+      /></fieldset>
+      {deleteCandidate && <div role="group" aria-label="Delete saved setup confirmation" className="studio-message studio-message-warning">
+        <p>Delete “{deleteCandidate.name}” from saved setups? This cannot be undone. Current controls stay unchanged.</p>
+        <div className="studio-action-row">
+          <button ref={keepSetup} type="button" className="studio-button-secondary" onClick={finishDeleteDecision}>Keep setup</button>
+          <button type="button" className="studio-button-secondary" disabled={state.selectedSetupId !== deleteCandidate.id || !state.setups.some(setup => setup.id === deleteCandidate.id && setup.name === deleteCandidate.name)} onClick={() => { actions.deleteSetup(); finishDeleteDecision(); }}>Delete saved setup</button>
+        </div>
+      </div>}
     </section>
 
     <section className="studio-setup-panel" aria-labelledby="devices-test-heading">

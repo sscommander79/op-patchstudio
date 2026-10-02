@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './control-audit-test';
 
 type DevicesMidiEvidence = {
   requests: number;
@@ -99,7 +99,9 @@ test('Devices keeps setup actions silent, honors route locks, and rejects a stal
   await page.getByLabel('Setup name').fill('Browser-silent setup');
   await page.getByRole('button', { name: 'Save setup', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Choose channel 1–16');
-  await page.getByLabel('Import setup file').setInputFiles({
+  const importChooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import setup', exact: true }).click();
+  await (await importChooser).setFiles({
     name: 'imported-nina.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({
@@ -164,6 +166,12 @@ test('Devices keeps setup actions silent, honors route locks, and rejects a stal
   await expect(page.getByLabel('Cutoff desired value', { exact: true })).toHaveValue('64');
   await expect(page.getByLabel('MIDI channel')).toHaveValue('16');
   await page.getByRole('button', { name: 'Delete setup', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'Selected route import' })).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Keep setup' })).toBeFocused();
+  await page.getByRole('button', { name: 'Keep setup' }).click();
+  await expect(page.getByRole('option', { name: 'Selected route import' })).toBeAttached();
+  await page.getByRole('button', { name: 'Delete setup', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete saved setup', exact: true }).click();
   await expect(page.getByRole('option', { name: 'Selected route import' })).toHaveCount(0);
   await expect(page.getByLabel('MIDI output')).toHaveValue('nina-primary');
   await expect(page.getByRole('button', { name: 'Send Cutoff', exact: true })).toBeDisabled();
@@ -204,6 +212,13 @@ test('Devices keeps setup actions silent, honors route locks, and rejects a stal
     });
     await expect(page.getByRole('button', { name: 'Send Cutoff', exact: true })).toBeEnabled();
   }
+  const beforePreview = await evidence();
+  await page.getByRole('button', { name: 'Preview Apply', exact: true }).click();
+  const preview = page.getByRole('group', { name: 'Apply preview', exact: true });
+  await expect(preview).toContainText('Nothing has been sent yet.');
+  await preview.getByRole('button', { name: 'Refresh preview', exact: true }).click();
+  await expect(preview).toContainText('CC 29');
+  expect(await evidence()).toEqual(beforePreview);
   await page.getByRole('button', { name: 'Send Cutoff', exact: true }).click();
   await expect.poll(evidence).toEqual({
     requests: 1,

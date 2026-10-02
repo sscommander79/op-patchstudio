@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-01",
+  "folder": "/Users/stevencommander/Downloads/Human Test 01.preset",
+  "name": "Human Test 01",
+  "platform": "OP-XY",
+  "type": "drum",
+  "regions": 10,
+  "audioFiles": {
+    "Seed Clap.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 11466,
+      "sha256": "2ac8ab310c3e4e18b53dc12d70f16225eb3421c95f934e56794d09ac2a1f6416"
+    },
+    "Seed Closed Hat.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 4410,
+      "sha256": "e1e2e99a205c8c3ead3e50cf8491328fee6144fac3a1ad4b0d91a4dd97b5381c"
+    },
+    "Seed Dual Bell.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 19404,
+      "sha256": "55f3d6ec8adce007c90a93c0537bc8a659c3d973a8d581d5aa806ad0b5b17a2b"
+    },
+    "Seed High Tom.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 11466,
+      "sha256": "f4ec9e858a34b1f0d7f172d4ace3f1caf54d66d6512224a29f816fcc799bfe1c"
+    },
+    "Seed Kick.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 21168,
+      "sha256": "53ed20fd0feecc1ebf721d8526449966b11e70012094ef49b045f9e90577355a"
+    },
+    "Seed Low Tom.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 18522,
+      "sha256": "d639687541e61ebe91b58404a06c84bf091204b1ef6ed9ea23eae181d539f3e5"
+    },
+    "Seed Open Hat.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 24255,
+      "sha256": "a4d11d27ced788a33a3ef4d5ad41bed63a3c6d01121553b86a4ebf4078e23bda"
+    },
+    "Seed Rim.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 4410,
+      "sha256": "b74b9c4bfda8ab740b411ecae06d313ec5af8544b1d6e89f24e5957d04bac8a3"
+    },
+    "Seed Shaker.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 6174,
+      "sha256": "0fadbf873111e7a5a32b428436ccd0fe61f7a8f5ad7a988da59708f776fb5711"
+    },
+    "Seed Snare.wav": {
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitDepth": 16,
+      "frames": 13230,
+      "sha256": "511abeb443a6160943eaa2f33afa6bb6ec597953eb024862d3305f0b1a276379"
+    }
+  },
+  "checks": "All references resolve; frame counts match; trim bounds are within files; PCM16 mono 44100 Hz headers and RIFF lengths consistent. This is structural verification, not hardware acceptance.",
+  "kickGain": -8,
+  "previousTestTargetGain": -6,
+  "gainDisposition": "Needs user confirmation of current KD1 gain. No product defect established.",
+  "patchSha256": "6050133f041777000755a6b231c55df39d4f33cedd94ad0690c2180231645a58"
+}
