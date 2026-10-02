@@ -1,5 +1,13 @@
 # OP-PatchStudio — move this work to the OPXY project
 
+## Latest completed CI and Claude review — 2026-10-02
+
+The user requested an uninterrupted goal to resolve the post-push failures and obtain Claude/Genspark review. Code commit9f64f79 passed all six push-triggered GitHub Quality jobs in run37072170233. Local and remote standard gates:1174unit tests/111files, typecheck/lint/build/PWA PASS. Firefox failures were resolved by CI virtual audio output; browser sample-rate assumptions were repaired without weakening exact conversion checks. Claude completed three static reviews; final no remaining material findings in the limited repaired scope. Slicer failed-start, warning retention and late-cancel handling have RED/GREEN regressions.
+
+Read `docs/verification/ci-followthrough-2026-10-02/README.md` for exact evidence, job links and limitations. Changes pushed to codex/studio-upgrade; no merge or deployment. A documentation/evidence checkpoint follows with identical production code. Earlier no-push/unexecuted-CI/uncommitted statements below are historical.
+
+Next: inspect live state and resume HumanTest04 listening/application/export/OP-XY playback. HV001/HV004 remain deferred; separately track pre-existing imported-rate fidelity/Keep original semantics. No human/hardware acceptance is implied by automated passes.
+
 ## Commit and push authorization — 2026-10-02
 
 User subsequently requested “please commit and push”. This supersedes earlier no-commit/no-push restrictions for the completed changes on `codex/studio-upgrade` to `origin`. Duplicate files and temporary browser output remain local. No merge, deployment, installation or hardware acceptance is implied. Git history and the remote branch are authoritative for publication status.

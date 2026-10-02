@@ -1,0 +1,1046 @@
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+ ❯ src/test/components/SliceAudioModal.test.tsx (40 tests | 2 failed) 5143ms
+     × ignores a failed preview that settles after closing without releasing a phantom note 49ms
+     × shows a changed loaded pad and allows its unassignment to be reviewed again 252ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/components/SliceAudioModal.test.tsx > SliceAudioModal beginner workflow > ignores a failed preview that settles after closing without releasing a phantom note
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      "slice-preview-1790979094993-3",
+      true,
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/test/components/SliceAudioModal.test.tsx:126:29
+    124|     await act(async()=>{late.resolve(null);await late.promise;});
+    125|     expect(screen.queryByText(/could not play/i)).not.toBeInTheDocumen…
+    126|     expect(releaseNote).not.toHaveBeenCalled();
+       |                             ^
+    127|   });
+    128|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/test/components/SliceAudioModal.test.tsx > slicer organization and decision safety > shows a changed loaded pad and allows its unassignment to be reviewed again
+TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+
+Here are the accessible roles:
+
+  dialog:
+
+  Name "slice audio":
+  [36m<div[39m
+    [33maria-label[39m=[32m"slice audio"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"studio-slicer-overlay"[39m
+    [33mdata-workspace-modal[39m=[32m"slice"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"studio-slicer-header"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Turn a loop into drum sounds":
+  [36m<h3 />[39m
+
+  Name "Make slices":
+  [36m<h4[39m
+    [33mid[39m=[32m"slice-make-heading"[39m
+  [36m/>[39m
+
+  Name "Edit and listen":
+  [36m<h4[39m
+    [33mid[39m=[32m"slice-edit-heading"[39m
+  [36m/>[39m
+
+  Name "Assign to keys":
+  [36m<h4[39m
+    [33mid[39m=[32m"slice-assign-heading"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"studio-slicer-source"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  main:
+
+  Name "Slicing controls":
+  [36m<main[39m
+    [33maria-label[39m=[32m"Slicing controls"[39m
+    [33mclass[39m=[32m"studio-slicer-body"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  region:
+
+  Name "Make slices":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"slice-make-heading"[39m
+    [33mclass[39m=[32m"studio-slicer-group"[39m
+  [36m/>[39m
+
+  Name "Edit and listen":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"slice-edit-heading"[39m
+    [33mclass[39m=[32m"studio-slicer-group"[39m
+  [36m/>[39m
+
+  Name "Sound 1 editor":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Sound 1 editor"[39m
+  [36m/>[39m
+
+  Name "Sound selection":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Sound selection"[39m
+    [33mclass[39m=[32m"studio-slicer-sounds"[39m
+    [33mrole[39m=[32m"region"[39m
+  [36m/>[39m
+
+  Name "Assign to keys":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"slice-assign-heading"[39m
+    [33mclass[39m=[32m"studio-slicer-group"[39m
+  [36m/>[39m
+
+  Name "OP-XY slice destinations":
+  [36m<section[39m
+    [33maria-label[39m=[32m"OP-XY slice destinations"[39m
+    [33mstyle[39m=[32m"margin-top: 1rem;"[39m
+  [36m/>[39m
+
+  Name "OP-XY destination scroll area":
+  [36m<div[39m
+    [33maria-label[39m=[32m"OP-XY destination scroll area"[39m
+    [33mrole[39m=[32m"region"[39m
+    [33mstyle[39m=[32m"overflow-x: auto; padding: 0.5rem 0px;"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong[39m
+    [33maria-live[39m=[32m"polite"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Play source":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Stop source":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Mark split (M)":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Detect sounds again":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Reset to full source":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Add sound":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Split sound":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Delete sound":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Play sound":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Stop":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Previous sound":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Previous sound"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Next sound":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Next sound"[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Select sound 1":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Select sound 1"[39m
+    [33maria-pressed[39m=[32m"true"[39m
+    [33mdraggable[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.45rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer; min-width: 44px; background: var(--color-interactive-focus); color: var(--studio-accent-text);"[39m
+    [33mtitle[39m=[32m"Select and play sound 1, unassigned"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Select sound 2":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Select sound 2"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdraggable[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.45rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer; min-width: 44px; background: var(--color-bg-secondary); color: var(--color-text-primary);"[39m
+    [33mtitle[39m=[32m"Select and play sound 2, unassigned"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 2, KD2, Empty":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 2, KD2, Empty"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"1"[39m
+    [33mstyle[39m=[32m"grid-column: 2 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"Empty"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 4, SD2, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 4, SD2, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"3"[39m
+    [33mstyle[39m=[32m"grid-column: 4 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 6, CLP, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 6, CLP, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"5"[39m
+    [33mstyle[39m=[32m"grid-column: 6 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 9, CH, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 9, CH, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"8"[39m
+    [33mstyle[39m=[32m"grid-column: 10 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 11, OH, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 11, OH, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"10"[39m
+    [33mstyle[39m=[32m"grid-column: 12 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 1, KD1, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 1, KD1, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"0"[39m
+    [33mstyle[39m=[32m"grid-column: 1 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 3, SD1, changed.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 3, SD1, changed.wav"[39m
+    [33maria-pressed[39m=[32m"true"[39m
+    [33mdata-slice-pad[39m=[32m"2"[39m
+    [33mstyle[39m=[32m"grid-column: 3 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem; outline: 2px solid var(--color-text-primary);"[39m
+    [33mtitle[39m=[32m"changed.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 5, RIM, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 5, RIM, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"4"[39m
+    [33mstyle[39m=[32m"grid-column: 5 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 7, TB, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 7, TB, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"6"[39m
+    [33mstyle[39m=[32m"grid-column: 7 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 8, SH, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 8, SH, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"7"[39m
+    [33mstyle[39m=[32m"grid-column: 9 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 10, CL, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 10, CL, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"9"[39m
+    [33mstyle[39m=[32m"grid-column: 11 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 12, CAB, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 12, CAB, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"11"[39m
+    [33mstyle[39m=[32m"grid-column: 13 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 14, RC, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 14, RC, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"13"[39m
+    [33mstyle[39m=[32m"grid-column: 2 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 16, CC, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 16, CC, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"15"[39m
+    [33mstyle[39m=[32m"grid-column: 4 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 18, COW, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 18, COW, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"17"[39m
+    [33mstyle[39m=[32m"grid-column: 6 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 21, LC, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 21, LC, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"20"[39m
+    [33mstyle[39m=[32m"grid-column: 10 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 23, HC, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 23, HC, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"22"[39m
+    [33mstyle[39m=[32m"grid-column: 12 / span 2; grid-row: 1; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 13, LT1, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 13, LT1, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"12"[39m
+    [33mstyle[39m=[32m"grid-column: 1 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 15, MT, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 15, MT, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"14"[39m
+    [33mstyle[39m=[32m"grid-column: 3 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 17, HT, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 17, HT, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"16"[39m
+    [33mstyle[39m=[32m"grid-column: 5 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 19, TRI, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 19, TRI, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"18"[39m
+    [33mstyle[39m=[32m"grid-column: 7 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 20, LT2, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 20, LT2, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"19"[39m
+    [33mstyle[39m=[32m"grid-column: 9 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 22, WS, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 22, WS, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"21"[39m
+    [33mstyle[39m=[32m"grid-column: 11 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pad 24, GUI, break.wav":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Pad 24, GUI, break.wav"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mdata-slice-pad[39m=[32m"23"[39m
+    [33mstyle[39m=[32m"grid-column: 13 / span 2; grid-row: 2; width: 48px; min-width: 48px; min-height: 64px; padding: 0.25rem; border: 1px solid var(--color-border-medium); outline-offset: -2px; border-radius: 4px; background: var(--color-bg-tertiary); color: var(--color-text-primary); cursor: pointer; display: grid; align-content: center; gap: .1rem;"[39m
+    [33mtitle[39m=[32m"break.wav"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Assign selected sound":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Unassign pad sound":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Auto-fill empty keys":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Cancel":
+  [36m<button[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Add sounds to kit":
+  [36m<button[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer; background: var(--color-interactive-focus); color: var(--studio-accent-text);"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"studio-slicer-disclosure"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"studio-slicer-disclosure"[39m
+  [36m/>[39m
+
+  Name "Lower octave destinations":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Lower octave destinations"[39m
+    [33mrole[39m=[32m"group"[39m
+    [33mstyle[39m=[32m"min-width: 350px; flex: 1 0 350px;"[39m
+  [36m/>[39m
+
+  Name "Upper octave destinations":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Upper octave destinations"[39m
+    [33mrole[39m=[32m"group"[39m
+    [33mstyle[39m=[32m"min-width: 350px; flex: 1 0 350px;"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  slider:
+
+  Name "Detection sensitivity":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Detection sensitivity"[39m
+    [33mmax[39m=[32m"100"[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mtype[39m=[32m"range"[39m
+    [33mvalue[39m=[32m"50"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  spinbutton:
+
+  Name "Minimum spacing milliseconds":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Minimum spacing milliseconds"[39m
+    [33mmax[39m=[32m"5000"[39m
+    [33mmin[39m=[32m"1"[39m
+    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"20"[39m
+  [36m/>[39m
+
+  Name "Sound 1 Start":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Sound 1 Start"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mmax[39m=[32m"0.1"[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"0.001"[39m
+    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"0.010"[39m
+  [36m/>[39m
+
+  Name "Sound 1 End":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Sound 1 End"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mmax[39m=[32m"0.1"[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"0.001"[39m
+    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"0.050"[39m
+  [36m/>[39m
+
+  Name "Sound 1 Start frame":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Sound 1 Start frame"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mmax[39m=[32m"1000"[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"1"[39m
+    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"100"[39m
+  [36m/>[39m
+
+  Name "Sound 1 End frame":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Sound 1 End frame"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mmax[39m=[32m"1000"[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"1"[39m
+    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"500"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  combobox:
+
+  Name "Destination pad":
+  [36m<select[39m
+    [33maria-label[39m=[32m"Destination pad"[39m
+    [33mstyle[39m=[32m"min-height: 44px; max-width: 100%; min-width: 0;"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  option:
+
+  Name "KD1 (Pad 1) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"0"[39m
+  [36m/>[39m
+
+  Name "KD2 (Pad 2) - Empty":
+  [36m<option[39m
+    [33mvalue[39m=[32m"1"[39m
+  [36m/>[39m
+
+  Name "SD1 (Pad 3) - changed.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"2"[39m
+  [36m/>[39m
+
+  Name "SD2 (Pad 4) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"3"[39m
+  [36m/>[39m
+
+  Name "RIM (Pad 5) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"4"[39m
+  [36m/>[39m
+
+  Name "CLP (Pad 6) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"5"[39m
+  [36m/>[39m
+
+  Name "TB (Pad 7) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"6"[39m
+  [36m/>[39m
+
+  Name "SH (Pad 8) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"7"[39m
+  [36m/>[39m
+
+  Name "CH (Pad 9) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"8"[39m
+  [36m/>[39m
+
+  Name "CL (Pad 10) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"9"[39m
+  [36m/>[39m
+
+  Name "OH (Pad 11) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"10"[39m
+  [36m/>[39m
+
+  Name "CAB (Pad 12) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"11"[39m
+  [36m/>[39m
+
+  Name "LT1 (Pad 13) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"12"[39m
+  [36m/>[39m
+
+  Name "RC (Pad 14) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"13"[39m
+  [36m/>[39m
+
+  Name "MT (Pad 15) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"14"[39m
+  [36m/>[39m
+
+  Name "CC (Pad 16) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"15"[39m
+  [36m/>[39m
+
+  Name "HT (Pad 17) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"16"[39m
+  [36m/>[39m
+
+  Name "COW (Pad 18) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"17"[39m
+  [36m/>[39m
+
+  Name "TRI (Pad 19) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"18"[39m
+  [36m/>[39m
+
+  Name "LT2 (Pad 20) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"19"[39m
+  [36m/>[39m
+
+  Name "LC (Pad 21) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"20"[39m
+  [36m/>[39m
+
+  Name "WS (Pad 22) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"21"[39m
+  [36m/>[39m
+
+  Name "HC (Pad 23) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"22"[39m
+  [36m/>[39m
+
+  Name "GUI (Pad 24) - break.wav":
+  [36m<option[39m
+    [33mvalue[39m=[32m"23"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<p[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  checkbox:
+
+  Name "I understand that 2 sounds will remain unassigned.":
+  [36m<input[39m
+    [33mtype[39m=[32m"checkbox"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  contentinfo:
+
+  Name "":
+  [36m<footer[39m
+    [33mclass[39m=[32m"studio-slicer-footer"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33maria-label[39m=[32m"slice audio"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"studio-slicer-overlay"[39m
+      [33mdata-workspace-modal[39m=[32m"slice"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"studio-slicer-shell"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"studio-slicer-header"[39m
+        [36m>[39m
+          [36m<h3>[39m
+            [0mTurn a loop into drum sounds[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mMake slices, edit and listen, then assign keys. Scroll through the controls below.[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<main[39m
+          [33maria-label[39m=[32m"Slicing controls"[39m
+          [33mclass[39m=[32m"studio-slicer-body"[39m
+          [33mtabindex[39m=[32m"0"[39m
+        [36m>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"slice-make-heading"[39m
+            [33mclass[39m=[32m"studio-slicer-group"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mid[39m=[32m"slice-make-heading"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</span>[39m
+              [0m Make slices[0m
+            [36m</h4>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"studio-slicer-source"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mbreak.wav[0m
+              [36m</strong>[39m
+              [0m · [0m
+              [0m0.10[0m
+              [0m seconds · [0m
+              [0m2[0m
+              [0m sounds[0m
+            [36m</p>[39m
+            [36m<canvas[39m
+              [33maria-label[39m=[32m"Loop overview"[39m
+              [33mclass[39m=[32m"studio-slicer-overview"[39m
+              [33mheight[39m=[32m"100"[39m
+              [33mwidth[39m=[32m"640"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"studio-slicer-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mPlay source[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mStop source[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mMark split (M)[0m
+              [36m</button>[39m
+            [36m</div>[39m
+            [36m<details[39m
+              [33mclass[39m=[32m"studio-slicer-disclosure"[39m
+            [36m>[39m
+              [36m<summary>[39m
+                [0mDetection settings[0m
+              [36m</summary>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"studio-slicer-fields"[39m
+              [36m>[39m
+                [36m<label>[39m
+                  [0mDetection sensitivity [0m
+                  [36m<input[39m
+                    [33maria-label[39m=[32m"Detection sensitivity"[39m
+                    [33mmax[39m=[32m"100"[39m
+                    [33mmin[39m=[32m"0"[39m
+                    [33mtype[39m=[32m"range"[39m
+                    [33mvalue[39m=[32m"50"[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label>[39m
+                  [0mMinimum spacing (ms) [0m
+                  [36m<input[39m
+                    [33maria-label[39m=[32m"Minimum spacing milliseconds"[39m
+                    [33mmax[39m=[32m"5000"[39m
+                    [33mmin[39m=[32m"1"[39m
+                    [33mstyle[39m=[32m"box-sizing: border-box; width: 9rem; max-width: 100%; min-height: 40px;"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m"20"[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+            [36m</details>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"studio-slicer-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mDetect sounds again[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mReset to full source[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"slice-edit-heading"[39m
+            [33mclass[39m=[32m"studio-slicer-group"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mid[39m=[32m"slice-edit-heading"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+              [36m>[39m
+                [0m2[0m
+              [36m</span>[39m
+              [0m Edit and listen[0m
+            [36m</h4>[39m
+            [36m<p>[39m
+              [0mClick a numbered sound to hear it, or drag it directly onto a key below. Replacing a loaded pad keeps its old sound in Unassigned sounds.[0m
+            [36m</p>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"studio-slicer-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mstyle[39m=[32m"min-height: 44px; padding: 0.55rem 0.85rem; border: 1px solid var(--color-border-medium); border-radius: 4px; cursor: pointer;"[39m
+                [33mtype[39m=[3...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/test/components/SliceAudioModal.test.tsx:165:266
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 38 passed (40)
+   Start at  15:11:31
+   Duration  6.15s (transform 179ms, setup 140ms, import 326ms, tests 5.14s, environment 447ms)
+

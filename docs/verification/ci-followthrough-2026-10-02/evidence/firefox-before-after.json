@@ -1,0 +1,19 @@
+{
+  "before_commit": "9d6c59d",
+  "before_run": 37070991176,
+  "before_job": 111050126730,
+  "before_failed": 27,
+  "before_passed": 52,
+  "before_skipped": 1,
+  "trace_count": 27,
+  "observed_ui": "Decoding source... 0%",
+  "representative_trace_sha256": "a980f2c5f8f91c6f04c76eef38b01cbc85579eeea34f174667483b20bec3e843",
+  "after_commit": "9f64f79",
+  "after_run": 37072170233,
+  "after_job": 111053895235,
+  "after_failed": 0,
+  "after_passed": 79,
+  "after_skipped": 1,
+  "audio_sink": "auto_null / module-null-sink.c / 44100Hz",
+  "conclusion": "Headless Firefox import/playback cluster resolved by provisioning a virtual audio output; no app decoding or autoplay behavior changed."
+}

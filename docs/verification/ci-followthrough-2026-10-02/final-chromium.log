@@ -1,0 +1,1604 @@
+﻿2026-10-02T22:22:54.7442479Z Current runner version: '2.337.0'
+2026-10-02T22:22:54.7464936Z ##[group]Runner Image Provisioner
+2026-10-02T22:22:54.7465827Z Hosted Compute Agent
+2026-10-02T22:22:54.7466324Z Version: 20260901.588
+2026-10-02T22:22:54.7466847Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-02T22:22:54.7467511Z Build Date: 2026-09-01T19:56:44Z
+2026-10-02T22:22:54.7468078Z Worker ID: {a9097429-ffd6-4d0b-8f1f-ce98394107c1}
+2026-10-02T22:22:54.7469001Z Azure Region: westus3
+2026-10-02T22:22:54.7469500Z ##[endgroup]
+2026-10-02T22:22:54.7470722Z ##[group]Operating System
+2026-10-02T22:22:54.7471336Z Ubuntu
+2026-10-02T22:22:54.7471805Z 24.04.5
+2026-10-02T22:22:54.7472256Z LTS
+2026-10-02T22:22:54.7472701Z ##[endgroup]
+2026-10-02T22:22:54.7473164Z ##[group]Runner Image
+2026-10-02T22:22:54.7473827Z Image: ubuntu-24.04
+2026-10-02T22:22:54.7474297Z Version: 20260927.320.1
+2026-10-02T22:22:54.7475425Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-02T22:22:54.7476677Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-02T22:22:54.7477502Z ##[endgroup]
+2026-10-02T22:22:54.7478474Z ##[group]GITHUB_TOKEN Permissions
+2026-10-02T22:22:54.7480263Z Contents: read
+2026-10-02T22:22:54.7480754Z Metadata: read
+2026-10-02T22:22:54.7481205Z ##[endgroup]
+2026-10-02T22:22:54.7483022Z Secret source: Actions
+2026-10-02T22:22:54.7484153Z Cache mode: write
+2026-10-02T22:22:54.7484825Z Prepare workflow directory
+2026-10-02T22:22:54.7755740Z Prepare all required actions
+2026-10-02T22:22:54.7795865Z Getting action download info
+2026-10-02T22:22:55.0981228Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-02T22:22:55.2163246Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-02T22:22:55.3961170Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-02T22:22:55.7360804Z Complete job name: quality-and-chromium
+2026-10-02T22:22:55.8124835Z ##[group]Run actions/checkout@v4
+2026-10-02T22:22:55.8125931Z with:
+2026-10-02T22:22:55.8126619Z   repository: sscommander79/op-patchstudio
+2026-10-02T22:22:55.8133371Z   token: ***
+2026-10-02T22:22:55.8134147Z   ssh-strict: true
+2026-10-02T22:22:55.8134816Z   ssh-user: git
+2026-10-02T22:22:55.8135481Z   persist-credentials: true
+2026-10-02T22:22:55.8136214Z   clean: true
+2026-10-02T22:22:55.8136886Z   sparse-checkout-cone-mode: true
+2026-10-02T22:22:55.8137679Z   fetch-depth: 1
+2026-10-02T22:22:55.8138336Z   fetch-tags: false
+2026-10-02T22:22:55.8139006Z   show-progress: true
+2026-10-02T22:22:55.8139691Z   lfs: false
+2026-10-02T22:22:55.8140315Z   submodules: false
+2026-10-02T22:22:55.8140991Z   set-safe-directory: true
+2026-10-02T22:22:55.8141763Z   allow-unsafe-pr-checkout: false
+2026-10-02T22:22:55.8142718Z ##[endgroup]
+2026-10-02T22:22:55.8989988Z Syncing repository: sscommander79/op-patchstudio
+2026-10-02T22:22:55.8993198Z ##[group]Getting Git version info
+2026-10-02T22:22:55.8995256Z Working directory is '/home/runner/work/op-patchstudio/op-patchstudio'
+2026-10-02T22:22:55.8997822Z [command]/usr/bin/git version
+2026-10-02T22:22:55.9021846Z git version 2.55.0
+2026-10-02T22:22:55.9047071Z ##[endgroup]
+2026-10-02T22:22:55.9063871Z Temporarily overriding HOME='/home/runner/work/_temp/aea445f1-ed79-45b6-bf09-ac0ea96bd7c2' before making global git config changes
+2026-10-02T22:22:55.9067222Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T22:22:55.9070215Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T22:22:55.9116951Z Deleting the contents of '/home/runner/work/op-patchstudio/op-patchstudio'
+2026-10-02T22:22:55.9124249Z ##[group]Initializing the repository
+2026-10-02T22:22:55.9126088Z [command]/usr/bin/git init /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T22:22:55.9202831Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-02T22:22:55.9205766Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-02T22:22:55.9208133Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-02T22:22:55.9209715Z hint: call:
+2026-10-02T22:22:55.9210682Z hint:
+2026-10-02T22:22:55.9211741Z hint: 	git config --global init.defaultBranch <name>
+2026-10-02T22:22:55.9213072Z hint:
+2026-10-02T22:22:55.9214507Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-02T22:22:55.9217145Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-02T22:22:55.9234365Z hint:
+2026-10-02T22:22:55.9244468Z hint: 	git branch -m <name>
+2026-10-02T22:22:55.9245776Z hint:
+2026-10-02T22:22:55.9247349Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-02T22:22:55.9249995Z Initialized empty Git repository in /home/runner/work/op-patchstudio/op-patchstudio/.git/
+2026-10-02T22:22:55.9254539Z [command]/usr/bin/git remote add origin https://github.com/sscommander79/op-patchstudio
+2026-10-02T22:22:55.9266395Z ##[endgroup]
+2026-10-02T22:22:55.9268131Z ##[group]Disabling automatic garbage collection
+2026-10-02T22:22:55.9269705Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-02T22:22:55.9295773Z ##[endgroup]
+2026-10-02T22:22:55.9297436Z ##[group]Setting up auth
+2026-10-02T22:22:55.9301016Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T22:22:55.9328831Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T22:22:55.9644265Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T22:22:55.9676274Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T22:22:55.9880690Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T22:22:55.9914046Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T22:22:56.0107378Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-02T22:22:56.0144057Z ##[endgroup]
+2026-10-02T22:22:56.0151085Z ##[group]Fetching the repository
+2026-10-02T22:22:56.0153312Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9f64f79266df569eeea7f627e9cbc48fd795d5e8:refs/remotes/origin/codex/studio-upgrade
+2026-10-02T22:22:59.0532129Z From https://github.com/sscommander79/op-patchstudio
+2026-10-02T22:22:59.0532950Z  * [new ref]         9f64f79266df569eeea7f627e9cbc48fd795d5e8 -> origin/codex/studio-upgrade
+2026-10-02T22:22:59.0535485Z ##[endgroup]
+2026-10-02T22:22:59.0537390Z ##[group]Determining the checkout info
+2026-10-02T22:22:59.0542759Z ##[endgroup]
+2026-10-02T22:22:59.0543377Z [command]/usr/bin/git sparse-checkout disable
+2026-10-02T22:22:59.0590688Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-02T22:22:59.0626886Z ##[group]Checking out the ref
+2026-10-02T22:22:59.0627458Z [command]/usr/bin/git checkout --progress --force -B codex/studio-upgrade refs/remotes/origin/codex/studio-upgrade
+2026-10-02T22:22:59.2887158Z Switched to a new branch 'codex/studio-upgrade'
+2026-10-02T22:22:59.2889494Z branch 'codex/studio-upgrade' set up to track 'origin/codex/studio-upgrade'.
+2026-10-02T22:22:59.2900914Z ##[endgroup]
+2026-10-02T22:22:59.2940596Z [command]/usr/bin/git log -1 --format=%H
+2026-10-02T22:22:59.2963352Z 9f64f79266df569eeea7f627e9cbc48fd795d5e8
+2026-10-02T22:22:59.3249329Z ##[group]Run actions/setup-node@v4
+2026-10-02T22:22:59.3249586Z with:
+2026-10-02T22:22:59.3249752Z   node-version: 22
+2026-10-02T22:22:59.3250102Z   cache: npm
+2026-10-02T22:22:59.3250272Z   always-auth: false
+2026-10-02T22:22:59.3250454Z   check-latest: false
+2026-10-02T22:22:59.3252420Z   token: ***
+2026-10-02T22:22:59.3252601Z ##[endgroup]
+2026-10-02T22:22:59.5012771Z Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+2026-10-02T22:22:59.5017839Z (node:2092) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-02T22:22:59.5018498Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-02T22:22:59.5019866Z ##[group]Environment details
+2026-10-02T22:23:00.1093887Z node: v22.23.3
+2026-10-02T22:23:00.1094291Z npm: 10.9.9
+2026-10-02T22:23:00.1094469Z yarn: 1.22.22
+2026-10-02T22:23:00.1095503Z ##[endgroup]
+2026-10-02T22:23:00.1113771Z [command]/opt/hostedtoolcache/node/22.23.3/x64/bin/npm config get cache
+2026-10-02T22:23:00.2058668Z /home/runner/.npm
+2026-10-02T22:23:00.4221119Z Cache hit for: node-cache-Linux-x64-npm-b8a95477bf95ff4a35eca48df0ba79e82fa6472e8a6f114b09e7678b92070db6
+2026-10-02T22:23:00.4307633Z (node:2092) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-02T22:23:01.6270503Z Received 41943040 of 128736456 (32.6%), 40.0 MBs/sec
+2026-10-02T22:23:02.1327345Z Received 128736456 of 128736456 (100.0%), 81.5 MBs/sec
+2026-10-02T22:23:02.1328007Z Cache Size: ~123 MB (128736456 B)
+2026-10-02T22:23:02.1362024Z [command]/usr/bin/tar -xf /home/runner/work/_temp/ccb7d934-1c69-4b0d-a152-68b5eba90bf0/cache.tzst -P -C /home/runner/work/op-patchstudio/op-patchstudio --use-compress-program unzstd
+2026-10-02T22:23:02.4265914Z Cache restored successfully
+2026-10-02T22:23:02.4323311Z Cache restored from key: node-cache-Linux-x64-npm-b8a95477bf95ff4a35eca48df0ba79e82fa6472e8a6f114b09e7678b92070db6
+2026-10-02T22:23:02.4478277Z ##[group]Run npm ci
+2026-10-02T22:23:02.4478541Z [36;1mnpm ci[0m
+2026-10-02T22:23:02.4870569Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:23:02.4870824Z ##[endgroup]
+2026-10-02T22:23:05.3407471Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-02T22:23:05.4797267Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-02T22:23:05.6061691Z npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+2026-10-02T22:23:11.3791494Z 
+2026-10-02T22:23:11.3815087Z added 664 packages, and audited 665 packages in 9s
+2026-10-02T22:23:11.3844114Z 
+2026-10-02T22:23:11.3874322Z 157 packages are looking for funding
+2026-10-02T22:23:11.3874981Z   run `npm fund` for details
+2026-10-02T22:23:11.4554293Z 
+2026-10-02T22:23:11.4584637Z 10 vulnerabilities (8 moderate, 2 high)
+2026-10-02T22:23:11.4597271Z 
+2026-10-02T22:23:11.4654623Z To address issues that do not require attention, run:
+2026-10-02T22:23:11.4690378Z   npm audit fix
+2026-10-02T22:23:11.4744568Z 
+2026-10-02T22:23:11.4804339Z To address all issues, run:
+2026-10-02T22:23:11.4864302Z   npm audit fix --force
+2026-10-02T22:23:11.4865069Z 
+2026-10-02T22:23:11.4924404Z Run `npm audit` for details.
+2026-10-02T22:23:11.8690403Z ##[group]Run npm run typecheck
+2026-10-02T22:23:11.8690768Z [36;1mnpm run typecheck[0m
+2026-10-02T22:23:11.8898951Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:23:11.8899315Z ##[endgroup]
+2026-10-02T22:23:12.2354646Z 
+2026-10-02T22:23:12.2374095Z > op-patchstudio@0.16.0 typecheck
+2026-10-02T22:23:12.2384693Z > tsc -b --pretty false
+2026-10-02T22:23:12.2391592Z 
+2026-10-02T22:23:23.8674171Z ##[group]Run npm run lint
+2026-10-02T22:23:23.8674673Z [36;1mnpm run lint[0m
+2026-10-02T22:23:23.8752817Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:23:23.8753147Z ##[endgroup]
+2026-10-02T22:23:23.9792956Z 
+2026-10-02T22:23:23.9793825Z > op-patchstudio@0.16.0 lint
+2026-10-02T22:23:23.9794238Z > eslint .
+2026-10-02T22:23:23.9794395Z 
+2026-10-02T22:23:33.1317234Z ##[group]Run npm test
+2026-10-02T22:23:33.1317582Z [36;1mnpm test[0m
+2026-10-02T22:23:33.1376902Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:23:33.1377131Z ##[endgroup]
+2026-10-02T22:23:33.5759232Z 
+2026-10-02T22:23:33.5759937Z > op-patchstudio@0.16.0 test
+2026-10-02T22:23:33.5760730Z > vitest --run
+2026-10-02T22:23:33.5760928Z 
+2026-10-02T22:23:33.8776115Z 
+2026-10-02T22:23:33.8778498Z [1m[30m[46m RUN [49m[39m[22m [36mv4.1.6 [39m[90m/home/runner/work/op-patchstudio/op-patchstudio[39m
+2026-10-02T22:23:33.8779408Z 
+2026-10-02T22:23:35.1425822Z  [32m✓[39m src/test/utils/audio.test.ts [2m([22m[2m69 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+2026-10-02T22:23:42.6826605Z [90mstderr[2m | src/test/components/DevicesWorkspace.test.tsx[2m > [22m[2mDevicesWorkspace[2m > [22m[2mreactively disables a leased route with its owner and re-enables it after release
+2026-10-02T22:23:42.6828719Z [22m[39mAn update to DevicesWorkspace inside a test was not wrapped in act(...).
+2026-10-02T22:23:42.6832885Z 
+2026-10-02T22:23:42.6833848Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:42.6834509Z 
+2026-10-02T22:23:42.6834801Z act(() => {
+2026-10-02T22:23:42.6835307Z   /* fire events that update state */
+2026-10-02T22:23:42.6835832Z });
+2026-10-02T22:23:42.6836416Z /* assert on the output */
+2026-10-02T22:23:42.6836845Z 
+2026-10-02T22:23:42.6860704Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:42.6861882Z An update to DevicesWorkspace inside a test was not wrapped in act(...).
+2026-10-02T22:23:42.6862373Z 
+2026-10-02T22:23:42.6862997Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:42.6863821Z 
+2026-10-02T22:23:42.6874305Z act(() => {
+2026-10-02T22:23:42.6875008Z   /* fire events that update state */
+2026-10-02T22:23:42.6875589Z });
+2026-10-02T22:23:42.6881016Z /* assert on the output */
+2026-10-02T22:23:42.6881445Z 
+2026-10-02T22:23:42.6882320Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:42.6883624Z An update to DevicesWorkspace inside a test was not wrapped in act(...).
+2026-10-02T22:23:42.6884210Z 
+2026-10-02T22:23:42.6884796Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:42.6885321Z 
+2026-10-02T22:23:42.6885582Z act(() => {
+2026-10-02T22:23:42.6886020Z   /* fire events that update state */
+2026-10-02T22:23:42.6886474Z });
+2026-10-02T22:23:42.6886860Z /* assert on the output */
+2026-10-02T22:23:42.6887176Z 
+2026-10-02T22:23:42.6887963Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:42.6888979Z An update to DevicesWorkspace inside a test was not wrapped in act(...).
+2026-10-02T22:23:42.6889483Z 
+2026-10-02T22:23:42.6890021Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:42.6890560Z 
+2026-10-02T22:23:42.6890817Z act(() => {
+2026-10-02T22:23:42.6891244Z   /* fire events that update state */
+2026-10-02T22:23:42.6891711Z });
+2026-10-02T22:23:42.6892125Z /* assert on the output */
+2026-10-02T22:23:42.6892474Z 
+2026-10-02T22:23:42.6893317Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:42.6894390Z 
+2026-10-02T22:23:42.8809725Z  [32m✓[39m src/test/components/RecordingModal.test.tsx [2m([22m[2m29 tests[22m[2m)[22m[33m 6467[2mms[22m[39m
+2026-10-02T22:23:42.8865398Z      [33m[2m✓[22m[39m keeps the failed setup explanation and permits recovery after Enable input [33m 320[2mms[22m[39m
+2026-10-02T22:23:42.8881678Z      [33m[2m✓[22m[39m keeps distinct take IDs through rename/remove and applies the selected tray atomically [33m 308[2mms[22m[39m
+2026-10-02T22:23:42.8887283Z      [33m[2m✓[22m[39m opens and closes shell Help without disposing a recorder or its unaccepted take [33m 464[2mms[22m[39m
+2026-10-02T22:23:42.8888874Z      [33m[2m✓[22m[39m gives only the latest same take audition a ticket while capture Stop is pending [33m 317[2mms[22m[39m
+2026-10-02T22:23:42.8890090Z      [33m[2m✓[22m[39m resets a canceled Apply when the persistent recorder reopens [33m 316[2mms[22m[39m
+2026-10-02T22:23:42.8891447Z      [33m[2m✓[22m[39m keeps automatic range captures in review with exact MIDI roots until one atomic Apply [33m 411[2mms[22m[39m
+2026-10-02T22:23:42.8892906Z      [33m[2m✓[22m[39m keeps guided review and its takes when the commit receipt is rejected [33m 310[2mms[22m[39m
+2026-10-02T22:23:42.8913568Z      [33m[2m✓[22m[39m proposes roots from the explicit anchor using current project and retained tray reservations [33m 399[2mms[22m[39m
+2026-10-02T22:23:44.5749263Z [90mstderr[2m | src/test/components/LibraryPage.test.tsx[2m > [22m[2mLibraryPage[2m > [22m[2mLoading Presets[2m > [22m[2mrejects a corrupt saved preset type without restoring or navigating
+2026-10-02T22:23:44.5764436Z [22m[39mFailed to load preset: Error: Unsupported saved preset type
+2026-10-02T22:23:44.5768991Z     at actuallyLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:185:66[90m)[39m
+2026-10-02T22:23:44.5770510Z     at handleLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:175:5[90m)[39m
+2026-10-02T22:23:44.5771361Z 
+2026-10-02T22:23:44.7089437Z [90mstderr[2m | src/test/components/LibraryPage.test.tsx[2m > [22m[2mLibraryPage[2m > [22m[2mLoading Presets[2m > [22m[2mdoes not apply decoded preset data after the current project changes
+2026-10-02T22:23:44.7109672Z [22m[39mFailed to load preset: Error: Current project changed while the preset was loading
+2026-10-02T22:23:44.7110809Z     at actuallyLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:189:82[90m)[39m
+2026-10-02T22:23:44.7111841Z     at handleLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:175:5[90m)[39m
+2026-10-02T22:23:44.7112365Z 
+2026-10-02T22:23:44.8282758Z [90mstderr[2m | src/test/components/LibraryPage.test.tsx[2m > [22m[2mLibraryPage[2m > [22m[2mLoading Presets[2m > [22m[2mshould show loading state initially
+2026-10-02T22:23:44.8314944Z [22m[39mAn update to LibraryPage inside a test was not wrapped in act(...).
+2026-10-02T22:23:44.8321556Z 
+2026-10-02T22:23:44.8322415Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:44.8323290Z 
+2026-10-02T22:23:44.8323761Z act(() => {
+2026-10-02T22:23:44.8324574Z   /* fire events that update state */
+2026-10-02T22:23:44.8325083Z });
+2026-10-02T22:23:44.8325828Z /* assert on the output */
+2026-10-02T22:23:44.8326493Z 
+2026-10-02T22:23:44.8327668Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:44.8329102Z An update to LibraryPage inside a test was not wrapped in act(...).
+2026-10-02T22:23:44.8329927Z 
+2026-10-02T22:23:44.8330533Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:44.8331399Z 
+2026-10-02T22:23:44.8331675Z act(() => {
+2026-10-02T22:23:44.8332424Z   /* fire events that update state */
+2026-10-02T22:23:44.8332921Z });
+2026-10-02T22:23:44.8333706Z /* assert on the output */
+2026-10-02T22:23:44.8334061Z 
+2026-10-02T22:23:44.8335063Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:44.8337414Z An update to LibraryPage inside a test was not wrapped in act(...).
+2026-10-02T22:23:44.8338231Z 
+2026-10-02T22:23:44.8339347Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:44.8340255Z 
+2026-10-02T22:23:44.8340547Z act(() => {
+2026-10-02T22:23:44.8341303Z   /* fire events that update state */
+2026-10-02T22:23:44.8341866Z });
+2026-10-02T22:23:44.8342613Z /* assert on the output */
+2026-10-02T22:23:44.8342998Z 
+2026-10-02T22:23:44.8344244Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:44.8345698Z An update to LibraryPage inside a test was not wrapped in act(...).
+2026-10-02T22:23:44.8346534Z 
+2026-10-02T22:23:44.8347344Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:44.8347959Z 
+2026-10-02T22:23:44.8348398Z act(() => {
+2026-10-02T22:23:44.8348852Z   /* fire events that update state */
+2026-10-02T22:23:44.8349584Z });
+2026-10-02T22:23:44.8350021Z /* assert on the output */
+2026-10-02T22:23:44.8350609Z 
+2026-10-02T22:23:44.8351704Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:44.8352861Z 
+2026-10-02T22:23:47.1869906Z [90mstderr[2m | src/test/components/LibraryPage.test.tsx[2m > [22m[2mLibraryPage[2m > [22m[2mError Handling[2m > [22m[2mshould handle audio context creation failure
+2026-10-02T22:23:47.1874513Z [22m[39mFailed to load preset: Error: AudioContext not supported
+2026-10-02T22:23:47.1875969Z     at new ThrowingAudioContext [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/components/LibraryPage.test.tsx:736:15[90m)[39m
+2026-10-02T22:23:47.1877475Z     at decodeStoredAudio [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/storedAudio.ts:74:36[90m)[39m
+2026-10-02T22:23:47.1878815Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/libraryUtils.ts:242:25
+2026-10-02T22:23:47.1882209Z     at async Promise.all (index 0)
+2026-10-02T22:23:47.1883383Z     at restoreLibrarySamples [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/libraryUtils.ts:235:20[90m)[39m
+2026-10-02T22:23:47.1885107Z     at deserializeLibraryPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/libraryUtils.ts:269:43[90m)[39m
+2026-10-02T22:23:47.1886630Z     at actuallyLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:187:23[90m)[39m
+2026-10-02T22:23:47.1888177Z     at handleLoadPreset [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/components/library/LibraryPage.tsx:175:5[90m)[39m
+2026-10-02T22:23:47.1889015Z 
+2026-10-02T22:23:47.4047028Z  [32m✓[39m src/test/components/LibraryPage.test.tsx [2m([22m[2m32 tests[22m[2m)[22m[33m 3371[2mms[22m[39m
+2026-10-02T22:23:47.4048278Z        [33m[2m✓[22m[39m mobile pagination advances ten summaries and returns without losing items [33m 413[2mms[22m[39m
+2026-10-02T22:23:47.5285290Z  [32m✓[39m src/test/components/SliceAudioModal.test.tsx [2m([22m[2m40 tests[22m[2m)[22m[33m 12161[2mms[22m[39m
+2026-10-02T22:23:47.5286946Z      [33m[2m✓[22m[39m adds a manually selected sound without committing and keeps the source intact [33m 530[2mms[22m[39m
+2026-10-02T22:23:47.5288269Z      [33m[2m✓[22m[39m cancels a late numbered preview during rapid clicks [33m 312[2mms[22m[39m
+2026-10-02T22:23:47.5289563Z      [33m[2m✓[22m[39m edits one End independently and uses the same ranges for preview and Apply [33m 503[2mms[22m[39m
+2026-10-02T22:23:47.5291065Z      [33m[2m✓[22m[39m keeps exact frame edits focused and clamps every sound to a nonempty source range [33m 328[2mms[22m[39m
+2026-10-02T22:23:47.5292492Z      [33m[2m✓[22m[39m does not destroy edits without an inline confirmation on reanalysis or reset [33m 488[2mms[22m[39m
+2026-10-02T22:23:47.5294729Z      [33m[2m✓[22m[39m supports non-drag assignment, moving, replacement confirmation, preview, and unassign [33m 636[2mms[22m[39m
+2026-10-02T22:23:47.5296379Z      [33m[2m✓[22m[39m confirms before replacing another staged sound and Keep preserves it [33m 544[2mms[22m[39m
+2026-10-02T22:23:47.5321935Z      [33m[2m✓[22m[39m keeps the original assignment through split and clears mapping on delete and confirmed reset [33m 743[2mms[22m[39m
+2026-10-02T22:23:47.5334860Z      [33m[2m✓[22m[39m unassigns a staged replacement first and restores the original before a second unassignment [33m 445[2mms[22m[39m
+2026-10-02T22:23:47.5354578Z      [33m[2m✓[22m[39m shows a changed loaded pad and allows its unassignment to be reviewed again [33m 378[2mms[22m[39m
+2026-10-02T22:23:47.5376604Z      [33m[2m✓[22m[39m blocks competing draft edits while Reset to full source waits for a decision and Keep preserves the exact draft [33m 518[2mms[22m[39m
+2026-10-02T22:23:47.5378373Z      [33m[2m✓[22m[39m blocks competing draft edits while Detect sounds again waits for a decision and Keep preserves the exact draft [33m 502[2mms[22m[39m
+2026-10-02T22:23:47.5380129Z      [33m[2m✓[22m[39m confirmed reset followed by Split makes exactly two nonempty halves of the preserved source [33m 373[2mms[22m[39m
+2026-10-02T22:23:47.7377045Z Error: Not implemented: window.scrollTo
+2026-10-02T22:23:47.7394735Z     at module.exports (/home/runner/work/op-patchstudio/op-patchstudio/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+2026-10-02T22:23:47.7396431Z     at /home/runner/work/op-patchstudio/op-patchstudio/node_modules/jsdom/lib/jsdom/browser/Window.js:960:7
+2026-10-02T22:23:47.7397689Z     at focusHeading (/home/runner/work/op-patchstudio/op-patchstudio/src/components/common/StudioShell.tsx:203:14)
+2026-10-02T22:23:47.7398834Z     at invokeTheCallbackFunction (/home/runner/work/op-patchstudio/op-patchstudio/node_modules/jsdom/lib/jsdom/living/generated/Function.js:19:26)
+2026-10-02T22:23:47.7400323Z     at runAnimationFrameCallbacks (/home/runner/work/op-patchstudio/op-patchstudio/node_modules/jsdom/lib/jsdom/browser/Window.js:662:13)
+2026-10-02T22:23:47.7402126Z     at Timeout.<anonymous> (/home/runner/work/op-patchstudio/op-patchstudio/node_modules/jsdom/lib/jsdom/browser/Window.js:640:11)
+2026-10-02T22:23:47.7438042Z     at listOnTimeout (node:internal/timers:585:17)
+2026-10-02T22:23:47.7484449Z     at processTimers (node:internal/timers:521:7) undefined
+2026-10-02T22:23:48.0815219Z  [32m✓[39m src/test/components/DevicesWorkspace.test.tsx [2m([22m[2m36 tests[22m[2m)[22m[33m 11923[2mms[22m[39m
+2026-10-02T22:23:48.0844559Z      [33m[2m✓[22m[39m maps a custom synth with eight editable slots and sends only enabled CCs on the chosen route [33m 1295[2mms[22m[39m
+2026-10-02T22:23:48.0896790Z      [33m[2m✓[22m[39m does not send a custom CC while the enabled mapping contains duplicate controllers [33m 777[2mms[22m[39m
+2026-10-02T22:23:48.0972611Z      [33m[2m✓[22m[39m does not request MIDI or send while entering, saving, importing, or loading a setup [33m 473[2mms[22m[39m
+2026-10-02T22:23:48.1024901Z      [33m[2m✓[22m[39m requires route reconfirmation after loading a saved setup before any CC can be sent [33m 313[2mms[22m[39m
+2026-10-02T22:23:48.1055209Z      [33m[2m✓[22m[39m does not treat choosing an output and channel as route confirmation [33m 337[2mms[22m[39m
+2026-10-02T22:23:48.1084402Z      [33m[2m✓[22m[39m requires an explicit channel and encodes explicit channel 1 and 16 choices [33m 402[2mms[22m[39m
+2026-10-02T22:23:48.1097547Z      [33m[2m✓[22m[39m sends slider user gestures but keeps setup loading and number-field edits silent [33m 318[2mms[22m[39m
+2026-10-02T22:23:48.1124531Z      [33m[2m✓[22m[39m merges a delayed valid import against a setup saved after reading began [33m 570[2mms[22m[39m
+2026-10-02T22:23:48.1154812Z      [33m[2m✓[22m[39m omits blank optional output metadata when saving through the real setup store [33m 419[2mms[22m[39m
+2026-10-02T22:23:48.1184747Z      [33m[2m✓[22m[39m reactively disables a leased route with its owner and re-enables it after release [32m 300[2mms[22m[39m
+2026-10-02T22:23:48.1205232Z      [33m[2m✓[22m[39m invalidates Apply and hardware readiness when the selected output remains but disconnects [33m 396[2mms[22m[39m
+2026-10-02T22:23:48.1243719Z      [33m[2m✓[22m[39m previews the exact four Apply messages and sends them sequentially only after confirmation [33m 323[2mms[22m[39m
+2026-10-02T22:23:48.1279475Z      [33m[2m✓[22m[39m stops a pending multi-message Apply when the channel changes mid-send [33m 391[2mms[22m[39m
+2026-10-02T22:23:48.1305339Z      [33m[2m✓[22m[39m stops a pending multi-message Apply when a loaded setup changes the channel mid-send [33m 324[2mms[22m[39m
+2026-10-02T22:23:48.1324601Z      [33m[2m✓[22m[39m selects a safe hardware-test control and value with Cutoff 64 as the default [33m 463[2mms[22m[39m
+2026-10-02T22:23:48.1354649Z      [33m[2m✓[22m[39m cancels an undispatched real-session hardware test when the channel changes before the port opens [33m 328[2mms[22m[39m
+2026-10-02T22:23:48.1366062Z      [33m[2m✓[22m[39m cancels the undispatched first real-session Apply CC on channel change while the port is opening [33m 307[2mms[22m[39m
+2026-10-02T22:23:48.1399409Z      [33m[2m✓[22m[39m cancels a real-session Apply CC waiting on send cadence when the channel changes [33m 337[2mms[22m[39m
+2026-10-02T22:23:48.1414463Z      [33m[2m✓[22m[39m keeps save, rename, delete, profile, and port changes byte-silent [33m 365[2mms[22m[39m
+2026-10-02T22:23:48.1416736Z      [33m[2m✓[22m[39m mounts from StudioShell outside MainTabs without changing the editor tab or requesting MIDI [33m 398[2mms[22m[39m
+2026-10-02T22:23:48.2023224Z  [32m✓[39m src/test/midi/browserSession.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+2026-10-02T22:23:49.1255442Z  [32m✓[39m src/test/context/audioSlicingApplication.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+2026-10-02T22:23:49.1946323Z  [32m✓[39m src/test/hooks/useAudioPlayer.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+2026-10-02T22:23:49.9735925Z [90mstderr[2m | src/test/utils/libraryUtils.test.ts[2m > [22m[2mLibraryUtils[2m > [22m[2msavePresetToLibrary[2m > [22m[2mshould keep committed preset success when the optional session marker fails
+2026-10-02T22:23:49.9737506Z [22m[39mPreset saved; optional session marker could not be updated: Error: Session storage error
+2026-10-02T22:23:49.9738605Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/utils/libraryUtils.test.ts:287:91
+2026-10-02T22:23:49.9739884Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+2026-10-02T22:23:49.9741346Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+2026-10-02T22:23:49.9742784Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+2026-10-02T22:23:49.9743777Z     at new Promise (<anonymous>)
+2026-10-02T22:23:49.9744953Z     at runWithCancel [90m(file:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+2026-10-02T22:23:49.9746488Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+2026-10-02T22:23:49.9747288Z     at new Promise (<anonymous>)
+2026-10-02T22:23:49.9748416Z     at runWithTimeout [90m(file:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+2026-10-02T22:23:49.9750464Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+2026-10-02T22:23:49.9751089Z 
+2026-10-02T22:23:49.9798672Z [90mstdout[2m | src/test/utils/libraryUtils.test.ts[2m > [22m[2mDrum Sample Index Preservation[2m > [22m[2mshould preserve drum sample indexes when saving and loading presets
+2026-10-02T22:23:49.9800117Z [22m[39mRetrieved presets: [
+2026-10-02T22:23:49.9800669Z   {
+2026-10-02T22:23:49.9801136Z     id: [32m'test-id'[39m,
+2026-10-02T22:23:49.9801717Z     name: [32m'Test Drum Kit'[39m,
+2026-10-02T22:23:49.9802276Z     type: [32m'drum'[39m,
+2026-10-02T22:23:49.9802727Z     data: {
+2026-10-02T22:23:49.9803247Z       drumSettings: [36m[Object][39m,
+2026-10-02T22:23:49.9804110Z       multisampleSettings: [36m[Object][39m,
+2026-10-02T22:23:49.9804771Z       drumSamples: [36m[Array][39m,
+2026-10-02T22:23:49.9805269Z       multisampleFiles: []
+2026-10-02T22:23:49.9805735Z     },
+2026-10-02T22:23:49.9806205Z     createdAt: [33m1790979829977[39m,
+2026-10-02T22:23:49.9806705Z     updatedAt: [33m1790979829977[39m,
+2026-10-02T22:23:49.9807258Z     isFavorite: [33mfalse[39m,
+2026-10-02T22:23:49.9807803Z     sampleCount: [33m4[39m
+2026-10-02T22:23:49.9808239Z   }
+2026-10-02T22:23:49.9808623Z ]
+2026-10-02T22:23:49.9808932Z 
+2026-10-02T22:23:49.9819469Z [90mstdout[2m | src/test/utils/libraryUtils.test.ts[2m > [22m[2mMultisample Loop Points Preservation[2m > [22m[2mshould preserve multisample loop points when saving and loading presets
+2026-10-02T22:23:49.9820920Z [22m[39mRetrieved multisample presets: [
+2026-10-02T22:23:49.9821448Z   {
+2026-10-02T22:23:49.9821983Z     id: [32m'multisample-test-id'[39m,
+2026-10-02T22:23:49.9822666Z     name: [32m'Test Multisample Loop Points'[39m,
+2026-10-02T22:23:49.9823313Z     type: [32m'multisample'[39m,
+2026-10-02T22:23:49.9823982Z     data: {
+2026-10-02T22:23:49.9824495Z       drumSettings: [36m[Object][39m,
+2026-10-02T22:23:49.9825135Z       multisampleSettings: [36m[Object][39m,
+2026-10-02T22:23:49.9825644Z       drumSamples: [],
+2026-10-02T22:23:49.9826189Z       multisampleFiles: [36m[Array][39m
+2026-10-02T22:23:49.9826670Z     },
+2026-10-02T22:23:49.9827172Z     createdAt: [33m1790979829980[39m,
+2026-10-02T22:23:49.9827777Z     updatedAt: [33m1790979829980[39m,
+2026-10-02T22:23:49.9828346Z     isFavorite: [33mfalse[39m,
+2026-10-02T22:23:49.9828882Z     sampleCount: [33m2[39m
+2026-10-02T22:23:49.9829313Z   }
+2026-10-02T22:23:49.9829645Z ]
+2026-10-02T22:23:49.9830235Z ✅ Multisample loop points preservation test passed
+2026-10-02T22:23:49.9830712Z 
+2026-10-02T22:23:49.9836949Z  [32m✓[39m src/test/utils/libraryUtils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+2026-10-02T22:23:50.0998167Z  [32m✓[39m src/test/audio/recording/captureSession.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+2026-10-02T22:23:51.1592797Z  [32m✓[39m src/test/utils/projectArchive.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 386[2mms[22m[39m
+2026-10-02T22:23:51.5071968Z  [32m✓[39m src/test/components/AutoSamplingPanel.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 3129[2mms[22m[39m
+2026-10-02T22:23:51.5105500Z      [33m[2m✓[22m[39m requests MIDI only on explicit Enable and captures the selected note range with exact roots [33m 432[2mms[22m[39m
+2026-10-02T22:23:51.5115149Z      [33m[2m✓[22m[39m requires a real, noncommitting sound check for a named route and invalidates it when the route changes [33m 342[2mms[22m[39m
+2026-10-02T22:23:51.6682409Z  [32m✓[39m src/test/components/MultisampleTool.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 573[2mms[22m[39m
+2026-10-02T22:23:52.0945386Z  [32m✓[39m src/test/utils/exportIntegrity.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+2026-10-02T22:23:52.2345984Z [90mstderr[2m | src/test/utils/audioFormats.test.ts[2m > [22m[2maudioFormats[2m > [22m[2mAIF metadata parsing edge cases[2m > [22m[2mshould handle AIF files with MARK chunk
+2026-10-02T22:23:52.2348030Z [22m[39m[AIF PARSER] Invalid loop end 10160648, clamping to valid range
+2026-10-02T22:23:52.2348617Z 
+2026-10-02T22:23:52.2362581Z  [32m✓[39m src/test/utils/audioFormats.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+2026-10-02T22:23:52.7215699Z  [32m✓[39m src/test/utils/audioSlicing.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 220[2mms[22m[39m
+2026-10-02T22:23:53.2149472Z  [32m✓[39m src/test/utils/durableStorage.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+2026-10-02T22:23:53.5253061Z  [32m✓[39m src/test/utils/patchGeneration.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+2026-10-02T22:23:54.2730429Z  [32m✓[39m src/test/components/DrumKeyboard.test.tsx [2m([22m[2m29 tests[22m[2m)[22m[33m 1138[2mms[22m[39m
+2026-10-02T22:23:54.3930014Z [90mstderr[2m | src/test/utils/defaultSettings.test.ts[2m > [22m[2mdefaultSettings[2m > [22m[2mloadDrumDefaultSettings[2m > [22m[2mshould handle JSON parsing errors gracefully
+2026-10-02T22:23:54.3955139Z [22m[39mFailed to load drum default settings, using defaults: SyntaxError: Unexpected token 'i', "invalid json" is not valid JSON
+2026-10-02T22:23:54.3998167Z     at JSON.parse (<anonymous>)
+2026-10-02T22:23:54.4005350Z     at Module.loadDrumDefaultSettings [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/defaultSettings.ts:163:27[90m)[39m
+2026-10-02T22:23:54.4025328Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/utils/defaultSettings.test.ts:473:22
+2026-10-02T22:23:54.4095287Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+2026-10-02T22:23:54.4096667Z  [32m✓[39m src/test/utils/defaultSettings.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+2026-10-02T22:23:54.4098430Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+2026-10-02T22:23:54.4104522Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+2026-10-02T22:23:54.4105694Z     at new Promise (<anonymous>)
+2026-10-02T22:23:54.4107228Z     at runWithCancel [90m(file:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+2026-10-02T22:23:54.4109142Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+2026-10-02T22:23:54.4134069Z     at new Promise (<anonymous>)
+2026-10-02T22:23:54.4143358Z 
+2026-10-02T22:23:55.2641602Z  [32m✓[39m src/test/utils/op1DrumPresetParser.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+2026-10-02T22:23:55.3102225Z  [32m✓[39m src/test/components/WaveformZoomModalEditing.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1162[2mms[22m[39m
+2026-10-02T22:23:55.5229463Z [90mstderr[2m | src/test/components/StemRecordingModal.test.tsx[2m > [22m[2mStemRecordingModal[2m > [22m[2mshows beginner warnings, bounded defaults, Stop, and discard confirmation
+2026-10-02T22:23:55.5231133Z [22m[39mAn update to StemRecordingModal inside a test was not wrapped in act(...).
+2026-10-02T22:23:55.5231791Z 
+2026-10-02T22:23:55.5232433Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:55.5233033Z 
+2026-10-02T22:23:55.5233310Z act(() => {
+2026-10-02T22:23:55.5233954Z   /* fire events that update state */
+2026-10-02T22:23:55.5234461Z });
+2026-10-02T22:23:55.5234902Z /* assert on the output */
+2026-10-02T22:23:55.5235260Z 
+2026-10-02T22:23:55.5236146Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:55.5237003Z 
+2026-10-02T22:23:55.5572404Z [90mstderr[2m | src/test/components/StemRecordingModal.test.tsx[2m > [22m[2mStemRecordingModal[2m > [22m[2mrenders readable unsupported guidance while retaining explicit controls
+2026-10-02T22:23:55.5585278Z [22m[39mAn update to StemRecordingModal inside a test was not wrapped in act(...).
+2026-10-02T22:23:55.5586057Z 
+2026-10-02T22:23:55.5586618Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:23:55.5587048Z 
+2026-10-02T22:23:55.5587155Z act(() => {
+2026-10-02T22:23:55.5587447Z   /* fire events that update state */
+2026-10-02T22:23:55.5587668Z });
+2026-10-02T22:23:55.5587842Z /* assert on the output */
+2026-10-02T22:23:55.5587977Z 
+2026-10-02T22:23:55.5588405Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:23:55.5588782Z 
+2026-10-02T22:23:56.2059429Z  [32m✓[39m src/test/context/audioImportApplication.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+2026-10-02T22:23:56.9058651Z  [32m✓[39m src/test/components/StemRecordingModal.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 1644[2mms[22m[39m
+2026-10-02T22:23:57.0455559Z  [32m✓[39m src/test/context/AppContext.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+2026-10-02T22:23:57.4285480Z  [32m✓[39m src/test/components/DrumTool.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 628[2mms[22m[39m
+2026-10-02T22:23:57.9161842Z  [32m✓[39m src/test/utils/pwaCacheLifecycle.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 127[2mms[22m[39m
+2026-10-02T22:23:58.1761801Z  [32m✓[39m src/test/audio/recording/stemCapture.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+2026-10-02T22:23:58.7515130Z  [32m✓[39m src/test/audio/recording/captureProcessor.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+2026-10-02T22:23:58.7572775Z  [32m✓[39m src/test/components/AudioImportProvider.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 892[2mms[22m[39m
+2026-10-02T22:23:59.7044164Z  [32m✓[39m src/test/components/ProjectToolbar.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 653[2mms[22m[39m
+2026-10-02T22:23:59.7488351Z [90mstderr[2m | src/test/hooks/usePatchGeneration.test.ts[2m > [22m[2musePatchGeneration[2m > [22m[2mshould handle generation errors
+2026-10-02T22:23:59.7504644Z [22m[39mError generating drum patch: Error: Generation failed
+2026-10-02T22:23:59.7505846Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/usePatchGeneration.test.ts:176:56
+2026-10-02T22:23:59.7507406Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+2026-10-02T22:23:59.7508217Z 
+2026-10-02T22:23:59.7564919Z [90mstderr[2m | src/test/hooks/usePatchGeneration.test.ts[2m > [22m[2musePatchGeneration[2m > [22m[2mshould handle no samples loaded error
+2026-10-02T22:23:59.7566034Z [22m[39mError generating drum patch: Error: No samples loaded
+2026-10-02T22:23:59.7567168Z     at Object.generateDrumPatchFile [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/usePatchGeneration.ts:16:15[90m)[39m
+2026-10-02T22:23:59.7568507Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/usePatchGeneration.test.ts:268:28
+2026-10-02T22:23:59.7569794Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@testing-library/react[24m/dist/act-compat.js:47:24
+2026-10-02T22:23:59.7571347Z     at process.env.NODE_ENV.exports.act [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4mreact[24m/cjs/react.development.js:789:22[90m)[39m
+2026-10-02T22:23:59.7573010Z     at Proxy.<anonymous> [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@testing-library/react[24m/dist/act-compat.js:46:25[90m)[39m
+2026-10-02T22:23:59.7574512Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/usePatchGeneration.test.ts:267:11
+2026-10-02T22:23:59.7576434Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+2026-10-02T22:23:59.7578014Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+2026-10-02T22:23:59.7579398Z     at [90mfile:///home/runner/work/op-patchstudio/op-patchstudio/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+2026-10-02T22:23:59.7580183Z     at new Promise (<anonymous>)
+2026-10-02T22:23:59.7580399Z 
+2026-10-02T22:23:59.7581299Z [90mstderr[2m | src/test/hooks/usePatchGeneration.test.ts[2m > [22m[2musePatchGeneration[2m > [22m[2mshould handle no samples loaded error
+2026-10-02T22:23:59.7582385Z [22m[39mError generating multisample patch: Error: No samples loaded
+2026-10-02T22:23:59.7583713Z     at Object.generateMultisamplePatchFile [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/usePatchGeneration.ts:64:15[90m)[39m
+2026-10-02T22:23:59.7585045Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/usePatchGeneration.test.ts:269:28
+2026-10-02T22:23:59.7585585Z 
+2026-10-02T22:23:59.7586290Z  [32m✓[39m src/test/hooks/usePatchGeneration.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+2026-10-02T22:23:59.9066102Z  [32m✓[39m src/test/hooks/sessionRecovery.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+2026-10-02T22:24:00.6695419Z  [32m✓[39m src/test/context/recordingApplication.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+2026-10-02T22:24:00.6818441Z  [32m✓[39m src/test/utils/drumStartPoints.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+2026-10-02T22:24:00.8475721Z  [32m✓[39m src/test/context/projectHistory.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+2026-10-02T22:24:01.4175384Z  [32m✓[39m src/test/utils/smplChunk.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+2026-10-02T22:24:01.6815263Z  [32m✓[39m src/test/utils/presetImport.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+2026-10-02T22:24:02.2078475Z  [32m✓[39m src/test/utils/externalFileIntake.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+2026-10-02T22:24:02.4529332Z  [32m✓[39m src/test/components/StudioShell.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 955[2mms[22m[39m
+2026-10-02T22:24:02.4975417Z  [32m✓[39m src/test/midi/deviceSetup.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+2026-10-02T22:24:02.9725475Z  [32m✓[39m src/test/utils/audioContext.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+2026-10-02T22:24:03.2392236Z [90mstderr[2m | src/test/utils/aifParser.test.ts[2m > [22m[2mAIF Parser Functions[2m > [22m[2mparseCommChunk[2m > [22m[2mshould handle unknown compression types
+2026-10-02T22:24:03.2393729Z [22m[39m[AIF PARSER] Unknown compression type: UNKN, treating as uncompressed PCM
+2026-10-02T22:24:03.2394165Z 
+2026-10-02T22:24:03.2429773Z [90mstderr[2m | src/test/utils/aifParser.test.ts[2m > [22m[2mAIF Parser Functions[2m > [22m[2mvalidateSampleRate[2m > [22m[2mshould use fallback for invalid sample rates
+2026-10-02T22:24:03.2431255Z [22m[39m[AIF PARSER] Invalid sample rate detected: 0Hz. Using fallback 44100Hz.
+2026-10-02T22:24:03.2432187Z [AIF PARSER] Invalid sample rate detected: -1Hz. Using fallback 44100Hz.
+2026-10-02T22:24:03.2433053Z [AIF PARSER] Invalid sample rate detected: 1Hz. Using fallback 44100Hz.
+2026-10-02T22:24:03.2434381Z [AIF PARSER] Invalid sample rate detected: 1000000Hz. Using fallback 44100Hz.
+2026-10-02T22:24:03.2434911Z 
+2026-10-02T22:24:03.2442926Z  [32m✓[39m src/test/utils/aifParser.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+2026-10-02T22:24:03.7001217Z  [32m✓[39m src/test/audio/recording/autoSampler.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 535[2mms[22m[39m
+2026-10-02T22:24:03.9085477Z  [32m✓[39m src/test/utils/indexedDB.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+2026-10-02T22:24:04.6475935Z  [32m✓[39m src/test/utils/deviceExportPreflight.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+2026-10-02T22:24:05.0605148Z [90mstderr[2m | src/test/components/ProjectEditingHistory.test.tsx[2m > [22m[2mproduction compound edit history[2m > [22m[2mundoes one preset import and one reset as complete operations
+2026-10-02T22:24:05.0606876Z [22m[39mAn update to ConfirmationModal inside a test was not wrapped in act(...).
+2026-10-02T22:24:05.0607602Z 
+2026-10-02T22:24:05.0608201Z When testing, code that causes React state updates should be wrapped into act(...):
+2026-10-02T22:24:05.0608781Z 
+2026-10-02T22:24:05.0609046Z act(() => {
+2026-10-02T22:24:05.0609505Z   /* fire events that update state */
+2026-10-02T22:24:05.0609982Z });
+2026-10-02T22:24:05.0610405Z /* assert on the output */
+2026-10-02T22:24:05.0610792Z 
+2026-10-02T22:24:05.0611645Z This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+2026-10-02T22:24:05.0612429Z 
+2026-10-02T22:24:05.2304047Z  [32m✓[39m src/test/components/ProjectEditingHistory.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+2026-10-02T22:24:05.5098344Z  [32m✓[39m src/test/utils/buildIdentity.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+2026-10-02T22:24:05.6375788Z  [32m✓[39m src/test/components/VirtualMidiKeyboardShortcuts.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1909[2mms[22m[39m
+2026-10-02T22:24:06.0222537Z  [32m✓[39m src/test/utils/audioExport.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+2026-10-02T22:24:06.8129556Z  [32m✓[39m src/test/components/StudioAppearance.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 403[2mms[22m[39m
+2026-10-02T22:24:06.8368887Z  [32m✓[39m src/test/components/MultisampleFocusWorkspace.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 343[2mms[22m[39m
+2026-10-02T22:24:06.8695287Z  [32m✓[39m src/test/audio/recording/stemCaptureReview.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+2026-10-02T22:24:07.9324830Z  [32m✓[39m src/test/context/finalCandidateAdmission.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 251[2mms[22m[39m
+2026-10-02T22:24:07.9375078Z  [32m✓[39m src/test/context/presetImportApplication.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 248[2mms[22m[39m
+2026-10-02T22:24:08.0216413Z  [32m✓[39m src/test/audio/recording/captureCore.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 491[2mms[22m[39m
+2026-10-02T22:24:08.0265673Z      [33m[2m✓[22m[39m keeps quiet monitoring bounded and holds re-arm until take credit is acknowledged [33m 456[2mms[22m[39m
+2026-10-02T22:24:08.7555964Z  [32m✓[39m src/test/utils/audioImportPreflight.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+2026-10-02T22:24:08.8501948Z  [32m✓[39m src/test/utils/sessionStorageIndexedDB.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+2026-10-02T22:24:09.1143791Z  [32m✓[39m src/test/components/TabNavigation.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+2026-10-02T22:24:09.7755800Z [90mstdout[2m | src/test/utils/libraryStorageHardening.test.ts[2m > [22m[2mlibrary payload and summary integrity[2m > [22m[2mbrowses 64 one-megabyte presets without hydrating audio into summaries
+2026-10-02T22:24:09.7757161Z [22m[39mlibrary-summary-benchmark presets=64 hydratedAudioBytes=0 elapsedMs=0.91
+2026-10-02T22:24:09.7757627Z 
+2026-10-02T22:24:09.7774961Z  [32m✓[39m src/test/utils/libraryStorageHardening.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+2026-10-02T22:24:09.8092610Z  [32m✓[39m src/test/context/studioDemoApplication.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+2026-10-02T22:24:10.2290788Z  [32m✓[39m src/test/components/DonatePage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+2026-10-02T22:24:10.6826525Z  [32m✓[39m src/test/utils/patchLoopContract.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+2026-10-02T22:24:11.4815936Z  [32m✓[39m src/test/utils/audioPcmCorrectness.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+2026-10-02T22:24:11.6032388Z  [32m✓[39m src/test/components/StudioShellAppearance.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 525[2mms[22m[39m
+2026-10-02T22:24:11.9915539Z  [32m✓[39m src/test/components/DrumFocusWorkspace.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 858[2mms[22m[39m
+2026-10-02T22:24:11.9975220Z      [33m[2m✓[22m[39m moves through pads in the focused editor without leaving it [33m 418[2mms[22m[39m
+2026-10-02T22:24:11.9983003Z      [33m[2m✓[22m[39m owns Detailed edit focus, Escape, nested focus restoration, and one-step Undo [33m 368[2mms[22m[39m
+2026-10-02T22:24:12.1565405Z  [32m✓[39m src/test/utils/valueConversions.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+2026-10-02T22:24:12.7465937Z  [32m✓[39m src/test/utils/importedCrossfade.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+2026-10-02T22:24:13.0065282Z [90mstderr[2m | src/test/hooks/useFileUpload.test.ts[2m > [22m[2museFileUpload[2m > [22m[2mshould handle drum sample upload calls
+2026-10-02T22:24:13.0084992Z [22m[39mError loading drum sample: Error: Failed to read audio metadata: Failed to read audio metadata: Audio signature does not match WAV content
+2026-10-02T22:24:13.0090398Z     at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:414:11[90m)[39m
+2026-10-02T22:24:13.0091767Z     at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0093229Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:94:7 {
+2026-10-02T22:24:13.0115729Z   [cause]: Error: Failed to read audio metadata: Audio signature does not match WAV content
+2026-10-02T22:24:13.0145049Z       at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:462:11[90m)[39m
+2026-10-02T22:24:13.0146856Z       at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0148523Z       at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0150085Z       at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:94:7 {
+2026-10-02T22:24:13.0151114Z     [cause]: Error: Audio signature does not match WAV content
+2026-10-02T22:24:13.0152398Z         at detectAudioFormat [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:486:82[90m)[39m
+2026-10-02T22:24:13.0154250Z         at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:427:20[90m)[39m
+2026-10-02T22:24:13.0155922Z         at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0157595Z         at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0159003Z         at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:94:7
+2026-10-02T22:24:13.0159784Z   }
+2026-10-02T22:24:13.0160196Z }
+2026-10-02T22:24:13.0160496Z 
+2026-10-02T22:24:13.0161809Z [90mstderr[2m | src/test/hooks/useFileUpload.test.ts[2m > [22m[2museFileUpload[2m > [22m[2mshould handle multisample upload calls
+2026-10-02T22:24:13.0163814Z [22m[39mError loading multisample file: Error: Failed to read audio metadata: Failed to read audio metadata: Audio signature does not match WAV content
+2026-10-02T22:24:13.0166236Z     at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:414:11[90m)[39m
+2026-10-02T22:24:13.0167896Z     at Object.handleMultisampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:43:24[90m)[39m
+2026-10-02T22:24:13.0169440Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:106:7 {
+2026-10-02T22:24:13.0170601Z   [cause]: Error: Failed to read audio metadata: Audio signature does not match WAV content
+2026-10-02T22:24:13.0172045Z       at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:462:11[90m)[39m
+2026-10-02T22:24:13.0173879Z       at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0175592Z       at Object.handleMultisampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:43:24[90m)[39m
+2026-10-02T22:24:13.0177109Z       at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:106:7 {
+2026-10-02T22:24:13.0178105Z     [cause]: Error: Audio signature does not match WAV content
+2026-10-02T22:24:13.0179328Z         at detectAudioFormat [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:486:82[90m)[39m
+2026-10-02T22:24:13.0180945Z         at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:427:20[90m)[39m
+2026-10-02T22:24:13.0182572Z         at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0184419Z         at Object.handleMultisampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:43:24[90m)[39m
+2026-10-02T22:24:13.0185993Z         at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:106:7
+2026-10-02T22:24:13.0186825Z   }
+2026-10-02T22:24:13.0187221Z }
+2026-10-02T22:24:13.0187504Z 
+2026-10-02T22:24:13.0188508Z [90mstderr[2m | src/test/hooks/useFileUpload.test.ts[2m > [22m[2museFileUpload[2m > [22m[2mshould handle errors during upload
+2026-10-02T22:24:13.0189805Z  [32m✓[39m src/test/hooks/useFileUpload.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+2026-10-02T22:24:13.0191376Z [22m[39mError loading drum sample: Error: Failed to read audio metadata: Failed to read audio metadata: Unsupported audio format: txt
+2026-10-02T22:24:13.0192903Z     at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:414:11[90m)[39m
+2026-10-02T22:24:13.0194669Z     at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0196190Z     at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:122:7 {
+2026-10-02T22:24:13.0197283Z   [cause]: Error: Failed to read audio metadata: Unsupported audio format: txt
+2026-10-02T22:24:13.0198761Z       at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:462:11[90m)[39m
+2026-10-02T22:24:13.0200386Z       at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0202009Z       at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0203724Z       at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:122:7 {
+2026-10-02T22:24:13.0204672Z     [cause]: Error: Unsupported audio format: txt
+2026-10-02T22:24:13.0206101Z         at detectAudioFormat [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:487:9[90m)[39m
+2026-10-02T22:24:13.0207950Z         at readAudioMetadataFromArrayBuffer [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:427:20[90m)[39m
+2026-10-02T22:24:13.0209669Z         at readAudioMetadata [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/utils/audioFormats.ts:412:18[90m)[39m
+2026-10-02T22:24:13.0211277Z         at Object.handleDrumSampleUpload [90m(/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/hooks/useFileUpload.ts:14:24[90m)[39m
+2026-10-02T22:24:13.0213016Z         at [90m/home/runner/work/op-patchstudio/op-patchstudio/[39msrc/test/hooks/useFileUpload.test.ts:122:7
+2026-10-02T22:24:13.0214118Z   }
+2026-10-02T22:24:13.0214494Z }
+2026-10-02T22:24:13.0214735Z 
+2026-10-02T22:24:13.0834774Z  [32m✓[39m src/test/components/PresetNameInput.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+2026-10-02T22:24:13.5976953Z  [32m✓[39m src/test/utils/libraryBatchExport.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+2026-10-02T22:24:13.8246119Z  [32m✓[39m src/test/utils/audioLoopMetadata.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+2026-10-02T22:24:14.0648533Z  [32m✓[39m src/test/components/PWAUpdatePrompt.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 159[2mms[22m[39m
+2026-10-02T22:24:14.8365576Z  [32m✓[39m src/test/utils/studioDemo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 385[2mms[22m[39m
+2026-10-02T22:24:15.7891376Z  [32m✓[39m src/test/components/ProjectCarbonSliderHistory.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 544[2mms[22m[39m
+2026-10-02T22:24:16.1676841Z  [32m✓[39m src/test/components/DrumSettingsLegacyControls.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 321[2mms[22m[39m
+2026-10-02T22:24:16.3065827Z  [32m✓[39m src/test/hooks/settingsOnlyRecovery.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1565[2mms[22m[39m
+2026-10-02T22:24:16.3067268Z    [33m[2m✓[22m[39m settings-only save → reload waits for decision, then restores names, effects and envelopes [33m 1388[2mms[22m[39m
+2026-10-02T22:24:16.7108662Z  [32m✓[39m src/test/components/ProjectKeyboardShortcuts.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+2026-10-02T22:24:17.1198180Z [90mstdout[2m | src/test/components/PWAInstallPrompt.test.tsx[2m > [22m[2mInstall records browser accepted choice and closes
+2026-10-02T22:24:17.1200199Z [22m[39mUser accepted the install prompt
+2026-10-02T22:24:17.1222689Z 
+2026-10-02T22:24:17.1343385Z [90mstdout[2m | src/test/components/PWAInstallPrompt.test.tsx[2m > [22m[2mInstall records browser dismissed choice and closes
+2026-10-02T22:24:17.1364478Z [22m[39mUser dismissed the install prompt
+2026-10-02T22:24:17.1366716Z 
+2026-10-02T22:24:17.1408528Z  [32m✓[39m src/test/components/PWAInstallPrompt.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+2026-10-02T22:24:17.3307562Z  [32m✓[39m src/test/components/ADSREnvelope.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 184[2mms[22m[39m
+2026-10-02T22:24:17.7500278Z  [32m✓[39m src/test/components/FeedbackPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 155[2mms[22m[39m
+2026-10-02T22:24:18.2797100Z  [32m✓[39m src/test/hooks/useSessionManagement.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+2026-10-02T22:24:18.8851239Z  [32m✓[39m src/test/components/FourKnobControl.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+2026-10-02T22:24:19.1049096Z  [32m✓[39m src/test/utils/sampleSuggestions.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+2026-10-02T22:24:19.6485423Z  [32m✓[39m src/test/utils/loopEditing.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+2026-10-02T22:24:20.7855308Z  [32m✓[39m src/test/components/AccessibleDialog.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 218[2mms[22m[39m
+2026-10-02T22:24:21.0276001Z  [32m✓[39m src/test/components/MultisamplePresetSettings.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 358[2mms[22m[39m
+2026-10-02T22:24:21.7385868Z  [32m✓[39m src/test/components/EnhancedWaveformEditor.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 146[2mms[22m[39m
+2026-10-02T22:24:22.2370518Z  [32m✓[39m src/test/components/MultisampleTableLegacyRows.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 194[2mms[22m[39m
+2026-10-02T22:24:22.9195723Z  [32m✓[39m src/test/components/MidiDeviceSelector.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+2026-10-02T22:24:23.3123036Z  [32m✓[39m src/test/components/StudioPresentationStorage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+2026-10-02T22:24:23.9078078Z  [32m✓[39m src/test/components/WaveformZoomModalShortcuts.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 134[2mms[22m[39m
+2026-10-02T22:24:24.1045853Z  [32m✓[39m src/test/utils/audioBufferConversion.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+2026-10-02T22:24:24.8615272Z  [32m✓[39m src/test/utils/sessionStorage.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 26[2mms[22m[39m
+2026-10-02T22:24:25.0484617Z  [32m✓[39m src/test/components/LibraryTable.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+2026-10-02T22:24:25.8146090Z  [32m✓[39m src/test/midi/ninaProfile.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+2026-10-02T22:24:25.8414821Z  [32m✓[39m src/test/components/BuildIdentityNotice.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+2026-10-02T22:24:26.8905288Z  [32m✓[39m src/test/components/NotificationSystem.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 118[2mms[22m[39m
+2026-10-02T22:24:27.3265581Z  [32m✓[39m src/test/components/AudioFormatControls.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+2026-10-02T22:24:27.7016212Z  [32m✓[39m src/test/midi/routeLease.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+2026-10-02T22:24:28.1862239Z  [32m✓[39m src/test/setupAudioBuffer.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+2026-10-02T22:24:28.7284634Z  [32m✓[39m src/test/components/LibraryPagination.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+2026-10-02T22:24:29.0983612Z  [32m✓[39m src/test/components/ToggleSwitch.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 74[2mms[22m[39m
+2026-10-02T22:24:29.5271335Z  [32m✓[39m src/test/utils/midi.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+2026-10-02T22:24:29.9537251Z  [32m✓[39m src/test/midi/ccProfile.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+2026-10-02T22:24:30.4905032Z  [32m✓[39m src/test/hooks/useWebMidi.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+2026-10-02T22:24:31.0028968Z  [32m✓[39m src/test/components/MainTabs.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 78[2mms[22m[39m
+2026-10-02T22:24:31.4865344Z  [32m✓[39m src/test/components/Footer.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 87[2mms[22m[39m
+2026-10-02T22:24:32.0715114Z  [32m✓[39m src/test/components/FileDetailsBadges.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 43[2mms[22m[39m
+2026-10-02T22:24:32.2503295Z  [32m✓[39m src/test/utils/version.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+2026-10-02T22:24:34.2775396Z  [32m✓[39m src/test/verification/controlAuditEvidence.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 16448[2mms[22m[39m
+2026-10-02T22:24:34.2784712Z      [33m[2m✓[22m[39m admits a passing current test with current source and a complete matching run [33m 1742[2mms[22m[39m
+2026-10-02T22:24:34.2804347Z      [33m[2m✓[22m[39m does not count failed, skipped or indeterminate tests [33m 5412[2mms[22m[39m
+2026-10-02T22:24:34.2809536Z      [33m[2m✓[22m[39m rejects stale application source and modified or deleted test evidence [33m 5421[2mms[22m[39m
+2026-10-02T22:24:34.2811235Z      [33m[2m✓[22m[39m refuses incomplete or mismatched run identities [33m 2062[2mms[22m[39m
+2026-10-02T22:24:34.2836852Z 
+2026-10-02T22:24:34.2846791Z [2m Test Files [22m [1m[32m111 passed[39m[22m[90m (111)[39m
+2026-10-02T22:24:34.2849070Z [2m      Tests [22m [1m[32m1174 passed[39m[22m[90m (1174)[39m
+2026-10-02T22:24:34.2849635Z [2m   Start at [22m 22:23:33
+2026-10-02T22:24:34.2851783Z [2m   Duration [22m 60.38s[2m (transform 5.30s, setup 10.93s, import 18.92s, tests 77.47s, environment 52.27s)[22m
+2026-10-02T22:24:34.2853021Z 
+2026-10-02T22:24:34.3405729Z ##[group]Run npm run build
+2026-10-02T22:24:34.3405975Z [36;1mnpm run build[0m
+2026-10-02T22:24:34.3461283Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:24:34.3461503Z ##[endgroup]
+2026-10-02T22:24:34.4290265Z 
+2026-10-02T22:24:34.4290776Z > op-patchstudio@0.16.0 build
+2026-10-02T22:24:34.4291160Z > tsc -b && vite build && npm run verify:pwa
+2026-10-02T22:24:34.4291369Z 
+2026-10-02T22:24:43.3300770Z [36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+2026-10-02T22:24:43.3921232Z transforming...
+2026-10-02T22:24:45.8317232Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.8317811Z 
+2026-10-02T22:24:45.8318259Z Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T22:24:45.8318671Z 
+2026-10-02T22:24:45.8318914Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.8319201Z 
+2026-10-02T22:24:45.8319559Z     ╷
+2026-10-02T22:24:45.8320256Z 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T22:24:45.8320916Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.8321310Z     ╵
+2026-10-02T22:24:45.8321716Z     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9   @use
+2026-10-02T22:24:45.8322315Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:24:45.8322926Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:24:45.8323676Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:24:45.8324235Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:24:45.8324818Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:24:45.8325042Z 
+2026-10-02T22:24:45.8336253Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.8336709Z 
+2026-10-02T22:24:45.8337188Z Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T22:24:45.8337448Z 
+2026-10-02T22:24:45.8337770Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.8338066Z 
+2026-10-02T22:24:45.8338425Z     ╷
+2026-10-02T22:24:45.8341938Z 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T22:24:45.8342687Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.8343093Z     ╵
+2026-10-02T22:24:45.8343689Z     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9   @use
+2026-10-02T22:24:45.8344303Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:24:45.8344885Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:24:45.8345454Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:24:45.8346020Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:24:45.8346641Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:24:45.8346994Z 
+2026-10-02T22:24:45.8352574Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.8353353Z 
+2026-10-02T22:24:45.8354238Z Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T22:24:45.8355402Z 
+2026-10-02T22:24:45.8355773Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.8356180Z 
+2026-10-02T22:24:45.8356501Z     ╷
+2026-10-02T22:24:45.8357275Z 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T22:24:45.8358132Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.8358706Z     ╵
+2026-10-02T22:24:45.8359247Z     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17  @use
+2026-10-02T22:24:45.8359987Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:24:45.8361066Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:24:45.8361852Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:24:45.8362566Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:24:45.8363297Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:24:45.8363972Z 
+2026-10-02T22:24:45.8368839Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.8393760Z 
+2026-10-02T22:24:45.8402154Z Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T22:24:45.8402658Z 
+2026-10-02T22:24:45.8403034Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.8403594Z 
+2026-10-02T22:24:45.8403821Z     ╷
+2026-10-02T22:24:45.8404406Z 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T22:24:45.8405092Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.8405485Z     ╵
+2026-10-02T22:24:45.8405844Z     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17  @use
+2026-10-02T22:24:45.8406364Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:24:45.8406949Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:24:45.8407538Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:24:45.8408092Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:24:45.8408699Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:24:45.8409051Z 
+2026-10-02T22:24:45.9418638Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.9419231Z 
+2026-10-02T22:24:45.9419665Z Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T22:24:45.9420070Z 
+2026-10-02T22:24:45.9420349Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.9420637Z 
+2026-10-02T22:24:45.9420990Z     ╷
+2026-10-02T22:24:45.9421603Z 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T22:24:45.9422261Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.9422672Z     ╵
+2026-10-02T22:24:45.9423112Z     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9         @use
+2026-10-02T22:24:45.9423941Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:24:45.9424568Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:24:45.9425191Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:24:45.9425821Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:24:45.9426444Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:24:45.9427248Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:24:45.9427915Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:24:45.9428795Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:24:45.9429696Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:24:45.9430500Z 
+2026-10-02T22:24:45.9450916Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.9451786Z 
+2026-10-02T22:24:45.9452546Z Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T22:24:45.9453208Z 
+2026-10-02T22:24:45.9454013Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.9454542Z 
+2026-10-02T22:24:45.9454798Z     ╷
+2026-10-02T22:24:45.9455541Z 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T22:24:45.9456726Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.9457304Z     ╵
+2026-10-02T22:24:45.9457957Z     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9         @use
+2026-10-02T22:24:45.9458782Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:24:45.9459601Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:24:45.9460402Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:24:45.9461317Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:24:45.9477578Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:24:45.9478282Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:24:45.9478939Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:24:45.9479589Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:24:45.9480261Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:24:45.9480641Z 
+2026-10-02T22:24:45.9481103Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.9481508Z 
+2026-10-02T22:24:45.9481898Z Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T22:24:45.9482316Z 
+2026-10-02T22:24:45.9482571Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.9482844Z 
+2026-10-02T22:24:45.9482993Z     ╷
+2026-10-02T22:24:45.9483576Z 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T22:24:45.9484045Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.9484308Z     ╵
+2026-10-02T22:24:45.9484567Z     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17        @use
+2026-10-02T22:24:45.9484953Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:24:45.9485330Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:24:45.9485788Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:24:45.9486411Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:24:45.9487018Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:24:45.9487627Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:24:45.9488240Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:24:45.9488849Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:24:45.9489486Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:24:45.9489868Z 
+2026-10-02T22:24:45.9490398Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:45.9490889Z 
+2026-10-02T22:24:45.9491312Z Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T22:24:45.9491724Z 
+2026-10-02T22:24:45.9491969Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:45.9492234Z 
+2026-10-02T22:24:45.9492401Z     ╷
+2026-10-02T22:24:45.9492985Z 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T22:24:45.9494215Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:24:45.9494644Z     ╵
+2026-10-02T22:24:45.9495050Z     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17        @use
+2026-10-02T22:24:45.9495681Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:24:45.9496290Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:24:45.9496905Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:24:45.9497760Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:24:45.9498396Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:24:45.9498993Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:24:45.9499609Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:24:45.9500203Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:24:45.9500856Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:24:45.9501232Z 
+2026-10-02T22:24:46.3360526Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:24:46.3360904Z 
+2026-10-02T22:24:46.3361387Z Suggestion: if(sass($tooltip-type == "definition"): convert.to-rem(8px) convert.to-rem(16px); else: convert.to-rem(3px) convert.to-rem(16px))
+2026-10-02T22:24:46.3361791Z 
+2026-10-02T22:24:46.3361962Z More info: https://sass-lang.com/d/if-function
+2026-10-02T22:24:46.3362182Z 
+2026-10-02T22:24:46.3362503Z    ╷
+2026-10-02T22:24:46.3362739Z 39 │     padding: if(
+2026-10-02T22:24:46.3362967Z    │ ┌────────────^
+2026-10-02T22:24:46.3363264Z 40 │ │     $tooltip-type == 'definition',
+2026-10-02T22:24:46.3363875Z 41 │ │     convert.to-rem(8px) convert.to-rem(16px),
+2026-10-02T22:24:46.3364234Z 42 │ │     convert.to-rem(3px) convert.to-rem(16px)
+2026-10-02T22:24:46.3364507Z 43 │ │   );
+2026-10-02T22:24:46.3364694Z    │ └───^
+2026-10-02T22:24:46.3364856Z    ╵
+2026-10-02T22:24:46.3365158Z     node_modules/@carbon/styles/scss/utilities/_tooltip.scss 39:12          @forward
+2026-10-02T22:24:46.3365604Z     node_modules/@carbon/styles/scss/utilities/_index.scss 23:1             @use
+2026-10-02T22:24:46.3366042Z     node_modules/@carbon/styles/scss/components/popover/_popover.scss 16:1  @forward
+2026-10-02T22:24:46.3366483Z     node_modules/@carbon/styles/scss/components/popover/_index.scss 8:1     @use
+2026-10-02T22:24:46.3366929Z     node_modules/@carbon/styles/scss/components/tooltip/_tooltip.scss 8:1   @forward
+2026-10-02T22:24:46.3367370Z     node_modules/@carbon/styles/scss/components/tooltip/_index.scss 8:1     @use
+2026-10-02T22:24:46.3367805Z     node_modules/@carbon/styles/scss/components/button/_button.scss 11:1    @forward
+2026-10-02T22:24:46.3368235Z     node_modules/@carbon/styles/scss/components/button/_index.scss 9:1      @use
+2026-10-02T22:24:46.3368842Z     src/styles/carbon.scss 2:1                                              root stylesheet
+2026-10-02T22:24:46.3369137Z 
+2026-10-02T22:24:46.6368263Z WARNING: 1 repetitive deprecation warnings omitted.
+2026-10-02T22:24:46.6368828Z Run in verbose mode to see all warnings.
+2026-10-02T22:24:46.6369067Z 
+2026-10-02T22:24:48.1505928Z [32m✓[39m 598 modules transformed.
+2026-10-02T22:24:48.3537396Z rendering chunks...
+2026-10-02T22:24:48.5269170Z [33m[plugin vite:reporter] 
+2026-10-02T22:24:48.5273284Z (!) /home/runner/work/op-patchstudio/op-patchstudio/src/utils/wavExport.ts is dynamically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts but also statically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/components/common/StemRecordingModal.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/drum/DrumTool.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audio.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioExport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/libraryUtils.ts, dynamic import will not move module into another chunk.
+2026-10-02T22:24:48.5277020Z [39m
+2026-10-02T22:24:48.5277335Z [33m[plugin vite:reporter] 
+2026-10-02T22:24:48.5284564Z (!) /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audio.ts is dynamically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts but also statically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/components/common/FileDetailsBadges.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/drum/DrumSampleSettingsModal.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/library/LibraryPage.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/multisample/MultisampleSampleTable.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/context/AppContext.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioImport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/libraryBatchExport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/patchGeneration.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/recordingApplication.ts, dynamic import will not move module into another chunk.
+2026-10-02T22:24:48.5290351Z [39m
+2026-10-02T22:24:48.5453932Z computing gzip size...
+2026-10-02T22:24:48.5647220Z [2mdist/[22m[32mmanifest.webmanifest                                                                                                  [39m[1m[2m  0.83 kB[22m[1m[22m
+2026-10-02T22:24:48.5648788Z [2mdist/[22m[32mindex.html                                                                                                            [39m[1m[2m  3.28 kB[22m[1m[22m[2m │ gzip:   1.01 kB[22m
+2026-10-02T22:24:48.5650620Z [2mdist/[22m[2massets/[22m[32mpwa-cache-lifecycle-9f64f79266df569eeea7f627e9cbc48fd795d5e8-murj6ib0-b86d78c4-082b-412e-a19f-01e6d4257c08.js  [39m[1m[2m  7.12 kB[22m[1m[22m
+2026-10-02T22:24:48.5652460Z [2mdist/[22m[2massets/[22m[32mcaptureProcessor-BldZOCrQ.js                                                                                   [39m[1m[2m  9.25 kB[22m[1m[22m
+2026-10-02T22:24:48.5654025Z [2mdist/[22m[2massets/[22m[32mfa-regular-400-BjRzuEpd.woff2                                                                                  [39m[1m[2m 25.47 kB[22m[1m[22m
+2026-10-02T22:24:48.5655448Z [2mdist/[22m[2massets/[22m[32mfa-regular-400-DZaxPHgR.ttf                                                                                    [39m[1m[2m 68.06 kB[22m[1m[22m
+2026-10-02T22:24:48.5656830Z [2mdist/[22m[2massets/[22m[32mfa-brands-400-D_cYUPeE.woff2                                                                                   [39m[1m[2m118.68 kB[22m[1m[22m
+2026-10-02T22:24:48.5657554Z [33m
+2026-10-02T22:24:48.5657955Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-10-02T22:24:48.5658469Z - Using dynamic import() to code-split the application
+2026-10-02T22:24:48.5659410Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-10-02T22:24:48.5660480Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+2026-10-02T22:24:48.5661705Z [2mdist/[22m[2massets/[22m[32mfa-solid-900-CTAAxXor.woff2                                                                                    [39m[1m[2m158.22 kB[22m[1m[22m
+2026-10-02T22:24:48.5663072Z [2mdist/[22m[2massets/[22m[32mfa-brands-400-D1LuMI3I.ttf                                                                                     [39m[1m[2m210.79 kB[22m[1m[22m
+2026-10-02T22:24:48.5664645Z [2mdist/[22m[2massets/[22m[32mfa-solid-900-D0aA9rwL.ttf                                                                                      [39m[1m[2m426.11 kB[22m[1m[22m
+2026-10-02T22:24:48.5666491Z [2mdist/[22m[2massets/[22m[35mindex-DQu_SQ--.css                                                                                             [39m[1m[2m341.21 kB[22m[1m[22m[2m │ gzip:  59.16 kB[22m
+2026-10-02T22:24:48.5668105Z [2mdist/[22m[2massets/[22m[36mrouteLease-C8aTrg61.js                                                                                         [39m[1m[2m  0.48 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+2026-10-02T22:24:48.5669936Z [2mdist/[22m[2massets/[22m[36mIconButton-BL-FXnfW.js                                                                                         [39m[1m[2m  0.67 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+2026-10-02T22:24:48.5671578Z [2mdist/[22m[2massets/[22m[36mFeedbackPage-D54jLxve.js                                                                                       [39m[1m[2m  2.65 kB[22m[1m[22m[2m │ gzip:   1.21 kB[22m
+2026-10-02T22:24:48.5673227Z [2mdist/[22m[2massets/[22m[36mEnhancedTooltip-Dg4-9L-f.js                                                                                    [39m[1m[2m  4.58 kB[22m[1m[22m[2m │ gzip:   1.64 kB[22m
+2026-10-02T22:24:48.5675095Z [2mdist/[22m[2massets/[22m[36mworkbox-window.prod.es5-CwtvwXb3.js                                                                            [39m[1m[2m  5.76 kB[22m[1m[22m[2m │ gzip:   2.37 kB[22m
+2026-10-02T22:24:48.5676763Z [2mdist/[22m[2massets/[22m[36mDonatePage-CFiOj6cg.js                                                                                         [39m[1m[2m  9.64 kB[22m[1m[22m[2m │ gzip:   2.97 kB[22m
+2026-10-02T22:24:48.5678392Z [2mdist/[22m[2massets/[22m[36mcaptureSession-DKtwYUi-.js                                                                                     [39m[1m[2m 11.62 kB[22m[1m[22m[2m │ gzip:   3.79 kB[22m
+2026-10-02T22:24:48.5680017Z [2mdist/[22m[2massets/[22m[36museAudioPlayer-BhJXnjYO.js                                                                                     [39m[1m[2m 12.19 kB[22m[1m[22m[2m │ gzip:   4.32 kB[22m
+2026-10-02T22:24:48.5681694Z [2mdist/[22m[2massets/[22m[36mSliceAudioModal-Ckh_O9UD.js                                                                                    [39m[1m[2m 26.42 kB[22m[1m[22m[2m │ gzip:   9.04 kB[22m
+2026-10-02T22:24:48.5683379Z [2mdist/[22m[2massets/[22m[36mStemRecordingModal-Br9m0Tvl.js                                                                                 [39m[1m[2m 28.89 kB[22m[1m[22m[2m │ gzip:   9.89 kB[22m
+2026-10-02T22:24:48.5685225Z [2mdist/[22m[2massets/[22m[36mDevicesWorkspace-CQUHMSb2.js                                                                                   [39m[1m[2m 40.03 kB[22m[1m[22m[2m │ gzip:  11.81 kB[22m
+2026-10-02T22:24:48.5686886Z [2mdist/[22m[2massets/[22m[36mLibraryPage-DwU8oKCs.js                                                                                        [39m[1m[2m 40.79 kB[22m[1m[22m[2m │ gzip:  11.15 kB[22m
+2026-10-02T22:24:48.5688534Z [2mdist/[22m[2massets/[22m[36mDrumTool-DjssguFp.js                                                                                           [39m[1m[2m 96.13 kB[22m[1m[22m[2m │ gzip:  24.69 kB[22m
+2026-10-02T22:24:48.5690179Z [2mdist/[22m[2massets/[22m[36mMultisampleTool-Deeu4qAD.js                                                                                    [39m[1m[2m 98.80 kB[22m[1m[22m[2m │ gzip:  23.88 kB[22m
+2026-10-02T22:24:48.5691865Z [2mdist/[22m[2massets/[22m[36museFileUpload-Qck5lMGl.js                                                                                      [39m[1m[2m230.24 kB[22m[1m[22m[2m │ gzip:  61.79 kB[22m
+2026-10-02T22:24:48.5693616Z [2mdist/[22m[2massets/[22m[36mindex-CGQ9hGy0.js                                                                                              [39m[1m[33m607.60 kB[39m[22m[2m │ gzip: 185.06 kB[22m
+2026-10-02T22:24:48.5694719Z [32m✓ built in 5.21s[39m
+2026-10-02T22:24:49.8836754Z 
+2026-10-02T22:24:49.8837829Z [36mPWA v1.3.0[39m
+2026-10-02T22:24:49.8838702Z mode      [35mgenerateSW[39m
+2026-10-02T22:24:49.8839471Z precache  [32m42 entries[39m [2m(2411.41 KiB)[22m
+2026-10-02T22:24:49.8840031Z files generated
+2026-10-02T22:24:49.8840476Z   [2mdist/sw.js[22m
+2026-10-02T22:24:49.8841003Z   [2mdist/workbox-a4e4e354.js[22m
+2026-10-02T22:24:50.0839504Z 
+2026-10-02T22:24:50.0840283Z > op-patchstudio@0.16.0 verify:pwa
+2026-10-02T22:24:50.0840642Z > node scripts/verify-pwa-build.mjs
+2026-10-02T22:24:50.0841057Z 
+2026-10-02T22:24:50.1122475Z Verified 42 unique precache URLs; 10 stable public assets have content revisions; lifecycle 9f64f79266df569eeea7f627e9cbc48fd795d5e8-murj6ib0-b86d78c4-082b-412e-a19f-01e6d4257c08 owns its cache identity.
+2026-10-02T22:24:50.1278997Z ##[group]Run npx playwright install --with-deps chromium
+2026-10-02T22:24:50.1279545Z [36;1mnpx playwright install --with-deps chromium[0m
+2026-10-02T22:24:50.1337497Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:24:50.1337731Z ##[endgroup]
+2026-10-02T22:24:50.8538095Z Installing dependencies...
+2026-10-02T22:24:50.8586585Z Switching to root user to install dependencies...
+2026-10-02T22:24:51.3526289Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-02T22:24:51.3653065Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+2026-10-02T22:24:51.3743865Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+2026-10-02T22:24:51.3755769Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-10-02T22:24:51.3779628Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-10-02T22:24:51.3805347Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-10-02T22:24:51.4407679Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [458 kB]
+2026-10-02T22:24:51.4565083Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.6 kB]
+2026-10-02T22:24:51.4604739Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [511 kB]
+2026-10-02T22:24:51.5316189Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1364 kB]
+2026-10-02T22:24:51.5385213Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [304 kB]
+2026-10-02T22:24:51.5406774Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+2026-10-02T22:24:51.5429499Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1699 kB]
+2026-10-02T22:24:51.5516732Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [341 kB]
+2026-10-02T22:24:51.5579911Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+2026-10-02T22:24:51.5605304Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1720 kB]
+2026-10-02T22:24:51.5695096Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [394 kB]
+2026-10-02T22:24:51.5711862Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+2026-10-02T22:24:51.5825939Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5764 B]
+2026-10-02T22:24:51.6254508Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+2026-10-02T22:24:51.6266010Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1069 kB]
+2026-10-02T22:24:51.6316359Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [221 kB]
+2026-10-02T22:24:51.6331252Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.3 kB]
+2026-10-02T22:24:51.6340916Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1216 kB]
+2026-10-02T22:24:51.6398050Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [244 kB]
+2026-10-02T22:24:51.6414305Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+2026-10-02T22:24:51.6424279Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1566 kB]
+2026-10-02T22:24:51.6495673Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [361 kB]
+2026-10-02T22:25:00.7397140Z Fetched 12.6 MB in 1s (10.9 MB/s)
+2026-10-02T22:25:01.4500453Z Reading package lists...
+2026-10-02T22:25:01.4706348Z Reading package lists...
+2026-10-02T22:25:01.6800899Z Building dependency tree...
+2026-10-02T22:25:01.6807488Z Reading state information...
+2026-10-02T22:25:01.8364031Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+2026-10-02T22:25:01.8365005Z libasound2t64 set to manually installed.
+2026-10-02T22:25:01.8365381Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+2026-10-02T22:25:01.8365746Z libatk-bridge2.0-0t64 set to manually installed.
+2026-10-02T22:25:01.8366083Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+2026-10-02T22:25:01.8366391Z libatk1.0-0t64 set to manually installed.
+2026-10-02T22:25:01.8366713Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+2026-10-02T22:25:01.8367032Z libatspi2.0-0t64 set to manually installed.
+2026-10-02T22:25:01.8367351Z libcairo2 is already the newest version (1.18.0-3build1).
+2026-10-02T22:25:01.8367649Z libcairo2 set to manually installed.
+2026-10-02T22:25:01.8367975Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+2026-10-02T22:25:01.8368298Z libcups2t64 set to manually installed.
+2026-10-02T22:25:01.8368658Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+2026-10-02T22:25:01.8369148Z libdbus-1-3 set to manually installed.
+2026-10-02T22:25:01.8369682Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+2026-10-02T22:25:01.8370006Z libdrm2 set to manually installed.
+2026-10-02T22:25:01.8370321Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.9).
+2026-10-02T22:25:01.8370645Z libglib2.0-0t64 set to manually installed.
+2026-10-02T22:25:01.8370966Z libnspr4 is already the newest version (2:4.35-1.1build1).
+2026-10-02T22:25:01.8371262Z libnspr4 set to manually installed.
+2026-10-02T22:25:01.8371563Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+2026-10-02T22:25:01.8371852Z libnss3 set to manually installed.
+2026-10-02T22:25:01.8372173Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+2026-10-02T22:25:01.8372490Z libpango-1.0-0 set to manually installed.
+2026-10-02T22:25:01.8372798Z libx11-6 is already the newest version (2:1.8.7-1build1).
+2026-10-02T22:25:01.8373087Z libx11-6 set to manually installed.
+2026-10-02T22:25:01.8373608Z libxcb1 is already the newest version (1.15-1ubuntu2).
+2026-10-02T22:25:01.8374054Z libxcb1 set to manually installed.
+2026-10-02T22:25:01.8374529Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+2026-10-02T22:25:01.8374858Z libxcomposite1 set to manually installed.
+2026-10-02T22:25:01.8375192Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+2026-10-02T22:25:01.8375499Z libxdamage1 set to manually installed.
+2026-10-02T22:25:01.8375804Z libxext6 is already the newest version (2:1.3.4-1build2).
+2026-10-02T22:25:01.8376096Z libxext6 set to manually installed.
+2026-10-02T22:25:01.8376397Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+2026-10-02T22:25:01.8376713Z libxfixes3 set to manually installed.
+2026-10-02T22:25:01.8377022Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+2026-10-02T22:25:01.8377320Z libxkbcommon0 set to manually installed.
+2026-10-02T22:25:01.8377633Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+2026-10-02T22:25:01.8377925Z libxrandr2 set to manually installed.
+2026-10-02T22:25:01.8378221Z xvfb is already the newest version (2:21.1.12-1ubuntu1.8).
+2026-10-02T22:25:01.8378805Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+2026-10-02T22:25:01.8379237Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+2026-10-02T22:25:01.8379559Z libfontconfig1 set to manually installed.
+2026-10-02T22:25:01.8379897Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+2026-10-02T22:25:01.8380227Z libfreetype6 set to manually installed.
+2026-10-02T22:25:01.8380545Z fonts-liberation is already the newest version (1:2.1.5-3).
+2026-10-02T22:25:01.8380858Z fonts-liberation set to manually installed.
+2026-10-02T22:25:01.8381175Z The following additional packages will be installed:
+2026-10-02T22:25:01.8381559Z   libgl1-mesa-dri libglx-mesa0 mesa-libgallium xfonts-encodings xfonts-utils
+2026-10-02T22:25:01.8381882Z Recommended packages:
+2026-10-02T22:25:01.8382118Z   fonts-ipafont-mincho fonts-tlwg-loma
+2026-10-02T22:25:01.9429760Z The following NEW packages will be installed:
+2026-10-02T22:25:01.9430230Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+2026-10-02T22:25:01.9437945Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+2026-10-02T22:25:01.9438297Z   xfonts-utils
+2026-10-02T22:25:01.9441902Z The following packages will be upgraded:
+2026-10-02T22:25:01.9445786Z   libgbm1 libgl1-mesa-dri libglx-mesa0 mesa-libgallium
+2026-10-02T22:25:01.9597894Z 4 upgraded, 9 newly installed, 0 to remove and 21 not upgraded.
+2026-10-02T22:25:01.9598350Z Need to get 32.1 MB of archives.
+2026-10-02T22:25:01.9598700Z After this operation, 79.5 MB of additional disk space will be used.
+2026-10-02T22:25:01.9599085Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-02T22:25:02.0461711Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+2026-10-02T22:25:02.1806577Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+2026-10-02T22:25:02.3578959Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+2026-10-02T22:25:02.4239520Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+2026-10-02T22:25:02.5471420Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+2026-10-02T22:25:02.8463652Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgl1-mesa-dri amd64 25.2.8-0ubuntu0.24.04.4 [38.0 kB]
+2026-10-02T22:25:02.9119392Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglx-mesa0 amd64 25.2.8-0ubuntu0.24.04.4 [110 kB]
+2026-10-02T22:25:02.9780811Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgbm1 amd64 25.2.8-0ubuntu0.24.04.4 [34.2 kB]
+2026-10-02T22:25:03.0427790Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 mesa-libgallium amd64 25.2.8-0ubuntu0.24.04.4 [10.8 MB]
+2026-10-02T22:25:03.3545561Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+2026-10-02T22:25:03.4317157Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+2026-10-02T22:25:03.4972160Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+2026-10-02T22:25:03.5756076Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+2026-10-02T22:25:03.8200476Z Fetched 32.1 MB in 2s (19.7 MB/s)
+2026-10-02T22:25:03.8388729Z Selecting previously unselected package fonts-ipafont-gothic.
+2026-10-02T22:25:03.8596915Z (Reading database ... 
+2026-10-02T22:25:03.8597190Z (Reading database ... 5%
+2026-10-02T22:25:03.8597419Z (Reading database ... 10%
+2026-10-02T22:25:03.8597646Z (Reading database ... 15%
+2026-10-02T22:25:03.8597881Z (Reading database ... 20%
+2026-10-02T22:25:03.8598075Z (Reading database ... 25%
+2026-10-02T22:25:03.8598762Z (Reading database ... 30%
+2026-10-02T22:25:03.8599244Z (Reading database ... 35%
+2026-10-02T22:25:03.8599436Z (Reading database ... 40%
+2026-10-02T22:25:03.8599627Z (Reading database ... 45%
+2026-10-02T22:25:03.8599822Z (Reading database ... 50%
+2026-10-02T22:25:03.8629340Z (Reading database ... 55%
+2026-10-02T22:25:04.0800472Z (Reading database ... 60%
+2026-10-02T22:25:04.3773917Z (Reading database ... 65%
+2026-10-02T22:25:04.5672319Z (Reading database ... 70%
+2026-10-02T22:25:04.8803533Z (Reading database ... 75%
+2026-10-02T22:25:05.0840407Z (Reading database ... 80%
+2026-10-02T22:25:05.3757857Z (Reading database ... 85%
+2026-10-02T22:25:05.5659278Z (Reading database ... 90%
+2026-10-02T22:25:05.7414498Z (Reading database ... 95%
+2026-10-02T22:25:05.7414919Z (Reading database ... 100%
+2026-10-02T22:25:05.7415427Z (Reading database ... 202296 files and directories currently installed.)
+2026-10-02T22:25:05.7459253Z Preparing to unpack .../00-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+2026-10-02T22:25:05.7574888Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+2026-10-02T22:25:06.0216603Z Selecting previously unselected package fonts-freefont-ttf.
+2026-10-02T22:25:06.0329617Z Preparing to unpack .../01-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+2026-10-02T22:25:06.0336083Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+2026-10-02T22:25:06.1557967Z Selecting previously unselected package fonts-tlwg-loma-otf.
+2026-10-02T22:25:06.1671878Z Preparing to unpack .../02-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+2026-10-02T22:25:06.1678078Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+2026-10-02T22:25:06.1967597Z Selecting previously unselected package fonts-unifont.
+2026-10-02T22:25:06.2082177Z Preparing to unpack .../03-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+2026-10-02T22:25:06.2087733Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+2026-10-02T22:25:06.7315085Z Selecting previously unselected package fonts-wqy-zenhei.
+2026-10-02T22:25:06.7430502Z Preparing to unpack .../04-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+2026-10-02T22:25:06.7520519Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+2026-10-02T22:25:07.2129680Z Preparing to unpack .../05-libgl1-mesa-dri_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+2026-10-02T22:25:07.2256858Z Unpacking libgl1-mesa-dri:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+2026-10-02T22:25:07.2685306Z Preparing to unpack .../06-libglx-mesa0_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+2026-10-02T22:25:07.2710021Z Unpacking libglx-mesa0:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+2026-10-02T22:25:07.3032725Z Preparing to unpack .../07-libgbm1_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+2026-10-02T22:25:07.3052401Z Unpacking libgbm1:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+2026-10-02T22:25:07.6779404Z Preparing to unpack .../08-mesa-libgallium_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+2026-10-02T22:25:07.6796702Z Unpacking mesa-libgallium:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+2026-10-02T22:25:08.2000297Z Selecting previously unselected package xfonts-encodings.
+2026-10-02T22:25:08.2113114Z Preparing to unpack .../09-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+2026-10-02T22:25:08.2119222Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+2026-10-02T22:25:08.2419643Z Selecting previously unselected package xfonts-utils.
+2026-10-02T22:25:08.2531492Z Preparing to unpack .../10-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+2026-10-02T22:25:08.2538000Z Unpacking xfonts-utils (1:7.7+6build3) ...
+2026-10-02T22:25:08.2849613Z Selecting previously unselected package xfonts-cyrillic.
+2026-10-02T22:25:08.2961261Z Preparing to unpack .../11-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+2026-10-02T22:25:08.2967440Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+2026-10-02T22:25:08.3294071Z Selecting previously unselected package xfonts-scalable.
+2026-10-02T22:25:08.3407725Z Preparing to unpack .../12-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+2026-10-02T22:25:08.3414492Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+2026-10-02T22:25:08.3872417Z Setting up mesa-libgallium:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+2026-10-02T22:25:08.3886765Z Setting up libgbm1:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+2026-10-02T22:25:08.3900089Z Setting up libgl1-mesa-dri:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+2026-10-02T22:25:08.3960801Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+2026-10-02T22:25:08.4052854Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+2026-10-02T22:25:08.4069405Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+2026-10-02T22:25:08.4084135Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+2026-10-02T22:25:08.4098003Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+2026-10-02T22:25:08.4154741Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+2026-10-02T22:25:08.4166893Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+2026-10-02T22:25:08.4179760Z Setting up libglx-mesa0:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+2026-10-02T22:25:08.4193279Z Setting up xfonts-utils (1:7.7+6build3) ...
+2026-10-02T22:25:08.4227498Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+2026-10-02T22:25:08.4480231Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+2026-10-02T22:25:08.4725126Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-10-02T22:25:08.6239754Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-10-02T22:25:08.6343669Z Not building database; man-db/auto-update is not 'true'.
+2026-10-02T22:25:08.6356332Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+2026-10-02T22:25:09.4080508Z 
+2026-10-02T22:25:09.4081011Z Running kernel seems to be up-to-date.
+2026-10-02T22:25:09.4081246Z 
+2026-10-02T22:25:09.4081387Z No services need to be restarted.
+2026-10-02T22:25:09.4081540Z 
+2026-10-02T22:25:09.4081654Z No containers need to be restarted.
+2026-10-02T22:25:09.4081802Z 
+2026-10-02T22:25:09.4081978Z No user sessions are running outdated binaries.
+2026-10-02T22:25:09.4082149Z 
+2026-10-02T22:25:09.4082378Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-10-02T22:25:10.3280039Z Downloading Chrome for Testing 153.0.8010.12 (playwright chromium v1243) from https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux64/chrome-linux64.zip
+2026-10-02T22:25:10.6968781Z |                                                                                |   0% of 186.8 MiB
+2026-10-02T22:25:10.8677388Z |■■■■■■■■                                                                        |  10% of 186.8 MiB
+2026-10-02T22:25:10.9509102Z |■■■■■■■■■■■■■■■■                                                                |  20% of 186.8 MiB
+2026-10-02T22:25:11.0443178Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 186.8 MiB
+2026-10-02T22:25:11.1732972Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 186.8 MiB
+2026-10-02T22:25:11.2843968Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 186.8 MiB
+2026-10-02T22:25:11.3741905Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 186.8 MiB
+2026-10-02T22:25:11.4756808Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 186.8 MiB
+2026-10-02T22:25:11.5705465Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 186.8 MiB
+2026-10-02T22:25:11.6821424Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 186.8 MiB
+2026-10-02T22:25:11.7737710Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 186.8 MiB
+2026-10-02T22:25:13.8256102Z Chrome for Testing 153.0.8010.12 (playwright chromium v1243) downloaded to /home/runner/.cache/ms-playwright/chromium-1243
+2026-10-02T22:25:13.8259671Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+2026-10-02T22:25:14.1435205Z |                                                                                |   0% of 2.3 MiB
+2026-10-02T22:25:14.1476993Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+2026-10-02T22:25:14.1497327Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+2026-10-02T22:25:14.1524619Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+2026-10-02T22:25:14.1546526Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+2026-10-02T22:25:14.1560593Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+2026-10-02T22:25:14.1582530Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+2026-10-02T22:25:14.1596778Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+2026-10-02T22:25:14.1604569Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+2026-10-02T22:25:14.1614405Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+2026-10-02T22:25:14.1632228Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+2026-10-02T22:25:14.2079586Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+2026-10-02T22:25:14.2082030Z Downloading Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) from https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux64/chrome-headless-shell-linux64.zip
+2026-10-02T22:25:14.5720820Z |                                                                                |   0% of 114.3 MiB
+2026-10-02T22:25:14.7076422Z |■■■■■■■■                                                                        |  10% of 114.3 MiB
+2026-10-02T22:25:14.7780494Z |■■■■■■■■■■■■■■■■                                                                |  20% of 114.3 MiB
+2026-10-02T22:25:14.8532996Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 114.3 MiB
+2026-10-02T22:25:14.9837837Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 114.3 MiB
+2026-10-02T22:25:15.0517827Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 114.3 MiB
+2026-10-02T22:25:15.1335713Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 114.3 MiB
+2026-10-02T22:25:15.1861657Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 114.3 MiB
+2026-10-02T22:25:15.2498132Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 114.3 MiB
+2026-10-02T22:25:15.3018001Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 114.3 MiB
+2026-10-02T22:25:15.3706072Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 114.3 MiB
+2026-10-02T22:25:16.8259328Z Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1243
+2026-10-02T22:25:16.8493207Z ##[group]Run npm run test:e2e:production -- --project=chromium --global-timeout=900000
+2026-10-02T22:25:16.8494759Z [36;1mnpm run test:e2e:production -- --project=chromium --global-timeout=900000[0m
+2026-10-02T22:25:16.8550563Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:25:16.8550805Z ##[endgroup]
+2026-10-02T22:25:16.9375344Z 
+2026-10-02T22:25:16.9375987Z > op-patchstudio@0.16.0 test:e2e:production
+2026-10-02T22:25:16.9376797Z > PLAYWRIGHT_PRODUCTION=1 playwright test --project=chromium --global-timeout=900000
+2026-10-02T22:25:16.9377267Z 
+2026-10-02T22:25:18.6121018Z 
+2026-10-02T22:25:18.6121668Z Running 165 tests using 1 worker
+2026-10-02T22:25:18.6121992Z 
+2026-10-02T22:25:20.7595907Z   ✓    1 [chromium] › tests/e2e/audio-import.spec.ts:11:1 › actual codec files stay truthful through chooser review, one Apply, and Undo (1.4s)
+2026-10-02T22:25:21.6137046Z   ✓    2 [chromium] › tests/e2e/audio-import.spec.ts:39:1 › desktop row multi-chooser is one reviewed batch with collision-free explicit pads (845ms)
+2026-10-02T22:25:22.4278106Z   ✓    3 [chromium] › tests/e2e/audio-import.spec.ts:50:1 › one sound added after selecting SD2 loads into SD2 rather than the first matching snare pad (803ms)
+2026-10-02T22:25:23.3980522Z   ✓    4 [chromium] › tests/e2e/audio-import.spec.ts:60:1 › Replace on a loaded pad proposes that pad and applies the replacement (961ms)
+2026-10-02T22:25:24.1838613Z   ✓    5 [chromium] › tests/e2e/audio-import.spec.ts:74:1 › actual chooser sends unknown-extension, empty, and unsupported files to shared review classification (775ms)
+2026-10-02T22:25:30.1786590Z   ✓    6 [chromium] › tests/e2e/audio-import.spec.ts:85:1 › malformed patch settings are rejected in both modes without changing settings (6.0s)
+2026-10-02T22:25:30.9330721Z   ✓    7 [chromium] › tests/e2e/audio-import.spec.ts:92:1 › a captured nested drop keeps a valid sibling and reports the blocked child (744ms)
+2026-10-02T22:25:32.3824487Z   ✓    8 [chromium] › tests/e2e/audio-settings-audit.spec.ts:3:56 › drum audio output controls and normalization retain Undo behavior (1.4s)
+2026-10-02T22:25:34.1015599Z   ✓    9 [chromium] › tests/e2e/audio-settings-audit.spec.ts:3:56 › multisample audio output controls and normalization retain Undo behavior (1.7s)
+2026-10-02T22:25:34.1482362Z   -   10 [chromium] › tests/e2e/auto-sampling.spec.ts:8:1 › production Chromium captures an exact synthetic MIDI range through only explicit fake audio and MIDI devices
+2026-10-02T22:25:35.3515839Z   ✓   11 [chromium] › tests/e2e/demo-control-audit.spec.ts:4:1 › demo add replace cancel and Undo preserve the existing instrument (1.2s)
+2026-10-02T22:25:36.2532699Z   ✓   12 [chromium] › tests/e2e/demo-control-audit.spec.ts:19:1 › first preset guide exports through preflight and remembers dismissal (894ms)
+2026-10-02T22:25:37.5177714Z   ✓   13 [chromium] › tests/e2e/devices-workspace.spec.ts:16:1 › Devices keeps setup actions silent, honors route locks, and rejects a stale selected output (1.2s)
+2026-10-02T22:25:38.1611097Z   ✓   14 [chromium] › tests/e2e/drum-pad-access.spec.ts:5:3 › desktop drum workbench keeps both banks beside the editor at 1440px (632ms)
+2026-10-02T22:25:38.7970006Z   ✓   15 [chromium] › tests/e2e/drum-pad-access.spec.ts:5:3 › desktop drum workbench keeps both banks beside the editor at 1024px (625ms)
+2026-10-02T22:25:39.5560506Z   ✓   16 [chromium] › tests/e2e/drum-pad-access.spec.ts:35:3 › all desktop drum pads remain reachable at 1280px (752ms)
+2026-10-02T22:25:40.3196030Z   ✓   17 [chromium] › tests/e2e/drum-pad-access.spec.ts:35:3 › all desktop drum pads remain reachable at 900px (751ms)
+2026-10-02T22:25:41.1491695Z   ✓   18 [chromium] › tests/e2e/drum-pad-access.spec.ts:35:3 › all desktop drum pads remain reachable at 770px (820ms)
+2026-10-02T22:25:42.0333288Z   ✓   19 [chromium] › tests/e2e/drum-pad-access.spec.ts:78:1 › phone bank controls still expose all 24 drum slots (876ms)
+2026-10-02T22:25:42.7578138Z   ✓   20 [chromium] › tests/e2e/drum-pad-access.spec.ts:107:1 › loaded labels remain legible on the narrow drum keys (717ms)
+2026-10-02T22:25:44.0267502Z   ✓   21 [chromium] › tests/e2e/drum-row-actions-audit.spec.ts:3:31 › drum 1440px row Play Record Slice and settings preview retain the instrument (1.3s)
+2026-10-02T22:25:50.2253976Z   ✓   22 [chromium] › tests/e2e/drum-row-actions-audit.spec.ts:3:31 › drum 390px row Play Record Slice and settings preview retain the instrument (6.2s)
+2026-10-02T22:25:51.3347495Z   ✓   23 [chromium] › tests/e2e/envelope-control-audit.spec.ts:3:1 › envelope knobs keyboard edit Undo and preset randomization remain coherent (1.1s)
+2026-10-02T22:25:52.3346412Z   ✓   24 [chromium] › tests/e2e/envelope-control-audit.spec.ts:13:1 › multisample disclosures and loop controls support keyboard edits and Undo (992ms)
+2026-10-02T22:25:53.3824770Z   ✓   25 [chromium] › tests/e2e/export-workflow.spec.ts:54:1 › a kit with empty pads exports the same pad assignments (1.0s)
+2026-10-02T22:25:54.4349755Z   ✓   26 [chromium] › tests/e2e/export-workflow.spec.ts:63:1 › same-name samples remain distinct audio files in the downloaded kit (1.0s)
+2026-10-02T22:25:56.3875354Z   ✓   27 [chromium] › tests/e2e/export-workflow.spec.ts:75:1 › imported multisample settings survive the real upload and export flow (1.9s)
+2026-10-02T22:25:57.5791407Z   ✓   28 [chromium] › tests/e2e/export-workflow.spec.ts:99:1 › an older saved session can be restored after reload with its pad assignments (1.2s)
+2026-10-02T22:25:58.6007890Z   ✓   29 [chromium] › tests/e2e/export-workflow.spec.ts:120:1 › a failed autosave offers a retry that saves the current work (1.0s)
+2026-10-02T22:26:01.2830436Z   ✓   30 [chromium] › tests/e2e/export-workflow.spec.ts:147:1 › library reload restores saved multisample settings and keeps the drum kit (2.7s)
+2026-10-02T22:26:02.9132776Z   ✓   31 [chromium] › tests/e2e/export-workflow.spec.ts:190:1 › portable project restores sparse audio and its import can be undone (1.6s)
+2026-10-02T22:26:03.8485287Z   ✓   32 [chromium] › tests/e2e/export-workflow.spec.ts:219:1 › settings-only work is offered for recovery after reload (929ms)
+2026-10-02T22:26:04.9310927Z   ✓   33 [chromium] › tests/e2e/export-workflow.spec.ts:232:1 › keyboard undo and redo restore whole audio loads without changing pad banks (1.1s)
+2026-10-02T22:26:05.8297364Z   ✓   34 [chromium] › tests/e2e/export-workflow.spec.ts:252:1 › preset import undoes atomically and confirmation keeps project shortcuts blocked (891ms)
+2026-10-02T22:26:06.8630605Z   ✓   35 [chromium] › tests/e2e/export-workflow.spec.ts:287:1 › malformed project backup leaves the current sparse project untouched (1.0s)
+2026-10-02T22:26:07.5973222Z   ✓   36 [chromium] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (719ms)
+2026-10-02T22:26:08.4006243Z   ✓   37 [chromium] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (794ms)
+2026-10-02T22:26:09.2905687Z   ✓   38 [chromium] › tests/e2e/file-entry-audit.spec.ts:16:1 › multisample patch settings chooser imports atomically and supports Undo (880ms)
+2026-10-02T22:26:10.2495128Z   ✓   39 [chromium] › tests/e2e/file-entry-audit.spec.ts:19:1 › drum import rejects malformed OP-1 files, auditions unassigned audio, and opens setup help (949ms)
+2026-10-02T22:26:11.0357299Z   ✓   40 [chromium] › tests/e2e/file-entry-audit.spec.ts:25:1 › mobile empty drum table browse loads the chosen pad (778ms)
+2026-10-02T22:26:12.0732168Z   ✓   41 [chromium] › tests/e2e/file-entry-audit.spec.ts:29:1 › multisample import inclusion and root edits commit together and Undo (1.0s)
+2026-10-02T22:26:13.2192226Z   ✓   42 [chromium] › tests/e2e/file-entry-audit.spec.ts:35:1 › export preflight edits name and includes unassigned sound only when requested (1.1s)
+2026-10-02T22:26:14.1209267Z   ✓   43 [chromium] › tests/e2e/file-entry-audit.spec.ts:47:1 › multisample zone selection and note naming do not change roots (892ms)
+2026-10-02T22:26:15.3758483Z   ✓   44 [chromium] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 1440px browse and waveform draft cancellation (1.2s)
+2026-10-02T22:26:16.8244953Z   ✓   45 [chromium] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 390px browse and waveform draft cancellation (1.4s)
+2026-10-02T22:26:17.8891530Z   ✓   46 [chromium] › tests/e2e/file-entry-audit.spec.ts:56:1 › organize row drops choose the intended empty pads (1.1s)
+2026-10-02T22:26:18.5825249Z   ✓   47 [chromium] › tests/e2e/file-entry-audit.spec.ts:61:1 › wide drum MIDI audition channel persists with an isolated MIDI stub (685ms)
+2026-10-02T22:26:19.8319445Z   ✓   48 [chromium] › tests/e2e/file-entry-audit.spec.ts:66:1 › an empty multisample key selects the root for the nearby Add sounds chooser (1.2s)
+2026-10-02T22:26:20.9324145Z   ✓   49 [chromium] › tests/e2e/file-entry-audit.spec.ts:70:1 › sample settings waveform drag is saved once and Undo restores markers (1.1s)
+2026-10-02T22:26:22.1293881Z   ✓   50 [chromium] › tests/e2e/focus-control-audit.spec.ts:4:1 › focused drum controls persist modes trim and slider gestures with Undo (1.2s)
+2026-10-02T22:26:22.9812050Z   ✓   51 [chromium] › tests/e2e/focus-control-audit.spec.ts:28:1 › focused drum moves a sound to an empty pad then Undo restores its position (844ms)
+2026-10-02T22:26:23.9557964Z   ✓   52 [chromium] › tests/e2e/focus-control-audit.spec.ts:43:1 › focused drum clear cancellation preserves sound and confirmation is undoable (964ms)
+2026-10-02T22:26:25.0785866Z   ✓   53 [chromium] › tests/e2e/focus-entry-audit.spec.ts:5:56 › drum focus import record and clear entry points preserve reviewed audio (1.1s)
+2026-10-02T22:26:26.3978317Z   ✓   54 [chromium] › tests/e2e/focus-entry-audit.spec.ts:5:56 › multisample focus import record and clear entry points preserve reviewed audio (1.3s)
+2026-10-02T22:26:26.8479505Z   ✓   55 [chromium] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Multisample a synth navigation help and import entry (438ms)
+2026-10-02T22:26:27.3608415Z   ✓   56 [chromium] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Sample a sound navigation help and import entry (504ms)
+2026-10-02T22:26:27.7404169Z   ✓   57 [chromium] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Build a drum kit navigation help and import entry (371ms)
+2026-10-02T22:26:28.1213181Z   ✓   58 [chromium] › tests/e2e/guide-control-audit.spec.ts:22:1 › transfer actions open the expected workspace (373ms)
+2026-10-02T22:26:28.4808397Z   ✓   59 [chromium] › tests/e2e/guide-control-audit.spec.ts:30:1 › guided Back controls retain task choice without opening a recorder (351ms)
+2026-10-02T22:26:28.5233224Z   -   60 [chromium] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Continue editing
+2026-10-02T22:26:28.5625519Z   -   61 [chromium] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Save to library
+2026-10-02T22:26:28.6044194Z   -   62 [chromium] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Review OP-XY export
+2026-10-02T22:26:30.7731842Z   ✓   63 [chromium] › tests/e2e/instrument-utility-audit.spec.ts:7:56 › drum clear reset defaults and pin controls preserve Undo and persistence (2.2s)
+2026-10-02T22:26:33.1758058Z   ✓   64 [chromium] › tests/e2e/instrument-utility-audit.spec.ts:7:56 › multisample clear reset defaults and pin controls preserve Undo and persistence (2.4s)
+2026-10-02T22:26:33.8701378Z   ✓   65 [chromium] › tests/e2e/instrument-utility-audit.spec.ts:31:1 › drum organize control reveals both row drop zones and returns to playing (687ms)
+2026-10-02T22:26:33.9590181Z   ✓   66 [chromium] › tests/e2e/keyboard-platform.spec.ts:4:1 › native full-control keyboard navigation reaches buttons after heading focus (78ms)
+2026-10-02T22:26:38.3761524Z   ✓   67 [chromium] › tests/e2e/library-collections.spec.ts:48:1 › collections retain mixed presets and export every member despite a search filter (4.4s)
+2026-10-02T22:26:40.6738899Z   ✓   68 [chromium] › tests/e2e/library-control-audit.spec.ts:6:31 › library 1440px cancel details collections download and confirmed deletion (2.3s)
+2026-10-02T22:26:43.0054429Z   ✓   69 [chromium] › tests/e2e/library-control-audit.spec.ts:6:31 › library 390px cancel details collections download and confirmed deletion (2.3s)
+2026-10-02T22:26:45.4783772Z   ✓   70 [chromium] › tests/e2e/library-order-audit.spec.ts:3:31 › library 1440px favorites and collection down/remove retain saved presets (2.5s)
+2026-10-02T22:26:48.0958283Z   ✓   71 [chromium] › tests/e2e/library-order-audit.spec.ts:3:31 › library 390px favorites and collection down/remove retain saved presets (2.6s)
+2026-10-02T22:26:56.3419543Z   ✓   72 [chromium] › tests/e2e/library-workflow.spec.ts:14:1 › library details persist and sample previews leave the working instrument unchanged (8.2s)
+2026-10-02T22:26:58.7017000Z   ✓   73 [chromium] › tests/e2e/loop-editor.spec.ts:72:1 › explicit 48 kHz source-to-44.1 kHz export contract › zoom editor saves one atomic half-open edit and exports real converted loop bytes (2.3s)
+2026-10-02T22:26:59.6823939Z   ✓   74 [chromium] › tests/e2e/loop-editor.spec.ts:160:1 › portrait touch opens the responsive editor without a rotation gate (974ms)
+2026-10-02T22:27:00.6763889Z   ✓   75 [chromium] › tests/e2e/loop-editor.spec.ts:171:1 › drum table opens the same frame editor and Cancel preserves its markers (987ms)
+2026-10-02T22:27:01.4575022Z   ✓   76 [chromium] › tests/e2e/loop-editor.spec.ts:189:1 › waveform surface opens zoom and Escape preserves existing markers (773ms)
+2026-10-02T22:27:02.5531868Z   ✓   77 [chromium] › tests/e2e/marker-actions-audit.spec.ts:5:56 › drum zero-crossing action changes markers atomically and Undo restores them (1.1s)
+2026-10-02T22:27:03.6852488Z   ✓   78 [chromium] › tests/e2e/marker-actions-audit.spec.ts:5:56 › multisample zero-crossing action changes markers atomically and Undo restores them (1.1s)
+2026-10-02T22:27:04.7384121Z   ✓   79 [chromium] › tests/e2e/mobile-row-drop-audit.spec.ts:5:1 › dropping onto an occupied mobile multisample row requires review and Cancel preserves it (1.0s)
+2026-10-02T22:27:06.7124914Z   ✓   80 [chromium] › tests/e2e/modal-cancellation-audit.spec.ts:4:1 › Escape discards demo and library dialog drafts without changing saved content (2.0s)
+2026-10-02T22:27:08.8064034Z   ✓   81 [chromium] › tests/e2e/modal-cancellation-audit.spec.ts:11:1 › recording connection checklist and official track links are reachable without hardware (2.1s)
+2026-10-02T22:27:11.7720672Z   ✓   82 [chromium] › tests/e2e/modal-cancellation-audit.spec.ts:16:1 › instrument and library help tooltips reveal explanations and dismiss on pointer exit (3.0s)
+2026-10-02T22:27:13.2832393Z   ✓   83 [chromium] › tests/e2e/multisample-table-audit.spec.ts:7:31 › multisample table 1440px root editing replace clear and Undo (1.5s)
+2026-10-02T22:27:15.1184748Z   ✓   84 [chromium] › tests/e2e/multisample-table-audit.spec.ts:7:31 › multisample table 390px root editing replace clear and Undo (1.8s)
+2026-10-02T22:27:16.1588596Z   ✓   85 [chromium] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 1440px supports keyboard audition (1.0s)
+2026-10-02T22:27:17.1347349Z   ✓   86 [chromium] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 390px supports keyboard audition (966ms)
+2026-10-02T22:27:18.0970079Z   ✓   87 [chromium] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 1440px supports keyboard audition while the audio clock advances (954ms)
+2026-10-02T22:27:21.0633720Z   ✓   88 [chromium] › tests/e2e/recording.spec.ts:59:1 › records two sound-triggered PCM takes, applies one, preserves one, and archives exact recording metadata (3.0s)
+2026-10-02T22:27:22.2034660Z   ✓   89 [chromium] › tests/e2e/recording.spec.ts:92:1 › manual Start and Stop can repeat, and Cancel releases every input without changing the project (1.1s)
+2026-10-02T22:27:23.5834562Z   ✓   90 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 390px (1.4s)
+2026-10-02T22:27:24.9529328Z   ✓   91 [chromium] › tests/e2e/recording.spec.ts:106:34 › recorder keeps actions visible and owns discard focus at 1280px (1.4s)
+2026-10-02T22:27:25.9165714Z   ✓   92 [chromium] › tests/e2e/settings-control-audit.spec.ts:7:3 › drum: every persisted preset select option is editable and undoable (951ms)
+2026-10-02T22:27:27.0528401Z   ✓   93 [chromium] › tests/e2e/settings-control-audit.spec.ts:32:3 › drum: every visible preset slider supports keyboard change and undo (1.1s)
+2026-10-02T22:27:30.0475665Z   ✓   94 [chromium] › tests/e2e/settings-control-audit.spec.ts:7:3 › multisample: every persisted preset select option is editable and undoable (3.0s)
+2026-10-02T22:27:31.7366472Z   ✓   95 [chromium] › tests/e2e/settings-control-audit.spec.ts:32:3 › multisample: every visible preset slider supports keyboard change and undo (1.7s)
+2026-10-02T22:27:33.2977102Z   ✓   96 [chromium] › tests/e2e/settings-control-audit.spec.ts:55:1 › Project menu Open library synchronizes the route and survives reload (1.6s)
+2026-10-02T22:27:33.9461668Z   ✓   97 [chromium] › tests/e2e/settings-control-audit.spec.ts:64:1 › repeated Back while recording does not grow browser history (639ms)
+2026-10-02T22:27:34.3528481Z   ✓   98 [chromium] › tests/e2e/shell-utility-audit.spec.ts:4:1 › theme picker persists explicit choices and follows system changes (395ms)
+2026-10-02T22:27:36.6064031Z   ✓   99 [chromium] › tests/e2e/shell-utility-audit.spec.ts:13:1 › start new discards the offered session while retaining library presets (2.2s)
+2026-10-02T22:27:39.5674598Z   ✓  100 [chromium] › tests/e2e/slicing.spec.ts:76:1 › direct slice replacement and existing-pad unassignment preserve originals, cancel, and atomic Undo/Redo (2.9s)
+2026-10-02T22:27:44.1861578Z   ✓  101 [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (4.6s)
+2026-10-02T22:27:45.0605519Z   ✓  102 [chromium] › tests/e2e/slicing.spec.ts:257:1 › edited slicing session survives browser Back until explicitly discarded (865ms)
+2026-10-02T22:27:46.0705029Z   ✓  103 [chromium] › tests/e2e/slicing.spec.ts:274:3 › slicer groups, disclosure keyboard access and fixed footer at 1280x720 (1.0s)
+2026-10-02T22:27:47.0350719Z   ✓  104 [chromium] › tests/e2e/slicing.spec.ts:274:3 › slicer groups, disclosure keyboard access and fixed footer at 390x640 (955ms)
+2026-10-02T22:27:47.0818977Z   -  105 [chromium] › tests/e2e/stem-recording-device.spec.ts:5:1 › generated audio through the real worklet produces reviewed WAVs and a ZIP
+2026-10-02T22:27:47.6559420Z   ✓  106 [chromium] › tests/e2e/stem-recording.spec.ts:3:1 › track recording entry opens the production beginner workflow (562ms)
+2026-10-02T22:27:48.2158506Z   ✓  107 [chromium] › tests/e2e/stem-recording.spec.ts:5:1 › unsupported browser path stays readable and does not offer product simulation (550ms)
+2026-10-02T22:27:48.6000940Z   ✓  108 [chromium] › tests/e2e/studio-appearance.spec.ts:48:3 › studio appearance › defaults to Field, persists OP-XY across reload, and falls back for an invalid value (367ms)
+2026-10-02T22:27:48.8502787Z   ✓  109 [chromium] › tests/e2e/studio-appearance.spec.ts:74:3 › studio appearance › blocked presentation storage still renders and switches in memory (240ms)
+2026-10-02T22:27:49.1799379Z   ✓  110 [chromium] › tests/e2e/studio-appearance.spec.ts:88:3 › studio appearance › Theme and Appearance are independent in both directions (319ms)
+2026-10-02T22:27:50.3748591Z   ✓  111 [chromium] › tests/e2e/studio-appearance.spec.ts:117:3 › studio appearance › switching with an edited demo kit keeps route, samples, edits, undo and focus (1.2s)
+2026-10-02T22:27:51.2340001Z   ✓  112 [chromium] › tests/e2e/studio-appearance.spec.ts:178:3 › studio appearance › waveform canvases repaint with the new appearance tokens (851ms)
+2026-10-02T22:27:51.6927889Z   ✓  113 [chromium] › tests/e2e/studio-appearance.spec.ts:206:3 › studio appearance › keyboard: one tab stop, arrows select, focus ring visible, 44px targets (450ms)
+2026-10-02T22:27:52.9326439Z   ✓  114 [chromium] › tests/e2e/studio-appearance.spec.ts:253:3 › studio appearance › multisample: switching keeps the imported zone, a root-note edit and its undo (1.2s)
+2026-10-02T22:27:53.1888777Z   ✓  115 [chromium] › tests/e2e/studio-appearance.spec.ts:289:5 › studio appearance › OP-XY launch artwork labels and useful outlines stay legible on black (light) (247ms)
+2026-10-02T22:27:53.4338941Z   ✓  116 [chromium] › tests/e2e/studio-appearance.spec.ts:289:5 › studio appearance › OP-XY launch artwork labels and useful outlines stay legible on black (dark) (235ms)
+2026-10-02T22:27:53.8440590Z   ✓  117 [chromium] › tests/e2e/studio-appearance.spec.ts:304:5 › studio appearance › header brand and settings stay readable at 390px in both appearances (402ms)
+2026-10-02T22:27:54.2766908Z   ✓  118 [chromium] › tests/e2e/studio-appearance.spec.ts:304:5 › studio appearance › header brand and settings stay readable at 834px in both appearances (425ms)
+2026-10-02T22:27:54.7142561Z   ✓  119 [chromium] › tests/e2e/studio-appearance.spec.ts:304:5 › studio appearance › header brand and settings stay readable at 1024px in both appearances (430ms)
+2026-10-02T22:27:55.1497337Z   ✓  120 [chromium] › tests/e2e/studio-appearance.spec.ts:304:5 › studio appearance › header brand and settings stay readable at 1280px in both appearances (427ms)
+2026-10-02T22:27:55.5840796Z   ✓  121 [chromium] › tests/e2e/studio-appearance.spec.ts:304:5 › studio appearance › header brand and settings stay readable at 1440px in both appearances (427ms)
+2026-10-02T22:27:57.5622161Z   ✓  122 [chromium] › tests/e2e/studio-appearance.spec.ts:328:5 › studio appearance › OP-XY screens render without horizontal overflow at 1440px (2.0s)
+2026-10-02T22:27:59.5288885Z   ✓  123 [chromium] › tests/e2e/studio-appearance.spec.ts:328:5 › studio appearance › OP-XY screens render without horizontal overflow at 390px (2.0s)
+2026-10-02T22:27:59.9641650Z   ✓  124 [chromium] › tests/e2e/studio-design-contract.spec.ts:54:3 › unified launch surface › desktop: one horizontal header, one launch row, gear strip, then secondary shortcuts (419ms)
+2026-10-02T22:28:00.6894535Z   ✓  125 [chromium] › tests/e2e/studio-design-contract.spec.ts:131:3 › unified launch surface › keyboard order follows the launch hierarchy and every target is operable (713ms)
+2026-10-02T22:28:03.2783246Z   ✓  126 [chromium] › tests/e2e/studio-design-contract.spec.ts:161:3 › unified launch surface › task calls to action open their tools directly; setup guidance stays optional (2.6s)
+2026-10-02T22:28:04.1072139Z   ✓  127 [chromium] › tests/e2e/studio-design-contract.spec.ts:205:3 › unified launch surface › semantic colour: neutral actions, cyan loaded, orange selected, red destructive (818ms)
+2026-10-02T22:28:04.3155777Z   ✓  128 [chromium] › tests/e2e/studio-design-contract.spec.ts:237:3 › unified launch surface › build identity is exposed and matches the server that delivered it (200ms)
+2026-10-02T22:28:04.5657649Z   ✓  129 [chromium] › tests/e2e/studio-design-contract.spec.ts:255:3 › narrow launch and drum workbench › medium launch uses two equal rows with aligned actions (242ms)
+2026-10-02T22:28:04.8889132Z   ✓  130 [chromium] › tests/e2e/studio-design-contract.spec.ts:270:3 › narrow launch and drum workbench › narrow launch stacks modules without overflow and keeps 44px targets (314ms)
+2026-10-02T22:28:05.3127191Z   ✓  131 [chromium] › tests/e2e/studio-design-contract.spec.ts:291:5 › narrow launch and drum workbench › desktop drum workbench at 1440px: compact header zone, stacked banks left, editor right, quiet EMPTY labels (414ms)
+2026-10-02T22:28:05.7041907Z   ✓  132 [chromium] › tests/e2e/studio-design-contract.spec.ts:291:5 › narrow launch and drum workbench › desktop drum workbench at 1024px: compact header zone, stacked banks left, editor right, quiet EMPTY labels (382ms)
+2026-10-02T22:28:06.0263833Z   ✓  133 [chromium] › tests/e2e/studio-design-contract.spec.ts:338:5 › narrow launch and drum workbench › drum workbench collapses to one column without overflow at 900px (315ms)
+2026-10-02T22:28:06.3410173Z   ✓  134 [chromium] › tests/e2e/studio-design-contract.spec.ts:338:5 › narrow launch and drum workbench › drum workbench collapses to one column without overflow at 390px (306ms)
+2026-10-02T22:28:08.8482860Z   ✓  135 [chromium] › tests/e2e/studio-light-appearance.spec.ts:206:7 › OP-XY light appearance › 390px › overview, create, transfer, devices and help (2.5s)
+2026-10-02T22:28:17.3646770Z   ✓  136 [chromium] › tests/e2e/studio-light-appearance.spec.ts:245:7 › OP-XY light appearance › 390px › drum editor: empty, demo loaded, selection, settings, dialogs (8.5s)
+2026-10-02T22:28:21.8830891Z   ✓  137 [chromium] › tests/e2e/studio-light-appearance.spec.ts:289:7 › OP-XY light appearance › 390px › multisample editor: empty, loaded zone, MIDI panel, settings, recorder (4.5s)
+2026-10-02T22:28:24.0288569Z   ✓  138 [chromium] › tests/e2e/studio-light-appearance.spec.ts:325:7 › OP-XY light appearance › 390px › library: empty and saved entry with selection (2.1s)
+2026-10-02T22:28:26.5382523Z   ✓  139 [chromium] › tests/e2e/studio-light-appearance.spec.ts:206:7 › OP-XY light appearance › 1440px › overview, create, transfer, devices and help (2.5s)
+2026-10-02T22:28:29.2106829Z   ✓  140 [chromium] › tests/e2e/studio-light-appearance.spec.ts:245:7 › OP-XY light appearance › 1440px › drum editor: empty, demo loaded, selection, settings, dialogs (2.7s)
+2026-10-02T22:28:34.4061999Z   ✓  141 [chromium] › tests/e2e/studio-light-appearance.spec.ts:289:7 › OP-XY light appearance › 1440px › multisample editor: empty, loaded zone, MIDI panel, settings, recorder (5.2s)
+2026-10-02T22:28:36.0757593Z   ✓  142 [chromium] › tests/e2e/studio-light-appearance.spec.ts:325:7 › OP-XY light appearance › 1440px › library: empty and saved entry with selection (1.7s)
+2026-10-02T22:28:42.8191745Z   ✓  143 [chromium] › tests/e2e/studio-light-appearance.spec.ts:348:3 › OP-XY light appearance › 1056px: loaded focus editors fit their column; bulk edit keeps heading and actions in view (6.7s)
+2026-10-02T22:28:43.2471110Z   ✓  144 [chromium] › tests/e2e/studio-light-appearance.spec.ts:404:5 › OP-XY light appearance › 390px library filters: full-width search, unclipped type and sort, visible favorites (422ms)
+2026-10-02T22:28:43.6784651Z   ✓  145 [chromium] › tests/e2e/studio-light-appearance.spec.ts:404:5 › OP-XY light appearance › 320px library filters: full-width search, unclipped type and sort, visible favorites (423ms)
+2026-10-02T22:28:44.5632493Z   ✓  146 [chromium] › tests/e2e/studio-light-appearance.spec.ts:427:3 › OP-XY light appearance › stem recorder dialog (1440px) (877ms)
+2026-10-02T22:28:44.8491917Z   ✓  147 [chromium] › tests/e2e/studio-light-appearance.spec.ts:437:3 › OP-XY light appearance › field and dark presentations keep their own page tokens (273ms)
+2026-10-02T22:28:45.1046302Z   ✓  148 [chromium] › tests/e2e/studio-shell.spec.ts:3:1 › desktop studio uses the available width and has one brand header (245ms)
+2026-10-02T22:28:46.1652908Z   ✓  149 [chromium] › tests/e2e/studio-shell.spec.ts:14:1 › overview does not load the drum editor until it is opened (1.1s)
+2026-10-02T22:28:47.6774487Z   ✓  150 [chromium] › tests/e2e/studio-shell.spec.ts:24:1 › overview defers device and recording workspaces until requested (1.5s)
+2026-10-02T22:28:48.1743293Z   ✓  151 [chromium] › tests/e2e/studio-shell.spec.ts:34:1 › top-level workspace navigation survives reload and browser Back (487ms)
+2026-10-02T22:28:49.1140397Z   ✓  152 [chromium] › tests/e2e/studio-shell.spec.ts:49:1 › single-sample path reaches manual recording; Help search and navigation preserve the recorder (931ms)
+2026-10-02T22:28:50.7213711Z   ✓  153 [chromium] › tests/e2e/studio-shell.spec.ts:85:1 › automatic multisampling and drum setup reach their actual recorders (1.6s)
+2026-10-02T22:28:51.0652140Z   ✓  154 [chromium] › tests/e2e/studio-shell.spec.ts:105:1 › management distinguishes an editable project from library and device export (336ms)
+2026-10-02T22:28:51.3039084Z   ✓  155 [chromium] › tests/e2e/studio-shell.spec.ts:118:1 › narrow Overview and Help retain usable navigation without page overflow (231ms)
+2026-10-02T22:28:51.7850672Z   ✓  156 [chromium] › tests/e2e/studio-shell.spec.ts:131:1 › route focus keeps narrow navigation visible and uses the shell as the only workspace map (470ms)
+2026-10-02T22:28:53.1022240Z   ✓  157 [chromium] › tests/e2e/studio-workspace.spec.ts:35:1 › Studio Seed plays, edits atomically, restores, and exports its sparse ten-voice map (1.3s)
+2026-10-02T22:28:55.5842133Z   ✓  158 [chromium] › tests/e2e/support-links-audit.spec.ts:4:1 › support and footer links open their declared destinations without external requests (2.5s)
+2026-10-02T22:28:55.9340751Z   ✓  159 [chromium] › tests/e2e/support-links-audit.spec.ts:12:1 › remote post links use validated destinations with a synthetic feed (340ms)
+2026-10-02T22:28:57.3077943Z   ✓  160 [chromium] › tests/e2e/table-control-audit.spec.ts:5:3 › drum table 1440px settings Save Cancel and Undo preserve edits (1.4s)
+2026-10-02T22:28:58.2907912Z   ✓  161 [chromium] › tests/e2e/table-control-audit.spec.ts:36:3 › drum table 1440px clear and undo restore a loaded pad (975ms)
+2026-10-02T22:28:59.6730399Z   ✓  162 [chromium] › tests/e2e/table-control-audit.spec.ts:5:3 › drum table 390px settings Save Cancel and Undo preserve edits (1.4s)
+2026-10-02T22:29:00.6864751Z   ✓  163 [chromium] › tests/e2e/table-control-audit.spec.ts:36:3 › drum table 390px clear and undo restore a loaded pad (1.0s)
+2026-10-02T22:29:01.6840512Z   ✓  164 [chromium] › tests/e2e/table-control-audit.spec.ts:50:1 › bulk editing all ten demo sounds is one undoable operation (990ms)
+2026-10-02T22:29:02.4714887Z   ✓  165 [chromium] › tests/e2e/virtual-keyboard-access.spec.ts:4:1 › virtual notes support roving focus, visible focus and empty-note selection (777ms)
+2026-10-02T22:29:02.5383106Z 
+2026-10-02T22:29:02.5388337Z   5 skipped
+2026-10-02T22:29:02.5388675Z   160 passed (3.8m)
+2026-10-02T22:29:02.7364918Z ##[group]Run npm run test:e2e:storage-integration -- --project=chromium
+2026-10-02T22:29:02.7365326Z [36;1mnpm run test:e2e:storage-integration -- --project=chromium[0m
+2026-10-02T22:29:02.7421025Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:29:02.7421242Z ##[endgroup]
+2026-10-02T22:29:02.8242830Z 
+2026-10-02T22:29:02.8243669Z > op-patchstudio@0.16.0 test:e2e:storage-integration
+2026-10-02T22:29:02.8244260Z > playwright test --config=playwright.storage-integration.config.ts --project=chromium
+2026-10-02T22:29:02.8244581Z 
+2026-10-02T22:29:03.8670948Z 
+2026-10-02T22:29:03.8671658Z Running 5 tests using 1 worker
+2026-10-02T22:29:03.8672090Z 
+2026-10-02T22:29:04.9251586Z   ✓  1 [chromium] › tests/e2e/recovery-integrity.spec.ts:13:1 › failed session replacement retains the previous complete recovery snapshot (429ms)
+2026-10-02T22:29:05.1949111Z   ✓  2 [chromium] › tests/e2e/recovery-integrity.spec.ts:64:1 › library audio preserves precision, channel count and original sample rate (241ms)
+2026-10-02T22:29:05.2428928Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.2430130Z [WebServer] 
+2026-10-02T22:29:05.2431028Z [WebServer] Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T22:29:05.2431770Z [WebServer] 
+2026-10-02T22:29:05.2432379Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.2432950Z [WebServer] 
+2026-10-02T22:29:05.2433768Z [WebServer]     ╷
+2026-10-02T22:29:05.2434606Z [WebServer] 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T22:29:05.2435588Z [WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.2464666Z [WebServer]     ╵
+2026-10-02T22:29:05.2494990Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9   @use
+2026-10-02T22:29:05.2525288Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:29:05.2554777Z [WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:29:05.2578461Z [WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:29:05.2580470Z [WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:29:05.2581534Z [WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:29:05.2582356Z [WebServer] 
+2026-10-02T22:29:05.2585342Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.2586229Z [WebServer] 
+2026-10-02T22:29:05.2587073Z [WebServer] Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T22:29:05.2587862Z [WebServer] 
+2026-10-02T22:29:05.2588482Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.2589104Z [WebServer] 
+2026-10-02T22:29:05.2589801Z [WebServer]     ╷
+2026-10-02T22:29:05.2591148Z [WebServer] 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T22:29:05.2592208Z [WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.2592866Z [WebServer]     ╵
+2026-10-02T22:29:05.2593730Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9   @use
+2026-10-02T22:29:05.2594813Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:29:05.2595697Z [WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:29:05.2596568Z [WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:29:05.2597408Z [WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:29:05.2598292Z [WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:29:05.2598952Z [WebServer] 
+2026-10-02T22:29:05.2600128Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.2600972Z [WebServer] 
+2026-10-02T22:29:05.2601772Z [WebServer] Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T22:29:05.2602500Z [WebServer] 
+2026-10-02T22:29:05.2603244Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.2603975Z [WebServer] 
+2026-10-02T22:29:05.2604456Z [WebServer]     ╷
+2026-10-02T22:29:05.2605354Z [WebServer] 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T22:29:05.2606407Z [WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.2607047Z [WebServer]     ╵
+2026-10-02T22:29:05.2607731Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17  @use
+2026-10-02T22:29:05.2608612Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:29:05.2609535Z [WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:29:05.2616899Z [WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:29:05.2620207Z [WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:29:05.2621181Z [WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:29:05.2621858Z [WebServer] 
+2026-10-02T22:29:05.2622749Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.2623682Z [WebServer] 
+2026-10-02T22:29:05.2624469Z [WebServer] Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T22:29:05.2625147Z [WebServer] 
+2026-10-02T22:29:05.2625701Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.2626289Z [WebServer] 
+2026-10-02T22:29:05.2626807Z [WebServer]     ╷
+2026-10-02T22:29:05.2627729Z [WebServer] 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T22:29:05.2628855Z [WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.2654363Z [WebServer]     ╵
+2026-10-02T22:29:05.2684464Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17  @use
+2026-10-02T22:29:05.2714478Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T22:29:05.2733188Z [WebServer]     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T22:29:05.2740729Z [WebServer]     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T22:29:05.2741707Z [WebServer]     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T22:29:05.2742654Z [WebServer]     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T22:29:05.2743343Z [WebServer] 
+2026-10-02T22:29:05.4937487Z   ✓  3 [chromium] › tests/e2e/recovery-integrity.spec.ts:99:1 › a stale storage owner detects another revision and cannot overwrite it before explicit restore (282ms)
+2026-10-02T22:29:05.5452975Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.5454075Z [WebServer] 
+2026-10-02T22:29:05.5454937Z [WebServer] Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T22:29:05.5455760Z [WebServer] 
+2026-10-02T22:29:05.5456362Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.5456957Z [WebServer] 
+2026-10-02T22:29:05.5457647Z [WebServer]     ╷
+2026-10-02T22:29:05.5458506Z [WebServer] 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T22:29:05.5476206Z [WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.5476890Z [WebServer]     ╵
+2026-10-02T22:29:05.5478018Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9         @use
+2026-10-02T22:29:05.5479009Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:29:05.5479932Z [WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:29:05.5480851Z [WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:29:05.5481796Z [WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:29:05.5482727Z [WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:29:05.5483680Z [WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:29:05.5484554Z [WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:29:05.5485382Z [WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:29:05.5486281Z [WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:29:05.5486958Z [WebServer] 
+2026-10-02T22:29:05.5519054Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.5522834Z [WebServer] 
+2026-10-02T22:29:05.5523795Z [WebServer] Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T22:29:05.5524528Z [WebServer] 
+2026-10-02T22:29:05.5525117Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.5525660Z [WebServer] 
+2026-10-02T22:29:05.5526184Z [WebServer]     ╷
+2026-10-02T22:29:05.5527011Z [WebServer] 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T22:29:05.5527956Z [WebServer]     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.5528554Z [WebServer]     ╵
+2026-10-02T22:29:05.5529246Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9         @use
+2026-10-02T22:29:05.5530205Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:29:05.5531086Z [WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:29:05.5531956Z [WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:29:05.5532837Z [WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:29:05.5533852Z [WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:29:05.5534706Z [WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:29:05.5535568Z [WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:29:05.5536436Z [WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:29:05.5537341Z [WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:29:05.5537971Z [WebServer] 
+2026-10-02T22:29:05.5539187Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.5540062Z [WebServer] 
+2026-10-02T22:29:05.5540837Z [WebServer] Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T22:29:05.5541546Z [WebServer] 
+2026-10-02T22:29:05.5542104Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.5542650Z [WebServer] 
+2026-10-02T22:29:05.5543077Z [WebServer]     ╷
+2026-10-02T22:29:05.5544050Z [WebServer] 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T22:29:05.5545066Z [WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.5545677Z [WebServer]     ╵
+2026-10-02T22:29:05.5546356Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17        @use
+2026-10-02T22:29:05.5547479Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:29:05.5548410Z [WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:29:05.5549325Z [WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:29:05.5550279Z [WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:29:05.5551196Z [WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:29:05.5552078Z [WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:29:05.5552978Z [WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:29:05.5554207Z [WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:29:05.5555175Z [WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:29:05.5555843Z [WebServer] 
+2026-10-02T22:29:05.5556686Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:05.5557459Z [WebServer] 
+2026-10-02T22:29:05.5558234Z [WebServer] Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T22:29:05.5558922Z [WebServer] 
+2026-10-02T22:29:05.5559450Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:05.5559975Z [WebServer] 
+2026-10-02T22:29:05.5560390Z [WebServer]     ╷
+2026-10-02T22:29:05.5561183Z [WebServer] 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T22:29:05.5562155Z [WebServer]     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T22:29:05.5562735Z [WebServer]     ╵
+2026-10-02T22:29:05.5563371Z [WebServer]     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17        @use
+2026-10-02T22:29:05.5564429Z [WebServer]     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T22:29:05.5565326Z [WebServer]     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T22:29:05.5566184Z [WebServer]     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T22:29:05.5567088Z [WebServer]     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T22:29:05.5568084Z [WebServer]     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T22:29:05.5569089Z [WebServer]     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T22:29:05.5570106Z [WebServer]     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T22:29:05.5571037Z [WebServer]     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T22:29:05.5572000Z [WebServer]     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T22:29:05.5572656Z [WebServer] 
+2026-10-02T22:29:05.7363869Z   ✓  4 [chromium] › tests/e2e/recovery-integrity.spec.ts:107:1 › library saved flag changes advance revisions and reject a stale writer (214ms)
+2026-10-02T22:29:06.4582494Z [WebServer] DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T22:29:06.4583205Z [WebServer] 
+2026-10-02T22:29:06.4584374Z [WebServer] Suggestion: if(sass($tooltip-type == "definition"): convert.to-rem(8px) convert.to-rem(16px); else: convert.to-rem(3px) convert.to-rem(16px))
+2026-10-02T22:29:06.4585232Z [WebServer] 
+2026-10-02T22:29:06.4585700Z [WebServer] More info: https://sass-lang.com/d/if-function
+2026-10-02T22:29:06.4586131Z [WebServer] 
+2026-10-02T22:29:06.4586720Z [WebServer]    ╷
+2026-10-02T22:29:06.4587192Z [WebServer] 39 │     padding: if(
+2026-10-02T22:29:06.4587630Z [WebServer]    │ ┌────────────^
+2026-10-02T22:29:06.4588124Z [WebServer] 40 │ │     $tooltip-type == 'definition',
+2026-10-02T22:29:06.4589278Z [WebServer] 41 │ │     convert.to-rem(8px) convert.to-rem(16px),
+2026-10-02T22:29:06.4590028Z [WebServer] 42 │ │     convert.to-rem(3px) convert.to-rem(16px)
+2026-10-02T22:29:06.4590543Z [WebServer] 43 │ │   );
+2026-10-02T22:29:06.4590883Z [WebServer]    │ └───^
+2026-10-02T22:29:06.4591175Z [WebServer]    ╵
+2026-10-02T22:29:06.4591764Z [WebServer]     node_modules/@carbon/styles/scss/utilities/_tooltip.scss 39:12          @forward
+2026-10-02T22:29:06.4592589Z [WebServer]     node_modules/@carbon/styles/scss/utilities/_index.scss 23:1             @use
+2026-10-02T22:29:06.4593599Z [WebServer]     node_modules/@carbon/styles/scss/components/popover/_popover.scss 16:1  @forward
+2026-10-02T22:29:06.4594491Z [WebServer]     node_modules/@carbon/styles/scss/components/popover/_index.scss 8:1     @use
+2026-10-02T22:29:06.4595409Z [WebServer]     node_modules/@carbon/styles/scss/components/tooltip/_tooltip.scss 8:1   @forward
+2026-10-02T22:29:06.4596290Z [WebServer]     node_modules/@carbon/styles/scss/components/tooltip/_index.scss 8:1     @use
+2026-10-02T22:29:06.4597168Z [WebServer]     node_modules/@carbon/styles/scss/components/button/_button.scss 11:1    @forward
+2026-10-02T22:29:06.4598062Z [WebServer]     node_modules/@carbon/styles/scss/components/button/_index.scss 9:1      @use
+2026-10-02T22:29:06.4598919Z [WebServer]     src/styles/carbon.scss 2:1                                              root stylesheet
+2026-10-02T22:29:06.4599458Z [WebServer] 
+2026-10-02T22:29:06.7516423Z [WebServer] WARNING: 1 repetitive deprecation warnings omitted.
+2026-10-02T22:29:06.7530847Z [WebServer] Run in verbose mode to see all warnings.
+2026-10-02T22:29:06.7531277Z [WebServer] 
+2026-10-02T22:29:08.4665737Z   ✓  5 [chromium] › tests/e2e/recovery-integrity.spec.ts:115:1 › window focus detects a missed cross-tab notification and preserves the other saved revision (2.7s)
+2026-10-02T22:29:08.5342076Z 
+2026-10-02T22:29:08.5345335Z   5 passed (5.2s)
+2026-10-02T22:29:08.5762538Z ##[group]Run npm run test:e2e:dev-origin
+2026-10-02T22:29:08.5762838Z [36;1mnpm run test:e2e:dev-origin[0m
+2026-10-02T22:29:08.5822023Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:29:08.5822247Z ##[endgroup]
+2026-10-02T22:29:08.6725933Z 
+2026-10-02T22:29:08.6726716Z > op-patchstudio@0.16.0 test:e2e:dev-origin
+2026-10-02T22:29:08.6727255Z > playwright test --config=playwright.dev-origin.config.ts
+2026-10-02T22:29:08.6727479Z 
+2026-10-02T22:29:09.2504962Z 
+2026-10-02T22:29:09.2505413Z Running 1 test using 1 worker
+2026-10-02T22:29:09.2506094Z 
+2026-10-02T22:29:21.3698820Z   ✓  1 [chromium] › tests/dev-origin/stale-worker.spec.ts:98:1 › the dev server retires a legacy OP-PatchStudio worker without reloading tabs or clearing project data (11.7s)
+2026-10-02T22:29:21.4106340Z 
+2026-10-02T22:29:21.4109608Z   1 passed (12.3s)
+2026-10-02T22:29:21.4341480Z ##[group]Run npm run test:e2e:recording
+2026-10-02T22:29:21.4341760Z [36;1mnpm run test:e2e:recording[0m
+2026-10-02T22:29:21.4399058Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:29:21.4399288Z ##[endgroup]
+2026-10-02T22:29:21.5242931Z 
+2026-10-02T22:29:21.5243654Z > op-patchstudio@0.16.0 test:e2e:recording
+2026-10-02T22:29:21.5244701Z > PLAYWRIGHT_PRODUCTION=1 PLAYWRIGHT_FAKE_AUDIO_FILE=/tmp/opstudio-ci-fake-audio.wav playwright test --config=playwright.recording-device.config.ts
+2026-10-02T22:29:21.5245137Z 
+2026-10-02T22:29:22.5087930Z 
+2026-10-02T22:29:22.5088598Z Running 5 tests using 1 worker
+2026-10-02T22:29:22.5088983Z 
+2026-10-02T22:29:26.9766437Z   ✓  1 [chromium fake audio device] › tests/e2e/auto-sampling.spec.ts:8:1 › production Chromium captures an exact synthetic MIDI range through only explicit fake audio and MIDI devices (3.8s)
+2026-10-02T22:29:35.6195484Z   ✓  2 [chromium fake audio device] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Continue editing (8.6s)
+2026-10-02T22:29:44.1882874Z   ✓  3 [chromium fake audio device] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Save to library (8.6s)
+2026-10-02T22:29:52.6215574Z   ✓  4 [chromium fake audio device] › tests/e2e/guided-multisample-flow.spec.ts:5:88 › guided hardware flow checks captures and finishes with Review OP-XY export (8.4s)
+2026-10-02T22:29:53.8826007Z   ✓  5 [chromium fake audio device] › tests/e2e/recording-fake-device.spec.ts:4:1 › Chromium real getUserMedia reads only the explicit deterministic fake audio device (1.2s)
+2026-10-02T22:29:53.9749390Z 
+2026-10-02T22:29:53.9752438Z   5 passed (32.0s)
+2026-10-02T22:29:54.0253287Z ##[group]Run npx playwright test --config=playwright.stem-recording.config.ts
+2026-10-02T22:29:54.0254277Z [36;1mnpx playwright test --config=playwright.stem-recording.config.ts[0m
+2026-10-02T22:29:54.0310995Z shell: /usr/bin/bash -e {0}
+2026-10-02T22:29:54.0311214Z env:
+2026-10-02T22:29:54.0311446Z   PLAYWRIGHT_FAKE_AUDIO_FILE: /tmp/opstudio-ci-stem-audio.wav
+2026-10-02T22:29:54.0311735Z   PLAYWRIGHT_STEM_FAKE_DEVICE: 1
+2026-10-02T22:29:54.0311934Z ##[endgroup]
+2026-10-02T22:29:55.1616583Z 
+2026-10-02T22:29:55.1617226Z Running 1 test using 1 worker
+2026-10-02T22:29:55.1617640Z 
+2026-10-02T22:30:11.6405889Z   ✓  1 [synthetic audio and MIDI] › tests/e2e/stem-recording-device.spec.ts:5:1 › generated audio through the real worklet produces reviewed WAVs and a ZIP (15.9s)
+2026-10-02T22:30:11.7989345Z 
+2026-10-02T22:30:11.7993885Z   1 passed (17.1s)
+2026-10-02T22:30:11.8216583Z ##[group]Run actions/upload-artifact@v4
+2026-10-02T22:30:11.8216833Z with:
+2026-10-02T22:30:11.8217000Z   name: chromium-failures
+2026-10-02T22:30:11.8217190Z   path: test-results
+2026-10-02T22:30:11.8217364Z   retention-days: 14
+2026-10-02T22:30:11.8217531Z   if-no-files-found: warn
+2026-10-02T22:30:11.8217716Z   compression-level: 6
+2026-10-02T22:30:11.8217887Z   overwrite: false
+2026-10-02T22:30:11.8218062Z   include-hidden-files: false
+2026-10-02T22:30:11.8218251Z ##[endgroup]
+2026-10-02T22:30:11.9596093Z (node:8720) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-02T22:30:11.9596748Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-02T22:30:11.9672689Z ##[warning]No files were found with the provided path: test-results. No artifacts will be uploaded.
+2026-10-02T22:30:11.9850283Z Post job cleanup.
+2026-10-02T22:30:12.0896178Z (node:8732) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-02T22:30:12.0897173Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-02T22:30:12.0899119Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-b8a95477bf95ff4a35eca48df0ba79e82fa6472e8a6f114b09e7678b92070db6, not saving cache.
+2026-10-02T22:30:12.1023898Z Post job cleanup.
+2026-10-02T22:30:12.1807459Z [command]/usr/bin/git version
+2026-10-02T22:30:12.1859112Z git version 2.55.0
+2026-10-02T22:30:12.1902992Z Temporarily overriding HOME='/home/runner/work/_temp/956882f6-42ee-449b-acd2-aecde69ef7e5' before making global git config changes
+2026-10-02T22:30:12.1904849Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T22:30:12.1909665Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T22:30:12.1976120Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T22:30:12.2038833Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T22:30:12.2334923Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T22:30:12.2384371Z http.https://github.com/.extraheader
+2026-10-02T22:30:12.2395370Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-02T22:30:12.2431347Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T22:30:12.2669568Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T22:30:12.2713691Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T22:30:12.3062319Z Cleaning up orphan processes
+2026-10-02T22:30:12.3316264Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

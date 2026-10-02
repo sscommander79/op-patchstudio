@@ -14,7 +14,7 @@
   "total_tasks": null,
   "gsd_milestone": null,
   "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
-  "status": "OPXY functional and reconciled visual verification passed; deferred issues, remote CI and human acceptance outstanding",
+  "status": "Local and remote computer verification passed; Claude review completed; human/hardware acceptance and explicitly deferred work remain",
   "release_ready": false,
   "design_approved": false,
   "working_tree": {
@@ -237,7 +237,7 @@
       "log_safety": "Capture raw output to a private temporary file, sanitize API-key/config/authorization strings before printing or persisting reviewer reports. Never print raw config or key. Completed-review sanitizer is in the temporary work directory referenced in NEW-CHAT-HANDOFF."
     }
   },
-  "next_action": "Read latest OPXY-HANDOFF section and followthrough/README.md. 1172 unit tests and 783 browser cases pass (42 documented skips). User-authorized reconciliation closed all 12 visual mismatches; 27 semantic checks and two 12-test visual runs pass. Preserve Human Test04; inspect live state before listening/hardware instructions. HV001/HV004 remain deferred. Commit and push authorized in subsequent user request; no merge/deploy/install authorization.",
+  "next_action": "Read docs/verification/ci-followthrough-2026-10-02/README.md. Code9f64f79 passed all six push-triggered GitHub jobs; local and remote1174unit tests pass. Claude final static review has no remaining material findings in repaired scope. Resume HumanTest04 only after inspecting live user state. HV001/HV004 and separate pre-existing import-rate fidelity follow-up remain. No merge/deployment or physical hardware acceptance performed.",
   "resume_file": ".planning/OPXY-HANDOFF-2026-10-02.md",
   "latest_pass": {
     "name": "Studio restoration (unified launch, direct Open kit, drum compaction, semantic colour, dev stale-worker guard, regression gates)",
@@ -578,7 +578,7 @@
       "HV004"
     ],
     "human": "Test04 and broader hardware/assistive acceptance pending",
-    "remote_ci": "UNEXECUTED; no push authorization",
+    "remote_ci": "Superseded: subsequent authorized commits passed GitHub run37072170233",
     "dedicated": "PASS: storage25, fake recording/guided5, stem1, dev-origin1",
     "timing_reliability": "PASS: slice/appearance30, recorder50 repeated checks",
     "final_status_entries": 156,
@@ -591,6 +591,20 @@
     "scope": "Completed Studio branch changes, tests, reviewed visual references and verification documents; exclude duplicate files and temporary browser output",
     "branch": "codex/studio-upgrade",
     "remote": "origin",
-    "status": "Preparing authorized commit and push; read Git for final commit/remote state"
+    "status": "Repairs committed and pushed on codex/studio-upgrade; final report/evidence checkpoint follows; Git history and remote branch are authoritative"
+  },
+  "ci_followthrough": {
+    "date": "2026-10-02",
+    "code_commit": "9f64f79266df569eeea7f627e9cbc48fd795d5e8",
+    "run_id": 37072170233,
+    "result": "PASS all6push-triggered jobs; scheduled/manual-only job not applicable",
+    "review": "Claude read-only initial, follow-up, final; final no material findings in limited scope",
+    "report": "docs/verification/ci-followthrough-2026-10-02/README.md",
+    "local_unit_tests": 1174,
+    "local_portability": "78passed,2existing skips,5profiles at44100Hz",
+    "separate_followup": "docs/verification/ci-followthrough-2026-10-02/followup-import-rate-fidelity.md",
+    "human_hardware": "PENDING",
+    "merged": false,
+    "deployed": false
   }
 }

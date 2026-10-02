@@ -1,0 +1,123 @@
+[WebServer] (node:27339) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+
+(node:27347) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27346) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/e2e/audio-import.spec.ts:11:1 › actual codec files stay truthful through chooser review, one Apply, and Undo (6.0s)
+  ✘  2 [chromium] › tests/e2e/loop-editor.spec.ts:68:1 › zoom editor saves one atomic half-open edit and exports real converted loop bytes (6.0s)
+(node:27427) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  4 [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (1.3s)
+  ✘  3 [chromium] › tests/e2e/loop-editor.spec.ts:165:1 › drum table opens the same frame editor and Cancel preserves its markers (5.9s)
+
+
+  1) [chromium] › tests/e2e/audio-import.spec.ts:11:1 › actual codec files stay truthful through chooser review, one Apply, and Undo 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog', { name: 'Import audio' }).getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li')
+    Expected pattern: /decoded 48000 Hz/
+    Received string:  " sample-44100.mp3MP3 source · source bit depth unknown · source rate unknown · source channels unknown · decoded 44100 Hz / 1 chno confident filename matchKeep unassignedPad 1Pad 2Pad 3Pad 4Pad 5Pad 6Pad 7Pad 8Pad 9Pad 10Pad 11Pad 12Pad 13Pad 14Pad 15Pad 16Pad 17Pad 18Pad 19Pad 20Pad 21Pad 22Pad 23Pad 24"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" getByRole('dialog', { name: 'Import audio' }).getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li') with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'Import audio' }).getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li')
+        14 × locator resolved to <li>…</li>
+           - unexpected value " sample-44100.mp3MP3 source · source bit depth unknown · source rate unknown · source channels unknown · decoded 44100 Hz / 1 chno confident filename matchKeep unassignedPad 1Pad 2Pad 3Pad 4Pad 5Pad 6Pad 7Pad 8Pad 9Pad 10Pad 11Pad 12Pad 13Pad 14Pad 15Pad 16Pad 17Pad 18Pad 19Pad 20Pad 21Pad 22Pad 23Pad 24"
+
+
+      17 |   await expect(dialog.getByLabel('Include sample.m4a')).toBeVisible();
+      18 |   const compressed=dialog.getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li');
+    > 19 |   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(/decoded 48000 Hz/);
+         |                                                                                                                                                             ^
+      20 |   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
+      21 |   await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
+      22 |
+        at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/tests/e2e/audio-import.spec.ts:19:157
+
+    Error Context: test-results/audio-import-actual-codec--f3692-r-review-one-Apply-and-Undo-chromium/error-context.md
+
+  2) [chromium] › tests/e2e/loop-editor.spec.ts:68:1 › zoom editor saves one atomic half-open edit and exports real converted loop bytes 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames')
+    Expected: "4800"
+    Received: "4410"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames') with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames')
+        14 × locator resolved to <input min="0" step="1" max="4410" value="4410" type="number" aria-label="Sample end frames"/>
+           - unexpected value "4410"
+
+
+      70 |   let dialog = await openEditor(page);
+      71 |   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
+    > 72 |   await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+         |                                                        ^
+      73 |   const snapping=dialog.getByRole('checkbox',{name:'snap to zero crossings'});await snapping.uncheck();await expect(snapping).not.toBeChecked();await snapping.check();await expect(snapping).toBeChecked();
+      74 |
+      75 |   const playhead = dialog.getByText(/^Playhead:/);
+        at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/tests/e2e/loop-editor.spec.ts:72:56
+
+    Error Context: test-results/loop-editor-zoom-editor-sa-5a9ca-s-real-converted-loop-bytes-chromium/error-context.md
+
+  3) [chromium] › tests/e2e/loop-editor.spec.ts:165:1 › drum table opens the same frame editor and Cancel preserves its markers 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames')
+    Expected: "4800"
+    Received: "4410"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames') with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'zoom and edit' }).getByLabel('Sample end frames')
+        14 × locator resolved to <input min="0" step="1" max="4410" value="4410" type="number" aria-label="Sample end frames"/>
+           - unexpected value "4410"
+
+
+      168 |   let dialog = await openEditor(page);
+      169 |   await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
+    > 170 |   await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
+          |                                                        ^
+      171 |   await dialog.getByLabel('Sample start frames').fill('480');
+      172 |   await dialog.getByRole('button', { name: 'cancel' }).click();
+      173 |   dialog = await openEditor(page);
+        at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/tests/e2e/loop-editor.spec.ts:170:56
+
+    Error Context: test-results/loop-editor-drum-table-ope-73f98-ancel-preserves-its-markers-chromium/error-context.md
+
+  4) [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 48000
+    Received: 44099
+
+      144 |   await dialog.getByRole('button',{name:'Reset to full source'}).click();
+      145 |   const sourceFrames=Number(await dialog.getByLabel('Sound 1 End frame').inputValue());
+    > 146 |   expect(sourceFrames).toBe(48_000);
+          |                        ^
+      147 |   await dialog.getByRole('button',{name:'Play source'}).click();
+      148 |   await expect(dialog.getByRole('button',{name:'Mark split (M)'})).toBeEnabled();
+      149 |   await page.waitForTimeout(80);
+        at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/tests/e2e/slicing.spec.ts:146:24
+
+    Error Context: test-results/slicing-slice-source-live--9b036-table-provenance-round-trip-chromium/error-context.md
+
+  4 failed
+    [chromium] › tests/e2e/audio-import.spec.ts:11:1 › actual codec files stay truthful through chooser review, one Apply, and Undo 
+    [chromium] › tests/e2e/loop-editor.spec.ts:68:1 › zoom editor saves one atomic half-open edit and exports real converted loop bytes 
+    [chromium] › tests/e2e/loop-editor.spec.ts:165:1 › drum table opens the same frame editor and Cancel preserves its markers 
+    [chromium] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip 

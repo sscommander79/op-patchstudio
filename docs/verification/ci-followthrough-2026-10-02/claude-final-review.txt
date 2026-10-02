@@ -1,0 +1,42 @@
+# Final narrow verification review at `9f64f79`
+
+**No remaining material findings in this limited scope.** A1/A2, B1/B2 and C1/C2 are repaired as the follow-up asked, and I found no regression in `git diff 9d6c59d..9f64f79`.
+
+This is a static, read-only review at rung 4 (same model family, single pass): I ran nothing, edited nothing and delegated nothing. Everything was read via `git show`/`git diff` at the pinned commit, so working-tree changes do not affect it. The plan-mode plan file was not written, because the deliverable is this review.
+
+`★ Insight ─────────────────────────────────────`
+- The C1 fix uses a functional updater, `setError(current=>current===PLAYBACK_FAILURE?'':current)`, so playback only ever clears its own message. That is why the shared constant matters: the set site and the clear site cannot drift apart.
+- For B1, the three deadlines are nested: Playwright's 15-minute global timeout sits inside the 18-minute step timeout, which sits inside the 25- or 30-minute job timeout. Playwright ends itself and prints its summary before GitHub kills anything.
+`─────────────────────────────────────────────────`
+
+## Repairs confirmed
+
+| Item | Where | What I confirmed |
+|---|---|---|
+| A1 | `tests/e2e/loop-editor.spec.ts:176-181` | The `sampleRate / 10` arithmetic is gone. The expected frame count now comes from an independent `decodeAudioData` of the same `wavFixture48k('drum.wav')` bytes, through the same `window.AudioContext` the app uses. |
+| A2 | `tests/e2e/slicing.spec.ts:156` | The exact `48_000` assertion is restored when the decoded rate is 48 kHz. The `decoded.frames` equality and ±1 bound remain for other rates. |
+| B1 | `.github/workflows/quality.yml:151` | `--global-timeout=900000 --max-failures=15` sits inside the folded `>-` scalar, so it reaches Playwright. The spec list, `--project` and `fail-fast: false` are unchanged. |
+| B2 | `.github/workflows/quality.yml:29-30,42` | The Chromium production step has the global timeout plus an 18-minute step timeout, and the upload is `if: always()`. The flag passes through `npm run … --` correctly. |
+| C1 | `src/components/drum/SliceAudioModal.tsx:105` | Only `PLAYBACK_FAILURE` is cleared on play. The pad-changed, no-sounds and commit-conflict alerts survive. `SliceAudioModal.test.tsx:165` asserts the unassignment alert persists across Play. |
+| C2 | `src/components/drum/SliceAudioModal.tsx:107` | A late or superseded result releases only a real string id, so a late `null` no longer triggers `releaseNote` on a phantom id. The live `null` path still stops, reports and allows retry. `SliceAudioModal.test.tsx:119-127` covers null-after-close with no alert and no release. |
+
+## PulseAudio provisioning (`quality.yml:84-88`, `124-129`)
+
+This is environment provisioning for a hypothesis, not proof; the README frames it that way and F4 must stay open until a remote Firefox pass.
+
+- **Structure:** it is sound as written. `playwright install --with-deps` refreshes the apt lists first, the daemon persists across steps, and the matrix job gates it on `matrix.browser == 'firefox'`. No product code, decoder or autoplay preference changes.
+- **Sink check is diagnostic only:** `pactl list short sinks` exits 0 with empty output, so the step prints sinks but does not fail if none exist. If you want it to gate, pipe it through `grep -q .`.
+- **Unverifiable statically:** whether `pulseaudio --start` succeeds without a user session on the current runner image, whether Firefox then starts its AudioContext, and what rate it reports.
+
+## Non-blocking notes
+
+- **Chromium global timeout:** the new 15-minute cap on the full Chromium production suite (`quality.yml:29`) is safe only if that step normally runs well under 15 minutes. The pinned evidence does not record its duration; check it on the next remote run.
+- **Other Chromium steps:** the steps at `quality.yml:31-40` have no step timeout. A hang there ends in a job-timeout cancel, and evidence then depends on `always()` running after cancellation.
+- **Artifact name:** `chromium-failures` is now uploaded on green runs too. This is cosmetic.
+
+## Limits
+
+- **Local gates:** the 1174 units / 111 files and 78 browser + 2 skips at 44100 are recorded in the README. I did not run or independently verify them, and the referenced logs were not in my read scope.
+- **Remote CI:** no CI result exists for `9f64f79` in what I read. Linux Firefox, the PulseAudio step, the Playwright timeout behaviour and the check names (B3) are unproven until that run completes.
+- **Hardware:** no physical audio hardware, real output device or OP-XY device was exercised. Nothing here is a hardware-acceptance or audible-playback claim.
+- **F2:** source fidelity stays out of scope, as tracked in `followup-import-rate-fidelity.md`. I am not asking for decoding changes.
