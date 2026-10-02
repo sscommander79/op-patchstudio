@@ -1,5 +1,9 @@
 # OP-PatchStudio — move this work to the OPXY project
 
+## Final retry audit follow-through — 2026-10-02
+
+The documentation-only a2f19fd run was green but contained one Mobile Safari folder-import timeout that passed on retry. Root cause is not established; 60 local repetitions and all 14 file-entry checks passed. The next checkpoint tightens CI to fail on flaky tests and retain first-failure/retry traces; a controlled probe verifies both. No product code or assertion was weakened. See the final section of the CI report and subsequent Actions run for strict remote results. Earlier verified9f64f79 results below remain historical evidence.
+
 ## Latest completed CI and Claude review — 2026-10-02
 
 The user requested an uninterrupted goal to resolve the post-push failures and obtain Claude/Genspark review. Code commit9f64f79 passed all six push-triggered GitHub Quality jobs in run37072170233. Local and remote standard gates:1174unit tests/111files, typecheck/lint/build/PWA PASS. Firefox failures were resolved by CI virtual audio output; browser sample-rate assumptions were repaired without weakening exact conversion checks. Claude completed three static reviews; final no remaining material findings in the limited repaired scope. Slicer failed-start, warning retention and late-cancel handling have RED/GREEN regressions.

@@ -96,6 +96,14 @@ jobs:
           PLAYWRIGHT_STEM_FAKE_DEVICE: '1'
         run: npx playwright test --config=playwright.stem-recording.config.ts
 
+      - name: Upload scheduled matrix failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduled-matrix-failures
+          path: test-results
+          retention-days: 14
+
   browser-regressions:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest

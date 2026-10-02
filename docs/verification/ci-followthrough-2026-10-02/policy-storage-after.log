@@ -1,0 +1,38 @@
+
+Running 1 test using 1 worker
+
+(node:43783) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › .ci-policy-probe-5yeo9aos/probe.spec.ts:2:1 › intentional failure then successful retry (3ms)
+(node:43785) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [chromium] › .ci-policy-probe-5yeo9aos/probe.spec.ts:2:1 › intentional failure then successful retry (retry #1) (2ms)
+
+
+  1) [chromium] › .ci-policy-probe-5yeo9aos/probe.spec.ts:2:1 › intentional failure then successful retry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      1 | import {test,expect} from '@playwright/test';
+    > 2 | test('intentional failure then successful retry',async({},info)=>{expect(info.retry).toBeGreaterThan(0);});
+        |                                                                                      ^
+      3 |
+        at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/.ci-policy-probe-5yeo9aos/probe.spec.ts:2:86
+
+    Error Context: test-results/policy-storage-after/probe-intentional-failure-then-successful-retry-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/policy-storage-after/probe-intentional-failure-then-successful-retry-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/policy-storage-after/probe-intentional-failure-then-successful-retry-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 flaky
+    [chromium] › .ci-policy-probe-5yeo9aos/probe.spec.ts:2:1 › intentional failure then successful retry 
+
+PROCESS_EXIT_CODE=1

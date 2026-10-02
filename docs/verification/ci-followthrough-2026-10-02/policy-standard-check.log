@@ -1,0 +1,300 @@
+
+> op-patchstudio@0.16.0 pre-commit
+> npm run check
+
+
+> op-patchstudio@0.16.0 check
+> npm run typecheck && npm run lint && npm test && npm run build
+
+
+> op-patchstudio@0.16.0 typecheck
+> tsc -b --pretty false
+
+
+> op-patchstudio@0.16.0 lint
+> eslint .
+
+
+/Users/stevencommander/Desktop/AI/op-patchstudio-improved/coverage/block-navigation.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+/Users/stevencommander/Desktop/AI/op-patchstudio-improved/coverage/prettify.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+/Users/stevencommander/Desktop/AI/op-patchstudio-improved/coverage/sorter.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+✖ 3 problems (0 errors, 3 warnings)
+  0 errors and 3 warnings potentially fixable with the `--fix` option.
+
+
+> op-patchstudio@0.16.0 test
+> vitest --run
+
+
+ RUN  v4.1.6 /Users/stevencommander/Desktop/AI/op-patchstudio-improved
+
+Error: Not implemented: window.scrollTo
+    at module.exports (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:960:7
+    at focusHeading (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/common/StudioShell.tsx:203:14)
+    at invokeTheCallbackFunction (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/living/generated/Function.js:19:26)
+    at runAnimationFrameCallbacks (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:662:13)
+    at Timeout.<anonymous> (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:640:11)
+    at listOnTimeout (node:internal/timers:605:17)
+    at processTimers (node:internal/timers:541:7) undefined
+Error: Not implemented: window.scrollTo
+    at module.exports (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at /Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:960:7
+    at focusHeading (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/common/StudioShell.tsx:203:14)
+    at invokeTheCallbackFunction (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/living/generated/Function.js:19:26)
+    at runAnimationFrameCallbacks (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:662:13)
+    at Timeout.<anonymous> (/Users/stevencommander/Desktop/AI/op-patchstudio-improved/node_modules/jsdom/lib/jsdom/browser/Window.js:640:11)
+    at listOnTimeout (node:internal/timers:605:17)
+    at processTimers (node:internal/timers:541:7) undefined
+
+ Test Files  111 passed (111)
+      Tests  1174 passed (1174)
+   Start at  15:51:16
+   Duration  14.60s (transform 5.82s, setup 9.39s, import 17.07s, tests 50.04s, environment 37.89s)
+
+
+> op-patchstudio@0.16.0 build
+> tsc -b && vite build && npm run verify:pwa
+
+vite v7.3.6 building client environment for production...
+transforming...
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 155:9   @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+    node_modules/@carbon/type/index.scss 12:1               @forward
+    node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+    node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+    src/styles/carbon.scss 1:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 156:9   @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+    node_modules/@carbon/type/index.scss 12:1               @forward
+    node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+    node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+    src/styles/carbon.scss 1:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 159:17  @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+    node_modules/@carbon/type/index.scss 12:1               @forward
+    node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+    node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+    src/styles/carbon.scss 1:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 160:17  @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+    node_modules/@carbon/type/index.scss 12:1               @forward
+    node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+    node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+    src/styles/carbon.scss 1:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 155:9         @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+    node_modules/@carbon/type/index.scss 12:1                     @use
+    node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+    node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+    node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+    node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+    node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+    node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+    src/theme/device-themes.scss 5:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 156:9         @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+    node_modules/@carbon/type/index.scss 12:1                     @use
+    node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+    node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+    node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+    node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+    node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+    node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+    src/theme/device-themes.scss 5:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 159:17        @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+    node_modules/@carbon/type/index.scss 12:1                     @use
+    node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+    node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+    node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+    node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+    node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+    node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+    src/theme/device-themes.scss 5:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+
+More info: https://sass-lang.com/d/if-function
+
+    ╷
+160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ╵
+    node_modules/@carbon/grid/scss/_breakpoint.scss 160:17        @use
+    node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+    node_modules/@carbon/type/index.scss 12:1                     @use
+    node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+    node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+    node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+    node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+    node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+    node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+    src/theme/device-themes.scss 5:1                              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($tooltip-type == "definition"): convert.to-rem(8px) convert.to-rem(16px); else: convert.to-rem(3px) convert.to-rem(16px))
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+39 │     padding: if(
+   │ ┌────────────^
+40 │ │     $tooltip-type == 'definition',
+41 │ │     convert.to-rem(8px) convert.to-rem(16px),
+42 │ │     convert.to-rem(3px) convert.to-rem(16px)
+43 │ │   );
+   │ └───^
+   ╵
+    node_modules/@carbon/styles/scss/utilities/_tooltip.scss 39:12          @forward
+    node_modules/@carbon/styles/scss/utilities/_index.scss 23:1             @use
+    node_modules/@carbon/styles/scss/components/popover/_popover.scss 16:1  @forward
+    node_modules/@carbon/styles/scss/components/popover/_index.scss 8:1     @use
+    node_modules/@carbon/styles/scss/components/tooltip/_tooltip.scss 8:1   @forward
+    node_modules/@carbon/styles/scss/components/tooltip/_index.scss 8:1     @use
+    node_modules/@carbon/styles/scss/components/button/_button.scss 11:1    @forward
+    node_modules/@carbon/styles/scss/components/button/_index.scss 9:1      @use
+    src/styles/carbon.scss 2:1                                              root stylesheet
+
+WARNING: 1 repetitive deprecation warnings omitted.
+Run in verbose mode to see all warnings.
+
+✓ 598 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/wavExport.ts is dynamically imported by /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioFormats.ts but also statically imported by /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/common/StemRecordingModal.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/drum/DrumTool.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audio.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioExport.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/libraryUtils.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audio.ts is dynamically imported by /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioFormats.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioFormats.ts but also statically imported by /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/common/FileDetailsBadges.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/drum/DrumSampleSettingsModal.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/library/LibraryPage.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/components/multisample/MultisampleSampleTable.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/context/AppContext.tsx, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioFormats.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/audioImport.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/libraryBatchExport.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/patchGeneration.ts, /Users/stevencommander/Desktop/AI/op-patchstudio-improved/src/utils/recordingApplication.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/manifest.webmanifest                                                                   0.83 kB
+dist/index.html                                                                             3.28 kB │ gzip:   1.00 kB
+dist/assets/pwa-cache-lifecycle-v0.16.0-murk53r4-587fe45b-3af2-4824-8a45-58bb818d1187.js    7.09 kB
+dist/assets/captureProcessor-BldZOCrQ.js                                                    9.25 kB
+dist/assets/fa-regular-400-BjRzuEpd.woff2                                                  25.47 kB
+dist/assets/fa-regular-400-DZaxPHgR.ttf                                                    68.06 kB
+dist/assets/fa-brands-400-D_cYUPeE.woff2                                                  118.68 kB
+dist/assets/fa-solid-900-CTAAxXor.woff2                                                   158.22 kB
+dist/assets/fa-brands-400-D1LuMI3I.ttf                                                    210.79 kB
+dist/assets/fa-solid-900-D0aA9rwL.ttf                                                     426.11 kB
+dist/assets/index-DQu_SQ--.css                                                            341.21 kB │ gzip:  59.16 kB
+dist/assets/routeLease-C8aTrg61.js                                                          0.48 kB │ gzip:   0.27 kB
+dist/assets/IconButton-DT3AWdVy.js                                                          0.67 kB │ gzip:   0.42 kB
+dist/assets/FeedbackPage-BvbNHqbv.js                                                        2.65 kB │ gzip:   1.21 kB
+dist/assets/EnhancedTooltip-BI5nhJro.js                                                     4.58 kB │ gzip:   1.64 kB
+dist/assets/workbox-window.prod.es5-CwtvwXb3.js                                             5.76 kB │ gzip:   2.37 kB
+dist/assets/DonatePage-Dw5BPC8I.js                                                          9.64 kB │ gzip:   2.97 kB
+dist/assets/captureSession-DKtwYUi-.js                                                     11.62 kB │ gzip:   3.79 kB
+dist/assets/useAudioPlayer-DYqG_Usb.js                                                     12.19 kB │ gzip:   4.32 kB
+dist/assets/SliceAudioModal-BPmYe2k_.js                                                    26.42 kB │ gzip:   9.04 kB
+dist/assets/StemRecordingModal-nTZ79enh.js                                                 28.89 kB │ gzip:   9.89 kB
+dist/assets/DevicesWorkspace-TKhHM4DG.js                                                   40.03 kB │ gzip:  11.81 kB
+dist/assets/LibraryPage-Czqs_sEY.js                                                        40.79 kB │ gzip:  11.15 kB
+dist/assets/DrumTool-VdOZ_l42.js                                                           96.13 kB │ gzip:  24.68 kB
+dist/assets/MultisampleTool-Dw6vgvNU.js                                                    98.80 kB │ gzip:  23.87 kB
+dist/assets/useFileUpload-CYM815IO.js                                                     230.24 kB │ gzip:  61.79 kB
+dist/assets/index-DDKqc-bk.js                                                             607.57 kB │ gzip: 185.03 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.80s
+
+PWA v1.3.0
+mode      generateSW
+precache  42 entries (2411.34 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-a4e4e354.js
+
+> op-patchstudio@0.16.0 verify:pwa
+> node scripts/verify-pwa-build.mjs
+
+Verified 42 unique precache URLs; 10 stable public assets have content revisions; lifecycle v0.16.0-murk53r4-587fe45b-3af2-4824-8a45-58bb818d1187 owns its cache identity.

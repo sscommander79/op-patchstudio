@@ -1,0 +1,33 @@
+I've finished the read-only review. Verdict below.
+
+# Verdict: both gaps are closed. One packaging issue remains before commit.
+
+**Review rung:** this was a fresh `claude -p` session with no implementer history and nothing delegated. That's rung 1 if Codex wrote the diff (the branch name suggests it did, but I can't confirm that), otherwise rung 3. I ran the spec check and the standards check as separate passes, and only read files: no tests, edits or installs.
+
+## SPEC: are the prior findings addressed?
+
+| Prior gap | Status | Evidence |
+|---|---|---|
+| Exit codes not saved | **Closed** | The logs end with `PROCESS_EXIT_CODE=0` (`policy-base-before.log`), `=1` (`policy-base-after.log`) and `=1` (`policy-storage-after.log`). Each run prints the same `1 flaky` summary, so the exit code is the only difference, which is the right thing to prove. `policy-probe-results.json` matches all three. |
+| Storage config is standalone | **Closed** | `playwright.storage-integration.config.ts:9,12` now has the same CI-only `failOnFlakyTests` and `retain-on-failure-and-retries` settings as the main config. A dedicated probe for it exited 1. |
+| Traces from the failed first attempt | **Shown** | With the old setting, only `-chromium-retry1/trace.zip` exists. With both new settings, the failed first attempt (`-chromium/trace.zip`) and the retry trace both exist. I checked these files are on disk under `test-results/policy-*`. |
+| Scheduled job saves nothing | **Closed** | The new step in `quality.yml` uploads with `if: always()`. Its name, `scheduled-matrix-failures`, doesn't clash with other artifact names, including on `workflow_dispatch`, which runs both this job and `browser-regressions`. |
+
+Nothing outside the scope changed: there are no changes under `src/`, and the temporary `.ci-policy-probe-*` folder is gone.
+
+## STANDARDS: what's left
+
+1. **Material, but it's packaging, not config: the probe logs won't be committed by default.** Line 3 of `.gitignore` ignores `*.log`, and `git check-ignore` confirms `policy-base-before.log` and `policy-storage-after.log` are ignored. The README cites "the three `policy-*.log` files", and so do `folder-stress.log` and `folder-policy.log`. The already-tracked logs in this folder were force-added, so these need the same: `git add -f docs/verification/ci-followthrough-2026-10-02/policy-*.log` (plus the folder-* logs if you want them). Without that, only the JSON (untracked, not ignored) keeps the exit codes, and it points to trace paths under `test-results/`, which is ignored too.
+2. **Not material: the scheduled upload only catches the first failing step.** Each Playwright run clears its own output folder, and steps after a failure are skipped, so the step that failed keeps its evidence. On a green run, the artifact is just the last suite's output. That's acceptable.
+
+`★ Insight ─────────────────────────────────────`
+- `failOnFlakyTests` changes nothing in the report: before and after both say "1 flaky". The only proof that the gate works is the process exit status, so `PROCESS_EXIT_CODE=` is the key line.
+- `if: always()` combined with Playwright clearing its output folder per run happens to work: a failing step stops the later runs from clearing its traces.
+`─────────────────────────────────────────────────`
+
+## Caveats (stated correctly in the README, not findings)
+
+- The cause of the single Mobile Safari timeout is still unknown, and nothing here claims to fix it. Under the new setting, a repeat will turn that job red instead of showing as flaky. That's the intended effect; triage it from the two saved traces.
+- No CI run has used these changes yet. The probe only ran in Chromium, so the change isn't verified until a CI run completes.
+
+**Bottom line:** the config diff is correct and both earlier findings are resolved. Once the `policy-*.log` files are force-added, nothing material is left in this scope.

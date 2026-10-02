@@ -1,0 +1,53 @@
+I found no defects in the two config lines themselves. There is one material evidence gap and one material scope gap relative to the stated goal. I ran nothing, edited nothing and delegated nothing; I only read the diff, configs, workflow, installed Playwright 1.63.0 type definitions, probe logs and on-disk `test-results`.
+
+**Review rung:** this was a fresh, cold session with no implementer history. That is rung 1 if Codex authored this diff, which the branch name `codex/studio-upgrade` suggests but I could not confirm. Otherwise it is rung 3. I did the SPEC and STANDARDS checks as separate passes below.
+
+`★ Insight ─────────────────────────────────────`
+- `failOnFlakyTests` doesn't change how a test is reported. The probe still prints "1 flaky"; only the process exit code changes. So the only proof that it works is the exit status, and that is what the logs don't show.
+- `retain-on-failure-and-retries` records a trace on every attempt and keeps attempt 0's trace if it failed. `on-first-retry` never records attempt 0, so the trace of the original failure was always lost before this change.
+`─────────────────────────────────────────────────`
+
+## SPEC: does the diff meet the goal?
+
+**Both lines are valid for 1.63.0.**
+- `failOnFlakyTests?: boolean` exists in `node_modules/playwright/types/test.d.ts:1274`.
+- `'retain-on-failure-and-retries'` is in the `TraceMode` union at `test.d.ts:7242`, documented as "record every run, keep any run that failed or is a retry."
+- `playwright.control-audit.config.ts` spreads `...base`, so it inherits both settings.
+
+**Trace retention is shown on disk.**
+- `test-results/ci-flaky-probe-after/…-chromium/trace.zip` is the failed attempt 0.
+- `…-chromium-retry1/trace.zip` is the passing retry.
+- In `ci-flaky-probe-before`, attempt 0 has only `error-context.md` and no trace. That confirms the old setting lost the first-failure trace.
+
+**Material evidence gap: the "CI fails" half is not shown.**
+- `flaky-probe-before.log` and `flaky-probe-after.log` show the same result (one failure, retry #1 passes, `1 flaky`).
+- Neither log records the exit status, and `grep -i "exit\|status"` finds nothing in either.
+- The only difference between them is the trace attachment. As captured, the evidence proves trace retention but not that `failOnFlakyTests` turns a flaky run into a non-zero exit.
+- Re-run the probe both ways with `; echo "exit=$?"` appended, or `PIPESTATUS[0]` if piping through `tee`. You should see `exit=0` before and `exit=1` after.
+- The retries prove `CI` was set during the probe, since `retries` is `CI ? 2 : 0`. They don't prove the exit code.
+
+**Material scope gap, outside the diff but against the stated goal.**
+- `playwright.storage-integration.config.ts:8` has `retries: process.env.CI ? 2 : 0` and no `failOnFlakyTests`. It is a standalone config and does not inherit from the base.
+- `test:e2e:storage-integration` runs in both `quality-and-chromium` and `scheduled-browser-matrix`. A flaky `recovery-integrity.spec.ts` would still pass CI quietly there.
+- That config's `trace: 'on-first-retry'` (`:11`) also still drops the first-failure trace.
+- Every other CI config uses `retries: 0`, so tests there can't be flaky.
+- Either add the same two settings to that config, or describe the policy as covering only configs that inherit from `playwright.config.ts`.
+
+## STANDARDS: is it correct and consistent?
+
+- **Correct and minimal.** Local runs keep `on-first-retry`, and CI-only gating matches the existing `forbidOnly`/`retries`/`workers` pattern. Recording a trace on every CI attempt costs some time and disk space. Passing first attempts are discarded, so artifacts only grow for failures and retries.
+- **Upload coverage (existing behaviour, not in the diff).** `quality-and-chromium` and `browser-regressions` upload `test-results` with `if: always()`, so both traces will reach artifacts. `scheduled-browser-matrix` (`quality.yml:71-97`) has no upload step, so traces kept there are thrown away when the runner exits. Not blocking, but it's a hole in "retain traces" for scheduled runs.
+
+## Mobile Safari folder-import timeout (run 37073098654)
+
+- Nothing in this diff touches that test's code, timing or app behaviour. The diff must not be described as fixing it, and I agree the root cause is not established.
+- The 60 local repetitions passing (`folder-stress.log`) lower the estimated rate but rule nothing out about the CI environment.
+- **What it means in practice:** under the new policy, a repeat of that one-off timeout will turn the `Mobile Safari` browser-regressions job red instead of showing as flaky. That is the intended effect. It should be expected and, if it happens, triaged from the two retained traces rather than counted as a regression from this config change.
+
+## Verdict
+
+No defects in the two changed lines. Before calling the goal met:
+1. Record the probe's exit codes, before and after.
+2. Either cover `playwright.storage-integration.config.ts` or narrow the stated scope.
+
+No CI run has exercised this config yet. Delete the probe spec before committing, as planned.

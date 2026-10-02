@@ -6,9 +6,10 @@ export default defineConfig({
   fullyParallel:true,
   forbidOnly:!!process.env.CI,
   retries:process.env.CI?2:0,
+  failOnFlakyTests:!!process.env.CI,
   workers:process.env.CI?1:undefined,
   reporter:[['list'],['html',{open:'never'}]],
-  use:{baseURL:'http://127.0.0.1:5187',trace:'on-first-retry'},
+  use:{baseURL:'http://127.0.0.1:5187',trace:process.env.CI?'retain-on-failure-and-retries':'on-first-retry'},
   projects:[
     {name:'chromium',use:{...devices['Desktop Chrome']}},
     {name:'firefox',use:{...devices['Desktop Firefox']}},

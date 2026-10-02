@@ -1,0 +1,355 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: file-entry-audit.spec.ts >> multisample Browse folder reviews files and Cancel keeps the empty instrument
+- Location: tests/e2e/file-entry-audit.spec.ts:9:56
+
+# Error details
+
+```
+Test timeout of 30000ms exceeded.
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - main [ref=e4]:
+      - generic [ref=e5]:
+        - generic "Studio navigation" [ref=e6]:
+          - generic [ref=e7]:
+            - strong [ref=e9]: OP–PatchStudio
+            - navigation "Workspace" [ref=e10]:
+              - button "Overview" [ref=e11] [cursor=pointer]
+              - button "Library" [ref=e12] [cursor=pointer]
+              - button "Transfer" [ref=e13] [cursor=pointer]
+              - button "Devices" [ref=e14] [cursor=pointer]
+            - generic [ref=e15]:
+              - group "Appearance" [ref=e16]:
+                - generic [ref=e18] [cursor=pointer]:
+                  - radio "OP-1 Field" [checked] [ref=e19]
+                  - generic [ref=e25]: OP-1 Field
+                - generic [ref=e26] [cursor=pointer]:
+                  - radio "OP-XY" [ref=e27]
+                  - generic [ref=e31]: OP-XY
+              - generic [ref=e32]:
+                - generic [ref=e33]: Theme
+                - combobox "Theme" [ref=e34]:
+                  - option "System" [selected]
+                  - option "Light"
+                  - option "Dark"
+              - button "Help" [ref=e35] [cursor=pointer]
+          - paragraph [ref=e36]:
+            - generic [ref=e37]:
+              - text: Studio /
+              - strong [ref=e38]: Multisample editor
+        - main [ref=e40]:
+          - heading "Multisample editor" [level=1] [ref=e41]
+          - region "Instrument project controls" [ref=e42]:
+            - generic [ref=e43]:
+              - generic [ref=e44]:
+                - generic [ref=e45]: Instrument name
+                - textbox "Instrument name" [ref=e46]
+              - status [ref=e47]: Unsaved changes
+              - generic [ref=e48]:
+                - button "Undo" [disabled] [ref=e49]
+                - button "Redo" [disabled] [ref=e50]
+                - group [ref=e51]:
+                  - generic "Project" [ref=e52] [cursor=pointer]
+                - button "Export OP-XY" [ref=e53] [cursor=pointer]
+          - region "multisample tool content" [ref=e55]:
+            - generic [ref=e56]:
+              - generic [ref=e57]:
+                - generic [ref=e59]:
+                  - region "Multisample instrument, 0 of 24 loaded" [ref=e61]:
+                    - generic [ref=e62]:
+                      - generic [ref=e63]:
+                        - heading "multisample keys" [level=3] [ref=e64]
+                        - generic [aria-hidden] [ref=e67]: 
+                      - button "Pin keyboard to top" [ref=e69] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e70]: 
+                    - text: 
+                    - generic [ref=e72]:
+                      - generic [ref=e73]:
+                        - button "MIDI note 0, empty" [ref=e74] [cursor=pointer]:
+                          - generic [ref=e75]: C-2
+                        - button "MIDI note 2, empty" [ref=e76] [cursor=pointer]
+                        - button "MIDI note 4, empty" [ref=e77] [cursor=pointer]
+                        - button "MIDI note 5, empty" [ref=e78] [cursor=pointer]
+                        - button "MIDI note 7, empty" [ref=e79] [cursor=pointer]
+                        - button "MIDI note 9, empty" [ref=e80] [cursor=pointer]
+                        - button "MIDI note 11, empty" [ref=e81] [cursor=pointer]
+                        - button "MIDI note 1, empty" [ref=e82] [cursor=pointer]
+                        - button "MIDI note 3, empty" [ref=e83] [cursor=pointer]
+                        - button "MIDI note 6, empty" [ref=e84] [cursor=pointer]
+                        - button "MIDI note 8, empty" [ref=e85] [cursor=pointer]
+                        - button "MIDI note 10, empty" [ref=e86] [cursor=pointer]
+                      - generic [ref=e87]:
+                        - button "MIDI note 12, empty" [ref=e88] [cursor=pointer]:
+                          - generic [ref=e89]: C-1
+                        - button "MIDI note 14, empty" [ref=e90] [cursor=pointer]
+                        - button "MIDI note 16, empty" [ref=e91] [cursor=pointer]
+                        - button "MIDI note 17, empty" [ref=e92] [cursor=pointer]
+                        - button "MIDI note 19, empty" [ref=e93] [cursor=pointer]
+                        - button "MIDI note 21, empty" [ref=e94] [cursor=pointer]
+                        - button "MIDI note 23, empty" [ref=e95] [cursor=pointer]
+                        - button "MIDI note 13, empty" [ref=e96] [cursor=pointer]
+                        - button "MIDI note 15, empty" [ref=e97] [cursor=pointer]
+                        - button "MIDI note 18, empty" [ref=e98] [cursor=pointer]
+                        - button "MIDI note 20, empty" [ref=e99] [cursor=pointer]
+                        - button "MIDI note 22, empty" [ref=e100] [cursor=pointer]
+                      - generic [ref=e101]:
+                        - button "MIDI note 24, empty" [ref=e102] [cursor=pointer]:
+                          - generic [ref=e103]: C0
+                        - button "MIDI note 26, empty" [ref=e104] [cursor=pointer]
+                        - button "MIDI note 28, empty" [ref=e105] [cursor=pointer]
+                        - button "MIDI note 29, empty" [ref=e106] [cursor=pointer]
+                        - button "MIDI note 31, empty" [ref=e107] [cursor=pointer]
+                        - button "MIDI note 33, empty" [ref=e108] [cursor=pointer]
+                        - button "MIDI note 35, empty" [ref=e109] [cursor=pointer]
+                        - button "MIDI note 25, empty" [ref=e110] [cursor=pointer]
+                        - button "MIDI note 27, empty" [ref=e111] [cursor=pointer]
+                        - button "MIDI note 30, empty" [ref=e112] [cursor=pointer]
+                        - button "MIDI note 32, empty" [ref=e113] [cursor=pointer]
+                        - button "MIDI note 34, empty" [ref=e114] [cursor=pointer]
+                      - generic [ref=e115]:
+                        - button "MIDI note 36, empty" [ref=e116] [cursor=pointer]:
+                          - generic [ref=e117]: C1
+                        - button "MIDI note 38, empty" [ref=e118] [cursor=pointer]
+                        - button "MIDI note 40, empty" [ref=e119] [cursor=pointer]
+                        - button "MIDI note 41, empty" [ref=e120] [cursor=pointer]
+                        - button "MIDI note 43, empty" [ref=e121] [cursor=pointer]
+                        - button "MIDI note 45, empty" [ref=e122] [cursor=pointer]
+                        - button "MIDI note 47, empty" [ref=e123] [cursor=pointer]
+                        - button "MIDI note 37, empty" [ref=e124] [cursor=pointer]
+                        - button "MIDI note 39, empty" [ref=e125] [cursor=pointer]
+                        - button "MIDI note 42, empty" [ref=e126] [cursor=pointer]
+                        - button "MIDI note 44, empty" [ref=e127] [cursor=pointer]
+                        - button "MIDI note 46, empty" [ref=e128] [cursor=pointer]
+                      - generic [ref=e129]:
+                        - button "MIDI note 48, empty" [ref=e130] [cursor=pointer]:
+                          - generic [ref=e131]: C2
+                        - button "MIDI note 50, empty" [ref=e132] [cursor=pointer]
+                        - button "MIDI note 52, empty" [ref=e133] [cursor=pointer]
+                        - button "MIDI note 53, empty" [ref=e134] [cursor=pointer]
+                        - button "MIDI note 55, empty" [ref=e135] [cursor=pointer]
+                        - button "MIDI note 57, empty" [ref=e136] [cursor=pointer]
+                        - button "MIDI note 59, empty" [ref=e137] [cursor=pointer]
+                        - button "MIDI note 49, empty" [ref=e138] [cursor=pointer]
+                        - button "MIDI note 51, empty" [ref=e139] [cursor=pointer]
+                        - button "MIDI note 54, empty" [ref=e140] [cursor=pointer]
+                        - button "MIDI note 56, empty" [ref=e141] [cursor=pointer]
+                        - button "MIDI note 58, empty" [ref=e142] [cursor=pointer]
+                      - generic [ref=e143]:
+                        - button "MIDI note 60, empty" [ref=e144] [cursor=pointer]:
+                          - generic [ref=e145]: C3
+                        - button "MIDI note 62, empty" [ref=e146] [cursor=pointer]
+                        - button "MIDI note 64, empty" [ref=e147] [cursor=pointer]
+                        - button "MIDI note 65, empty" [ref=e148] [cursor=pointer]
+                        - button "MIDI note 67, empty" [ref=e149] [cursor=pointer]
+                        - button "MIDI note 69, empty" [ref=e150] [cursor=pointer]
+                        - button "MIDI note 71, empty" [ref=e151] [cursor=pointer]
+                        - button "MIDI note 61, empty" [ref=e152] [cursor=pointer]
+                        - button "MIDI note 63, empty" [ref=e153] [cursor=pointer]
+                        - button "MIDI note 66, empty" [ref=e154] [cursor=pointer]
+                        - button "MIDI note 68, empty" [ref=e155] [cursor=pointer]
+                        - button "MIDI note 70, empty" [ref=e156] [cursor=pointer]
+                      - generic [ref=e157]:
+                        - button "MIDI note 72, empty" [ref=e158] [cursor=pointer]:
+                          - generic [ref=e159]: C4
+                        - button "MIDI note 74, empty" [ref=e160] [cursor=pointer]
+                        - button "MIDI note 76, empty" [ref=e161] [cursor=pointer]
+                        - button "MIDI note 77, empty" [ref=e162] [cursor=pointer]
+                        - button "MIDI note 79, empty" [ref=e163] [cursor=pointer]
+                        - button "MIDI note 81, empty" [ref=e164] [cursor=pointer]
+                        - button "MIDI note 83, empty" [ref=e165] [cursor=pointer]
+                        - button "MIDI note 73, empty" [ref=e166] [cursor=pointer]
+                        - button "MIDI note 75, empty" [ref=e167] [cursor=pointer]
+                        - button "MIDI note 78, empty" [ref=e168] [cursor=pointer]
+                        - button "MIDI note 80, empty" [ref=e169] [cursor=pointer]
+                        - button "MIDI note 82, empty" [ref=e170] [cursor=pointer]
+                      - generic [ref=e171]:
+                        - button "MIDI note 84, empty" [ref=e172] [cursor=pointer]:
+                          - generic [ref=e173]: C5
+                        - button "MIDI note 86, empty" [ref=e174] [cursor=pointer]
+                        - button "MIDI note 88, empty" [ref=e175] [cursor=pointer]
+                        - button "MIDI note 89, empty" [ref=e176] [cursor=pointer]
+                        - button "MIDI note 91, empty" [ref=e177] [cursor=pointer]
+                        - button "MIDI note 93, empty" [ref=e178] [cursor=pointer]
+                        - button "MIDI note 95, empty" [ref=e179] [cursor=pointer]
+                        - button "MIDI note 85, empty" [ref=e180] [cursor=pointer]
+                        - button "MIDI note 87, empty" [ref=e181] [cursor=pointer]
+                        - button "MIDI note 90, empty" [ref=e182] [cursor=pointer]
+                        - button "MIDI note 92, empty" [ref=e183] [cursor=pointer]
+                        - button "MIDI note 94, empty" [ref=e184] [cursor=pointer]
+                      - generic [ref=e185]:
+                        - button "MIDI note 96, empty" [ref=e186] [cursor=pointer]:
+                          - generic [ref=e187]: C6
+                        - button "MIDI note 98, empty" [ref=e188] [cursor=pointer]
+                        - button "MIDI note 100, empty" [ref=e189] [cursor=pointer]
+                        - button "MIDI note 101, empty" [ref=e190] [cursor=pointer]
+                        - button "MIDI note 103, empty" [ref=e191] [cursor=pointer]
+                        - button "MIDI note 105, empty" [ref=e192] [cursor=pointer]
+                        - button "MIDI note 107, empty" [ref=e193] [cursor=pointer]
+                        - button "MIDI note 97, empty" [ref=e194] [cursor=pointer]
+                        - button "MIDI note 99, empty" [ref=e195] [cursor=pointer]
+                        - button "MIDI note 102, empty" [ref=e196] [cursor=pointer]
+                        - button "MIDI note 104, empty" [ref=e197] [cursor=pointer]
+                        - button "MIDI note 106, empty" [ref=e198] [cursor=pointer]
+                      - generic [ref=e199]:
+                        - button "MIDI note 108, empty" [ref=e200] [cursor=pointer]:
+                          - generic [ref=e201]: C7
+                        - button "MIDI note 110, empty" [ref=e202] [cursor=pointer]
+                        - button "MIDI note 112, empty" [ref=e203] [cursor=pointer]
+                        - button "MIDI note 113, empty" [ref=e204] [cursor=pointer]
+                        - button "MIDI note 115, empty" [ref=e205] [cursor=pointer]
+                        - button "MIDI note 117, empty" [ref=e206] [cursor=pointer]
+                        - button "MIDI note 119, empty" [ref=e207] [cursor=pointer]
+                        - button "MIDI note 109, empty" [ref=e208] [cursor=pointer]
+                        - button "MIDI note 111, empty" [ref=e209] [cursor=pointer]
+                        - button "MIDI note 114, empty" [ref=e210] [cursor=pointer]
+                        - button "MIDI note 116, empty" [ref=e211] [cursor=pointer]
+                        - button "MIDI note 118, empty" [ref=e212] [cursor=pointer]
+                      - generic [ref=e213]:
+                        - button "MIDI note 120, empty" [ref=e214] [cursor=pointer]:
+                          - generic [ref=e215]: C8
+                        - button "MIDI note 122, empty" [ref=e216] [cursor=pointer]
+                        - button "MIDI note 124, empty" [ref=e217] [cursor=pointer]
+                        - button "MIDI note 125, empty" [ref=e218] [cursor=pointer]
+                        - button "MIDI note 127, empty" [ref=e219] [cursor=pointer]
+                        - button "MIDI note 121, empty" [ref=e220] [cursor=pointer]
+                        - button "MIDI note 123, empty" [ref=e221] [cursor=pointer]
+                        - button "MIDI note 126, empty" [ref=e222] [cursor=pointer]
+                  - generic [ref=e223]:
+                    - button "Add sounds" [ref=e224] [cursor=pointer]
+                    - button "Record takes" [ref=e225] [cursor=pointer]
+                - generic [ref=e227]:
+                  - generic [ref=e228]:
+                    - heading "EDIT / Sample management" [level=3] [ref=e230]
+                    - generic [ref=e231]:
+                      - generic "Multisample workspace view" [ref=e232]:
+                        - button "Focus" [pressed] [ref=e233]
+                        - button "Table" [ref=e234]
+                      - generic [ref=e235]:
+                        - generic [ref=e236]: c3=60
+                        - switch "c4=60" [ref=e237] [cursor=pointer]
+                        - generic [ref=e239]: c4=60
+                  - generic [ref=e240]:
+                    - region "Focused multisample editor" [ref=e241]:
+                      - generic [ref=e242]:
+                        - heading "Add multisample zones" [level=3] [ref=e243]
+                        - paragraph [ref=e244]: Load one or more sounds, then set root notes, sample bounds, loop points, envelopes, and engine settings.
+                        - button "Add samples" [ref=e245] [cursor=pointer]
+                    - generic "Multisample instrument actions" [ref=e246]:
+                      - button "reset instrument" [ref=e247] [cursor=pointer]
+                      - button "clear all" [disabled] [ref=e248]:
+                        - generic [aria-hidden] [ref=e249]: 
+                        - text: clear all
+                      - button "browse folder" [ref=e250] [cursor=pointer]
+              - group [ref=e251]:
+                - generic "Preset and performance settings poly · transpose 0 · volume 69%" [ref=e252] [cursor=pointer]:
+                  - text: Preset and performance settings
+                  - generic [ref=e253]: poly · transpose 0 · volume 69%
+                - text: 
+                - option "poly" [selected]
+                - option "mono"
+                - option "legato"
+                - text:  
+                - option "random"
+                - option "bass"
+                - option "keys" [selected]
+                - option "lead"
+                - option "pad"
+                - option "pluck"
+                - option "sustain"
+                - text:   
+              - group [ref=e254]:
+                - generic "Audio output and processing WAV · 44.1 kHz · 16-bit · stereo" [ref=e255] [cursor=pointer]:
+                  - text: Audio output and processing
+                  - generic [ref=e256]: WAV · 44.1 kHz · 16-bit · stereo
+                - text: 
+                - option "original"
+                - option "44.1 khz" [selected]
+                - option "22 khz"
+                - option "11 khz"
+                - option "original"
+                - option "24-bit"
+                - option "16-bit" [selected]
+                - option "12-bit"
+                - option "8-bit"
+                - option "original" [selected]
+                - option "mono"
+                - text:  
+      - generic [ref=e257]:
+        - generic [ref=e258]: OP-PatchStudio is an unofficial tool not affiliated with or endorsed by teenage engineering.this software is provided "as is" without warranty of any kind. use at your own risk. for educational and personal use only.OP-XY, OP-1 and OP-Z are registered trademarks of teenage engineering.
+        - generic [ref=e259]:
+          - generic [ref=e260]: proudly open source
+          - generic [ref=e261]: "|"
+          - link "github fork" [ref=e262]:
+            - /url: https://github.com/sscommander79/op-patchstudio
+          - generic [ref=e263]: "|"
+          - generic [ref=e264]: v0.16.0 · build afb4eea8
+        - generic [ref=e265]:
+          - text: fork maintained by sscommander79 · original project by
+          - link "joseph-holland" [ref=e266]:
+            - /url: https://github.com/joseph-holland
+        - generic [ref=e267]:
+          - text: inspired by the awesome
+          - link "opxy-drum-tool" [ref=e268]:
+            - /url: https://buba447.github.io/opxy-drum-tool/
+          - text: by zeitgeese
+    - dialog "Import audio" [ref=e269]:
+      - heading "Import audio" [level=2] [ref=e270]
+      - paragraph [ref=e271]: 2 decoded files ready for review. Browser import keeps original bytes; OP-XY export uses the output format selected below the instrument.
+      - list [ref=e272]:
+        - listitem [ref=e273]:
+          - generic [ref=e274]:
+            - checkbox "Include second-D4.wav" [checked] [ref=e275]
+            - text: second-D4.wav
+          - generic [ref=e276]: WAV source · source bit depth 16-bit · source rate 48000 Hz · source channels 1 · decoded 44100 Hz / 1 ch
+          - generic [ref=e277]: note detected from destination or filename
+          - generic [ref=e278]:
+            - text: Root note
+            - spinbutton "Root note for second-D4.wav" [ref=e279]: "74"
+          - combobox "Assignment for second-D4.wav" [ref=e280]:
+            - option "Keep for review"
+            - option "Use empty root note" [selected]
+        - listitem [ref=e281]:
+          - generic [ref=e282]:
+            - checkbox "Include first-C4.wav" [checked] [ref=e283]
+            - text: first-C4.wav
+          - generic [ref=e284]: WAV source · source bit depth 16-bit · source rate 48000 Hz · source channels 1 · decoded 44100 Hz / 1 ch
+          - generic [ref=e285]: note detected from destination or filename
+          - generic [ref=e286]:
+            - text: Root note
+            - spinbutton "Root note for first-C4.wav" [ref=e287]: "72"
+          - combobox "Assignment for first-C4.wav" [ref=e288]:
+            - option "Keep for review"
+            - option "Use empty root note" [selected]
+      - button "Apply import" [ref=e289]
+      - button "Cancel import" [active] [ref=e290]
+  - generic:
+    - generic:
+      - heading "keyboard controls" [level=3]:
+        - generic [aria-hidden]: 
+        - text: keyboard controls
+      - paragraph:
+        - strong: "load:"
+        - text: select an empty key, then use Add sounds nearby
+      - paragraph:
+        - strong: "play:"
+        - text: tap keys to play loaded samples
+      - paragraph:
+        - strong: "pin:"
+        - text: use the pin icon to keep the keyboard at the top of the screen
+  - generic:
+    - generic:
+      - generic:
+        - paragraph: snap all sample markers to zero crossings for cleaner audio. this does not affect future imports.
+```

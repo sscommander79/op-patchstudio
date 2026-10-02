@@ -1,0 +1,23 @@
+[WebServer] (node:42539) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:42541) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.4s)
+  ✓   2 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓   3 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:16:1 › multisample patch settings chooser imports atomically and supports Undo (1.2s)
+  ✓   4 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:19:1 › drum import rejects malformed OP-1 files, auditions unassigned audio, and opens setup help (1.3s)
+  ✓   5 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:25:1 › mobile empty drum table browse loads the chosen pad (1.1s)
+  ✓   6 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:29:1 › multisample import inclusion and root edits commit together and Undo (1.4s)
+  ✓   7 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:35:1 › export preflight edits name and includes unassigned sound only when requested (1.5s)
+  ✓   8 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:47:1 › multisample zone selection and note naming do not change roots (1.3s)
+  ✓   9 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 1440px browse and waveform draft cancellation (1.8s)
+  ✓  10 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 390px browse and waveform draft cancellation (1.7s)
+  ✓  11 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:56:1 › organize row drops choose the intended empty pads (1.4s)
+  ✓  12 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:61:1 › wide drum MIDI audition channel persists with an isolated MIDI stub (1.0s)
+  ✓  13 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:66:1 › an empty multisample key selects the root for the nearby Add sounds chooser (1.5s)
+  ✓  14 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:70:1 › sample settings waveform drag is saved once and Undo restores markers (1.4s)
+
+  14 passed (20.2s)

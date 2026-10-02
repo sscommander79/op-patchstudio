@@ -1,0 +1,34 @@
+[
+  {
+    "case": "base-before",
+    "base_config": "playwright.config.ts",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "traces": [
+      "test-results/policy-base-before/probe-intentional-failure-then-successful-retry-chromium-retry1/trace.zip"
+    ],
+    "probe": "expect(testInfo.retry).toBeGreaterThan(0) - intentional first failure, passing retry"
+  },
+  {
+    "case": "base-after",
+    "base_config": "playwright.config.ts",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "traces": [
+      "test-results/policy-base-after/probe-intentional-failure-then-successful-retry-chromium-retry1/trace.zip",
+      "test-results/policy-base-after/probe-intentional-failure-then-successful-retry-chromium/trace.zip"
+    ],
+    "probe": "expect(testInfo.retry).toBeGreaterThan(0) - intentional first failure, passing retry"
+  },
+  {
+    "case": "storage-after",
+    "base_config": "playwright.storage-integration.config.ts",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "traces": [
+      "test-results/policy-storage-after/probe-intentional-failure-then-successful-retry-chromium-retry1/trace.zip",
+      "test-results/policy-storage-after/probe-intentional-failure-then-successful-retry-chromium/trace.zip"
+    ],
+    "probe": "expect(testInfo.retry).toBeGreaterThan(0) - intentional first failure, passing retry"
+  }
+]

@@ -14,7 +14,7 @@
   "total_tasks": null,
   "gsd_milestone": null,
   "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
-  "status": "Local and remote computer verification passed; Claude review completed; human/hardware acceptance and explicitly deferred work remain",
+  "status": "Original push failures repaired; strict flaky-test CI follow-through in progress; human/hardware acceptance pending",
   "release_ready": false,
   "design_approved": false,
   "working_tree": {
@@ -605,6 +605,13 @@
     "separate_followup": "docs/verification/ci-followthrough-2026-10-02/followup-import-rate-fidelity.md",
     "human_hardware": "PENDING",
     "merged": false,
-    "deployed": false
+    "deployed": false,
+    "retry_audit": {
+      "run_id": 37073098654,
+      "finding": "One Mobile Safari first-attempt timeout; passed retry; cause unestablished",
+      "local_reproduction": "60 folder repetitions and 14 file-entry tests passed",
+      "repair": "CI fails on flaky tests and retains initial failure plus retry traces",
+      "strict_ci": "Pending new push at this checkpoint"
+    }
   }
 }

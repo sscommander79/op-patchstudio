@@ -1,0 +1,127 @@
+[WebServer] (node:41257) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 60 tests using 1 worker
+
+(node:41259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.3s)
+  ✓   2 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41286) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓   4 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓   6 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41327) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓   8 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41361) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  10 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41376) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  12 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41402) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  14 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41423) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  15 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.2s)
+  ✓  16 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  17 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  18 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41455) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  20 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  21 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  22 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41502) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  23 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  24 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.2s)
+  ✓  26 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  27 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  28 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41566) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  29 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  30 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.2s)
+(node:41601) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  31 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  32 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41614) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  33 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  34 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  35 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  36 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  37 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  38 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41675) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  39 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  40 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41722) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  41 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.2s)
+  ✓  42 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  43 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  44 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  45 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  46 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  47 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  48 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  49 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  50 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41833) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  51 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  52 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  53 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.2s)
+  ✓  54 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  55 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  56 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41901) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  57 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  58 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+(node:41931) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  59 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+  ✓  60 [Mobile Safari] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (1.1s)
+
+  60 passed (1.4m)
