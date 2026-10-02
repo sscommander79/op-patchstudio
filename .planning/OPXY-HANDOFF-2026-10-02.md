@@ -1,5 +1,9 @@
 # OP-PatchStudio — move this work to the OPXY project
 
+## Latest directory-driver race follow-through — 2026-10-02
+
+The strict policy caught a repeat of the folder-selection timeout on Firefox in37076016925. The retained first trace shows the app imported both files but Playwright waited29seconds for its directory input event. A bounded test helper now captures both native events before selection, verifies exact names/relative paths, and tolerates only the specific driver timeout after native success; full app review/cancellation assertions remain. Wrong/missing-file and transport-error negative checks are included. Read the final CI-report section and check the final branch Actions result; earlier completed checkpoints below are historical. No production code or user state changed in this follow-through.
+
 ## Latest verified strict CI result — 2026-10-02
 
 Commit17fc688 passed all six push-triggered Quality jobs in run37074972204. Complete job logs contain zero flaky tests. CI now fails retry-only passes and retains first-failure/retry traces in the main and storage suites; controlled probes prove exit status and trace retention. The scheduled/manual job gains evidence upload but was not applicable to this push. Claude's two additional configuration reviews are closed, with required logs committed.

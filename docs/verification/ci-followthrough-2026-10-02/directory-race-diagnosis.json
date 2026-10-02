@@ -1,0 +1,13 @@
+{
+  "run_id": 37076016925,
+  "head": "f4f13c06812c57c3173e27b396b4a3d1ac9ff32c",
+  "job_id": 111065984251,
+  "test": "multisample Browse folder reviews files and Cancel keeps the empty instrument",
+  "setFiles_duration_ms": 29287,
+  "expect_duration_ms": 4,
+  "native_selection_and_decode": "Final error snapshot shows two decoded files ready for review and both filenames",
+  "playwright_version": "1.63.0",
+  "mechanism": "Input listener evaluation is started without awaiting registration before setInputFilePaths; asynchronous directory listing can finish before listener registration. Exact dispatch order was not captured in protocol logs.",
+  "review": "claude-folder-diagnosis.txt",
+  "scope": "Test harness only; preserve actual native selection and app assertions"
+}

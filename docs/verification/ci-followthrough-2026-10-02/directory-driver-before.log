@@ -1,0 +1,1189 @@
+﻿2026-10-02T23:07:13.8013176Z Current runner version: '2.337.0'
+2026-10-02T23:07:13.8028376Z ##[group]Runner Image Provisioner
+2026-10-02T23:07:13.8029161Z Hosted Compute Agent
+2026-10-02T23:07:13.8029498Z Version: 20260901.588
+2026-10-02T23:07:13.8029850Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-02T23:07:13.8030309Z Build Date: 2026-09-01T19:56:44Z
+2026-10-02T23:07:13.8030704Z Worker ID: {f13957e9-3e53-472d-b2dd-3df3ca9ddffb}
+2026-10-02T23:07:13.8031160Z Azure Region: westus3
+2026-10-02T23:07:13.8031503Z ##[endgroup]
+2026-10-02T23:07:13.8032304Z ##[group]Operating System
+2026-10-02T23:07:13.8032924Z Ubuntu
+2026-10-02T23:07:13.8033255Z 24.04.5
+2026-10-02T23:07:13.8033602Z LTS
+2026-10-02T23:07:13.8033916Z ##[endgroup]
+2026-10-02T23:07:13.8034232Z ##[group]Runner Image
+2026-10-02T23:07:13.8034610Z Image: ubuntu-24.04
+2026-10-02T23:07:13.8034966Z Version: 20260927.320.1
+2026-10-02T23:07:13.8035713Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-02T23:07:13.8036550Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-02T23:07:13.8037120Z ##[endgroup]
+2026-10-02T23:07:13.8037780Z ##[group]GITHUB_TOKEN Permissions
+2026-10-02T23:07:13.8039230Z Contents: read
+2026-10-02T23:07:13.8039562Z Metadata: read
+2026-10-02T23:07:13.8039875Z ##[endgroup]
+2026-10-02T23:07:13.8041141Z Secret source: Actions
+2026-10-02T23:07:13.8041698Z Cache mode: write
+2026-10-02T23:07:13.8042148Z Prepare workflow directory
+2026-10-02T23:07:13.8232579Z Prepare all required actions
+2026-10-02T23:07:13.8262089Z Getting action download info
+2026-10-02T23:07:14.1388003Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-02T23:07:14.3595901Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-02T23:07:14.8054883Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-02T23:07:15.4126241Z Complete job name: browser-regressions (firefox, firefox)
+2026-10-02T23:07:15.4704477Z ##[group]Run actions/checkout@v4
+2026-10-02T23:07:15.4705275Z with:
+2026-10-02T23:07:15.4705833Z   repository: sscommander79/op-patchstudio
+2026-10-02T23:07:15.4710837Z   token: ***
+2026-10-02T23:07:15.4711349Z   ssh-strict: true
+2026-10-02T23:07:15.4711871Z   ssh-user: git
+2026-10-02T23:07:15.4712399Z   persist-credentials: true
+2026-10-02T23:07:15.4712984Z   clean: true
+2026-10-02T23:07:15.4713528Z   sparse-checkout-cone-mode: true
+2026-10-02T23:07:15.4714155Z   fetch-depth: 1
+2026-10-02T23:07:15.4714668Z   fetch-tags: false
+2026-10-02T23:07:15.4715203Z   show-progress: true
+2026-10-02T23:07:15.4715745Z   lfs: false
+2026-10-02T23:07:15.4716255Z   submodules: false
+2026-10-02T23:07:15.4716799Z   set-safe-directory: true
+2026-10-02T23:07:15.4717424Z   allow-unsafe-pr-checkout: false
+2026-10-02T23:07:15.4718181Z ##[endgroup]
+2026-10-02T23:07:15.5450812Z Syncing repository: sscommander79/op-patchstudio
+2026-10-02T23:07:15.5454020Z ##[group]Getting Git version info
+2026-10-02T23:07:15.5455573Z Working directory is '/home/runner/work/op-patchstudio/op-patchstudio'
+2026-10-02T23:07:15.5457614Z [command]/usr/bin/git version
+2026-10-02T23:07:15.5515127Z git version 2.55.0
+2026-10-02T23:07:15.5539481Z ##[endgroup]
+2026-10-02T23:07:15.5545526Z Temporarily overriding HOME='/home/runner/work/_temp/d1c48f23-d845-4862-a1fe-bca30d404869' before making global git config changes
+2026-10-02T23:07:15.5548036Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T23:07:15.5550236Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T23:07:15.6510702Z Deleting the contents of '/home/runner/work/op-patchstudio/op-patchstudio'
+2026-10-02T23:07:15.6523199Z ##[group]Initializing the repository
+2026-10-02T23:07:15.6526653Z [command]/usr/bin/git init /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T23:07:15.7720760Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-02T23:07:15.7723165Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-02T23:07:15.7724636Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-02T23:07:15.7725608Z hint: call:
+2026-10-02T23:07:15.7726555Z hint:
+2026-10-02T23:07:15.7727543Z hint: 	git config --global init.defaultBranch <name>
+2026-10-02T23:07:15.7728746Z hint:
+2026-10-02T23:07:15.7729796Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-02T23:07:15.7731412Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-02T23:07:15.7732657Z hint:
+2026-10-02T23:07:15.7733324Z hint: 	git branch -m <name>
+2026-10-02T23:07:15.7734056Z hint:
+2026-10-02T23:07:15.7735081Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-02T23:07:15.7736916Z Initialized empty Git repository in /home/runner/work/op-patchstudio/op-patchstudio/.git/
+2026-10-02T23:07:15.7740222Z [command]/usr/bin/git remote add origin https://github.com/sscommander79/op-patchstudio
+2026-10-02T23:07:15.7828167Z ##[endgroup]
+2026-10-02T23:07:15.7829364Z ##[group]Disabling automatic garbage collection
+2026-10-02T23:07:15.7831958Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-02T23:07:15.8073120Z ##[endgroup]
+2026-10-02T23:07:15.8073992Z ##[group]Setting up auth
+2026-10-02T23:07:15.8074884Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T23:07:15.8105768Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T23:07:15.8430304Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T23:07:15.8463890Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T23:07:15.8665033Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T23:07:15.8696160Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T23:07:15.8901423Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-02T23:07:16.2723425Z ##[endgroup]
+2026-10-02T23:07:16.2723837Z ##[group]Fetching the repository
+2026-10-02T23:07:16.2731522Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f4f13c06812c57c3173e27b396b4a3d1ac9ff32c:refs/remotes/origin/codex/studio-upgrade
+2026-10-02T23:07:18.0650754Z From https://github.com/sscommander79/op-patchstudio
+2026-10-02T23:07:18.0651347Z  * [new ref]         f4f13c06812c57c3173e27b396b4a3d1ac9ff32c -> origin/codex/studio-upgrade
+2026-10-02T23:07:18.0654141Z ##[endgroup]
+2026-10-02T23:07:18.0654476Z ##[group]Determining the checkout info
+2026-10-02T23:07:18.0656411Z ##[endgroup]
+2026-10-02T23:07:18.0661977Z [command]/usr/bin/git sparse-checkout disable
+2026-10-02T23:07:18.0764731Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-02T23:07:18.0790836Z ##[group]Checking out the ref
+2026-10-02T23:07:18.0793990Z [command]/usr/bin/git checkout --progress --force -B codex/studio-upgrade refs/remotes/origin/codex/studio-upgrade
+2026-10-02T23:07:18.2733580Z Switched to a new branch 'codex/studio-upgrade'
+2026-10-02T23:07:18.2745694Z branch 'codex/studio-upgrade' set up to track 'origin/codex/studio-upgrade'.
+2026-10-02T23:07:18.2748219Z ##[endgroup]
+2026-10-02T23:07:18.2786921Z [command]/usr/bin/git log -1 --format=%H
+2026-10-02T23:07:18.2808023Z f4f13c06812c57c3173e27b396b4a3d1ac9ff32c
+2026-10-02T23:07:18.3058336Z ##[group]Run actions/setup-node@v4
+2026-10-02T23:07:18.3058770Z with:
+2026-10-02T23:07:18.3059119Z   node-version: 22
+2026-10-02T23:07:18.3059298Z   cache: npm
+2026-10-02T23:07:18.3059467Z   always-auth: false
+2026-10-02T23:07:18.3059658Z   check-latest: false
+2026-10-02T23:07:18.3061797Z   token: ***
+2026-10-02T23:07:18.3061972Z ##[endgroup]
+2026-10-02T23:07:18.4039889Z Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+2026-10-02T23:07:18.4042639Z (node:2081) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-02T23:07:18.4043157Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-02T23:07:18.4044165Z ##[group]Environment details
+2026-10-02T23:07:20.7391844Z node: v22.23.3
+2026-10-02T23:07:20.7392110Z npm: 10.9.9
+2026-10-02T23:07:20.7392225Z yarn: 1.22.22
+2026-10-02T23:07:20.7393305Z ##[endgroup]
+2026-10-02T23:07:20.7423776Z [command]/opt/hostedtoolcache/node/22.23.3/x64/bin/npm config get cache
+2026-10-02T23:07:20.9415735Z /home/runner/.npm
+2026-10-02T23:07:21.1667118Z Cache hit for: node-cache-Linux-x64-npm-b8a95477bf95ff4a35eca48df0ba79e82fa6472e8a6f114b09e7678b92070db6
+2026-10-02T23:07:21.1736371Z (node:2081) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-02T23:07:22.3794604Z Received 58720256 of 128736456 (45.6%), 55.9 MBs/sec
+2026-10-02T23:07:23.2521756Z Received 128736456 of 128736456 (100.0%), 65.5 MBs/sec
+2026-10-02T23:07:23.2522018Z Cache Size: ~123 MB (128736456 B)
+2026-10-02T23:07:23.2539642Z [command]/usr/bin/tar -xf /home/runner/work/_temp/8a686cb6-f8ae-450a-8ef1-3b0ff4e9b0b7/cache.tzst -P -C /home/runner/work/op-patchstudio/op-patchstudio --use-compress-program unzstd
+2026-10-02T23:07:23.4416052Z Cache restored successfully
+2026-10-02T23:07:23.4473298Z Cache restored from key: node-cache-Linux-x64-npm-b8a95477bf95ff4a35eca48df0ba79e82fa6472e8a6f114b09e7678b92070db6
+2026-10-02T23:07:23.4643633Z ##[group]Run npm ci
+2026-10-02T23:07:23.4643830Z [36;1mnpm ci[0m
+2026-10-02T23:07:23.4907152Z shell: /usr/bin/bash -e {0}
+2026-10-02T23:07:23.4907320Z ##[endgroup]
+2026-10-02T23:07:25.9721933Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-02T23:07:26.0908312Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-02T23:07:26.1712271Z npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+2026-10-02T23:07:30.5039310Z 
+2026-10-02T23:07:30.5139959Z added 664 packages, and audited 665 packages in 7s
+2026-10-02T23:07:30.5189367Z 
+2026-10-02T23:07:30.5281045Z 157 packages are looking for funding
+2026-10-02T23:07:30.5379540Z   run `npm fund` for details
+2026-10-02T23:07:30.5598995Z 
+2026-10-02T23:07:30.5625004Z 10 vulnerabilities (8 moderate, 2 high)
+2026-10-02T23:07:30.5739351Z 
+2026-10-02T23:07:30.5799956Z To address issues that do not require attention, run:
+2026-10-02T23:07:30.5899658Z   npm audit fix
+2026-10-02T23:07:30.5968897Z 
+2026-10-02T23:07:30.6009658Z To address all issues, run:
+2026-10-02T23:07:30.6115130Z   npm audit fix --force
+2026-10-02T23:07:30.6154944Z 
+2026-10-02T23:07:30.6219617Z Run `npm audit` for details.
+2026-10-02T23:07:30.8946049Z ##[group]Run npm run build
+2026-10-02T23:07:30.8946429Z [36;1mnpm run build[0m
+2026-10-02T23:07:30.9331139Z shell: /usr/bin/bash -e {0}
+2026-10-02T23:07:30.9331415Z ##[endgroup]
+2026-10-02T23:07:31.0357609Z 
+2026-10-02T23:07:31.0358656Z > op-patchstudio@0.16.0 build
+2026-10-02T23:07:31.0359143Z > tsc -b && vite build && npm run verify:pwa
+2026-10-02T23:07:31.0359332Z 
+2026-10-02T23:07:40.2980393Z [36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+2026-10-02T23:07:40.3532965Z transforming...
+2026-10-02T23:07:42.8600195Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.8629050Z 
+2026-10-02T23:07:42.8629883Z Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T23:07:42.8630333Z 
+2026-10-02T23:07:42.8635654Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:42.8635979Z 
+2026-10-02T23:07:42.8648922Z     ╷
+2026-10-02T23:07:42.8709626Z 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T23:07:42.8729173Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:42.8739464Z     ╵
+2026-10-02T23:07:42.8769070Z     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9   @use
+2026-10-02T23:07:42.8789273Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T23:07:42.8829000Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T23:07:42.8829688Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T23:07:42.8899357Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T23:07:42.8903365Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T23:07:42.8917426Z 
+2026-10-02T23:07:42.8918564Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.8919132Z 
+2026-10-02T23:07:42.8923412Z Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T23:07:42.8923899Z 
+2026-10-02T23:07:42.8924235Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:42.8924583Z 
+2026-10-02T23:07:42.8925125Z     ╷
+2026-10-02T23:07:42.8925762Z 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T23:07:42.8931351Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:42.8931869Z     ╵
+2026-10-02T23:07:42.8932328Z     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9   @use
+2026-10-02T23:07:42.8932919Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T23:07:42.8939364Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T23:07:42.8939932Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T23:07:42.8940324Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T23:07:42.8940812Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T23:07:42.8941067Z 
+2026-10-02T23:07:42.8941441Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.8941786Z 
+2026-10-02T23:07:42.8942092Z Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T23:07:42.8942395Z 
+2026-10-02T23:07:42.8942572Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:42.8942785Z 
+2026-10-02T23:07:42.8942931Z     ╷
+2026-10-02T23:07:42.8943407Z 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T23:07:42.8943903Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:42.8944195Z     ╵
+2026-10-02T23:07:42.8944490Z     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17  @use
+2026-10-02T23:07:42.8944994Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T23:07:42.8945889Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T23:07:42.8946288Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T23:07:42.8946689Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T23:07:42.8947118Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T23:07:42.8947370Z 
+2026-10-02T23:07:42.8947747Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.8948294Z 
+2026-10-02T23:07:42.8948766Z Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T23:07:42.8949067Z 
+2026-10-02T23:07:42.8949249Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:42.8949447Z 
+2026-10-02T23:07:42.8949548Z     ╷
+2026-10-02T23:07:42.8949978Z 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T23:07:42.8950479Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:42.8950760Z     ╵
+2026-10-02T23:07:42.8951031Z     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17  @use
+2026-10-02T23:07:42.8951691Z     node_modules/@carbon/type/scss/_styles.scss 13:1        @forward
+2026-10-02T23:07:42.8952125Z     node_modules/@carbon/type/index.scss 12:1               @forward
+2026-10-02T23:07:42.8959180Z     node_modules/@carbon/styles/scss/type/_index.scss 14:1  @use
+2026-10-02T23:07:42.8959772Z     node_modules/@carbon/styles/scss/_reset.scss 9:1        @use
+2026-10-02T23:07:42.8960339Z     src/styles/carbon.scss 1:1                              root stylesheet
+2026-10-02T23:07:42.8960748Z 
+2026-10-02T23:07:42.9942237Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.9942945Z 
+2026-10-02T23:07:42.9943421Z Suggestion: if(sass($is-number-lower): $lower; else: map.get($breakpoints, $lower))
+2026-10-02T23:07:42.9943888Z 
+2026-10-02T23:07:42.9944255Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:42.9944596Z 
+2026-10-02T23:07:42.9945078Z     ╷
+2026-10-02T23:07:42.9945691Z 155 │   $min: if($is-number-lower, $lower, map.get($breakpoints, $lower));
+2026-10-02T23:07:42.9946314Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:42.9969374Z     ╵
+2026-10-02T23:07:42.9992419Z     node_modules/@carbon/grid/scss/_breakpoint.scss 155:9         @use
+2026-10-02T23:07:42.9993175Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T23:07:42.9993739Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T23:07:42.9994310Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T23:07:42.9994888Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T23:07:42.9995446Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T23:07:42.9996008Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T23:07:42.9996566Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T23:07:42.9997114Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T23:07:42.9997698Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T23:07:42.9998092Z 
+2026-10-02T23:07:42.9998842Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:42.9999330Z 
+2026-10-02T23:07:42.9999761Z Suggestion: if(sass($is-number-upper): $upper; else: map.get($breakpoints, $upper))
+2026-10-02T23:07:43.0000339Z 
+2026-10-02T23:07:43.0000642Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:43.0000965Z 
+2026-10-02T23:07:43.0001311Z     ╷
+2026-10-02T23:07:43.0001886Z 156 │   $max: if($is-number-upper, $upper, map.get($breakpoints, $upper));
+2026-10-02T23:07:43.0002770Z     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:43.0003237Z     ╵
+2026-10-02T23:07:43.0003673Z     node_modules/@carbon/grid/scss/_breakpoint.scss 156:9         @use
+2026-10-02T23:07:43.0004256Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T23:07:43.0004794Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T23:07:43.0005361Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T23:07:43.0027211Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T23:07:43.0027926Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T23:07:43.0028585Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T23:07:43.0029167Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T23:07:43.0029741Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T23:07:43.0030357Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T23:07:43.0030755Z 
+2026-10-02T23:07:43.0031260Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:43.0031737Z 
+2026-10-02T23:07:43.0032158Z Suggestion: if(sass(not $is-number-lower and $min): map.get($min, width); else: $min)
+2026-10-02T23:07:43.0032573Z 
+2026-10-02T23:07:43.0032874Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:43.0033208Z 
+2026-10-02T23:07:43.0033472Z     ╷
+2026-10-02T23:07:43.0034066Z 159 │     $min-width: if(not $is-number-lower and $min, map.get($min, width), $min);
+2026-10-02T23:07:43.0034697Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:43.0035233Z     ╵
+2026-10-02T23:07:43.0035713Z     node_modules/@carbon/grid/scss/_breakpoint.scss 159:17        @use
+2026-10-02T23:07:43.0036355Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T23:07:43.0046793Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T23:07:43.0047437Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T23:07:43.0048031Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T23:07:43.0048768Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T23:07:43.0049326Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T23:07:43.0049908Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T23:07:43.0050714Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T23:07:43.0051368Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T23:07:43.0051767Z 
+2026-10-02T23:07:43.0052267Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:43.0052738Z 
+2026-10-02T23:07:43.0053162Z Suggestion: if(sass(not $is-number-upper and $max): map.get($max, width); else: $max)
+2026-10-02T23:07:43.0057135Z 
+2026-10-02T23:07:43.0069227Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:43.0069509Z 
+2026-10-02T23:07:43.0069723Z     ╷
+2026-10-02T23:07:43.0070133Z 160 │     $max-width: if(not $is-number-upper and $max, map.get($max, width), $max);
+2026-10-02T23:07:43.0070563Z     │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-02T23:07:43.0070866Z     ╵
+2026-10-02T23:07:43.0071159Z     node_modules/@carbon/grid/scss/_breakpoint.scss 160:17        @use
+2026-10-02T23:07:43.0071543Z     node_modules/@carbon/type/scss/_styles.scss 13:1              @forward
+2026-10-02T23:07:43.0071913Z     node_modules/@carbon/type/index.scss 12:1                     @use
+2026-10-02T23:07:43.0072286Z     node_modules/@carbon/themes/scss/generated/_themes.scss 11:1  @forward
+2026-10-02T23:07:43.0072884Z     node_modules/@carbon/themes/scss/_themes.scss 8:1             @forward
+2026-10-02T23:07:43.0073253Z     node_modules/@carbon/styles/scss/_themes.scss 9:1             @use
+2026-10-02T23:07:43.0073617Z     node_modules/@carbon/styles/scss/compat/_themes.scss 10:1     @use
+2026-10-02T23:07:43.0074018Z     node_modules/@carbon/styles/scss/theme/_theme.scss 12:1       @forward
+2026-10-02T23:07:43.0074390Z     node_modules/@carbon/styles/scss/_theme.scss 8:1              @use
+2026-10-02T23:07:43.0074771Z     src/theme/device-themes.scss 5:1                              root stylesheet
+2026-10-02T23:07:43.0075156Z 
+2026-10-02T23:07:43.4405484Z DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+2026-10-02T23:07:43.4406063Z 
+2026-10-02T23:07:43.4406823Z Suggestion: if(sass($tooltip-type == "definition"): convert.to-rem(8px) convert.to-rem(16px); else: convert.to-rem(3px) convert.to-rem(16px))
+2026-10-02T23:07:43.4407474Z 
+2026-10-02T23:07:43.4407783Z More info: https://sass-lang.com/d/if-function
+2026-10-02T23:07:43.4408142Z 
+2026-10-02T23:07:43.4408872Z    ╷
+2026-10-02T23:07:43.4409292Z 39 │     padding: if(
+2026-10-02T23:07:43.4409658Z    │ ┌────────────^
+2026-10-02T23:07:43.4410085Z 40 │ │     $tooltip-type == 'definition',
+2026-10-02T23:07:43.4410614Z 41 │ │     convert.to-rem(8px) convert.to-rem(16px),
+2026-10-02T23:07:43.4411137Z 42 │ │     convert.to-rem(3px) convert.to-rem(16px)
+2026-10-02T23:07:43.4411538Z 43 │ │   );
+2026-10-02T23:07:43.4411856Z    │ └───^
+2026-10-02T23:07:43.4412171Z    ╵
+2026-10-02T23:07:43.4412636Z     node_modules/@carbon/styles/scss/utilities/_tooltip.scss 39:12          @forward
+2026-10-02T23:07:43.4413278Z     node_modules/@carbon/styles/scss/utilities/_index.scss 23:1             @use
+2026-10-02T23:07:43.4413899Z     node_modules/@carbon/styles/scss/components/popover/_popover.scss 16:1  @forward
+2026-10-02T23:07:43.4414532Z     node_modules/@carbon/styles/scss/components/popover/_index.scss 8:1     @use
+2026-10-02T23:07:43.4415164Z     node_modules/@carbon/styles/scss/components/tooltip/_tooltip.scss 8:1   @forward
+2026-10-02T23:07:43.4415776Z     node_modules/@carbon/styles/scss/components/tooltip/_index.scss 8:1     @use
+2026-10-02T23:07:43.4416396Z     node_modules/@carbon/styles/scss/components/button/_button.scss 11:1    @forward
+2026-10-02T23:07:43.4417020Z     node_modules/@carbon/styles/scss/components/button/_index.scss 9:1      @use
+2026-10-02T23:07:43.4417623Z     src/styles/carbon.scss 2:1                                              root stylesheet
+2026-10-02T23:07:43.4418021Z 
+2026-10-02T23:07:43.7575496Z WARNING: 1 repetitive deprecation warnings omitted.
+2026-10-02T23:07:43.7579136Z Run in verbose mode to see all warnings.
+2026-10-02T23:07:43.7579473Z 
+2026-10-02T23:07:45.3342402Z [32m✓[39m 598 modules transformed.
+2026-10-02T23:07:45.5228831Z rendering chunks...
+2026-10-02T23:07:45.6730496Z [33m[plugin vite:reporter] 
+2026-10-02T23:07:45.6743977Z (!) /home/runner/work/op-patchstudio/op-patchstudio/src/utils/wavExport.ts is dynamically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts but also statically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/components/common/StemRecordingModal.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/drum/DrumTool.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audio.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioExport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/libraryUtils.ts, dynamic import will not move module into another chunk.
+2026-10-02T23:07:45.6746440Z [39m
+2026-10-02T23:07:45.6752471Z [33m[plugin vite:reporter] 
+2026-10-02T23:07:45.6758134Z (!) /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audio.ts is dynamically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts but also statically imported by /home/runner/work/op-patchstudio/op-patchstudio/src/components/common/FileDetailsBadges.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/drum/DrumSampleSettingsModal.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/library/LibraryPage.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/components/multisample/MultisampleSampleTable.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/context/AppContext.tsx, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioFormats.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/audioImport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/libraryBatchExport.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/patchGeneration.ts, /home/runner/work/op-patchstudio/op-patchstudio/src/utils/recordingApplication.ts, dynamic import will not move module into another chunk.
+2026-10-02T23:07:45.6762690Z [39m
+2026-10-02T23:07:45.6881331Z computing gzip size...
+2026-10-02T23:07:45.7082070Z [2mdist/[22m[32mmanifest.webmanifest                                                                                                  [39m[1m[2m  0.83 kB[22m[1m[22m
+2026-10-02T23:07:45.7083219Z [2mdist/[22m[32mindex.html                                                                                                            [39m[1m[2m  3.28 kB[22m[1m[22m[2m │ gzip:   1.01 kB[22m
+2026-10-02T23:07:45.7085095Z [33m
+2026-10-02T23:07:45.7085434Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-10-02T23:07:45.7085882Z - Using dynamic import() to code-split the application
+2026-10-02T23:07:45.7086644Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-10-02T23:07:45.7087417Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+2026-10-02T23:07:45.7089592Z [2mdist/[22m[2massets/[22m[32mpwa-cache-lifecycle-f4f13c06812c57c3173e27b396b4a3d1ac9ff32c-murkpqlo-944ad50c-30c7-4ecf-a151-08d3387fe5f1.js  [39m[1m[2m  7.12 kB[22m[1m[22m
+2026-10-02T23:07:45.7090817Z [2mdist/[22m[2massets/[22m[32mcaptureProcessor-BldZOCrQ.js                                                                                   [39m[1m[2m  9.25 kB[22m[1m[22m
+2026-10-02T23:07:45.7103476Z [2mdist/[22m[2massets/[22m[32mfa-regular-400-BjRzuEpd.woff2                                                                                  [39m[1m[2m 25.47 kB[22m[1m[22m
+2026-10-02T23:07:45.7104946Z [2mdist/[22m[2massets/[22m[32mfa-regular-400-DZaxPHgR.ttf                                                                                    [39m[1m[2m 68.06 kB[22m[1m[22m
+2026-10-02T23:07:45.7106102Z [2mdist/[22m[2massets/[22m[32mfa-brands-400-D_cYUPeE.woff2                                                                                   [39m[1m[2m118.68 kB[22m[1m[22m
+2026-10-02T23:07:45.7107208Z [2mdist/[22m[2massets/[22m[32mfa-solid-900-CTAAxXor.woff2                                                                                    [39m[1m[2m158.22 kB[22m[1m[22m
+2026-10-02T23:07:45.7108316Z [2mdist/[22m[2massets/[22m[32mfa-brands-400-D1LuMI3I.ttf                                                                                     [39m[1m[2m210.79 kB[22m[1m[22m
+2026-10-02T23:07:45.7109573Z [2mdist/[22m[2massets/[22m[32mfa-solid-900-D0aA9rwL.ttf                                                                                      [39m[1m[2m426.11 kB[22m[1m[22m
+2026-10-02T23:07:45.7110795Z [2mdist/[22m[2massets/[22m[35mindex-DQu_SQ--.css                                                                                             [39m[1m[2m341.21 kB[22m[1m[22m[2m │ gzip:  59.16 kB[22m
+2026-10-02T23:07:45.7112017Z [2mdist/[22m[2massets/[22m[36mrouteLease-C8aTrg61.js                                                                                         [39m[1m[2m  0.48 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+2026-10-02T23:07:45.7113559Z [2mdist/[22m[2massets/[22m[36mIconButton-DYv7-gOl.js                                                                                         [39m[1m[2m  0.67 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+2026-10-02T23:07:45.7114815Z [2mdist/[22m[2massets/[22m[36mFeedbackPage-Vd5fcPtB.js                                                                                       [39m[1m[2m  2.65 kB[22m[1m[22m[2m │ gzip:   1.21 kB[22m
+2026-10-02T23:07:45.7116054Z [2mdist/[22m[2massets/[22m[36mEnhancedTooltip-DkdmOp6X.js                                                                                    [39m[1m[2m  4.58 kB[22m[1m[22m[2m │ gzip:   1.64 kB[22m
+2026-10-02T23:07:45.7117548Z [2mdist/[22m[2massets/[22m[36mworkbox-window.prod.es5-CwtvwXb3.js                                                                            [39m[1m[2m  5.76 kB[22m[1m[22m[2m │ gzip:   2.37 kB[22m
+2026-10-02T23:07:45.7119007Z [2mdist/[22m[2massets/[22m[36mDonatePage-BAVtlkkA.js                                                                                         [39m[1m[2m  9.64 kB[22m[1m[22m[2m │ gzip:   2.97 kB[22m
+2026-10-02T23:07:45.7120321Z [2mdist/[22m[2massets/[22m[36mcaptureSession-DKtwYUi-.js                                                                                     [39m[1m[2m 11.62 kB[22m[1m[22m[2m │ gzip:   3.79 kB[22m
+2026-10-02T23:07:45.7121564Z [2mdist/[22m[2massets/[22m[36museAudioPlayer-VDo6CBpP.js                                                                                     [39m[1m[2m 12.19 kB[22m[1m[22m[2m │ gzip:   4.32 kB[22m
+2026-10-02T23:07:45.7122853Z [2mdist/[22m[2massets/[22m[36mSliceAudioModal-qOxx3wAm.js                                                                                    [39m[1m[2m 26.42 kB[22m[1m[22m[2m │ gzip:   9.04 kB[22m
+2026-10-02T23:07:45.7124174Z [2mdist/[22m[2massets/[22m[36mStemRecordingModal-Bdt2iMpO.js                                                                                 [39m[1m[2m 28.89 kB[22m[1m[22m[2m │ gzip:   9.89 kB[22m
+2026-10-02T23:07:45.7125458Z [2mdist/[22m[2massets/[22m[36mDevicesWorkspace-DZmAUkIU.js                                                                                   [39m[1m[2m 40.03 kB[22m[1m[22m[2m │ gzip:  11.81 kB[22m
+2026-10-02T23:07:45.7126744Z [2mdist/[22m[2massets/[22m[36mLibraryPage-DF7vIkZa.js                                                                                        [39m[1m[2m 40.79 kB[22m[1m[22m[2m │ gzip:  11.15 kB[22m
+2026-10-02T23:07:45.7127987Z [2mdist/[22m[2massets/[22m[36mDrumTool-Djn6jcPW.js                                                                                           [39m[1m[2m 96.13 kB[22m[1m[22m[2m │ gzip:  24.69 kB[22m
+2026-10-02T23:07:45.7129399Z [2mdist/[22m[2massets/[22m[36mMultisampleTool-CAU4pxrr.js                                                                                    [39m[1m[2m 98.80 kB[22m[1m[22m[2m │ gzip:  23.88 kB[22m
+2026-10-02T23:07:45.7130710Z [2mdist/[22m[2massets/[22m[36museFileUpload-DuPR3YGG.js                                                                                      [39m[1m[2m230.24 kB[22m[1m[22m[2m │ gzip:  61.79 kB[22m
+2026-10-02T23:07:45.7131920Z [2mdist/[22m[2massets/[22m[36mindex-CYjQjXOw.js                                                                                              [39m[1m[33m607.60 kB[39m[22m[2m │ gzip: 185.06 kB[22m
+2026-10-02T23:07:45.7132662Z [32m✓ built in 5.39s[39m
+2026-10-02T23:07:46.9147171Z 
+2026-10-02T23:07:46.9149815Z [36mPWA v1.3.0[39m
+2026-10-02T23:07:46.9152030Z mode      [35mgenerateSW[39m
+2026-10-02T23:07:46.9152443Z precache  [32m42 entries[39m [2m(2411.41 KiB)[22m
+2026-10-02T23:07:46.9152634Z files generated
+2026-10-02T23:07:46.9152786Z   [2mdist/sw.js[22m
+2026-10-02T23:07:46.9152958Z   [2mdist/workbox-a4e4e354.js[22m
+2026-10-02T23:07:47.1258969Z 
+2026-10-02T23:07:47.1259605Z > op-patchstudio@0.16.0 verify:pwa
+2026-10-02T23:07:47.1260012Z > node scripts/verify-pwa-build.mjs
+2026-10-02T23:07:47.1260479Z 
+2026-10-02T23:07:47.1484639Z Verified 42 unique precache URLs; 10 stable public assets have content revisions; lifecycle f4f13c06812c57c3173e27b396b4a3d1ac9ff32c-murkpqlo-944ad50c-30c7-4ecf-a151-08d3387fe5f1 owns its cache identity.
+2026-10-02T23:07:47.1625215Z ##[group]Run npx playwright install --with-deps firefox
+2026-10-02T23:07:47.1625459Z [36;1mnpx playwright install --with-deps firefox[0m
+2026-10-02T23:07:47.1677062Z shell: /usr/bin/bash -e {0}
+2026-10-02T23:07:47.1677333Z ##[endgroup]
+2026-10-02T23:07:47.7266163Z Installing dependencies...
+2026-10-02T23:07:47.7323131Z Switching to root user to install dependencies...
+2026-10-02T23:07:47.8496182Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-02T23:07:47.9159867Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+2026-10-02T23:07:47.9169498Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+2026-10-02T23:07:47.9189862Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-10-02T23:07:47.9244124Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-10-02T23:07:47.9280859Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-10-02T23:07:48.0650076Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.6 kB]
+2026-10-02T23:07:48.0769937Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [458 kB]
+2026-10-02T23:07:48.0848623Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [511 kB]
+2026-10-02T23:07:48.1090137Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1364 kB]
+2026-10-02T23:07:48.1171262Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [304 kB]
+2026-10-02T23:07:48.1179199Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+2026-10-02T23:07:48.1236594Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1699 kB]
+2026-10-02T23:07:48.1269600Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [341 kB]
+2026-10-02T23:07:48.1295882Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+2026-10-02T23:07:48.1329895Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1720 kB]
+2026-10-02T23:07:48.1400347Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [394 kB]
+2026-10-02T23:07:48.1419624Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+2026-10-02T23:07:48.1552965Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5764 B]
+2026-10-02T23:07:48.2039433Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+2026-10-02T23:07:48.2060892Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1069 kB]
+2026-10-02T23:07:48.2123203Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [221 kB]
+2026-10-02T23:07:48.2149172Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.3 kB]
+2026-10-02T23:07:48.2169827Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1216 kB]
+2026-10-02T23:07:48.2230836Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [244 kB]
+2026-10-02T23:07:48.2247254Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+2026-10-02T23:07:48.2298124Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1566 kB]
+2026-10-02T23:07:48.2391205Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [361 kB]
+2026-10-02T23:07:56.0620462Z Fetched 12.6 MB in 1s (10.7 MB/s)
+2026-10-02T23:07:56.5618315Z Reading package lists...
+2026-10-02T23:07:56.5812367Z Reading package lists...
+2026-10-02T23:07:56.7120209Z Building dependency tree...
+2026-10-02T23:07:56.7126206Z Reading state information...
+2026-10-02T23:07:56.8206684Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+2026-10-02T23:07:56.8207726Z libasound2t64 set to manually installed.
+2026-10-02T23:07:56.8208083Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+2026-10-02T23:07:56.8208410Z libatk1.0-0t64 set to manually installed.
+2026-10-02T23:07:56.8209140Z libcairo-gobject2 is already the newest version (1.18.0-3build1).
+2026-10-02T23:07:56.8209484Z libcairo-gobject2 set to manually installed.
+2026-10-02T23:07:56.8209814Z libcairo2 is already the newest version (1.18.0-3build1).
+2026-10-02T23:07:56.8210110Z libcairo2 set to manually installed.
+2026-10-02T23:07:56.8210437Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+2026-10-02T23:07:56.8210757Z libdbus-1-3 set to manually installed.
+2026-10-02T23:07:56.8211109Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+2026-10-02T23:07:56.8211457Z libfontconfig1 set to manually installed.
+2026-10-02T23:07:56.8211835Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+2026-10-02T23:07:56.8212208Z libfreetype6 set to manually installed.
+2026-10-02T23:07:56.8212615Z libgdk-pixbuf-2.0-0 is already the newest version (2.42.10+dfsg-3ubuntu3.3).
+2026-10-02T23:07:56.8213016Z libgdk-pixbuf-2.0-0 set to manually installed.
+2026-10-02T23:07:56.8213418Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.9).
+2026-10-02T23:07:56.8213773Z libglib2.0-0t64 set to manually installed.
+2026-10-02T23:07:56.8214134Z libgtk-3-0t64 is already the newest version (3.24.41-4ubuntu1.3).
+2026-10-02T23:07:56.8214480Z libgtk-3-0t64 set to manually installed.
+2026-10-02T23:07:56.8214834Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+2026-10-02T23:07:56.8215178Z libpango-1.0-0 set to manually installed.
+2026-10-02T23:07:56.8215562Z libpangocairo-1.0-0 is already the newest version (1.52.1+ds-1build1).
+2026-10-02T23:07:56.8215940Z libpangocairo-1.0-0 set to manually installed.
+2026-10-02T23:07:56.8216233Z libx11-6 is already the newest version (2:1.8.7-1build1).
+2026-10-02T23:07:56.8216441Z libx11-6 set to manually installed.
+2026-10-02T23:07:56.8216663Z libx11-xcb1 is already the newest version (2:1.8.7-1build1).
+2026-10-02T23:07:56.8216872Z libx11-xcb1 set to manually installed.
+2026-10-02T23:07:56.8217081Z libxcb-shm0 is already the newest version (1.15-1ubuntu2).
+2026-10-02T23:07:56.8217290Z libxcb-shm0 set to manually installed.
+2026-10-02T23:07:56.8217494Z libxcb1 is already the newest version (1.15-1ubuntu2).
+2026-10-02T23:07:56.8217692Z libxcb1 set to manually installed.
+2026-10-02T23:07:56.8217917Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+2026-10-02T23:07:56.8218137Z libxcomposite1 set to manually installed.
+2026-10-02T23:07:56.8218358Z libxcursor1 is already the newest version (1:1.2.1-1build1).
+2026-10-02T23:07:56.8218693Z libxcursor1 set to manually installed.
+2026-10-02T23:07:56.8218906Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+2026-10-02T23:07:56.8219112Z libxdamage1 set to manually installed.
+2026-10-02T23:07:56.8219323Z libxext6 is already the newest version (2:1.3.4-1build2).
+2026-10-02T23:07:56.8219525Z libxext6 set to manually installed.
+2026-10-02T23:07:56.8219736Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+2026-10-02T23:07:56.8219947Z libxfixes3 set to manually installed.
+2026-10-02T23:07:56.8220152Z libxi6 is already the newest version (2:1.8.1-1build1).
+2026-10-02T23:07:56.8220350Z libxi6 set to manually installed.
+2026-10-02T23:07:56.8220557Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+2026-10-02T23:07:56.8220768Z libxrandr2 set to manually installed.
+2026-10-02T23:07:56.8220988Z libxrender1 is already the newest version (1:0.9.10-1.1build1).
+2026-10-02T23:07:56.8221201Z libxrender1 set to manually installed.
+2026-10-02T23:07:56.8221414Z xvfb is already the newest version (2:21.1.12-1ubuntu1.8).
+2026-10-02T23:07:56.8221701Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+2026-10-02T23:07:56.8221987Z fonts-liberation is already the newest version (1:2.1.5-3).
+2026-10-02T23:07:56.8222569Z fonts-liberation set to manually installed.
+2026-10-02T23:07:56.8222816Z The following additional packages will be installed:
+2026-10-02T23:07:56.8223082Z   libavutil58 libcodec2-1.2 libdav1d7 libgsm1 libhwy1t64 libjxl0.7 libmp3lame0
+2026-10-02T23:07:56.8223481Z   libopus0 librav1e0 librsvg2-2 libshine3 libsoxr0 libspeex1 libsvtav1enc1d1
+2026-10-02T23:07:56.8223764Z   libswresample4 libtheora0 libtwolame0 libva-drm2 libva-x11-2 libva2
+2026-10-02T23:07:56.8224048Z   libvdpau1 libvorbisenc2 libvpl2 libvpx9 libx264-164 libx265-199 libxvidcore4
+2026-10-02T23:07:56.8224357Z   libzvbi-common libzvbi0t64 ocl-icd-libopencl1 xfonts-encodings xfonts-utils
+2026-10-02T23:07:56.8224588Z Suggested packages:
+2026-10-02T23:07:56.8224790Z   libcuda1 libnvcuvid1 libnvidia-encode1 opus-tools librsvg2-bin speex
+2026-10-02T23:07:56.8225002Z   opencl-icd
+2026-10-02T23:07:56.8225132Z Recommended packages:
+2026-10-02T23:07:56.8225344Z   fonts-ipafont-mincho fonts-tlwg-loma librsvg2-common va-driver-all
+2026-10-02T23:07:56.8225588Z   | va-driver vdpau-driver-all | vdpau-driver
+2026-10-02T23:07:56.8570433Z The following NEW packages will be installed:
+2026-10-02T23:07:56.8570899Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+2026-10-02T23:07:56.8571285Z   fonts-wqy-zenhei libavcodec60 libavutil58 libcodec2-1.2 libdav1d7 libgsm1
+2026-10-02T23:07:56.8571778Z   libhwy1t64 libjxl0.7 libmp3lame0 libopus0 librav1e0 librsvg2-2 libshine3
+2026-10-02T23:07:56.8572226Z   libsoxr0 libspeex1 libsvtav1enc1d1 libswresample4 libtheora0 libtwolame0
+2026-10-02T23:07:56.8572661Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvorbisenc2 libvpl2 libvpx9
+2026-10-02T23:07:56.8573070Z   libx264-164 libx265-199 libxvidcore4 libzvbi-common libzvbi0t64
+2026-10-02T23:07:56.8573489Z   ocl-icd-libopencl1 xfonts-cyrillic xfonts-encodings xfonts-scalable
+2026-10-02T23:07:56.8573766Z   xfonts-utils
+2026-10-02T23:07:56.8711382Z 0 upgraded, 40 newly installed, 0 to remove and 25 not upgraded.
+2026-10-02T23:07:56.8711771Z Need to get 48.8 MB of archives.
+2026-10-02T23:07:56.8712032Z After this operation, 168 MB of additional disk space will be used.
+2026-10-02T23:07:56.8712299Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-02T23:07:56.9733459Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+2026-10-02T23:07:57.1093604Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+2026-10-02T23:07:57.2889092Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+2026-10-02T23:07:57.3550515Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+2026-10-02T23:07:57.4806529Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+2026-10-02T23:07:57.7004729Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva2 amd64 2.20.0-2ubuntu0.2 [66.4 kB]
+2026-10-02T23:07:57.7668956Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-drm2 amd64 2.20.0-2ubuntu0.2 [7124 B]
+2026-10-02T23:07:57.8312179Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-x11-2 amd64 2.20.0-2ubuntu0.2 [12.0 kB]
+2026-10-02T23:07:57.8948652Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvdpau1 amd64 1.5-2build1 [27.8 kB]
+2026-10-02T23:07:57.9588365Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvpl2 amd64 2023.3.0-1build1 [99.8 kB]
+2026-10-02T23:07:58.0228169Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ocl-icd-libopencl1 amd64 2.3.2-1build1 [38.5 kB]
+2026-10-02T23:07:58.0866163Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavutil58 amd64 7:6.1.1-3ubuntu5 [401 kB]
+2026-10-02T23:07:58.1526880Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcodec2-1.2 amd64 1.2.0-2build1 [8998 kB]
+2026-10-02T23:07:58.3705328Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdav1d7 amd64 1.4.1-1build1 [604 kB]
+2026-10-02T23:07:58.4434384Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgsm1 amd64 1.0.22-1build1 [27.8 kB]
+2026-10-02T23:07:58.5076052Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libhwy1t64 amd64 1.0.7-8.1build1 [584 kB]
+2026-10-02T23:07:58.5753664Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libjxl0.7 amd64 0.7.0-10.2ubuntu6.1 [1001 kB]
+2026-10-02T23:07:58.6464798Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libmp3lame0 amd64 3.100-6build1 [142 kB]
+2026-10-02T23:07:58.7133597Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libopus0 amd64 1.4-1build1 [208 kB]
+2026-10-02T23:07:58.7792145Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librav1e0 amd64 0.7.1-2 [1022 kB]
+2026-10-02T23:07:58.8508898Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 librsvg2-2 amd64 2.58.0+dfsg-1build1 [2135 kB]
+2026-10-02T23:07:58.9329982Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libshine3 amd64 3.1.1-2build1 [23.2 kB]
+2026-10-02T23:07:58.9977932Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libspeex1 amd64 1.2.1-2ubuntu2.24.04.1 [59.6 kB]
+2026-10-02T23:07:59.0625556Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsvtav1enc1d1 amd64 1.7.0+dfsg-2build1 [2425 kB]
+2026-10-02T23:07:59.1436684Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsoxr0 amd64 0.1.3-4build3 [80.0 kB]
+2026-10-02T23:07:59.2086197Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswresample4 amd64 7:6.1.1-3ubuntu5 [63.8 kB]
+2026-10-02T23:07:59.2734295Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtheora0 amd64 1.1.1+dfsg.1-16.1build3 [211 kB]
+2026-10-02T23:07:59.3391095Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtwolame0 amd64 0.4.0-2build3 [52.3 kB]
+2026-10-02T23:07:59.4039985Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvorbisenc2 amd64 1.3.7-1build3 [80.8 kB]
+2026-10-02T23:07:59.4675259Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libvpx9 amd64 1.14.0-1ubuntu2.3 [1143 kB]
+2026-10-02T23:07:59.5529016Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx264-164 amd64 2:0.164.3108+git31e19f9-1 [604 kB]
+2026-10-02T23:07:59.6278331Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx265-199 amd64 3.5-2build1 [1226 kB]
+2026-10-02T23:07:59.7152374Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libxvidcore4 amd64 2:1.3.7-1build1 [219 kB]
+2026-10-02T23:07:59.7825811Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi-common all 0.2.42-2 [42.4 kB]
+2026-10-02T23:07:59.8462770Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi0t64 amd64 0.2.42-2 [261 kB]
+2026-10-02T23:07:59.9142578Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavcodec60 amd64 7:6.1.1-3ubuntu5 [5851 kB]
+2026-10-02T23:08:00.0969568Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+2026-10-02T23:08:00.1713768Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+2026-10-02T23:08:00.2359247Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+2026-10-02T23:08:00.3068347Z Get:41 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+2026-10-02T23:08:00.5137284Z Fetched 48.8 MB in 3s (14.2 MB/s)
+2026-10-02T23:08:00.5426961Z Selecting previously unselected package fonts-ipafont-gothic.
+2026-10-02T23:08:00.5896657Z (Reading database ... 
+2026-10-02T23:08:00.5897104Z (Reading database ... 5%
+2026-10-02T23:08:00.5897461Z (Reading database ... 10%
+2026-10-02T23:08:00.5897678Z (Reading database ... 15%
+2026-10-02T23:08:00.5898198Z (Reading database ... 20%
+2026-10-02T23:08:00.5898333Z (Reading database ... 25%
+2026-10-02T23:08:00.5898560Z (Reading database ... 30%
+2026-10-02T23:08:00.5898691Z (Reading database ... 35%
+2026-10-02T23:08:00.5898820Z (Reading database ... 40%
+2026-10-02T23:08:00.5899078Z (Reading database ... 45%
+2026-10-02T23:08:00.5899206Z (Reading database ... 50%
+2026-10-02T23:08:00.6154278Z (Reading database ... 55%
+2026-10-02T23:08:00.9658925Z (Reading database ... 60%
+2026-10-02T23:08:01.1881195Z (Reading database ... 65%
+2026-10-02T23:08:01.4056128Z (Reading database ... 70%
+2026-10-02T23:08:01.6261979Z (Reading database ... 75%
+2026-10-02T23:08:01.8902371Z (Reading database ... 80%
+2026-10-02T23:08:02.3873295Z (Reading database ... 85%
+2026-10-02T23:08:02.8416790Z (Reading database ... 90%
+2026-10-02T23:08:03.3416809Z (Reading database ... 95%
+2026-10-02T23:08:03.3417104Z (Reading database ... 100%
+2026-10-02T23:08:03.3417461Z (Reading database ... 202296 files and directories currently installed.)
+2026-10-02T23:08:03.3451716Z Preparing to unpack .../00-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+2026-10-02T23:08:03.3525863Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+2026-10-02T23:08:03.5630607Z Selecting previously unselected package fonts-freefont-ttf.
+2026-10-02T23:08:03.5724327Z Preparing to unpack .../01-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+2026-10-02T23:08:03.5729327Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+2026-10-02T23:08:03.6623440Z Selecting previously unselected package fonts-tlwg-loma-otf.
+2026-10-02T23:08:03.6715510Z Preparing to unpack .../02-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+2026-10-02T23:08:03.6721250Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+2026-10-02T23:08:03.6912534Z Selecting previously unselected package fonts-unifont.
+2026-10-02T23:08:03.7004464Z Preparing to unpack .../03-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+2026-10-02T23:08:03.7009583Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+2026-10-02T23:08:03.8842232Z Selecting previously unselected package fonts-wqy-zenhei.
+2026-10-02T23:08:03.8936835Z Preparing to unpack .../04-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+2026-10-02T23:08:03.9017784Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+2026-10-02T23:08:04.3221206Z Selecting previously unselected package libva2:amd64.
+2026-10-02T23:08:04.3312350Z Preparing to unpack .../05-libva2_2.20.0-2ubuntu0.2_amd64.deb ...
+2026-10-02T23:08:04.3326976Z Unpacking libva2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:04.3497420Z Selecting previously unselected package libva-drm2:amd64.
+2026-10-02T23:08:04.3591396Z Preparing to unpack .../06-libva-drm2_2.20.0-2ubuntu0.2_amd64.deb ...
+2026-10-02T23:08:04.3596578Z Unpacking libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:04.3757339Z Selecting previously unselected package libva-x11-2:amd64.
+2026-10-02T23:08:04.3849580Z Preparing to unpack .../07-libva-x11-2_2.20.0-2ubuntu0.2_amd64.deb ...
+2026-10-02T23:08:04.3854988Z Unpacking libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:04.4013495Z Selecting previously unselected package libvdpau1:amd64.
+2026-10-02T23:08:04.4104290Z Preparing to unpack .../08-libvdpau1_1.5-2build1_amd64.deb ...
+2026-10-02T23:08:04.4109562Z Unpacking libvdpau1:amd64 (1.5-2build1) ...
+2026-10-02T23:08:04.4271247Z Selecting previously unselected package libvpl2.
+2026-10-02T23:08:04.4361813Z Preparing to unpack .../09-libvpl2_2023.3.0-1build1_amd64.deb ...
+2026-10-02T23:08:04.4367480Z Unpacking libvpl2 (2023.3.0-1build1) ...
+2026-10-02T23:08:04.4535134Z Selecting previously unselected package ocl-icd-libopencl1:amd64.
+2026-10-02T23:08:04.4625583Z Preparing to unpack .../10-ocl-icd-libopencl1_2.3.2-1build1_amd64.deb ...
+2026-10-02T23:08:04.4631959Z Unpacking ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+2026-10-02T23:08:04.4887532Z Selecting previously unselected package libavutil58:amd64.
+2026-10-02T23:08:04.4978822Z Preparing to unpack .../11-libavutil58_7%3a6.1.1-3ubuntu5_amd64.deb ...
+2026-10-02T23:08:04.4983794Z Unpacking libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:04.5172153Z Selecting previously unselected package libcodec2-1.2:amd64.
+2026-10-02T23:08:04.5263310Z Preparing to unpack .../12-libcodec2-1.2_1.2.0-2build1_amd64.deb ...
+2026-10-02T23:08:04.5268927Z Unpacking libcodec2-1.2:amd64 (1.2.0-2build1) ...
+2026-10-02T23:08:04.6496720Z Selecting previously unselected package libdav1d7:amd64.
+2026-10-02T23:08:04.6588766Z Preparing to unpack .../13-libdav1d7_1.4.1-1build1_amd64.deb ...
+2026-10-02T23:08:04.6594008Z Unpacking libdav1d7:amd64 (1.4.1-1build1) ...
+2026-10-02T23:08:04.6790510Z Selecting previously unselected package libgsm1:amd64.
+2026-10-02T23:08:04.6881706Z Preparing to unpack .../14-libgsm1_1.0.22-1build1_amd64.deb ...
+2026-10-02T23:08:04.6887691Z Unpacking libgsm1:amd64 (1.0.22-1build1) ...
+2026-10-02T23:08:04.7052026Z Selecting previously unselected package libhwy1t64:amd64.
+2026-10-02T23:08:04.7142137Z Preparing to unpack .../15-libhwy1t64_1.0.7-8.1build1_amd64.deb ...
+2026-10-02T23:08:04.7147282Z Unpacking libhwy1t64:amd64 (1.0.7-8.1build1) ...
+2026-10-02T23:08:04.7440144Z Selecting previously unselected package libjxl0.7:amd64.
+2026-10-02T23:08:04.7532389Z Preparing to unpack .../16-libjxl0.7_0.7.0-10.2ubuntu6.1_amd64.deb ...
+2026-10-02T23:08:04.7538031Z Unpacking libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+2026-10-02T23:08:04.7842652Z Selecting previously unselected package libmp3lame0:amd64.
+2026-10-02T23:08:04.7936756Z Preparing to unpack .../17-libmp3lame0_3.100-6build1_amd64.deb ...
+2026-10-02T23:08:04.7942656Z Unpacking libmp3lame0:amd64 (3.100-6build1) ...
+2026-10-02T23:08:04.8113704Z Selecting previously unselected package libopus0:amd64.
+2026-10-02T23:08:04.8207840Z Preparing to unpack .../18-libopus0_1.4-1build1_amd64.deb ...
+2026-10-02T23:08:04.8213265Z Unpacking libopus0:amd64 (1.4-1build1) ...
+2026-10-02T23:08:04.8386978Z Selecting previously unselected package librav1e0:amd64.
+2026-10-02T23:08:04.8482804Z Preparing to unpack .../19-librav1e0_0.7.1-2_amd64.deb ...
+2026-10-02T23:08:04.8488768Z Unpacking librav1e0:amd64 (0.7.1-2) ...
+2026-10-02T23:08:04.8792291Z Selecting previously unselected package librsvg2-2:amd64.
+2026-10-02T23:08:04.8887642Z Preparing to unpack .../20-librsvg2-2_2.58.0+dfsg-1build1_amd64.deb ...
+2026-10-02T23:08:04.8893263Z Unpacking librsvg2-2:amd64 (2.58.0+dfsg-1build1) ...
+2026-10-02T23:08:04.9523388Z Selecting previously unselected package libshine3:amd64.
+2026-10-02T23:08:04.9619981Z Preparing to unpack .../21-libshine3_3.1.1-2build1_amd64.deb ...
+2026-10-02T23:08:04.9625650Z Unpacking libshine3:amd64 (3.1.1-2build1) ...
+2026-10-02T23:08:04.9789579Z Selecting previously unselected package libspeex1:amd64.
+2026-10-02T23:08:04.9883538Z Preparing to unpack .../22-libspeex1_1.2.1-2ubuntu2.24.04.1_amd64.deb ...
+2026-10-02T23:08:04.9889494Z Unpacking libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+2026-10-02T23:08:05.0054764Z Selecting previously unselected package libsvtav1enc1d1:amd64.
+2026-10-02T23:08:05.0148949Z Preparing to unpack .../23-libsvtav1enc1d1_1.7.0+dfsg-2build1_amd64.deb ...
+2026-10-02T23:08:05.0155015Z Unpacking libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+2026-10-02T23:08:05.0803366Z Selecting previously unselected package libsoxr0:amd64.
+2026-10-02T23:08:05.0900145Z Preparing to unpack .../24-libsoxr0_0.1.3-4build3_amd64.deb ...
+2026-10-02T23:08:05.0905910Z Unpacking libsoxr0:amd64 (0.1.3-4build3) ...
+2026-10-02T23:08:05.1080552Z Selecting previously unselected package libswresample4:amd64.
+2026-10-02T23:08:05.1174126Z Preparing to unpack .../25-libswresample4_7%3a6.1.1-3ubuntu5_amd64.deb ...
+2026-10-02T23:08:05.1179941Z Unpacking libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:05.1350461Z Selecting previously unselected package libtheora0:amd64.
+2026-10-02T23:08:05.1441775Z Preparing to unpack .../26-libtheora0_1.1.1+dfsg.1-16.1build3_amd64.deb ...
+2026-10-02T23:08:05.1447420Z Unpacking libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+2026-10-02T23:08:05.1813739Z Selecting previously unselected package libtwolame0:amd64.
+2026-10-02T23:08:05.1905766Z Preparing to unpack .../27-libtwolame0_0.4.0-2build3_amd64.deb ...
+2026-10-02T23:08:05.1911960Z Unpacking libtwolame0:amd64 (0.4.0-2build3) ...
+2026-10-02T23:08:05.2080858Z Selecting previously unselected package libvorbisenc2:amd64.
+2026-10-02T23:08:05.2174139Z Preparing to unpack .../28-libvorbisenc2_1.3.7-1build3_amd64.deb ...
+2026-10-02T23:08:05.2180142Z Unpacking libvorbisenc2:amd64 (1.3.7-1build3) ...
+2026-10-02T23:08:05.2357656Z Selecting previously unselected package libvpx9:amd64.
+2026-10-02T23:08:05.2449716Z Preparing to unpack .../29-libvpx9_1.14.0-1ubuntu2.3_amd64.deb ...
+2026-10-02T23:08:05.2455523Z Unpacking libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+2026-10-02T23:08:05.2779885Z Selecting previously unselected package libx264-164:amd64.
+2026-10-02T23:08:05.2871443Z Preparing to unpack .../30-libx264-164_2%3a0.164.3108+git31e19f9-1_amd64.deb ...
+2026-10-02T23:08:05.2877468Z Unpacking libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+2026-10-02T23:08:05.3088326Z Selecting previously unselected package libx265-199:amd64.
+2026-10-02T23:08:05.3179934Z Preparing to unpack .../31-libx265-199_3.5-2build1_amd64.deb ...
+2026-10-02T23:08:05.3186077Z Unpacking libx265-199:amd64 (3.5-2build1) ...
+2026-10-02T23:08:05.4388178Z Selecting previously unselected package libxvidcore4:amd64.
+2026-10-02T23:08:05.4484187Z Preparing to unpack .../32-libxvidcore4_2%3a1.3.7-1build1_amd64.deb ...
+2026-10-02T23:08:05.4491114Z Unpacking libxvidcore4:amd64 (2:1.3.7-1build1) ...
+2026-10-02T23:08:05.4673240Z Selecting previously unselected package libzvbi-common.
+2026-10-02T23:08:05.4768412Z Preparing to unpack .../33-libzvbi-common_0.2.42-2_all.deb ...
+2026-10-02T23:08:05.4775281Z Unpacking libzvbi-common (0.2.42-2) ...
+2026-10-02T23:08:05.5257305Z Selecting previously unselected package libzvbi0t64:amd64.
+2026-10-02T23:08:05.5352082Z Preparing to unpack .../34-libzvbi0t64_0.2.42-2_amd64.deb ...
+2026-10-02T23:08:05.5357890Z Unpacking libzvbi0t64:amd64 (0.2.42-2) ...
+2026-10-02T23:08:05.5546170Z Selecting previously unselected package libavcodec60:amd64.
+2026-10-02T23:08:05.5639412Z Preparing to unpack .../35-libavcodec60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+2026-10-02T23:08:05.5645190Z Unpacking libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:05.6962276Z Selecting previously unselected package xfonts-encodings.
+2026-10-02T23:08:05.7057166Z Preparing to unpack .../36-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+2026-10-02T23:08:05.7062911Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+2026-10-02T23:08:05.7277880Z Selecting previously unselected package xfonts-utils.
+2026-10-02T23:08:05.7372425Z Preparing to unpack .../37-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+2026-10-02T23:08:05.7378199Z Unpacking xfonts-utils (1:7.7+6build3) ...
+2026-10-02T23:08:05.8092291Z Selecting previously unselected package xfonts-cyrillic.
+2026-10-02T23:08:05.8186721Z Preparing to unpack .../38-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+2026-10-02T23:08:05.8192374Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+2026-10-02T23:08:05.8438695Z Selecting previously unselected package xfonts-scalable.
+2026-10-02T23:08:05.8530103Z Preparing to unpack .../39-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+2026-10-02T23:08:05.8535109Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+2026-10-02T23:08:05.9000568Z Setting up libhwy1t64:amd64 (1.0.7-8.1build1) ...
+2026-10-02T23:08:05.9015901Z Setting up libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+2026-10-02T23:08:05.9029218Z Setting up libshine3:amd64 (3.1.1-2build1) ...
+2026-10-02T23:08:05.9042112Z Setting up libvpl2 (2023.3.0-1build1) ...
+2026-10-02T23:08:05.9055824Z Setting up libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+2026-10-02T23:08:05.9068992Z Setting up libtwolame0:amd64 (0.4.0-2build3) ...
+2026-10-02T23:08:05.9081860Z Setting up libgsm1:amd64 (1.0.22-1build1) ...
+2026-10-02T23:08:05.9096721Z Setting up libsoxr0:amd64 (0.1.3-4build3) ...
+2026-10-02T23:08:05.9109505Z Setting up libcodec2-1.2:amd64 (1.2.0-2build1) ...
+2026-10-02T23:08:05.9123084Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+2026-10-02T23:08:05.9207487Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+2026-10-02T23:08:05.9221577Z Setting up libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+2026-10-02T23:08:05.9235853Z Setting up libxvidcore4:amd64 (2:1.3.7-1build1) ...
+2026-10-02T23:08:05.9251092Z Setting up librav1e0:amd64 (0.7.1-2) ...
+2026-10-02T23:08:05.9265800Z Setting up librsvg2-2:amd64 (2.58.0+dfsg-1build1) ...
+2026-10-02T23:08:05.9280544Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+2026-10-02T23:08:05.9294391Z Setting up libva2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:05.9308655Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+2026-10-02T23:08:05.9322352Z Setting up libopus0:amd64 (1.4-1build1) ...
+2026-10-02T23:08:05.9845119Z Setting up libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+2026-10-02T23:08:05.9859238Z Setting up libx265-199:amd64 (3.5-2build1) ...
+2026-10-02T23:08:05.9873437Z Setting up libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+2026-10-02T23:08:05.9887442Z Setting up libdav1d7:amd64 (1.4.1-1build1) ...
+2026-10-02T23:08:05.9901740Z Setting up libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:05.9915984Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+2026-10-02T23:08:05.9964045Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+2026-10-02T23:08:05.9976174Z Setting up ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+2026-10-02T23:08:05.9990732Z Setting up libvdpau1:amd64 (1.5-2build1) ...
+2026-10-02T23:08:06.0009481Z Setting up libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+2026-10-02T23:08:06.0022956Z Setting up libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+2026-10-02T23:08:06.0036851Z Setting up libzvbi-common (0.2.42-2) ...
+2026-10-02T23:08:06.0051489Z Setting up libmp3lame0:amd64 (3.100-6build1) ...
+2026-10-02T23:08:06.0065443Z Setting up libvorbisenc2:amd64 (1.3.7-1build3) ...
+2026-10-02T23:08:06.0078376Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+2026-10-02T23:08:06.0091839Z Setting up libzvbi0t64:amd64 (0.2.42-2) ...
+2026-10-02T23:08:06.0105221Z Setting up libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:06.0119121Z Setting up xfonts-utils (1:7.7+6build3) ...
+2026-10-02T23:08:06.0149189Z Setting up libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:06.0162587Z Setting up libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+2026-10-02T23:08:06.0175278Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+2026-10-02T23:08:06.0426391Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+2026-10-02T23:08:06.0629045Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-10-02T23:08:07.3069357Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-10-02T23:08:07.3087728Z Not building database; man-db/auto-update is not 'true'.
+2026-10-02T23:08:07.3098974Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+2026-10-02T23:08:08.2366918Z 
+2026-10-02T23:08:08.2367505Z Running kernel seems to be up-to-date.
+2026-10-02T23:08:08.2367742Z 
+2026-10-02T23:08:08.2367874Z No services need to be restarted.
+2026-10-02T23:08:08.2368025Z 
+2026-10-02T23:08:08.2368185Z No containers need to be restarted.
+2026-10-02T23:08:08.2368331Z 
+2026-10-02T23:08:08.2368670Z No user sessions are running outdated binaries.
+2026-10-02T23:08:08.2368847Z 
+2026-10-02T23:08:08.2369080Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-10-02T23:08:09.2500072Z Downloading Firefox 155.0 (playwright firefox v1543) from https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1543/firefox-ubuntu-24.04.zip
+2026-10-02T23:08:09.5191692Z |                                                                                |   0% of 109.5 MiB
+2026-10-02T23:08:09.5671795Z |■■■■■■■■                                                                        |  10% of 109.5 MiB
+2026-10-02T23:08:09.6069039Z |■■■■■■■■■■■■■■■■                                                                |  20% of 109.5 MiB
+2026-10-02T23:08:09.6353325Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 109.5 MiB
+2026-10-02T23:08:09.6598823Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 109.5 MiB
+2026-10-02T23:08:09.6788112Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 109.5 MiB
+2026-10-02T23:08:09.6988748Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 109.5 MiB
+2026-10-02T23:08:09.7169281Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 109.5 MiB
+2026-10-02T23:08:09.7355866Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 109.5 MiB
+2026-10-02T23:08:09.7560785Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 109.5 MiB
+2026-10-02T23:08:09.7739070Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 109.5 MiB
+2026-10-02T23:08:11.0270409Z Firefox 155.0 (playwright firefox v1543) downloaded to /home/runner/.cache/ms-playwright/firefox-1543
+2026-10-02T23:08:11.0272476Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+2026-10-02T23:08:11.2629015Z |                                                                                |   0% of 2.3 MiB
+2026-10-02T23:08:11.2665107Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+2026-10-02T23:08:11.2681277Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+2026-10-02T23:08:11.2700052Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+2026-10-02T23:08:11.2710906Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+2026-10-02T23:08:11.2723447Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+2026-10-02T23:08:11.2727716Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+2026-10-02T23:08:11.2735724Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+2026-10-02T23:08:11.2784195Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+2026-10-02T23:08:11.2794937Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+2026-10-02T23:08:11.2801371Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+2026-10-02T23:08:11.3190253Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+2026-10-02T23:08:11.4314558Z ##[group]Run sudo apt-get install -y pulseaudio
+2026-10-02T23:08:11.4314789Z [36;1msudo apt-get install -y pulseaudio[0m
+2026-10-02T23:08:11.4314971Z [36;1mpulseaudio --start --exit-idle-time=-1[0m
+2026-10-02T23:08:11.4315149Z [36;1mpactl list short sinks[0m
+2026-10-02T23:08:11.4367672Z shell: /usr/bin/bash -e {0}
+2026-10-02T23:08:11.4367819Z ##[endgroup]
+2026-10-02T23:08:11.4645688Z Reading package lists...
+2026-10-02T23:08:11.6335401Z Building dependency tree...
+2026-10-02T23:08:11.6341716Z Reading state information...
+2026-10-02T23:08:11.7600514Z The following additional packages will be installed:
+2026-10-02T23:08:11.7601181Z   glib-networking glib-networking-common glib-networking-services
+2026-10-02T23:08:11.7601854Z   gsettings-desktop-schemas gstreamer1.0-plugins-base libasound2-plugins
+2026-10-02T23:08:11.7602478Z   libasyncns0 libcdparanoia0 libfftw3-single3 libflac12t64
+2026-10-02T23:08:11.7603049Z   libgstreamer-plugins-base1.0-0 libjack-jackd2-0 libmpg123-0t64
+2026-10-02T23:08:11.7603759Z   liborc-0.4-0t64 libproxy1v5 libpulse0 libsamplerate0 libsnapd-glib-2-1
+2026-10-02T23:08:11.7604450Z   libsndfile1 libsoup-3.0-0 libsoup-3.0-common libspeexdsp1 libvisual-0.4-0
+2026-10-02T23:08:11.7606088Z   libwebrtc-audio-processing1 pulseaudio-utils rtkit session-migration
+2026-10-02T23:08:11.7609765Z Suggested packages:
+2026-10-02T23:08:11.7610064Z   gvfs libfftw3-bin libfftw3-dev libvisual-0.4-plugins jackd2 pavumeter
+2026-10-02T23:08:11.7610400Z   pavucontrol paprefs avahi-daemon
+2026-10-02T23:08:11.7782100Z The following NEW packages will be installed:
+2026-10-02T23:08:11.7782760Z   glib-networking glib-networking-common glib-networking-services
+2026-10-02T23:08:11.7783432Z   gsettings-desktop-schemas gstreamer1.0-plugins-base libasound2-plugins
+2026-10-02T23:08:11.7784037Z   libasyncns0 libcdparanoia0 libfftw3-single3 libflac12t64
+2026-10-02T23:08:11.7784601Z   libgstreamer-plugins-base1.0-0 libjack-jackd2-0 libmpg123-0t64
+2026-10-02T23:08:11.7785147Z   liborc-0.4-0t64 libproxy1v5 libpulse0 libsamplerate0 libsnapd-glib-2-1
+2026-10-02T23:08:11.7785724Z   libsndfile1 libsoup-3.0-0 libsoup-3.0-common libspeexdsp1 libvisual-0.4-0
+2026-10-02T23:08:11.7788326Z   libwebrtc-audio-processing1 pulseaudio pulseaudio-utils rtkit
+2026-10-02T23:08:11.7788887Z   session-migration
+2026-10-02T23:08:11.7931521Z 0 upgraded, 28 newly installed, 0 to remove and 25 not upgraded.
+2026-10-02T23:08:11.7931934Z Need to get 7297 kB of archives.
+2026-10-02T23:08:11.7932300Z After this operation, 22.4 MB of additional disk space will be used.
+2026-10-02T23:08:11.7932772Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-02T23:08:11.8717694Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libfftw3-single3 amd64 3.3.10-1ubuntu3 [868 kB]
+2026-10-02T23:08:11.9524005Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 liborc-0.4-0t64 amd64 1:0.4.38-1ubuntu0.1 [207 kB]
+2026-10-02T23:08:12.0186806Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgstreamer-plugins-base1.0-0 amd64 1.24.2-1ubuntu0.5 [862 kB]
+2026-10-02T23:08:12.0986844Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libasyncns0 amd64 0.8-6build4 [11.3 kB]
+2026-10-02T23:08:12.1621043Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libflac12t64 amd64 1.4.3+ds-2.1ubuntu2 [197 kB]
+2026-10-02T23:08:12.2294673Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpg123-0t64 amd64 1.32.5-1ubuntu1.1 [169 kB]
+2026-10-02T23:08:12.2953150Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsndfile1 amd64 1.2.2-1ubuntu5.24.04.1 [209 kB]
+2026-10-02T23:08:12.3619588Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpulse0 amd64 1:16.1+dfsg1-2ubuntu10.1 [292 kB]
+2026-10-02T23:08:12.4305929Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libproxy1v5 amd64 0.5.4-4build1 [26.5 kB]
+2026-10-02T23:08:12.4938416Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 glib-networking-common all 2.80.0-1build1 [6702 B]
+2026-10-02T23:08:12.5570748Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 glib-networking-services amd64 2.80.0-1build1 [12.8 kB]
+2026-10-02T23:08:12.6201132Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 session-migration amd64 0.3.9build1 [9034 B]
+2026-10-02T23:08:12.6833268Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gsettings-desktop-schemas all 46.1-0ubuntu1 [35.6 kB]
+2026-10-02T23:08:12.7471633Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 glib-networking amd64 2.80.0-1build1 [64.1 kB]
+2026-10-02T23:08:12.8114331Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsoup-3.0-common all 3.4.4-5ubuntu0.8 [11.7 kB]
+2026-10-02T23:08:12.8750065Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsoup-3.0-0 amd64 3.4.4-5ubuntu0.8 [290 kB]
+2026-10-02T23:08:12.9439298Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libsnapd-glib-2-1 amd64 1.64-0ubuntu5 [107 kB]
+2026-10-02T23:08:13.0083299Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libspeexdsp1 amd64 1.2.1-1ubuntu3 [43.1 kB]
+2026-10-02T23:08:13.0750171Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libwebrtc-audio-processing1 amd64 0.3.1-0ubuntu6 [290 kB]
+2026-10-02T23:08:13.1423976Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libsamplerate0 amd64 0.2.2-4build1 [1344 kB]
+2026-10-02T23:08:13.2324854Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libjack-jackd2-0 amd64 1.9.21~dfsg-3ubuntu3 [289 kB]
+2026-10-02T23:08:13.3011678Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libasound2-plugins amd64 1.2.7.1-1ubuntu5 [74.8 kB]
+2026-10-02T23:08:13.3668242Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 pulseaudio-utils amd64 1:16.1+dfsg1-2ubuntu10.1 [73.5 kB]
+2026-10-02T23:08:13.4396665Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 pulseaudio amd64 1:16.1+dfsg1-2ubuntu10.1 [884 kB]
+2026-10-02T23:08:13.5715260Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdparanoia0 amd64 3.10.2+debian-14build3 [48.5 kB]
+2026-10-02T23:08:13.6370848Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvisual-0.4-0 amd64 0.4.2-2build1 [115 kB]
+2026-10-02T23:08:13.7077436Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gstreamer1.0-plugins-base amd64 1.24.2-1ubuntu0.5 [721 kB]
+2026-10-02T23:08:13.7879243Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 rtkit amd64 0.13-5build1 [34.6 kB]
+2026-10-02T23:08:13.9609663Z Fetched 7297 kB in 2s (3642 kB/s)
+2026-10-02T23:08:13.9757002Z Selecting previously unselected package libfftw3-single3:amd64.
+2026-10-02T23:08:13.9803942Z (Reading database ... 
+2026-10-02T23:08:13.9804202Z (Reading database ... 5%
+2026-10-02T23:08:13.9804442Z (Reading database ... 10%
+2026-10-02T23:08:13.9804830Z (Reading database ... 15%
+2026-10-02T23:08:13.9805327Z (Reading database ... 20%
+2026-10-02T23:08:13.9805817Z (Reading database ... 25%
+2026-10-02T23:08:13.9806069Z (Reading database ... 30%
+2026-10-02T23:08:13.9806257Z (Reading database ... 35%
+2026-10-02T23:08:13.9806435Z (Reading database ... 40%
+2026-10-02T23:08:13.9806626Z (Reading database ... 45%
+2026-10-02T23:08:13.9806813Z (Reading database ... 50%
+2026-10-02T23:08:13.9817889Z (Reading database ... 55%
+2026-10-02T23:08:13.9886922Z (Reading database ... 60%
+2026-10-02T23:08:13.9906123Z (Reading database ... 65%
+2026-10-02T23:08:13.9922323Z (Reading database ... 70%
+2026-10-02T23:08:13.9946396Z (Reading database ... 75%
+2026-10-02T23:08:13.9971497Z (Reading database ... 80%
+2026-10-02T23:08:13.9987388Z (Reading database ... 85%
+2026-10-02T23:08:14.0124348Z (Reading database ... 90%
+2026-10-02T23:08:14.0303564Z (Reading database ... 95%
+2026-10-02T23:08:14.0303781Z (Reading database ... 100%
+2026-10-02T23:08:14.0304156Z (Reading database ... 202770 files and directories currently installed.)
+2026-10-02T23:08:14.0340095Z Preparing to unpack .../00-libfftw3-single3_3.3.10-1ubuntu3_amd64.deb ...
+2026-10-02T23:08:14.0352188Z Unpacking libfftw3-single3:amd64 (3.3.10-1ubuntu3) ...
+2026-10-02T23:08:14.0640013Z Selecting previously unselected package liborc-0.4-0t64:amd64.
+2026-10-02T23:08:14.0731510Z Preparing to unpack .../01-liborc-0.4-0t64_1%3a0.4.38-1ubuntu0.1_amd64.deb ...
+2026-10-02T23:08:14.0737296Z Unpacking liborc-0.4-0t64:amd64 (1:0.4.38-1ubuntu0.1) ...
+2026-10-02T23:08:14.0930027Z Selecting previously unselected package libgstreamer-plugins-base1.0-0:amd64.
+2026-10-02T23:08:14.1022445Z Preparing to unpack .../02-libgstreamer-plugins-base1.0-0_1.24.2-1ubuntu0.5_amd64.deb ...
+2026-10-02T23:08:14.1028802Z Unpacking libgstreamer-plugins-base1.0-0:amd64 (1.24.2-1ubuntu0.5) ...
+2026-10-02T23:08:14.1277814Z Selecting previously unselected package libasyncns0:amd64.
+2026-10-02T23:08:14.1370103Z Preparing to unpack .../03-libasyncns0_0.8-6build4_amd64.deb ...
+2026-10-02T23:08:14.1376046Z Unpacking libasyncns0:amd64 (0.8-6build4) ...
+2026-10-02T23:08:14.1535850Z Selecting previously unselected package libflac12t64:amd64.
+2026-10-02T23:08:14.1626892Z Preparing to unpack .../04-libflac12t64_1.4.3+ds-2.1ubuntu2_amd64.deb ...
+2026-10-02T23:08:14.1632443Z Unpacking libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+2026-10-02T23:08:14.1810643Z Selecting previously unselected package libmpg123-0t64:amd64.
+2026-10-02T23:08:14.1901407Z Preparing to unpack .../05-libmpg123-0t64_1.32.5-1ubuntu1.1_amd64.deb ...
+2026-10-02T23:08:14.1907725Z Unpacking libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+2026-10-02T23:08:14.2083802Z Selecting previously unselected package libsndfile1:amd64.
+2026-10-02T23:08:14.2173570Z Preparing to unpack .../06-libsndfile1_1.2.2-1ubuntu5.24.04.1_amd64.deb ...
+2026-10-02T23:08:14.2179906Z Unpacking libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+2026-10-02T23:08:14.2369311Z Selecting previously unselected package libpulse0:amd64.
+2026-10-02T23:08:14.2461810Z Preparing to unpack .../07-libpulse0_1%3a16.1+dfsg1-2ubuntu10.1_amd64.deb ...
+2026-10-02T23:08:14.2513491Z Unpacking libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:14.2714896Z Selecting previously unselected package libproxy1v5:amd64.
+2026-10-02T23:08:14.2810738Z Preparing to unpack .../08-libproxy1v5_0.5.4-4build1_amd64.deb ...
+2026-10-02T23:08:14.2816550Z Unpacking libproxy1v5:amd64 (0.5.4-4build1) ...
+2026-10-02T23:08:14.3104212Z Selecting previously unselected package glib-networking-common.
+2026-10-02T23:08:14.3198172Z Preparing to unpack .../09-glib-networking-common_2.80.0-1build1_all.deb ...
+2026-10-02T23:08:14.3203911Z Unpacking glib-networking-common (2.80.0-1build1) ...
+2026-10-02T23:08:14.3358944Z Selecting previously unselected package glib-networking-services.
+2026-10-02T23:08:14.3452196Z Preparing to unpack .../10-glib-networking-services_2.80.0-1build1_amd64.deb ...
+2026-10-02T23:08:14.3456831Z Unpacking glib-networking-services (2.80.0-1build1) ...
+2026-10-02T23:08:14.3623460Z Selecting previously unselected package session-migration.
+2026-10-02T23:08:14.3715830Z Preparing to unpack .../11-session-migration_0.3.9build1_amd64.deb ...
+2026-10-02T23:08:14.3721321Z Unpacking session-migration (0.3.9build1) ...
+2026-10-02T23:08:14.3895065Z Selecting previously unselected package gsettings-desktop-schemas.
+2026-10-02T23:08:14.3986529Z Preparing to unpack .../12-gsettings-desktop-schemas_46.1-0ubuntu1_all.deb ...
+2026-10-02T23:08:14.3992088Z Unpacking gsettings-desktop-schemas (46.1-0ubuntu1) ...
+2026-10-02T23:08:14.4447609Z Selecting previously unselected package glib-networking:amd64.
+2026-10-02T23:08:14.4543012Z Preparing to unpack .../13-glib-networking_2.80.0-1build1_amd64.deb ...
+2026-10-02T23:08:14.4548427Z Unpacking glib-networking:amd64 (2.80.0-1build1) ...
+2026-10-02T23:08:14.4716635Z Selecting previously unselected package libsoup-3.0-common.
+2026-10-02T23:08:14.4810598Z Preparing to unpack .../14-libsoup-3.0-common_3.4.4-5ubuntu0.8_all.deb ...
+2026-10-02T23:08:14.4815863Z Unpacking libsoup-3.0-common (3.4.4-5ubuntu0.8) ...
+2026-10-02T23:08:14.4973841Z Selecting previously unselected package libsoup-3.0-0:amd64.
+2026-10-02T23:08:14.5065474Z Preparing to unpack .../15-libsoup-3.0-0_3.4.4-5ubuntu0.8_amd64.deb ...
+2026-10-02T23:08:14.5071370Z Unpacking libsoup-3.0-0:amd64 (3.4.4-5ubuntu0.8) ...
+2026-10-02T23:08:14.5252289Z Selecting previously unselected package libsnapd-glib-2-1:amd64.
+2026-10-02T23:08:14.5344321Z Preparing to unpack .../16-libsnapd-glib-2-1_1.64-0ubuntu5_amd64.deb ...
+2026-10-02T23:08:14.5351322Z Unpacking libsnapd-glib-2-1:amd64 (1.64-0ubuntu5) ...
+2026-10-02T23:08:14.5526321Z Selecting previously unselected package libspeexdsp1:amd64.
+2026-10-02T23:08:14.5617768Z Preparing to unpack .../17-libspeexdsp1_1.2.1-1ubuntu3_amd64.deb ...
+2026-10-02T23:08:14.5623859Z Unpacking libspeexdsp1:amd64 (1.2.1-1ubuntu3) ...
+2026-10-02T23:08:14.5789282Z Selecting previously unselected package libwebrtc-audio-processing1:amd64.
+2026-10-02T23:08:14.5879679Z Preparing to unpack .../18-libwebrtc-audio-processing1_0.3.1-0ubuntu6_amd64.deb ...
+2026-10-02T23:08:14.5886432Z Unpacking libwebrtc-audio-processing1:amd64 (0.3.1-0ubuntu6) ...
+2026-10-02T23:08:14.6070217Z Selecting previously unselected package libsamplerate0:amd64.
+2026-10-02T23:08:14.6162073Z Preparing to unpack .../19-libsamplerate0_0.2.2-4build1_amd64.deb ...
+2026-10-02T23:08:14.6168836Z Unpacking libsamplerate0:amd64 (0.2.2-4build1) ...
+2026-10-02T23:08:14.6369930Z Selecting previously unselected package libjack-jackd2-0:amd64.
+2026-10-02T23:08:14.6461215Z Preparing to unpack .../20-libjack-jackd2-0_1.9.21~dfsg-3ubuntu3_amd64.deb ...
+2026-10-02T23:08:14.6467193Z Unpacking libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+2026-10-02T23:08:14.6659195Z Selecting previously unselected package libasound2-plugins:amd64.
+2026-10-02T23:08:14.6751770Z Preparing to unpack .../21-libasound2-plugins_1.2.7.1-1ubuntu5_amd64.deb ...
+2026-10-02T23:08:14.6757503Z Unpacking libasound2-plugins:amd64 (1.2.7.1-1ubuntu5) ...
+2026-10-02T23:08:14.6997175Z Selecting previously unselected package pulseaudio-utils.
+2026-10-02T23:08:14.7087980Z Preparing to unpack .../22-pulseaudio-utils_1%3a16.1+dfsg1-2ubuntu10.1_amd64.deb ...
+2026-10-02T23:08:14.7093603Z Unpacking pulseaudio-utils (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:14.7331653Z Selecting previously unselected package pulseaudio.
+2026-10-02T23:08:14.7424359Z Preparing to unpack .../23-pulseaudio_1%3a16.1+dfsg1-2ubuntu10.1_amd64.deb ...
+2026-10-02T23:08:14.7449729Z Unpacking pulseaudio (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:14.8014721Z Selecting previously unselected package libcdparanoia0:amd64.
+2026-10-02T23:08:14.8109541Z Preparing to unpack .../24-libcdparanoia0_3.10.2+debian-14build3_amd64.deb ...
+2026-10-02T23:08:14.8115118Z Unpacking libcdparanoia0:amd64 (3.10.2+debian-14build3) ...
+2026-10-02T23:08:14.8283118Z Selecting previously unselected package libvisual-0.4-0:amd64.
+2026-10-02T23:08:14.8374607Z Preparing to unpack .../25-libvisual-0.4-0_0.4.2-2build1_amd64.deb ...
+2026-10-02T23:08:14.8380215Z Unpacking libvisual-0.4-0:amd64 (0.4.2-2build1) ...
+2026-10-02T23:08:14.8544005Z Selecting previously unselected package gstreamer1.0-plugins-base:amd64.
+2026-10-02T23:08:14.8634243Z Preparing to unpack .../26-gstreamer1.0-plugins-base_1.24.2-1ubuntu0.5_amd64.deb ...
+2026-10-02T23:08:14.8639929Z Unpacking gstreamer1.0-plugins-base:amd64 (1.24.2-1ubuntu0.5) ...
+2026-10-02T23:08:15.2731961Z Selecting previously unselected package rtkit.
+2026-10-02T23:08:15.2826140Z Preparing to unpack .../27-rtkit_0.13-5build1_amd64.deb ...
+2026-10-02T23:08:15.2876629Z Unpacking rtkit (0.13-5build1) ...
+2026-10-02T23:08:15.3305725Z Setting up libcdparanoia0:amd64 (3.10.2+debian-14build3) ...
+2026-10-02T23:08:15.3321320Z Setting up session-migration (0.3.9build1) ...
+2026-10-02T23:08:15.4066026Z Created symlink /etc/systemd/user/graphical-session-pre.target.wants/session-migration.service → /usr/lib/systemd/user/session-migration.service.
+2026-10-02T23:08:15.4066542Z 
+2026-10-02T23:08:15.4087838Z Setting up rtkit (0.13-5build1) ...
+2026-10-02T23:08:15.6218179Z Setting up libproxy1v5:amd64 (0.5.4-4build1) ...
+2026-10-02T23:08:15.6260876Z Setting up libfftw3-single3:amd64 (3.3.10-1ubuntu3) ...
+2026-10-02T23:08:15.6275961Z Setting up libvisual-0.4-0:amd64 (0.4.2-2build1) ...
+2026-10-02T23:08:15.6288786Z Setting up libwebrtc-audio-processing1:amd64 (0.3.1-0ubuntu6) ...
+2026-10-02T23:08:15.6302915Z Setting up libsoup-3.0-common (3.4.4-5ubuntu0.8) ...
+2026-10-02T23:08:15.6316464Z Setting up libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+2026-10-02T23:08:15.6330169Z Setting up liborc-0.4-0t64:amd64 (1:0.4.38-1ubuntu0.1) ...
+2026-10-02T23:08:15.6344219Z Setting up libasyncns0:amd64 (0.8-6build4) ...
+2026-10-02T23:08:15.6357624Z Setting up libspeexdsp1:amd64 (1.2.1-1ubuntu3) ...
+2026-10-02T23:08:15.6370623Z Setting up libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+2026-10-02T23:08:15.6385238Z Setting up libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+2026-10-02T23:08:15.6399071Z Setting up glib-networking-common (2.80.0-1build1) ...
+2026-10-02T23:08:15.6412364Z Setting up libsamplerate0:amd64 (0.2.2-4build1) ...
+2026-10-02T23:08:15.6426249Z Setting up gsettings-desktop-schemas (46.1-0ubuntu1) ...
+2026-10-02T23:08:15.6439868Z Setting up glib-networking-services (2.80.0-1build1) ...
+2026-10-02T23:08:15.6453960Z Setting up libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:15.6505929Z Setting up libgstreamer-plugins-base1.0-0:amd64 (1.24.2-1ubuntu0.5) ...
+2026-10-02T23:08:15.6519197Z Setting up gstreamer1.0-plugins-base:amd64 (1.24.2-1ubuntu0.5) ...
+2026-10-02T23:08:15.6533263Z Setting up pulseaudio-utils (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:15.6547064Z Setting up libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+2026-10-02T23:08:15.6560866Z Setting up libasound2-plugins:amd64 (1.2.7.1-1ubuntu5) ...
+2026-10-02T23:08:15.6619755Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-10-02T23:08:15.6631913Z Not building database; man-db/auto-update is not 'true'.
+2026-10-02T23:08:15.6648929Z Processing triggers for libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.9) ...
+2026-10-02T23:08:15.6951918Z Processing triggers for dbus (1.14.10-4ubuntu4.1) ...
+2026-10-02T23:08:15.7039200Z Setting up glib-networking:amd64 (2.80.0-1build1) ...
+2026-10-02T23:08:15.7054264Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-10-02T23:08:15.7170952Z Setting up libsoup-3.0-0:amd64 (3.4.4-5ubuntu0.8) ...
+2026-10-02T23:08:15.7199898Z Setting up libsnapd-glib-2-1:amd64 (1.64-0ubuntu5) ...
+2026-10-02T23:08:15.7221651Z Setting up pulseaudio (1:16.1+dfsg1-2ubuntu10.1) ...
+2026-10-02T23:08:15.9752650Z Created symlink /etc/systemd/user/default.target.wants/pulseaudio.service → /usr/lib/systemd/user/pulseaudio.service.
+2026-10-02T23:08:15.9752978Z 
+2026-10-02T23:08:15.9753291Z Created symlink /etc/systemd/user/sockets.target.wants/pulseaudio.socket → /usr/lib/systemd/user/pulseaudio.socket.
+2026-10-02T23:08:15.9753531Z 
+2026-10-02T23:08:16.2346762Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-10-02T23:08:16.2467331Z Processing triggers for dbus (1.14.10-4ubuntu4.1) ...
+2026-10-02T23:08:16.6196092Z 
+2026-10-02T23:08:16.6196727Z Running kernel seems to be up-to-date.
+2026-10-02T23:08:16.6196968Z 
+2026-10-02T23:08:16.6197105Z No services need to be restarted.
+2026-10-02T23:08:16.6197259Z 
+2026-10-02T23:08:16.6197342Z No containers need to be restarted.
+2026-10-02T23:08:16.6197443Z 
+2026-10-02T23:08:16.6197540Z No user sessions are running outdated binaries.
+2026-10-02T23:08:16.6197660Z 
+2026-10-02T23:08:16.6197816Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-10-02T23:08:17.4702426Z 0	auto_null	module-null-sink.c	s16le 2ch 44100Hz	IDLE
+2026-10-02T23:08:17.4741711Z ##[group]Run npx playwright test tests/e2e/audio-settings-audit.spec.ts tests/e2e/settings-control-audit.spec.ts tests/e2e/slicing.spec.ts tests/e2e/keyboard-platform.spec.ts tests/e2e/studio-design-contract.spec.ts tests/e2e/table-control-audit.spec.ts tests/e2e/multisample-table-audit.spec.ts tests/e2e/focus-control-audit.spec.ts tests/e2e/library-control-audit.spec.ts tests/e2e/instrument-utility-audit.spec.ts tests/e2e/shell-utility-audit.spec.ts tests/e2e/library-order-audit.spec.ts tests/e2e/drum-row-actions-audit.spec.ts tests/e2e/focus-entry-audit.spec.ts tests/e2e/envelope-control-audit.spec.ts tests/e2e/marker-actions-audit.spec.ts tests/e2e/guide-control-audit.spec.ts tests/e2e/demo-control-audit.spec.ts tests/e2e/file-entry-audit.spec.ts tests/e2e/modal-cancellation-audit.spec.ts tests/e2e/mobile-row-drop-audit.spec.ts --project="firefox" --reporter=github,list --global-timeout=900000 --max-failures=15
+2026-10-02T23:08:17.4744974Z [36;1mnpx playwright test tests/e2e/audio-settings-audit.spec.ts tests/e2e/settings-control-audit.spec.ts tests/e2e/slicing.spec.ts tests/e2e/keyboard-platform.spec.ts tests/e2e/studio-design-contract.spec.ts tests/e2e/table-control-audit.spec.ts tests/e2e/multisample-table-audit.spec.ts tests/e2e/focus-control-audit.spec.ts tests/e2e/library-control-audit.spec.ts tests/e2e/instrument-utility-audit.spec.ts tests/e2e/shell-utility-audit.spec.ts tests/e2e/library-order-audit.spec.ts tests/e2e/drum-row-actions-audit.spec.ts tests/e2e/focus-entry-audit.spec.ts tests/e2e/envelope-control-audit.spec.ts tests/e2e/marker-actions-audit.spec.ts tests/e2e/guide-control-audit.spec.ts tests/e2e/demo-control-audit.spec.ts tests/e2e/file-entry-audit.spec.ts tests/e2e/modal-cancellation-audit.spec.ts tests/e2e/mobile-row-drop-audit.spec.ts --project="firefox" --reporter=github,list --global-timeout=900000 --max-failures=15[0m
+2026-10-02T23:08:17.4799356Z shell: /usr/bin/bash -e {0}
+2026-10-02T23:08:17.4799499Z env:
+2026-10-02T23:08:17.4799620Z   PLAYWRIGHT_PRODUCTION: 1
+2026-10-02T23:08:17.4799758Z ##[endgroup]
+2026-10-02T23:08:18.7186964Z 
+2026-10-02T23:08:18.7187535Z Running 80 tests using 1 worker
+2026-10-02T23:08:18.7187768Z 
+2026-10-02T23:08:23.0436461Z   ✓   1 [firefox] › tests/e2e/audio-settings-audit.spec.ts:3:56 › drum audio output controls and normalization retain Undo behavior (3.4s)
+2026-10-02T23:08:26.0724781Z   ✓   2 [firefox] › tests/e2e/audio-settings-audit.spec.ts:3:56 › multisample audio output controls and normalization retain Undo behavior (3.0s)
+2026-10-02T23:08:28.0061381Z   ✓   3 [firefox] › tests/e2e/demo-control-audit.spec.ts:4:1 › demo add replace cancel and Undo preserve the existing instrument (1.9s)
+2026-10-02T23:08:29.2730950Z   ✓   4 [firefox] › tests/e2e/demo-control-audit.spec.ts:19:1 › first preset guide exports through preflight and remembers dismissal (1.3s)
+2026-10-02T23:08:33.9469680Z   ✓   5 [firefox] › tests/e2e/drum-row-actions-audit.spec.ts:3:31 › drum 1440px row Play Record Slice and settings preview retain the instrument (4.7s)
+2026-10-02T23:08:40.9839755Z   ✓   6 [firefox] › tests/e2e/drum-row-actions-audit.spec.ts:3:31 › drum 390px row Play Record Slice and settings preview retain the instrument (7.0s)
+2026-10-02T23:08:43.1282468Z   ✓   7 [firefox] › tests/e2e/envelope-control-audit.spec.ts:3:1 › envelope knobs keyboard edit Undo and preset randomization remain coherent (2.1s)
+2026-10-02T23:08:44.8164711Z   ✓   8 [firefox] › tests/e2e/envelope-control-audit.spec.ts:13:1 › multisample disclosures and loop controls support keyboard edits and Undo (1.7s)
+2026-10-02T23:08:48.5467736Z   ✓   9 [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › drum Browse folder reviews files and Cancel keeps the empty instrument (3.7s)
+2026-10-02T23:09:19.6076372Z   ✘  10 [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (30.6s)
+2026-10-02T23:09:23.1141142Z 
+2026-10-02T23:09:23.1166338Z ##[error]  1) [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument 
+    Test timeout of 30000ms exceeded.
+2026-10-02T23:09:23.1177944Z ##[error]  1) [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument 
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  getByRole('dialog', { name: 'Import audio', exact: true }).getByText('first-C4.wav', { exact: true })
+    Expected: visible
+    Received: undefined
+
+
+      11 |   for(const [index,name] of ['first-C4.wav','second-D4.wav'].entries())await writeFile(path.join(folder,name),tone(name,index).buffer);
+      12 |   await gotoWorkspace(page,workspace);const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'browse folder',exact:true}).click();await(await choosing).setFiles(folder);
+    > 13 |   const review=page.getByRole('dialog',{name:'Import audio',exact:true});for(const name of ['first-C4.wav','second-D4.wav'])await expect(review.getByText(name,{exact:true})).toBeVisible();await review.getByRole('button',{name:'Cancel import',exact:true}).click();await expect(review).toBeHidden();await expect(page.getByRole('region',{name:workspace==='drum'?'Drum pad instrument, 0 of 24 loaded':'Multisample instrument, 0 of 24 loaded',exact:true})).toBeVisible();
+         |                                                                                                                                                                               ^
+      14 |  }finally{await rm(folder,{recursive:true,force:true});}
+      15 | });
+      16 | test('multisample patch settings chooser imports atomically and supports Undo',async({page})=>{
+        at /home/runner/work/op-patchstudio/op-patchstudio/tests/e2e/file-entry-audit.spec.ts:13:175
+2026-10-02T23:09:23.1181646Z   ✓  11 [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument (retry #1) (2.6s)
+2026-10-02T23:09:24.5160364Z   ✓  12 [firefox] › tests/e2e/file-entry-audit.spec.ts:16:1 › multisample patch settings chooser imports atomically and supports Undo (1.4s)
+2026-10-02T23:09:27.6628624Z   ✓  13 [firefox] › tests/e2e/file-entry-audit.spec.ts:19:1 › drum import rejects malformed OP-1 files, auditions unassigned audio, and opens setup help (3.1s)
+2026-10-02T23:09:29.7344447Z   ✓  14 [firefox] › tests/e2e/file-entry-audit.spec.ts:25:1 › mobile empty drum table browse loads the chosen pad (2.1s)
+2026-10-02T23:09:32.5721263Z   ✓  15 [firefox] › tests/e2e/file-entry-audit.spec.ts:29:1 › multisample import inclusion and root edits commit together and Undo (2.8s)
+2026-10-02T23:09:35.7049701Z   ✓  16 [firefox] › tests/e2e/file-entry-audit.spec.ts:35:1 › export preflight edits name and includes unassigned sound only when requested (3.1s)
+2026-10-02T23:09:38.4412825Z   ✓  17 [firefox] › tests/e2e/file-entry-audit.spec.ts:47:1 › multisample zone selection and note naming do not change roots (2.7s)
+2026-10-02T23:09:41.2409114Z   ✓  18 [firefox] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 1440px browse and waveform draft cancellation (2.8s)
+2026-10-02T23:09:43.9574901Z   ✓  19 [firefox] › tests/e2e/file-entry-audit.spec.ts:52:31 › multisample empty table 390px browse and waveform draft cancellation (2.7s)
+2026-10-02T23:09:47.2456204Z   ✓  20 [firefox] › tests/e2e/file-entry-audit.spec.ts:56:1 › organize row drops choose the intended empty pads (3.3s)
+2026-10-02T23:09:48.3393864Z   ✓  21 [firefox] › tests/e2e/file-entry-audit.spec.ts:61:1 › wide drum MIDI audition channel persists with an isolated MIDI stub (1.1s)
+2026-10-02T23:09:51.2683917Z   ✓  22 [firefox] › tests/e2e/file-entry-audit.spec.ts:66:1 › an empty multisample key selects the root for the nearby Add sounds chooser (2.9s)
+2026-10-02T23:09:52.7878290Z   ✓  23 [firefox] › tests/e2e/file-entry-audit.spec.ts:70:1 › sample settings waveform drag is saved once and Undo restores markers (1.5s)
+2026-10-02T23:09:54.6675006Z   ✓  24 [firefox] › tests/e2e/focus-control-audit.spec.ts:4:1 › focused drum controls persist modes trim and slider gestures with Undo (1.9s)
+2026-10-02T23:09:55.8904995Z   ✓  25 [firefox] › tests/e2e/focus-control-audit.spec.ts:28:1 › focused drum moves a sound to an empty pad then Undo restores its position (1.2s)
+2026-10-02T23:09:57.2298942Z   ✓  26 [firefox] › tests/e2e/focus-control-audit.spec.ts:43:1 › focused drum clear cancellation preserves sound and confirmation is undoable (1.3s)
+2026-10-02T23:09:59.7141471Z   ✓  27 [firefox] › tests/e2e/focus-entry-audit.spec.ts:5:56 › drum focus import record and clear entry points preserve reviewed audio (2.5s)
+2026-10-02T23:10:03.1670207Z   ✓  28 [firefox] › tests/e2e/focus-entry-audit.spec.ts:5:56 › multisample focus import record and clear entry points preserve reviewed audio (3.4s)
+2026-10-02T23:10:04.0268287Z   ✓  29 [firefox] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Multisample a synth navigation help and import entry (851ms)
+2026-10-02T23:10:05.3469266Z   ✓  30 [firefox] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Sample a sound navigation help and import entry (1.3s)
+2026-10-02T23:10:05.9820522Z   ✓  31 [firefox] › tests/e2e/guide-control-audit.spec.ts:3:79 › guided Build a drum kit navigation help and import entry (628ms)
+2026-10-02T23:10:06.6361992Z   ✓  32 [firefox] › tests/e2e/guide-control-audit.spec.ts:22:1 › transfer actions open the expected workspace (648ms)
+2026-10-02T23:10:07.3323665Z   ✓  33 [firefox] › tests/e2e/guide-control-audit.spec.ts:30:1 › guided Back controls retain task choice without opening a recorder (690ms)
+2026-10-02T23:10:10.5293592Z   ✓  34 [firefox] › tests/e2e/instrument-utility-audit.spec.ts:7:56 › drum clear reset defaults and pin controls preserve Undo and persistence (3.1s)
+2026-10-02T23:10:16.1825528Z   ✓  35 [firefox] › tests/e2e/instrument-utility-audit.spec.ts:7:56 › multisample clear reset defaults and pin controls preserve Undo and persistence (5.6s)
+2026-10-02T23:10:17.3009119Z   ✓  36 [firefox] › tests/e2e/instrument-utility-audit.spec.ts:31:1 › drum organize control reveals both row drop zones and returns to playing (1.1s)
+2026-10-02T23:10:17.5527245Z   ✓  37 [firefox] › tests/e2e/keyboard-platform.spec.ts:4:1 › native full-control keyboard navigation reaches buttons after heading focus (243ms)
+2026-10-02T23:10:20.9684073Z   ✓  38 [firefox] › tests/e2e/library-control-audit.spec.ts:6:31 › library 1440px cancel details collections download and confirmed deletion (3.4s)
+2026-10-02T23:10:23.5426945Z   ✓  39 [firefox] › tests/e2e/library-control-audit.spec.ts:6:31 › library 390px cancel details collections download and confirmed deletion (2.6s)
+2026-10-02T23:10:26.4711063Z   ✓  40 [firefox] › tests/e2e/library-order-audit.spec.ts:3:31 › library 1440px favorites and collection down/remove retain saved presets (2.9s)
+2026-10-02T23:10:29.3692334Z   ✓  41 [firefox] › tests/e2e/library-order-audit.spec.ts:3:31 › library 390px favorites and collection down/remove retain saved presets (2.9s)
+2026-10-02T23:10:33.8381923Z   ✓  42 [firefox] › tests/e2e/marker-actions-audit.spec.ts:5:56 › drum zero-crossing action changes markers atomically and Undo restores them (4.1s)
+2026-10-02T23:10:37.0095884Z   ✓  43 [firefox] › tests/e2e/marker-actions-audit.spec.ts:5:56 › multisample zero-crossing action changes markers atomically and Undo restores them (3.2s)
+2026-10-02T23:10:39.7895723Z   ✓  44 [firefox] › tests/e2e/mobile-row-drop-audit.spec.ts:5:1 › dropping onto an occupied mobile multisample row requires review and Cancel preserves it (2.8s)
+2026-10-02T23:10:41.8004358Z   ✓  45 [firefox] › tests/e2e/modal-cancellation-audit.spec.ts:4:1 › Escape discards demo and library dialog drafts without changing saved content (2.0s)
+2026-10-02T23:10:43.8356734Z   ✓  46 [firefox] › tests/e2e/modal-cancellation-audit.spec.ts:11:1 › recording connection checklist and official track links are reachable without hardware (2.0s)
+2026-10-02T23:10:46.5195662Z   ✓  47 [firefox] › tests/e2e/modal-cancellation-audit.spec.ts:16:1 › instrument and library help tooltips reveal explanations and dismiss on pointer exit (2.7s)
+2026-10-02T23:10:51.4349107Z   ✓  48 [firefox] › tests/e2e/multisample-table-audit.spec.ts:7:31 › multisample table 1440px root editing replace clear and Undo (4.9s)
+2026-10-02T23:10:54.9364027Z   ✓  49 [firefox] › tests/e2e/multisample-table-audit.spec.ts:7:31 › multisample table 390px root editing replace clear and Undo (3.5s)
+2026-10-02T23:10:57.4855010Z   ✓  50 [firefox] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 1440px supports keyboard audition (2.5s)
+2026-10-02T23:11:00.2606629Z   ✓  51 [firefox] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 390px supports keyboard audition (2.8s)
+2026-10-02T23:11:00.4447103Z   -  52 [firefox] › tests/e2e/multisample-table-audit.spec.ts:32:131 › multisample table 1440px supports keyboard audition while the audio clock advances
+2026-10-02T23:11:01.9997480Z   ✓  53 [firefox] › tests/e2e/settings-control-audit.spec.ts:7:3 › drum: every persisted preset select option is editable and undoable (1.5s)
+2026-10-02T23:11:03.7418638Z   ✓  54 [firefox] › tests/e2e/settings-control-audit.spec.ts:32:3 › drum: every visible preset slider supports keyboard change and undo (1.7s)
+2026-10-02T23:11:09.1529123Z   ✓  55 [firefox] › tests/e2e/settings-control-audit.spec.ts:7:3 › multisample: every persisted preset select option is editable and undoable (5.4s)
+2026-10-02T23:11:12.7451530Z   ✓  56 [firefox] › tests/e2e/settings-control-audit.spec.ts:32:3 › multisample: every visible preset slider supports keyboard change and undo (3.6s)
+2026-10-02T23:11:14.5280593Z   ✓  57 [firefox] › tests/e2e/settings-control-audit.spec.ts:55:1 › Project menu Open library synchronizes the route and survives reload (1.8s)
+2026-10-02T23:11:15.8741830Z   ✓  58 [firefox] › tests/e2e/settings-control-audit.spec.ts:64:1 › repeated Back while recording does not grow browser history (1.3s)
+2026-10-02T23:11:16.6597494Z   ✓  59 [firefox] › tests/e2e/shell-utility-audit.spec.ts:4:1 › theme picker persists explicit choices and follows system changes (776ms)
+2026-10-02T23:11:18.8050081Z   ✓  60 [firefox] › tests/e2e/shell-utility-audit.spec.ts:13:1 › start new discards the offered session while retaining library presets (2.1s)
+2026-10-02T23:11:22.6094070Z   ✓  61 [firefox] › tests/e2e/slicing.spec.ts:76:1 › direct slice replacement and existing-pad unassignment preserve originals, cancel, and atomic Undo/Redo (3.8s)
+2026-10-02T23:11:30.3585579Z   ✓  62 [firefox] › tests/e2e/slicing.spec.ts:124:1 › slice source, live clock mark, apply, export, undo, and portable provenance round trip (7.7s)
+2026-10-02T23:11:32.9812426Z   ✓  63 [firefox] › tests/e2e/slicing.spec.ts:257:1 › edited slicing session survives browser Back until explicitly discarded (2.6s)
+2026-10-02T23:11:35.8576566Z   ✓  64 [firefox] › tests/e2e/slicing.spec.ts:274:3 › slicer groups, disclosure keyboard access and fixed footer at 1280x720 (2.9s)
+2026-10-02T23:11:38.6371678Z   ✓  65 [firefox] › tests/e2e/slicing.spec.ts:274:3 › slicer groups, disclosure keyboard access and fixed footer at 390x640 (2.8s)
+2026-10-02T23:11:39.3657662Z   ✓  66 [firefox] › tests/e2e/studio-design-contract.spec.ts:54:3 › unified launch surface › desktop: one horizontal header, one launch row, gear strip, then secondary shortcuts (715ms)
+2026-10-02T23:11:41.1237607Z   ✓  67 [firefox] › tests/e2e/studio-design-contract.spec.ts:131:3 › unified launch surface › keyboard order follows the launch hierarchy and every target is operable (1.7s)
+2026-10-02T23:11:44.1336746Z   ✓  68 [firefox] › tests/e2e/studio-design-contract.spec.ts:161:3 › unified launch surface › task calls to action open their tools directly; setup guidance stays optional (3.0s)
+2026-10-02T23:11:45.3238279Z   ✓  69 [firefox] › tests/e2e/studio-design-contract.spec.ts:205:3 › unified launch surface › semantic colour: neutral actions, cyan loaded, orange selected, red destructive (1.2s)
+2026-10-02T23:11:45.7203849Z   ✓  70 [firefox] › tests/e2e/studio-design-contract.spec.ts:237:3 › unified launch surface › build identity is exposed and matches the server that delivered it (388ms)
+2026-10-02T23:11:46.2054660Z   ✓  71 [firefox] › tests/e2e/studio-design-contract.spec.ts:255:3 › narrow launch and drum workbench › medium launch uses two equal rows with aligned actions (478ms)
+2026-10-02T23:11:46.8125549Z   ✓  72 [firefox] › tests/e2e/studio-design-contract.spec.ts:270:3 › narrow launch and drum workbench › narrow launch stacks modules without overflow and keeps 44px targets (599ms)
+2026-10-02T23:11:47.5565973Z   ✓  73 [firefox] › tests/e2e/studio-design-contract.spec.ts:291:5 › narrow launch and drum workbench › desktop drum workbench at 1440px: compact header zone, stacked banks left, editor right, quiet EMPTY labels (739ms)
+2026-10-02T23:11:48.4467869Z   ✓  74 [firefox] › tests/e2e/studio-design-contract.spec.ts:291:5 › narrow launch and drum workbench › desktop drum workbench at 1024px: compact header zone, stacked banks left, editor right, quiet EMPTY labels (882ms)
+2026-10-02T23:11:49.1416530Z   ✓  75 [firefox] › tests/e2e/studio-design-contract.spec.ts:338:5 › narrow launch and drum workbench › drum workbench collapses to one column without overflow at 900px (687ms)
+2026-10-02T23:11:49.9228673Z   ✓  76 [firefox] › tests/e2e/studio-design-contract.spec.ts:338:5 › narrow launch and drum workbench › drum workbench collapses to one column without overflow at 390px (774ms)
+2026-10-02T23:11:52.0230524Z   ✓  77 [firefox] › tests/e2e/table-control-audit.spec.ts:5:3 › drum table 1440px settings Save Cancel and Undo preserve edits (2.1s)
+2026-10-02T23:11:54.1207662Z   ✓  78 [firefox] › tests/e2e/table-control-audit.spec.ts:36:3 › drum table 1440px clear and undo restore a loaded pad (2.1s)
+2026-10-02T23:11:56.1420677Z   ✓  79 [firefox] › tests/e2e/table-control-audit.spec.ts:5:3 › drum table 390px settings Save Cancel and Undo preserve edits (2.0s)
+2026-10-02T23:11:57.5390881Z   ✓  80 [firefox] › tests/e2e/table-control-audit.spec.ts:36:3 › drum table 390px clear and undo restore a loaded pad (1.4s)
+2026-10-02T23:11:58.9907562Z   ✓  81 [firefox] › tests/e2e/table-control-audit.spec.ts:50:1 › bulk editing all ten demo sounds is one undoable operation (1.4s)
+2026-10-02T23:11:59.5069556Z ##[notice]  1 flaky
+    [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument 
+  1 skipped
+  78 passed (3.7m)
+2026-10-02T23:11:59.5071084Z 
+2026-10-02T23:11:59.5071119Z 
+2026-10-02T23:11:59.5071775Z   1) [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument 
+2026-10-02T23:11:59.5072173Z 
+2026-10-02T23:11:59.5072293Z     Test timeout of 30000ms exceeded.
+2026-10-02T23:11:59.5072456Z 
+2026-10-02T23:11:59.5072592Z     Error: expect(locator).toBeVisible() failed
+2026-10-02T23:11:59.5072765Z 
+2026-10-02T23:11:59.5073081Z     Locator:  getByRole('dialog', { name: 'Import audio', exact: true }).getByText('first-C4.wav', { exact: true })
+2026-10-02T23:11:59.5073510Z     Expected: visible
+2026-10-02T23:11:59.5073716Z     Received: undefined
+2026-10-02T23:11:59.5073897Z 
+2026-10-02T23:11:59.5073903Z 
+2026-10-02T23:11:59.5074318Z       11 |   for(const [index,name] of ['first-C4.wav','second-D4.wav'].entries())await writeFile(path.join(folder,name),tone(name,index).buffer);
+2026-10-02T23:11:59.5075342Z       12 |   await gotoWorkspace(page,workspace);const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'browse folder',exact:true}).click();await(await choosing).setFiles(folder);
+2026-10-02T23:11:59.5076728Z     > 13 |   const review=page.getByRole('dialog',{name:'Import audio',exact:true});for(const name of ['first-C4.wav','second-D4.wav'])await expect(review.getByText(name,{exact:true})).toBeVisible();await review.getByRole('button',{name:'Cancel import',exact:true}).click();await expect(review).toBeHidden();await expect(page.getByRole('region',{name:workspace==='drum'?'Drum pad instrument, 0 of 24 loaded':'Multisample instrument, 0 of 24 loaded',exact:true})).toBeVisible();
+2026-10-02T23:11:59.5077958Z          |                                                                                                                                                                               ^
+2026-10-02T23:11:59.5078383Z       14 |  }finally{await rm(folder,{recursive:true,force:true});}
+2026-10-02T23:11:59.5078924Z       15 | });
+2026-10-02T23:11:59.5079360Z       16 | test('multisample patch settings chooser imports atomically and supports Undo',async({page})=>{
+2026-10-02T23:11:59.5079951Z         at /home/runner/work/op-patchstudio/op-patchstudio/tests/e2e/file-entry-audit.spec.ts:13:175
+2026-10-02T23:11:59.5080267Z 
+2026-10-02T23:11:59.5080710Z     Error Context: test-results/file-entry-audit-multisamp-4a53f--keeps-the-empty-instrument-firefox/error-context.md
+2026-10-02T23:11:59.5081121Z 
+2026-10-02T23:11:59.5081595Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-02T23:11:59.5082220Z     test-results/file-entry-audit-multisamp-4a53f--keeps-the-empty-instrument-firefox/trace.zip
+2026-10-02T23:11:59.5082638Z     Usage:
+2026-10-02T23:11:59.5082732Z 
+2026-10-02T23:11:59.5083168Z         npx playwright show-trace test-results/file-entry-audit-multisamp-4a53f--keeps-the-empty-instrument-firefox/trace.zip
+2026-10-02T23:11:59.5083609Z 
+2026-10-02T23:11:59.5083821Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-02T23:11:59.5083972Z 
+2026-10-02T23:11:59.5084019Z   1 flaky
+2026-10-02T23:11:59.5084389Z     [firefox] › tests/e2e/file-entry-audit.spec.ts:9:56 › multisample Browse folder reviews files and Cancel keeps the empty instrument 
+2026-10-02T23:11:59.5084691Z   1 skipped
+2026-10-02T23:11:59.5084807Z   78 passed (3.7m)
+2026-10-02T23:11:59.5276751Z ##[error]Process completed with exit code 1.
+2026-10-02T23:11:59.5332242Z ##[group]Run actions/upload-artifact@v4
+2026-10-02T23:11:59.5332402Z with:
+2026-10-02T23:11:59.5332528Z   name: browser-regression-failures-firefox
+2026-10-02T23:11:59.5332688Z   path: test-results
+2026-10-02T23:11:59.5332823Z   retention-days: 14
+2026-10-02T23:11:59.5332944Z   if-no-files-found: warn
+2026-10-02T23:11:59.5333069Z   compression-level: 6
+2026-10-02T23:11:59.5333190Z   overwrite: false
+2026-10-02T23:11:59.5333308Z   include-hidden-files: false
+2026-10-02T23:11:59.5333441Z ##[endgroup]
+2026-10-02T23:11:59.6375619Z (node:9210) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-02T23:11:59.6376061Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-02T23:11:59.6425938Z With the provided path, there will be 5 files uploaded
+2026-10-02T23:11:59.6429770Z Artifact name is valid!
+2026-10-02T23:11:59.6430352Z Root directory input is valid!
+2026-10-02T23:12:00.0058952Z Beginning upload of artifact content to blob storage
+2026-10-02T23:12:00.1604934Z (node:9210) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-02T23:12:00.9423263Z Uploaded bytes 7272301
+2026-10-02T23:12:01.0107795Z Finished uploading artifact content to blob storage!
+2026-10-02T23:12:01.0108303Z SHA256 digest of uploaded artifact zip is 3eb52fa8f814ee6062da05ba8d2731fbfc3ab0141f240cdf34553bc1f0feee73
+2026-10-02T23:12:01.0109122Z Finalizing artifact upload
+2026-10-02T23:12:01.2756191Z Artifact browser-regression-failures-firefox.zip successfully finalized. Artifact ID 11256597748
+2026-10-02T23:12:01.2757042Z Artifact browser-regression-failures-firefox has been successfully uploaded! Final size is 7272301 bytes. Artifact ID is 11256597748
+2026-10-02T23:12:01.2761517Z Artifact download URL: https://github.com/sscommander79/op-patchstudio/actions/runs/37076016925/artifacts/11256597748
+2026-10-02T23:12:01.2955100Z Post job cleanup.
+2026-10-02T23:12:01.3493917Z [command]/usr/bin/git version
+2026-10-02T23:12:01.3526903Z git version 2.55.0
+2026-10-02T23:12:01.3552320Z Temporarily overriding HOME='/home/runner/work/_temp/fa0279b9-0547-49f0-97a3-404956898a38' before making global git config changes
+2026-10-02T23:12:01.3553367Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T23:12:01.3554841Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/op-patchstudio/op-patchstudio
+2026-10-02T23:12:01.3587498Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T23:12:01.3616017Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T23:12:01.3817903Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T23:12:01.3845132Z http.https://github.com/.extraheader
+2026-10-02T23:12:01.3857332Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-02T23:12:01.3888690Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T23:12:01.4085840Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T23:12:01.4116769Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T23:12:01.4407283Z Cleaning up orphan processes
+2026-10-02T23:12:01.4618389Z Terminate orphan process: pid (4902) (pulseaudio)
+2026-10-02T23:12:01.4660575Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

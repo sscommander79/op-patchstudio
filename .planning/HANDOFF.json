@@ -5,7 +5,7 @@
   "project": "OP-PatchStudio (unofficial, TE-inspired but original visual identity)",
   "repo_path": "/Users/stevencommander/Desktop/AI/op-patchstudio-improved",
   "branch": "codex/studio-upgrade",
-  "head_commit": "17fc6880e215272dec251dd308adc5ff6fa61a56",
+  "head_commit": "f4f13c06812c57c3173e27b396b4a3d1ac9ff32c",
   "phase": null,
   "phase_name": null,
   "phase_dir": null,
@@ -14,7 +14,7 @@
   "total_tasks": null,
   "gsd_milestone": null,
   "gsd_note": "No .planning directory or GSD phase existed before this handoff. Default (non-GSD) context. Do not invent a phase or milestone.",
-  "status": "Push/CI repairs and Claude review complete; all six strict push gates pass without flaky tests; human/hardware acceptance pending",
+  "status": "Directory-driver correction locally verified and reviewed; final strict Actions verdict belongs to latest branch commit",
   "release_ready": false,
   "design_approved": false,
   "working_tree": {
@@ -237,7 +237,7 @@
       "log_safety": "Capture raw output to a private temporary file, sanitize API-key/config/authorization strings before printing or persisting reviewer reports. Never print raw config or key. Completed-review sanitizer is in the temporary work directory referenced in NEW-CHAT-HANDOFF."
     }
   },
-  "next_action": "Read docs/verification/ci-followthrough-2026-10-02/README.md. Strict code17fc688 passed all six push-triggered GitHub jobs in37074972204, with zero flaky tests in complete logs. Claude reviews complete and findings addressed. One older Mobile Safari timeout remains of unknown cause, documented; strict CI now fails flakes and retains initial traces. Inspect live state before HumanTest04. HV001/HV004, physical acceptance and separate source-fidelity follow-up remain. No merge/deployment.",
+  "next_action": "Read the latest directory-selection follow-through section in docs/verification/ci-followthrough-2026-10-02/README.md and check Actions for the final branch commit. f4f13c0 correctly failed strict Firefox on a directory-driver wait despite completed app import. Native input/change evidence now gates a bounded driver-timeout workaround, retaining actual app assertions. Preserve user state, HV001/HV004 and separate source-fidelity follow-up. Human/hardware acceptance remains pending; no merge/deploy.",
   "resume_file": ".planning/OPXY-HANDOFF-2026-10-02.md",
   "latest_pass": {
     "name": "Studio restoration (unified launch, direct Open kit, drum compaction, semantic colour, dev stale-worker guard, regression gates)",
@@ -613,6 +613,15 @@
       "repair": "CI fails on flaky tests and retains initial failure plus retry traces",
       "strict_ci": "PASS37074972204 on17fc688; original single timeout cause remains unknown"
     },
-    "production_code_commit": "9f64f79266df569eeea7f627e9cbc48fd795d5e8"
-  }
+    "production_code_commit": "9f64f79266df569eeea7f627e9cbc48fd795d5e8",
+    "directory_race": {
+      "failed_run": 37076016925,
+      "failed_commit": "f4f13c06812c57c3173e27b396b4a3d1ac9ff32c",
+      "evidence": "Retained initial trace:29287ms in setFiles; decoded import dialog present",
+      "repair": "Await independent native input/change capture; require exact directory paths; tolerate only driver TimeoutError with both snapshots verified; actual app assertions retained",
+      "verification": "Local90affected checks pass across5profiles with0retries; stress399/400 with1WebKit page-setup timeout before test body, then100/100single-workerWebKit pass;5actual driver fallbacks verified both native events. Final strict remote status is attached to the latest branch commit.",
+      "review": "Claude diagnosis and helper review; only material finding was matrix inclusion of new proof spec, now addressed"
+    }
+  },
+  "head_commit_note": "Parent of the final directory-driver repair; read git HEAD and latest Actions for current publication/verification state."
 }

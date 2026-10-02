@@ -1,0 +1,48 @@
+I found one material scope gap and no import defect that the helper masks. I only read files and code: I ran no tests, CI, browsers, delegation or writes. Nothing here shows the change passes at runtime; that still needs a run.
+
+## Material finding
+
+**1. On push and pull requests, the new proof spec only runs in Chromium, where the race never happens.**
+- The Firefox, WebKit, Mobile Chrome and Mobile Safari job (`.github/workflows/quality.yml:143-158`) runs a fixed list of spec files. `file-entry-audit.spec.ts` is on that list; `tests/e2e/directory-upload-helper.spec.ts` is not.
+- The new spec therefore only runs in the Chromium job (`quality.yml:29`) and in the weekly all-browser job.
+- The cases that use real directory events ("completed selection" and "wrong files") prove the timeout fallback and the folder-path check mainly in Firefox and WebKit. That's where the race happens and where folder paths under automation are still unconfirmed, and those are exactly the browsers that skip it.
+- `file-entry-audit` still checks both events on every browser, including when `setFiles` succeeds. So a missing or wrong folder path would still fail there. What's lost is a guaranteed test of the timeout fallback on the browsers that need it.
+- **Fix:** add `tests/e2e/directory-upload-helper.spec.ts` to that list. It uses `page.setContent` and doesn't need the app.
+
+## Checked, no finding
+
+- **No genuine import defect is masked.** The helper only accepts a `TimeoutError` if both the `input` and `change` events recorded exactly the expected names and folder paths. The dialog, both file names, Cancel, dialog-hidden and "0 of 24 loaded" assertions are unchanged in `file-entry-audit.spec.ts`. The only thing given up is Playwright's own confirmation that the event reached its listener, which says nothing about the app.
+- **The recording happens before React clears the input.**
+  - For file inputs, React's `onChange` runs on the native `change` event, through its listener at the root.
+  - The helper's listeners sit on the element itself, so they fire first. The value reset at `DrumTool.tsx:440` and `MultisampleTool.tsx:406` can't empty the record first.
+  - The `input` event fires before `change`, and a script setting `value=''` fires no event, so nothing overwrites the record.
+- **Nothing leaks after a timeout.**
+  - Playwright 1.63's leftover listener promise has a `.catch(()=>{})` attached (`coreBundle.js:20520`), so no unhandled rejection.
+  - Its once-only `input` listener stays on the element until the page closes. The test makes no second folder selection, so it's harmless.
+  - The helper removes its own listeners and frees its handle in `finally`.
+- **The error filter is narrow.** `errors.TimeoutError` from `@playwright/test` is the same class the client throws, so other errors pass through. The "transport error" case checks this by identity.
+- **The negative cases are valid.** A failed non-soft `expect` just throws (`expect.js:13322-13328`), so `rejects.toThrow` passes cleanly. The report will show a red step inside a passing test, which is expected.
+- **The injected fault is limited to what was claimed.** The injected function on the chooser only changes whether `setFiles` completes. In "completed selection" and "wrong files" the real `setFiles` still runs, and "missing events" skips it.
+- **No other folder uploads exist.** `file-entry-audit` has the suite's only `webkitdirectory` upload, so no other test still uses the unprotected path.
+
+## Minor, not blocking
+
+- If Firefox takes more than 5s to list the folder, the check runs before the events arrive and the test fails when it shouldn't. That fails safe, but a short `expect.poll` on the record would remove it.
+- If the page has died, the `finally` cleanup can throw and replace the original error, which makes failures harder to read.
+- `node.webkitdirectory` and `node.files` are typed on a plain `Node`. That only works because `tests/e2e` is outside `tsc -b`.
+- `console.warn` duplicates the annotation.
+- Several unrelated untracked files are in the tree, such as `src/components/common/AutoSamplingPanel 2.tsx` and `playwright-report 2/`. Leave them out of the commit.
+
+## Still needs a real run
+
+- Folder paths actually filled in on Firefox, WebKit and Mobile Safari.
+- How often the fallback annotation appears, using `--repeat-each` with `--retries=0` on every project.
+- A strict remote CI run after finding 1 is fixed.
+
+Review independence: this was a fresh headless Claude session with no access to the implementing conversation. That is rung 1 if the caller was Codex, otherwise rung 3.
+
+`★ Insight ─────────────────────────────────────`
+- The helper works because the DOM delivers an event to listeners on the element itself before it bubbles up to React's single root listener. That ordering is the only reason the file list can be read before React's `onChange` sets `value=''`.
+- The real bug is one missing `await` in Playwright: it starts registering its `input` listener and sends the files at the same moment. Chromium happens to make an extra round trip first, so its listener wins. Firefox and WebKit don't, which is why only they hang.
+- With a fixed file list in CI, adding a spec to the repo doesn't make it run on every browser. Check the job list as well as the test directory.
+`─────────────────────────────────────────────────`

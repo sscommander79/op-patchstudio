@@ -1,0 +1,44 @@
+# Firefox folder-import failure: diagnosis
+
+The failure comes from a race inside Playwright itself, not from a bug in the app. Pre-warming the main world won't fix it. I recommend a shared test helper that catches the input event on its own, with a short time limit on `setFiles`. I only read files: no edits, tests, installs or delegation. The one exception is the plan-mode file at `~/.claude/plans/read-only-diagnostic-review-in-rustling-cat.md`.
+
+## Proved from the code and the trace
+
+The code is installed `playwright-core` 1.63.0, in `lib/coreBundle.js`.
+
+1. **Playwright sends the file set before it registers its own listener on Firefox and WebKit.** It's built into the code, not a timing accident.
+   - In `_setInputFiles` (~20515–20522), the `this.evaluate(node => new Promise(... addEventListener('input' ...)))` call is not awaited.
+   - Before that listener's `Runtime.callFunction` goes out, it waits at least twice: on `await Promise.all(handles)` in `evaluateExpression` (~19511), then on `await this._utilityScript()` in `_evaluateWithArguments` (~19610).
+   - Meanwhile `setInputFilePaths` runs straight away. Firefox (~45477) and WebKit (~47594) send `Page.setFileInputFiles` / `DOM.setInputFiles` immediately.
+   - Chromium (~37470) first awaits `handle.ownerFrame()`, which is a round trip to the browser, so its listener lands first. That matches what you've seen: Chromium never flakes, while Firefox and Mobile Safari do.
+2. **The app did receive the files.** The final snapshot shows the dialog with "2 decoded files ready" and `first-C4.wav`, so the native `change` fired and React handled it. Only Playwright's internal wait for `input` never resolved. The trace fits: `ElementHandle.setInputFiles` has a before-event with no after-event, and the next UI expect started 4ms before the 30s timeout.
+3. **The lazy-UtilityScript idea doesn't hold.** `Page._onFileChooserOpened` (~22411) already runs `handle.evaluate(el => !!el.multiple)` in that handle's own context before it emits `filechooser`. So that context is already initialised when `setFiles` runs, and the race is inside `_setInputFiles` anyway. Pre-warming can't change which message goes first.
+4. **The app clears the input right away.** Both folder inputs (`DrumTool.tsx:440`, `MultisampleTool.tsx:406`) set `value=''` in `onChange`. So `input.files` is empty after the event, and any independent check has to record the files when the event fires.
+
+## Still a hypothesis
+
+Firefox lists the folder's files asynchronously. Sometimes it finishes and fires `input` before Playwright's listener arrives. The `once` listener then never fires and the action hangs until the test times out. What would prove it is a `DEBUG=pw:protocol` log from a failing run showing `Page.setFileInputFiles` → `input` dispatched → `Runtime.callFunction` (listener) in that order. I haven't seen one.
+
+## Recommendation: shared `chooseFolder(page, trigger, folder, expectedNames)` in `tests/e2e/import-helpers.ts`
+
+1. Run `waitForEvent('filechooser')` and the click as now, then get `chooser.element()`.
+2. **Await** an `input.evaluate(...)` that adds `input` and `change` listeners to the element itself. Each listener records `[name, webkitRelativePath]` for every file at event time, into a symbol-keyed slot. Listeners on the element run before React's handler at the root, so the snapshot is taken before `value=''` clears it. Because this is awaited, the listener is in place before any files are set, which is exactly what Playwright fails to do.
+3. Call `chooser.setFiles(folder, { timeout: 5000 })`.
+4. If that throws `errors.TimeoutError`, accept it only when both snapshots match exactly `[${basename(folder)}/first-C4.wav, ${basename(folder)}/second-D4.wav]`. Otherwise rethrow. Rethrow any other error too. Add a test annotation whenever the fallback is used so it shows up in reports.
+5. Leave every existing assertion as it is: dialog visible, both names, Cancel, dialog hidden, "0 of 24 loaded". Use the helper for both the drum and multisample versions of the test, which also covers Mobile Safari.
+
+This keeps the real checks intact. The fallback only applies when the browser actually performed the directory selection with the exact files and paths, and the full UI flow still has to pass. Nothing is skipped, retried or given a longer test timeout.
+
+## Risks
+
+- **Firefox's directory paths aren't checked yet.** I haven't confirmed that `webkitRelativePath` is filled in under automation on Firefox and WebKit. If it comes back empty, settle that explicitly; don't quietly drop the directory-path check.
+- **The workaround relies on Playwright internals.** Report the race upstream (the listener isn't awaited before `setInputFilePaths`) and remove the fallback once it's fixed.
+- **5s has to stay well under the 30s test timeout.** Normal folder listing for two files should take well under a second.
+
+## Validation
+
+- Run `npx playwright test tests/e2e/file-entry-audit.spec.ts -g "Browse folder" --repeat-each=50 --retries=0` for firefox, webkit, Mobile Safari and chromium. Record how often the fallback annotation appears.
+- Run negative checks that must still fail: point it at a folder with a wrong or missing file, and temporarily break `onChange`.
+- Finish with a strict CI run.
+
+Cold-review rung: this is a single-session diagnosis with no independent reviewer. Any fix built from it still needs its own SPEC and STANDARDS review.

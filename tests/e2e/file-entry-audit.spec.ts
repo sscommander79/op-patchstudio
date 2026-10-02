@@ -1,16 +1,17 @@
 import {test,expect} from './control-audit-test';
 import {gotoWorkspace,openAdvanced} from './workspace-actions';
-import {applyAudioImport} from './import-helpers';
+import {applyAudioImport,setDirectoryFiles} from './import-helpers';
 import JSZip from 'jszip';
 import {readFile,mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 function tone(name='entry.wav',phase=0){const n=4800,b=Buffer.alloc(44+n*2);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(48000,24);b.writeUInt32LE(96000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*2,40);for(let i=0;i<n;i++)b.writeInt16LE(Math.round(12000*Math.sin(i/(20+phase))),44+i*2);return{name,mimeType:'audio/wav',buffer:b};}
-for(const workspace of ['drum','multisample'] as const)test(`${workspace} Browse folder reviews files and Cancel keeps the empty instrument`,async({page})=>{
+for(const workspace of ['drum','multisample'] as const)test(`${workspace} Browse folder reviews files and Cancel keeps the empty instrument`,async({page},testInfo)=>{
  const folder=await mkdtemp(path.join(tmpdir(),'opstudio-folder-test-'));try{
   for(const [index,name] of ['first-C4.wav','second-D4.wav'].entries())await writeFile(path.join(folder,name),tone(name,index).buffer);
-  await gotoWorkspace(page,workspace);const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'browse folder',exact:true}).click();await(await choosing).setFiles(folder);
-  const review=page.getByRole('dialog',{name:'Import audio',exact:true});for(const name of ['first-C4.wav','second-D4.wav'])await expect(review.getByText(name,{exact:true})).toBeVisible();await review.getByRole('button',{name:'Cancel import',exact:true}).click();await expect(review).toBeHidden();await expect(page.getByRole('region',{name:workspace==='drum'?'Drum pad instrument, 0 of 24 loaded':'Multisample instrument, 0 of 24 loaded',exact:true})).toBeVisible();
+  await gotoWorkspace(page,workspace);const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'browse folder',exact:true}).click();const chooser=await choosing;
+  await setDirectoryFiles(chooser,folder,['first-C4.wav','second-D4.wav'],testInfo);
+  const review=page.getByRole('dialog',{name:'Import audio',exact:true});await expect(review).toContainText('2 decoded files ready for review.');for(const name of ['first-C4.wav','second-D4.wav'])await expect(review.getByText(name,{exact:true})).toBeVisible();await review.getByRole('button',{name:'Cancel import',exact:true}).click();await expect(review).toBeHidden();await expect(page.getByRole('region',{name:workspace==='drum'?'Drum pad instrument, 0 of 24 loaded':'Multisample instrument, 0 of 24 loaded',exact:true})).toBeVisible();
  }finally{await rm(folder,{recursive:true,force:true});}
 });
 test('multisample patch settings chooser imports atomically and supports Undo',async({page})=>{

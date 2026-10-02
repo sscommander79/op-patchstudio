@@ -1,0 +1,28 @@
+[
+  {
+    "run": "folder-race-stress",
+    "passes_by_profile": {
+      "chromium": 100,
+      "firefox": 100,
+      "webkit": 99,
+      "Mobile Safari": 100
+    },
+    "failures": 1,
+    "driver_fallback_annotations": 5,
+    "retries": 0,
+    "workers": 4
+  },
+  {
+    "run": "folder-webkit-serial",
+    "passes_by_profile": {
+      "chromium": 0,
+      "firefox": 0,
+      "webkit": 100,
+      "Mobile Safari": 0
+    },
+    "failures": 0,
+    "driver_fallback_annotations": 0,
+    "retries": 0,
+    "workers": 1
+  }
+]

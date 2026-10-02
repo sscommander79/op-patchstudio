@@ -153,6 +153,7 @@ jobs:
           tests/e2e/guide-control-audit.spec.ts
           tests/e2e/demo-control-audit.spec.ts
           tests/e2e/file-entry-audit.spec.ts
+          tests/e2e/directory-upload-helper.spec.ts
           tests/e2e/modal-cancellation-audit.spec.ts
           tests/e2e/mobile-row-drop-audit.spec.ts
           --project="${{ matrix.project }}" --reporter=github,list
