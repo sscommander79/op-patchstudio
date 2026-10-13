@@ -1,3 +1,4 @@
+import { hasNativeInstrumentHost } from './utils/nativeInstrument';
 import { Content, Theme } from '@carbon/react';
 import { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { StudioShell } from './components/common/StudioShell';
@@ -67,8 +68,7 @@ function AppContent() {
       {currentRoute === 'feedback' ? <Suspense fallback={<p>Loading feedback…</p>}><FeedbackPage /></Suspense> : currentRoute === 'donate' ? <Suspense fallback={<p>Loading support…</p>}><DonatePage /></Suspense> : <>
         <StudioShell onRetrySave={saveSession} themePicker={<><AppearanceSwitch /><ThemePicker /></>} />
         <NotificationSystem notifications={state.notifications} onDismiss={id => dispatch({ type: 'REMOVE_NOTIFICATION', payload: id })} />
-        <PWAInstallPrompt />
-        <PWAUpdatePrompt />
+        {!hasNativeInstrumentHost() && <><PWAInstallPrompt /><PWAUpdatePrompt /></>}
         <BuildIdentityNotice />
         <Footer />
       </>}

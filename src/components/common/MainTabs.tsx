@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { FEATURE_FLAGS } from '../../utils/constants';
 
+const SoftwareInstrument = lazy(() => import('../multisample/InstrumentJourney').then(module => ({ default: module.InstrumentJourney })));
 const MultisampleTool = lazy(() => import('../multisample/MultisampleTool').then(module => ({ default: module.MultisampleTool })));
 const DrumTool = lazy(() => import('../drum/DrumTool').then(module => ({ default: module.DrumTool })));
 const LibraryPage = lazy(() => import('../library/LibraryPage').then(module => ({ default: module.LibraryPage })));
@@ -12,7 +13,8 @@ const loadingSurface = <p className="studio-workspace-loading">Loading workspace
 
 export type RecorderRequest = { id: number; tab: 'drum' | 'multisample'; guided: boolean; source: 'hardware' | 'software' };
 
-export function MainTabs({ recorderRequest, onRecorderRequestConsumed }: {
+export function MainTabs({ recorderRequest, onRecorderRequestConsumed, softwareInstrument = false }: {
+  softwareInstrument?: boolean;
   recorderRequest?: RecorderRequest | null;
   onRecorderRequestConsumed?: () => void;
 } = {}) {
@@ -37,7 +39,7 @@ export function MainTabs({ recorderRequest, onRecorderRequestConsumed }: {
           aria-label="multisample tool content"
           className="studio-workspace-panel"
         >
-          <Suspense fallback={loadingSurface}><MultisampleTool recorderRequest={recorderRequest?.tab === 'multisample' ? recorderRequest : null} onRecorderRequestConsumed={onRecorderRequestConsumed} /></Suspense>
+          <Suspense fallback={loadingSurface}>{softwareInstrument ? <SoftwareInstrument /> : <MultisampleTool recorderRequest={recorderRequest?.tab === 'multisample' ? recorderRequest : null} onRecorderRequestConsumed={onRecorderRequestConsumed} />}</Suspense>
         </section>
       )}
       

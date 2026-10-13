@@ -258,6 +258,7 @@ export type AppAction =
   | { type: 'ADD_UNASSIGNED_DRUM_SAMPLE'; payload: { file: File; audioBuffer: AudioBuffer; metadata: AudioMetadata } }
   | { type: 'STORE_DRUM_SAMPLE_ASSET'; payload: { sample: DrumSample; targetKeyIndex: number | null } }
   | { type: 'COMMIT_PREPARED_SLICES'; payload: {operationId:string;prepared:PreparedSliceApplication} }
+  | { type: 'COMMIT_INSTRUMENT_CAPTURE'; payload: {operationId:string;prepared:PreparedRecordingApplication;expectedFiles:MultisampleFile[];name:string} }
   | { type: 'COMMIT_PREPARED_RECORDINGS'; payload: {operationId:string;prepared:PreparedRecordingApplication} }
   | { type: 'COMMIT_PREPARED_IMPORTS'; payload: {operationId:string;prepared:PreparedAudioImport} }
   | { type:'COMMIT_STUDIO_SEED'; payload:PreparedStudioSeedOperation }
@@ -1019,6 +1020,22 @@ function appReducer(state: AppState, action: AppAction): AppState {
       } catch(reason) {
         const message=reason instanceof Error?reason.message:'The project changed while slicing. No slices were added; retry.';
         return {...state,sliceCommitResult:{operationId:action.payload.operationId,status:'rejected',error:message},notifications:[...state.notifications,{id:crypto.randomUUID(),type:'error',title:'slices not applied',message}]};
+      }
+    }
+
+    case 'COMMIT_INSTRUMENT_CAPTURE': {
+      const {operationId,prepared,expectedFiles,name}=action.payload;
+      try {
+        if(state.multisampleFiles!==expectedFiles)throw new Error('The instrument changed during recording. Your previous sounds were kept.');
+        if(prepared.instrument!=='multisample'||prepared.retainedIds.length)throw new Error('The complete recording could not be added.');
+        const committed=finalizeRecordingApplication(prepared,{...state,multisampleFiles:[]});
+        if(committed.retainedIds.length||committed.appliedIds.length!==prepared.assets.length)throw new Error('The complete recording could not be added.');
+        const candidate={...state,multisampleFiles:committed.multisampleFiles,importedMultisamplePreset:null,
+          multisampleSettings:{...state.multisampleSettings,presetName:name,loopEnabled:false,sampleRate:44100,bitDepth:16,channels:2,normalize:false,gain:0,cutAtLoopEnd:false,audioFormat:'wav' as const}};
+        validateProjectArchiveMetadata(candidate);
+        return {...candidate,recordingCommitResult:{operationId,status:'committed',appliedIds:committed.appliedIds,retainedIds:[],assignedCount:committed.appliedIds.length,overflowCount:0}};
+      } catch(error) {
+        return {...state,recordingCommitResult:{operationId,status:'rejected',error:error instanceof Error?error.message:'Capture could not be added.'}};
       }
     }
 

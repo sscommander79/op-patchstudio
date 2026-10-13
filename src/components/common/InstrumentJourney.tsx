@@ -1,3 +1,4 @@
+import {hasNativeInstrumentHost} from '../../utils/nativeInstrument';
 import { useRef, useState } from 'react';
 import { useAudioImport } from './AudioImportContext';
 
@@ -30,14 +31,15 @@ export function InstrumentJourney({ onRecord, onOpenEditor, initialSource='singl
   const [selected, setSelected] = useState<InstrumentSource>(initialSource);
   const input = useRef<HTMLInputElement>(null);
   const importer = useAudioImport();
-  const source = sources.find(item => item.id === selected)!;
+  const nativeSoftware=hasNativeInstrumentHost()&&selected==='software';
+  const source = nativeSoftware?{id:'software',title:'A software instrument',description:'Load an installed instrument here.',needs:'An installed Audio Unit instrument, such as Serum.',steps:['Choose your instrument and sound.','Choose the first note, last note and spacing.','Multisample, then export your preset.'],detail:'The desktop app records your instrument directly. No audio or MIDI routing apps are needed.'}:sources.find(item => item.id === selected)!;
   const fileSource = selected === 'single' || selected === 'set';
   return <section className="studio-instrument-journey" aria-labelledby="instrument-source-title">
     <p className="studio-eyebrow">Make a playable instrument</p><h1 id="instrument-source-title">Where will your sound come from?</h1>
     <p className="studio-shell-lead">Choose a starting point. Each path ends with an instrument you can play on your OP-XY.</p>
-    <div className="studio-source-grid">{sources.map(item=><button key={item.id} type="button" className="studio-start-card studio-source-card" aria-pressed={selected===item.id} onClick={()=>{setSelected(item.id);onSourceChange?.(item.id);}}><strong>{item.title}</strong><JourneyDiagram source={item.id}/><span>{item.description}</span></button>)}</div>
+    <div className="studio-source-grid">{sources.map(item=><button key={item.id} type="button" className="studio-start-card studio-source-card" aria-pressed={selected===item.id} onClick={()=>{setSelected(item.id);onSourceChange?.(item.id);}}><strong>{item.title}</strong>{!(hasNativeInstrumentHost()&&item.id==='software')&&<JourneyDiagram source={item.id}/>}<span>{hasNativeInstrumentHost()&&item.id==='software'?'Load an installed instrument here.':item.description}</span></button>)}</div>
     <section className="studio-journey-steps" aria-label={`${source.title} steps`}><div><h2>{source.title}</h2><p>{source.detail}</p><p><strong>What you need</strong><br/>{source.needs}</p></div><ol>{source.steps.map((step,i)=><li key={step}><span aria-hidden="true">{i+1}</span>{step}</li>)}</ol></section>
-    <div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={()=>fileSource?input.current?.click():onRecord(selected as 'software'|'hardware')}>{fileSource?selected==='single'?'Add audio file':'Add recorded notes':'Connect and check sound'}</button><button type="button" className="studio-button-secondary" onClick={onOpenEditor}>Open instrument editor</button></div>
+    <div className="studio-action-row"><button type="button" className="studio-button-primary" onClick={()=>fileSource?input.current?.click():onRecord(selected as 'software'|'hardware')}>{fileSource?selected==='single'?'Add audio file':'Add recorded notes':nativeSoftware?'Choose instrument':'Connect and check sound'}</button><button type="button" className="studio-button-secondary" onClick={onOpenEditor}>Open instrument editor</button></div>
     {fileSource&&<p className="studio-journey-hint">Add audio files such as WAV or AIFF. Import checks the files and lets you choose where each recording belongs.</p>}
     <input ref={input} hidden aria-label="Instrument audio files" type="file" accept="audio/*,.wav,.aif,.aiff,.flac" multiple={selected==='set'} onChange={event=>{if(event.target.files?.length&&importer){importer.beginFiles(event.target.files,{instrument:'multisample'});onOpenEditor();}event.target.value='';}}/>
   </section>;

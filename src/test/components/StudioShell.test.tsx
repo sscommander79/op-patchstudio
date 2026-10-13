@@ -10,11 +10,12 @@ const studio = vi.hoisted(() => ({
 }));
 
 vi.mock('../../context/AppContext', () => ({ useAppContext: () => studio }));
-vi.mock('../../components/common/MainTabs', () => ({ MainTabs: ({ recorderRequest }: { recorderRequest?: unknown }) => <div data-testid="main-tabs" data-recorder-request={JSON.stringify(recorderRequest ?? null)} /> }));
+vi.mock('../../components/common/MainTabs', () => ({ MainTabs: ({ recorderRequest, softwareInstrument }: { recorderRequest?: unknown; softwareInstrument?:boolean }) => <div data-testid="main-tabs" data-software-instrument={String(Boolean(softwareInstrument))} data-recorder-request={JSON.stringify(recorderRequest ?? null)} /> }));
 vi.mock('../../components/common/ProjectToolbar', () => ({ ProjectToolbar: () => null }));
 
 describe('StudioShell presentation landmarks', () => {
   beforeEach(() => {
+    vi.stubGlobal('webkit',undefined);
     studio.state.currentTab = 'drum';
     studio.state.drumSamples = [];
     window.history.replaceState(null, '', '#/studio/overview');
@@ -172,4 +173,18 @@ describe('StudioShell presentation landmarks', () => {
     render(<StudioShell />);
     expect(screen.getByRole('button', { name: 'Return to multisample editor' })).toBeInTheDocument();
   });
+});
+
+it('opens the native instrument screen without the browser routing recorder',()=>{
+ vi.stubGlobal('webkit',{messageHandlers:{instrumentStudio:{postMessage:vi.fn()}}});
+ window.history.replaceState(null,'','#/studio/overview');
+ render(<StudioShell/>);
+ fireEvent.click(screen.getByRole('button',{name:'Choose a source'}));
+ fireEvent.click(screen.getByRole('button',{name:/A software instrument/}));
+ expect(screen.getByText('The desktop app records your instrument directly. No audio or MIDI routing apps are needed.')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Choose instrument'}));
+ expect(window.location.hash).toBe('#/studio/multisample/instrument');
+ expect(screen.getByTestId('main-tabs')).toHaveAttribute('data-software-instrument','true');
+ expect(screen.getByTestId('main-tabs')).toHaveAttribute('data-recorder-request','null');
+ vi.unstubAllGlobals();
 });

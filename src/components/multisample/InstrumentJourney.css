@@ -1,0 +1,32 @@
+.instrument-journey-shell{background:#090909;padding:0;color:#edede8}
+.ij-source{display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1.4fr) 210px;gap:24px;align-items:end;margin-bottom:26px}
+.instrument-journey label{display:grid;gap:7px;font-size:13px;color:#b9bab7}
+.instrument-journey select,.instrument-journey input{width:100%;background:#191a1a;border:1px solid #56595b;border-radius:3px;padding:9px 12px;min-height:42px;color:#edede8}
+.ij-current-sound{display:grid;gap:10px;padding-bottom:8px}.ij-current-sound small{font-size:13px;color:#b9bab7}.ij-current-sound strong{font-weight:400;font-size:22px}
+.ij-source .drum-function-button{min-height:64px;font-size:19px}.ij-source .drum-function-cap{width:40px;height:40px;flex-basis:40px}
+.ij-range{display:grid;grid-template-columns:110px 18px 110px minmax(190px,240px) 1fr;align-items:end;gap:14px;margin-bottom:20px}.ij-range-arrow{padding-bottom:12px}.ij-range>strong{font:16px 'Drum Mono',monospace;text-align:right;padding-bottom:12px}
+.ij-keyboard{display:grid;grid-auto-columns:minmax(44px,1fr);grid-template-rows:76px 76px;gap:4px;overflow-x:auto;padding:12px 24px 12px 4px;background:linear-gradient(#242424,#202020);border-radius:6px}
+.ij-keyboard button{height:76px;min-width:44px;border:1px solid #171717;border-radius:3px;padding:5px;background:linear-gradient(#353535,#242424);box-shadow:inset 1px 1px 2px #ffffff10,0 2px 2px #000;opacity:1!important;display:grid;place-items:center}
+.ij-keyboard .ij-black{transform:translateX(50%);background:linear-gradient(#282828,#171717)}
+.ij-key-cap{position:relative;width:100%;max-width:62px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:linear-gradient(#aaa,#919191);color:#333;box-shadow:inset 0 1px 2px #ffffff25,0 3px 4px #0007;font:12px 'Drum Mono',monospace}
+.ij-black .ij-key-cap{background:linear-gradient(#242424,#151515);color:#a6a6a6}.ij-key-cap strong{font-weight:400}.ij-key-cap i{position:absolute;top:3px;font:11px sans-serif;color:transparent}.ij-keyboard [data-planned=true] .ij-key-cap i{color:inherit}.ij-keyboard [data-recorded=true] .ij-key-cap i{color:#173d30}.ij-keyboard .ij-black[data-recorded=true] .ij-key-cap i{color:#a3d3bd}.ij-keyboard [aria-pressed=true]{outline:2px solid #70b5d6;outline-offset:-2px}.ij-keyboard [data-planned=false] .ij-key-cap{opacity:.4}
+.ij-keyboard-caption{font-size:12px;color:#b9bab7;margin:9px 0 20px}.ij-empty-wave{height:130px;display:grid;place-items:center;color:#777;border:1px solid #353535}
+.ij-actions{display:flex;align-items:center;gap:24px;margin:14px 0}.ij-actions>.drum-function-button{max-width:360px}.ij-status{font-size:14px;color:#b9bab7;min-height:20px;margin:12px 0}.ij-hint{font-size:13px;color:#b9bab7}.ij-advanced{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.ij-advanced p{grid-column:1/-1;font-size:13px;color:#b9bab7;margin:0}
+.instrument-journey input:focus-visible,.instrument-journey select:focus-visible,.ij-keyboard button:focus-visible{outline:2px solid #70b5d6;outline-offset:2px}
+@media(max-width:800px){.instrument-journey-shell{padding:8px}.ij-source{grid-template-columns:1fr 1fr;gap:14px}.ij-source>.drum-function-button{grid-column:2}.ij-range{grid-template-columns:1fr 12px 1fr}.ij-range>label:nth-of-type(3){grid-column:1/3}.ij-range>strong{font-size:14px}.ij-advanced{grid-template-columns:1fr 1fr}.ij-keyboard{grid-template-rows:60px 60px}.ij-keyboard button{height:60px}.ij-key-cap{font-size:10px}}
+/* Keep the approved surface within the main app's navigation at desktop size. */
+@media(min-width:801px){
+ .instrument-journey.drum-design{padding:24px 32px 22px}
+ .instrument-journey .drum-design-context{margin-bottom:8px}
+ .instrument-journey .drum-design-heading h1{font-size:32px;margin-bottom:12px}
+ .instrument-journey .ij-source{margin-bottom:16px}
+ .instrument-journey .ij-range{margin-bottom:12px}
+ .instrument-journey .ij-keyboard{grid-template-rows:60px 60px;padding-top:8px;padding-bottom:8px}
+ .instrument-journey .ij-keyboard button{height:60px}
+ .instrument-journey .ij-key-cap{max-width:48px}
+ .instrument-journey .ij-keyboard-caption{margin:7px 0 12px}
+ .instrument-journey .drum-selected-sound{min-height:140px;padding:12px 20px;margin-bottom:10px}
+ .instrument-journey .ij-empty-wave{height:112px}
+ .instrument-journey .ij-actions{margin:10px 0}
+ .instrument-journey .ij-status{margin:8px 0}
+}

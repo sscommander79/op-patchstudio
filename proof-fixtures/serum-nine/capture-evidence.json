@@ -1,0 +1,104 @@
+{
+  "audioInputUsed" : false,
+  "captureDirectory" : "\/Users\/stevencommander\/Documents\/ChatGPT\/OPXY\/outputs\/instrument-journey-proof\/capture-E6204BFD-7916-43FB-9EF1-D39ECA21D447",
+  "format" : "AUv2",
+  "hold" : 0.5,
+  "instrument" : "Serum",
+  "notes" : [
+    48,
+    51,
+    54,
+    57,
+    60,
+    63,
+    66,
+    69,
+    72
+  ],
+  "release" : 0.75,
+  "route" : "in-process instrument → offline engine → stereo PCM",
+  "takes" : [
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_C2.wav",
+      "peak" : 0.33435189723968506,
+      "rms" : 0.08512070702575418,
+      "rootNote" : 48,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_Ds2.wav",
+      "peak" : 0.33385384082794189,
+      "rms" : 0.085220510191482718,
+      "rootNote" : 51,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_Fs2.wav",
+      "peak" : 0.33314225077629089,
+      "rms" : 0.085278697515847893,
+      "rootNote" : 54,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_A2.wav",
+      "peak" : 0.33260273933410645,
+      "rms" : 0.085217909223739285,
+      "rootNote" : 57,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_C3.wav",
+      "peak" : 0.33173799514770508,
+      "rms" : 0.085137416912067679,
+      "rootNote" : 60,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_Ds3.wav",
+      "peak" : 0.33088546991348267,
+      "rms" : 0.084994833089390862,
+      "rootNote" : 63,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_Fs3.wav",
+      "peak" : 0.32962653040885925,
+      "rms" : 0.084964217736240646,
+      "rootNote" : 66,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_A3.wav",
+      "peak" : 0.32901647686958313,
+      "rms" : 0.084837958845450992,
+      "rootNote" : 69,
+      "sampleRate" : 44100
+    },
+    {
+      "channels" : 2,
+      "frames" : 55125,
+      "name" : "Serum_C4.wav",
+      "peak" : 0.32778534293174744,
+      "rms" : 0.084791009725572464,
+      "rootNote" : 72,
+      "sampleRate" : 44100
+    }
+  ],
+  "velocity" : 90
+}

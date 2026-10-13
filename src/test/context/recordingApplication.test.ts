@@ -125,3 +125,19 @@ it('keeps the full take with selected playback bounds after commit',async()=>{
  expect(result.multisampleFiles[0]).toMatchObject({inPoint:2/8000,outPoint:6/8000,loopStart:2/8000,loopEnd:6/8000});
  expect(result.multisampleFiles[0].audioBuffer).toBe(buffer);
 });
+
+describe('isolated instrument replacement',()=>{
+ it('replaces the complete capture and settings in one undoable step',async()=>{
+  const before=state({multisampleFiles:[multi(audio([.1,.2]),'existing',60)]});
+  const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[{id:'new',name:'New',audioBuffer:audio([.3,.4]),rootNote:48}],state:{...before,multisampleFiles:[]},target:{kind:'multisample'}});
+  let history=createHistory(before);
+  history=reduceHistory(history,{type:'COMMIT_INSTRUMENT_CAPTURE',payload:{operationId:'new-capture',prepared,expectedFiles:history.present.multisampleFiles,name:'New capture'}},appReducer);
+  expect(history.present.recordingCommitResult?.status).toBe('committed');expect(history.present.multisampleFiles.map(f=>f.rootNote)).toEqual([48]);expect(history.present.multisampleSettings.loopEnabled).toBe(false);
+  history=reduceHistory(history,{type:'UNDO'},appReducer);expect(history.present.multisampleFiles[0].audioBuffer).toBe(before.multisampleFiles[0].audioBuffer);expect(history.present.multisampleSettings).toEqual(before.multisampleSettings);
+ });
+ it('keeps existing samples when destination changes during capture',async()=>{
+  const before=state({multisampleFiles:[]});const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[{id:'x',name:'X',audioBuffer:audio([.2]),rootNote:48}],state:before,target:{kind:'multisample'}});
+  const changed=state({multisampleFiles:[multi(audio([.4]),'keep',60)]});const after=appReducer(changed,{type:'COMMIT_INSTRUMENT_CAPTURE',payload:{operationId:'stale',prepared,expectedFiles:before.multisampleFiles,name:'Stale'}});
+  expect(after.recordingCommitResult?.status).toBe('rejected');expect(after.multisampleFiles).toBe(changed.multisampleFiles);
+ });
+});
