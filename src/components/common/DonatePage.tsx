@@ -1,325 +1,115 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { scrapePatreonPosts, type PatreonPost } from '../../utils/patreonPosts';
+
+// Anchors reuse the studio button classes; these keep them laid out like the buttons they sit beside.
+const linkButtonStyle = { display: 'inline-flex', alignItems: 'center', gap: '.5rem', textDecoration: 'none' } as const;
 
 export function DonatePage() {
   const [patreonPosts, setPatreonPosts] = useState<PatreonPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Load Patreon posts when component mounts
-  useEffect(() => {
-    if (patreonPosts.length === 0 && !isLoadingPosts && !hasError) {
-      setIsLoadingPosts(true);
-      setHasError(false);
-      scrapePatreonPosts()
-        .then(posts => {
-          setPatreonPosts(posts);
-          setIsLoadingPosts(false);
-        })
-        .catch(() => {
-          setIsLoadingPosts(false);
-          setHasError(true);
-        });
-    }
-  }, [patreonPosts.length, isLoadingPosts, hasError]);
+  const [requested,setRequested]=useState(false);
+  const loadPosts=async()=>{if(isLoadingPosts)return;setRequested(true);setIsLoadingPosts(true);setHasError(false);try{setPatreonPosts(await scrapePatreonPosts());}catch{setHasError(true);}finally{setIsLoadingPosts(false);}};
 
   return (
-    <>
-      {/* Donate Section */}
-      <div style={{
-        background: 'var(--color-bg-primary)',
-        borderRadius: '15px',
-        boxShadow: '0 2px 8px var(--color-shadow-primary)',
-        border: '1px solid var(--color-border-subtle)',
-        overflow: 'hidden',
-        margin: isMobile ? '0.5rem 0.5rem 1rem 0.5rem' : '2rem 2rem 1rem 2rem'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '0.7rem 1rem 0.5rem 1rem',
-          borderBottom: '1px solid var(--color-border-medium)',
-          backgroundColor: 'var(--color-bg-secondary)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <h3 style={{
-              margin: 0,
-              color: 'var(--color-text-primary)',
-              fontSize: '1.25rem',
-              fontWeight: 300,
-            }}>
-              support the project
-            </h3>
+    <div className="studio-shell-content">
+      <a className="studio-back-link" href="#/studio/overview" style={{ display: 'inline-flex', alignItems: 'center' }}>← Back to the studio</a>
+      <p className="studio-eyebrow">Optional</p>
+      <h1>Support the project</h1>
+      <p className="studio-shell-lead">
+        OP-PatchStudio is a 100% free and <a href="https://github.com/sscommander79/op-patchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>open-source</a> tool for creating and editing drum and multisample presets for the OP-XY. Every feature works without paying.
+      </p>
+
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        <section className="studio-setup-panel" aria-labelledby="support-ways-heading">
+          <h2 id="support-ways-heading">Ways to support</h2>
+          <p>
+            Most features have come from community ideas and requests. Joseph Holland's <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>project Patreon</a> shares behind-the-scenes updates, roadmap voting, priority support, exclusive content, tutorials, and early access to preview features.
+          </p>
+          <p>These support links benefit the original project's creator, Joseph Holland, and help fund his continued project work.</p>
+          <div className="studio-action-row">
+            <a
+              className="studio-button-primary"
+              href="https://www.patreon.com/c/oppatchstudio"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={linkButtonStyle}
+            >
+              <i aria-hidden="true" className="fab fa-patreon"></i>
+              Support on Patreon
+            </a>
+            <a
+              className="studio-button-secondary"
+              href="https://buymeacoffee.com/jxavierh"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={linkButtonStyle}
+            >
+              <i aria-hidden="true" className="fas fa-coffee"></i>
+              Buy Joseph a coffee
+            </a>
           </div>
-        </div>
+          <p>
+            These are outside services. Each link opens Patreon or Buy Me a Coffee in a new tab, and any payment or account is handled there under that service's terms, not by OP-PatchStudio.
+          </p>
+        </section>
 
-        {/* Content */}
-        <div style={{
-          padding: isMobile ? '1rem' : '2rem',
-        }}>
-          <div style={{
-            textAlign: 'center',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            <p style={{
-              color: 'var(--color-text-secondary)',
-              fontSize: '1.1rem',
-              lineHeight: 1.6,
-              marginBottom: '2rem'
-            }}>
-              OP-PatchStudio is a 100% free and <a href="https://github.com/sscommander79/op-patchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>open-source</a> tool for creating and editing drum and multisample presets for the OP-XY.<br/><br/>
-              most features have come from community ideas and requests. Joseph Holland's <a href="https://www.patreon.com/c/oppatchstudio" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-interactive-primary)', textDecoration: 'underline' }}>project Patreon</a> shares behind-the-scenes updates, roadmap voting, priority support, exclusive content, tutorials and early access to preview features.<br/><br/>
-              these support links benefit the original project's creator, Joseph Holland, and help fund his continued project work.
-            </p>
-
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              alignItems: 'center'
-            }}>
-              <a
-                href="https://www.patreon.com/c/oppatchstudio"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '1rem 2rem',
-                  backgroundColor: 'var(--color-interactive-primary)',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '500',
-                  fontSize: '1.1rem',
-                  transition: 'background-color 0.2s ease',
-                  minWidth: '200px',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-interactive-secondary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-interactive-primary)';
-                }}
-              >
-                <i className="fab fa-patreon" style={{ fontSize: '1.2rem' }}></i>
-                support on patreon
-              </a>
-
-              <a
-                href="https://buymeacoffee.com/jxavierh"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '1rem 2rem',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  color: 'var(--color-text-primary)',
-                  textDecoration: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '500',
-                  fontSize: '1.1rem',
-                  border: '1px solid var(--color-border-light)',
-                  transition: 'background-color 0.2s ease',
-                  minWidth: '200px',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
-                }}
-              >
-                <i className="fas fa-coffee" style={{ fontSize: '1.2rem' }}></i>
-                buy Joseph a coffee
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Latest Posts Section */}
-      <div style={{
-        background: 'var(--color-bg-primary)',
-        borderRadius: '15px',
-        boxShadow: '0 2px 8px var(--color-shadow-primary)',
-        border: '1px solid var(--color-border-subtle)',
-        overflow: 'hidden',
-        margin: isMobile ? '0.5rem 0.5rem 1rem 0.5rem' : '2rem 2rem 1rem 2rem'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '0.7rem 1rem 0.5rem 1rem',
-          borderBottom: '1px solid var(--color-border-medium)',
-          backgroundColor: 'var(--color-bg-secondary)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <h3 style={{
-              margin: 0,
-              color: 'var(--color-text-primary)',
-              fontSize: '1.25rem',
-              fontWeight: 300,
-            }}>
-              latest posts
-            </h3>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div style={{
-          padding: isMobile ? '1rem' : '2rem',
-        }}>
+        <section className="studio-setup-panel" aria-labelledby="support-posts-heading">
+          <h2 id="support-posts-heading">Latest posts</h2>
+          <p>
+            To show this list, the page requests Patreon's public posts through a public relay service (allorigins.win, cors-anywhere.herokuapp.com, or thingproxy.freeboard.io). Those services can see that request. None of your presets, samples, or projects are included.
+          </p>
+          {!requested&&<button type="button" className="studio-button-secondary" onClick={()=>void loadPosts()}>Load project posts</button>}
           {isLoadingPosts ? (
-            <div style={{
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              fontSize: '1rem'
-            }}>
-              loading posts...
-            </div>
+            <p role="status">Loading posts…</p>
           ) : hasError ? (
-            <div style={{
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              fontSize: '1rem'
-            }}>
+            <p role="status" className="studio-message studio-message-warning">
               Live Patreon posts are unavailable.{' '}
-              <a href="https://www.patreon.com/c/oppatchstudio/posts" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.patreon.com/c/oppatchstudio/posts" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
                 View posts directly on Patreon.
               </a>
-            </div>
+            </p>
           ) : patreonPosts.length > 0 ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.5rem'
-            }}>
-              {patreonPosts.map((post, index) => (
-                <div key={index} style={{
-                  padding: '1rem',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-light)'
-                }}>
-                  <h4 style={{
-                    margin: '0 0 0.5rem 0',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '1.1rem',
-                    fontWeight: '500'
-                  }}>
-                    {post.title}
-                  </h4>
-                  <p
-                    style={{
-                      margin: '0 0 1rem 0',
-                      color: 'var(--color-text-secondary)',
-                      fontSize: '0.9rem',
-                      lineHeight: 1.5
-                    }}
-                  >
-                    {post.excerpt}
-                  </p>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{
-                      color: 'var(--color-text-secondary)',
-                      fontSize: '0.8rem'
-                    }}>
-                      {post.date}
-                    </span>
-                    <a
-                      href={post.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: 'var(--color-interactive-primary)',
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        fontWeight: '500'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.textDecoration = 'underline';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.textDecoration = 'none';
-                      }}
-                    >
-                      read more →
-                    </a>
-                  </div>
-                </div>
-              ))}
-
-              <div style={{
-                textAlign: 'center',
-                marginTop: '1rem'
-              }}>
+            <>
+              <div style={{ display: 'grid', gap: '.75rem' }}>
+                {patreonPosts.map((post, index) => (
+                  <article key={index} className="studio-empty-pad" style={{ borderStyle: 'solid' }}>
+                    <h3 style={{ margin: '0 0 .5rem' }}>{post.title}</h3>
+                    <p style={{ margin: '0 0 .75rem', lineHeight: 1.5 }}>{post.excerpt}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                      <span>{post.date}</span>
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Read more: ${post.title} (opens Patreon in a new tab)`}
+                        style={{ color: 'inherit', textDecoration: 'underline' }}
+                      >
+                        Read more →
+                      </a>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="studio-action-row">
                 <a
+                  className="studio-button-secondary"
                   href="https://www.patreon.com/c/oppatchstudio/posts"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem 1.5rem',
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    color: 'var(--color-text-primary)',
-                    textDecoration: 'none',
-                    borderRadius: '6px',
-                    fontWeight: '500',
-                    fontSize: '1rem',
-                    border: '1px solid var(--color-border-light)',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
-                  }}
+                  style={linkButtonStyle}
                 >
-                  <i className="fab fa-patreon" style={{ fontSize: '1rem' }}></i>
-                  continue on patreon
+                  <i aria-hidden="true" className="fab fa-patreon"></i>
+                  Continue on Patreon
                 </a>
               </div>
-            </div>
+            </>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              fontSize: '1rem'
-            }}>
-              no posts available
-            </div>
+            <p role="status">No posts available.</p>
           )}
-        </div>
+        </section>
       </div>
-    </>
+    </div>
   );
 }

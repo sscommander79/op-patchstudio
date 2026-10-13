@@ -430,10 +430,10 @@ export function MultisampleSampleTable({
           >
             <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem' }}></i>
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: '500' }}>
-              no samples loaded
+              No recordings added yet
             </p>
                           <p style={{ margin: '0', fontSize: '0.9rem' }}>
-                drag and drop audio files or folders here, or click to browse
+                Drop audio files or folders here, or click to browse
               </p>
           </div>
         ) : (
@@ -816,10 +816,10 @@ export function MultisampleSampleTable({
             }}>
               <i className="fas fa-music" style={{ fontSize: '3rem', marginBottom: '1rem' }}></i>
               <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '300' }}>
-                {isDragOver ? 'drop files here' : 'no samples loaded'}
+                {isDragOver ? 'drop files here' : 'No recordings added yet'}
               </h3>
               <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                drag and drop wav files here or click to browse
+                Drop audio files here or choose files to add
               </p>
             </div>
           </div>

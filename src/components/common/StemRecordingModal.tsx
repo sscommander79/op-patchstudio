@@ -532,17 +532,22 @@ export function StemRecordingModal({isOpen, onClose, onSlice}: Props) {
   return <div style={{position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.6)', display: 'grid', placeItems: 'center', padding: 12}}>
     <DiscardConfirmation active={confirmDiscard} onKeep={() => setConfirmDiscard(false)} onDiscard={close}/>
     <section ref={dialogRef} data-recording-modal="true" role="dialog" aria-modal="true" aria-hidden={confirmDiscard || undefined} aria-labelledby="stem-title" tabIndex={-1} style={{width: 'min(900px,100%)', maxHeight: '94vh', overflow: 'auto', background: 'var(--color-bg-primary, #fff)', color: 'var(--color-text-primary, #222)', borderRadius: 8}}>
-      <header style={{position: 'sticky', top: 0, zIndex: 1, display: 'flex', justifyContent: 'space-between', gap: 12, padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border-medium, #888)', background: 'inherit'}}>
+      <header style={{position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems:'flex-start', justifyContent: 'space-between', gap: 12, padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border-medium, #888)', background: 'inherit'}}>
         <div><p className="studio-eyebrow">Local-only recording</p><h2 id="stem-title" style={{margin: 0}}>Record OP-XY tracks</h2></div>
-        <button type="button" data-initial-focus="true" onClick={requestClose} style={button}>{running ? 'Stop' : 'Close'}</button>
+        <button type="button" data-initial-focus="true" onClick={requestClose} disabled={running} aria-describedby={running ? 'stem-close-hint' : undefined} style={button}>Close</button>
       </header>
       <main style={{padding: '1rem 1.25rem', display: 'grid', gap: 16}}>
         {(!support.secure || !support.audio || !support.worklet || !support.midi) && <p role="alert">This feature needs Chrome or Edge on HTTPS with Web MIDI, audio input, and AudioWorklet. Existing WAV files can still be imported elsewhere in the studio.</p>}
         <section style={box}>
+          <h3>Record selected tracks one at a time</h3>
+          <p>The OP-XY plays every track through one stereo output, so the app records one pass per ticked track. For each pass it asks the OP-XY to mute the other tracks’ notes, plays the pattern from the start, and records what comes out.</p>
+          <SequenceDiagram tracks={tracks}/>
+          <p>{tracks.length ? `${tracks.length} pass${tracks.length === 1 ? '' : 'es'}, one after another, in track order. Each block above is one pass.` : 'Tick at least one track below to see its pass.'}</p>
+        </section>
+        <section style={box}>
           <h3>1. Connect</h3>
           <ol><li>Connect the OP-XY stereo output to your computer audio input.</li><li>On OP-XY, use COM settings to enable incoming MIDI clock/transport and the control messages required for CC9. Confirm the current options in the official guides below.</li><li>Connect browser MIDI output to the OP-XY, then use Record test and listen for bleed, level, and timing.</li></ol>
-          <p><a href="https://teenage.engineering/guides/op-xy/com" target="_blank" rel="noreferrer">Official OP-XY COM guide</a>{' · '}<a href="https://teenage.engineering/guides/op-xy/midi-references" target="_blank" rel="noreferrer">Official OP-XY MIDI reference</a></p>
-          <p>Mutes affect notes, not audio. Tails, live input, and effects can bleed into another track. This tool records existing tracks sequentially; it does not separate sources or promise perfect alignment.</p>
+          <p><a href="https://teenage.engineering/guides/op-xy/com" target="_blank" rel="noreferrer">Official OP-XY COM guide (opens teenage.engineering)</a>{' · '}<a href="https://teenage.engineering/guides/op-xy/midi-references" target="_blank" rel="noreferrer">Official OP-XY MIDI reference (opens teenage.engineering)</a></p>
           <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end'}}>
             <button type="button" onClick={() => void enableAudio()} disabled={running || audioPending || !support.audio} style={button}>{audioPending ? 'Enabling audio...' : 'Enable audio'}</button>
             <button type="button" onClick={() => void refreshAudio()} disabled={running || audioPending} style={button}>Refresh inputs</button>
@@ -550,27 +555,32 @@ export function StemRecordingModal({isOpen, onClose, onSlice}: Props) {
             <button type="button" onClick={() => void enableMidi()} disabled={running || midiPending || !support.midi} style={button}>{midiPending ? 'Enabling MIDI...' : 'Enable MIDI'}</button>
             <label>MIDI output <select aria-label="MIDI output" value={outputId} disabled={running} onChange={event => setOutputId(event.target.value)} style={button}><option value="">Choose output</option>{outputs.map(output => <option key={output.id} value={output.id}>{output.name || output.id}</option>)}</select></label>
           </div>
-          <label style={{display: 'flex', gap: 8, marginTop: 12}}><input type="checkbox" checked={acknowledged} disabled={running} onChange={event => setAcknowledged(event.target.checked)}/>I understand recording will stop transport, control track mutes, and finish by requesting tracks 1–8 unmuted. The app cannot read or restore the original hardware mute state.</label>
         </section>
         <section style={box}>
           <h3>2. Choose tracks</h3>
           <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8}}>{Array.from({length: 8}, (_, index) => index + 1).map(track => <div key={track}><label><input type="checkbox" checked={tracks.includes(track)} disabled={running} onChange={event => setTracks(current => event.target.checked ? [...current, track].sort((a, b) => a - b) : current.filter(value => value !== track))}/> Track {track}</label><input aria-label={`Track ${track} name`} value={names[track]} disabled={running} maxLength={80} onChange={event => setNames(current => ({...current, [track]: event.target.value}))} style={{...button, width: '100%', boxSizing: 'border-box'}}/></div>)}</div>
           <div style={{display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12}}><NumberField label="BPM" value={bpm} min={40} max={240} set={setBpm} disabled={running}/><NumberField label="Bars (4/4)" value={bars} min={1} max={16} set={setBars} disabled={running}/><NumberField label="Tail seconds" value={tail} min={0} max={4} step={.1} set={setTail} disabled={running}/></div>
-          <p>The file contains the short pattern music plus its tail; the default is four bars. Each output is {(Number.isFinite(stemDuration(settings)) ? stemDuration(settings) : 0).toFixed(1)} seconds. Music plus tail is limited to 16 seconds. The fixed 48 kHz stereo estimate is {(estimatedStemBytes(settings) / 1024 / 1024).toFixed(1)} MiB per track; actual-format limits are enforced before recording.</p>
-          <details><summary style={{minHeight: 44, display: 'flex', alignItems: 'center'}}>Advanced timing</summary><div style={{display: 'flex', gap: 10, flexWrap: 'wrap'}}><NumberField label="Mute settling ms" value={settle} min={250} max={2000} set={setSettle} disabled={running}/><NumberField label="Input latency adjustment ms" value={latency} min={0} max={250} set={setLatency} disabled={running}/></div><p>Timing remains unverified until you check a physical recording. A positive latency adjustment shifts the crop later, never earlier, without changing its length.</p></details>
+          <p>Each recording is {(Number.isFinite(stemDuration(settings)) ? stemDuration(settings) : 0).toFixed(1)} seconds long: the pattern for the bars you chose, plus its tail. Pattern plus tail can be 16 seconds at most.</p>
+          <details><summary style={{minHeight: 44, display: 'flex', alignItems: 'center'}}>Advanced timing</summary><div style={{display: 'flex', gap: 10, flexWrap: 'wrap'}}><NumberField label="Mute settling ms" value={settle} min={250} max={2000} set={setSettle} disabled={running}/><NumberField label="Input latency adjustment ms" value={latency} min={0} max={250} set={setLatency} disabled={running}/></div><p>Timing remains unverified until you check a physical recording. A positive latency adjustment shifts the crop later, never earlier, without changing its length.</p><p>The fixed 48 kHz stereo estimate is {(estimatedStemBytes(settings) / 1024 / 1024).toFixed(1)} MiB per track; actual-format limits are enforced before recording.</p></details>
         </section>
         <section style={box}>
-          <h3>3. Record</h3><p role="status" aria-live="polite">{status}</p>{error && <p role="alert">{error}</p>}{validation && !error && <p role="alert">{validation}</p>}
-          <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}><button type="button" onClick={() => void run(tracks[0])} disabled={running || busy || !tracks.length || !!validation} style={button}>Record test</button><button type="button" onClick={() => void run()} disabled={running || busy || !tracks.length || !!validation} style={button}>Record selected</button><button type="button" onClick={() => void stop()} disabled={!running} style={button}>Stop recording</button></div>
+          <h3>3. Record</h3>
+          <p>Mutes affect notes, not audio. Tails, live input, and effects can bleed into another track. This tool records existing tracks sequentially; it does not separate sources or promise perfect alignment.</p>
+          <label style={{display: 'flex', gap: 8, margin: '12px 0'}}><input type="checkbox" checked={acknowledged} disabled={running} onChange={event => setAcknowledged(event.target.checked)}/>I understand recording will stop transport, control track mutes, and finish by requesting tracks 1–8 unmuted. The app cannot read or restore the original hardware mute state.</label>
+          <p role="status" aria-live="polite">{status}</p>{error && <p role="alert">{error}</p>}{validation && <p role="alert">{validation}</p>}
+          <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}><button type="button" onClick={() => void run(tracks[0])} disabled={running || busy || !tracks.length || !!validation} style={button}>Record test</button><button type="button" onClick={() => void run()} disabled={running || busy || !tracks.length || !!validation} {...(running ? {style: button} : {className: 'studio-button-primary'})}>Record selected</button></div>
+          <p>Record test records only the first ticked track{tracks.length ? ` (track ${tracks[0]})` : ''} so you can check level, bleed, and timing. Record selected records every ticked track in turn.</p>
+          <p>If a track fails, recording stops there and finished recordings stay in Review. To record the rest, leave only the missing tracks ticked and use Record selected again.</p>
           <p>Only Record test, Record selected, and Retry send MIDI. Enabling permissions, selecting devices, opening, and closing an untouched modal send nothing.</p>
         </section>
         <section style={box}>
           <h3>4. Review</h3>
+          <p>Listen to each recording for bleed, level, and timing before you download it. The app has not verified timing or isolation. Retry records that track again and replaces its recording only if the new one completes.</p>
           {!takes.length ? <p>No reviewed recordings yet.</p> : takes.map(take => <div key={take.track} role="group" aria-label={`Reviewed track ${take.track}`} style={{borderTop: '1px solid var(--color-border-medium, #888)', padding: '.75rem 0'}}><strong>Track {take.track}</strong> · {(take.take.frames / take.take.sampleRate).toFixed(2)} s · {take.take.sampleRate} Hz · {take.take.channels === 1 ? 'mono' : 'stereo'} · timing and isolation unverified<label style={{display: 'block'}}>Name <input value={take.name} disabled={running || busy} onChange={event => setTakes(current => current.map(item => item.track === take.track ? {...item, name: event.target.value} : item))} style={button}/></label>{take.warnings.map(warning => <p key={warning} role="alert">{warning}</p>)}<div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}><button type="button" onClick={() => void play(take)} disabled={running || busy} style={button}>Play {take.name}</button><button type="button" onClick={() => void stopPreview()} disabled={!previewing} style={button}>Stop playback</button><button type="button" onClick={() => void run(take.track)} disabled={running || busy} style={button}>Retry track {take.track}</button><button type="button" onClick={() => void download(take)} disabled={running || busy} style={button}>Download WAV</button><button type="button" onClick={() => void slice(take)} disabled={running || busy} style={button}>Slice this recording</button></div></div>)}
           {takes.length > 0 && <button type="button" onClick={() => void downloadAll()} disabled={running || busy} style={button}>Download all ZIP</button>}
         </section>
       </main>
-      <footer style={{position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '1rem 1.25rem', borderTop: '1px solid var(--color-border-medium, #888)', background: 'var(--color-bg-secondary, #eee)'}}><button type="button" onClick={requestClose} style={button}>{running ? 'Stop' : 'Close'}</button></footer>
+      <footer style={{position: 'sticky', bottom: 0, display: 'flex', flexWrap:'wrap', alignItems:'center', justifyContent: 'flex-end', gap: 8, padding: '1rem 1.25rem', borderTop: '1px solid var(--color-border-medium, #888)', background: 'var(--color-bg-secondary, #eee)'}}><p id="stem-close-hint" style={{margin: 0, marginRight: 'auto', alignSelf: 'center', flex:'1 1 260px'}}>{running ? 'Recording. Stop recording before closing.' : 'Stop recording ends a recording in progress and keeps finished recordings. Close leaves this window.'}</p><button type="button" onClick={() => void stop()} disabled={!running} {...(running ? {className: 'studio-button-primary'} : {style: button})}>Stop recording</button><button type="button" onClick={requestClose} disabled={running} aria-describedby={running ? 'stem-close-hint' : undefined} style={button}>Close</button></footer>
     </section>
   </div>;
 }
@@ -586,6 +596,22 @@ function DiscardConfirmation({active, onKeep, onDiscard}: {active: boolean; onKe
       <div style={{display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap'}}><button type="button" data-initial-focus="true" onClick={onKeep} style={button}>Keep reviewing</button><button type="button" onClick={onDiscard} style={button}>Discard and close</button></div>
     </section>
   </div>;
+}
+
+function SequenceDiagram({tracks}: {tracks: number[]}) {
+  const step = 280 / Math.max(tracks.length, 1);
+  return <svg aria-hidden="true" focusable="false" viewBox="0 0 300 100" style={{display: 'block', width: '100%', maxWidth: 420, height: 'auto'}}>
+    {Array.from({length: STEM_LIMITS.tracks}, (_, index) => {
+      const track = index + 1;
+      const pass = tracks.indexOf(track);
+      const y = 3 + index * 12;
+      return <g key={track}>
+        <text x={0} y={y + 8} fontSize={8} fill="currentColor" opacity={pass < 0 ? 0.45 : 1}>{track}</text>
+        <line x1={16} x2={296} y1={y + 5} y2={y + 5} stroke="currentColor" strokeWidth={1} opacity={0.25}/>
+        {pass >= 0 && <rect x={16 + pass * step} y={y} width={Math.max(step - 3, 2)} height={10} rx={2} fill="currentColor"/>}
+      </g>;
+    })}
+  </svg>;
 }
 
 function NumberField({label, value, min, max, step = 1, set, disabled}: {label: string; value: number; min: number; max: number; step?: number; set: (value: number) => void; disabled: boolean}) {

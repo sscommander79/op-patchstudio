@@ -1,0 +1,50 @@
+/* Approved desktop hardware geometry; small-screen banks retain their existing UI. */
+.drum-design-cap { display: none; }
+@media (min-width: 769px) {
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-banks {
+    position: relative; display: block; aspect-ratio: 1344 / 218;
+    min-height: 0; padding: 0; border: 0; border-radius: 8px;
+    background: #212121 !important; box-shadow: none !important;
+  }
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-bank,
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-grid,
+  .drum-design .studio-drum-keyboard .studio-pad-row { display: contents; }
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-slot {
+    position: absolute; left: var(--drum-design-key-left); top: var(--drum-design-key-top);
+    width: 6.6964285714%; aspect-ratio: 1; padding: 0; margin: 0;
+  }
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-slot > .studio-drum-pad {
+    position: absolute; left: 0; top: 0; display: block; width: 90px; height: 90px;
+    min-height: 0; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 4px;
+    background: transparent !important; box-shadow: none !important; opacity: 1;
+    transform: scale(var(--drum-design-key-scale, 1)); transform-origin: top left;
+    transition: filter 100ms; overflow: visible;
+  }
+  .drum-design .studio-drum-keyboard .studio-drum-pad::before,
+  .drum-design .studio-drum-keyboard .studio-drum-pad::after { content: none !important; }
+  .drum-design .studio-drum-keyboard .studio-drum-pad[data-pad-selected="true"] { outline: 3px solid #50a7d2; outline-offset: 1px; }
+  .drum-design .studio-drum-keyboard .studio-drum-pad:focus-visible { outline: 3px solid #edede8; outline-offset: 3px; }
+  .drum-design .studio-drum-keyboard .studio-drum-pad[data-pad-pressed="true"] .drum-design-cap { transform: translateY(2px); filter: brightness(1.2); }
+  .drum-design .studio-drum-keyboard .studio-drum-pad[data-pad-state="loaded"] .drum-design-cap-locator { background: #50a7d2; border-radius: 50%; box-shadow: 0 0 0 2px #50a7d2; }
+  /* Keep names, bank hints, and state available to assistive technology. */
+  .drum-design .studio-drum-keyboard .studio-desktop-pad-bank > p,
+  .drum-design .studio-drum-keyboard .studio-drum-pad-keychar,
+  .drum-design .studio-drum-keyboard .studio-drum-pad-name,
+  .drum-design .studio-drum-keyboard .studio-drum-pad-status {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .drum-design .studio-drum-keyboard .drum-design-cap { display: block; position: absolute; inset: 0; pointer-events: none; }
+  .drum-design .studio-drum-keyboard .drum-design-cap > * { position: absolute; display: block; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-foot { left: 0; top: 1px; width: 90px; height: 88px; border-radius: 4px; background: #060606; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-lip { left: 1px; top: 1px; width: 88px; height: 86px; border-radius: 4px; background: linear-gradient(#262626, #1c1c1c 80%, #0f0f0f); }
+  .drum-design .studio-drum-keyboard .drum-design-cap-base { left: 1px; top: 1px; width: 88px; height: 85px; border-radius: 4px; background: linear-gradient(#303030, #252525 25%, #1f1f1f 85%, #292929); }
+  .drum-design .studio-drum-keyboard .drum-design-cap-edge { left: 5px; top: 1px; width: 80px; height: .6px; border-radius: .3px; background: #454545; }
+  /* SVGs retain the exports' intrinsic dimensions: 75×73, 72×72, 68×68, 5×5. */
+  .drum-design .studio-drum-keyboard .drum-design-cap-sidewall { left: 7.5px; top: 7.5px; max-width: none; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-shoulder { left: 9px; top: 6px; max-width: none; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-face { left: 11px; top: 7px; max-width: none; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-locator { left: 42px; top: 13px; max-width: none; }
+  .drum-design .studio-drum-keyboard .drum-design-cap-label { left: 12px; top: 28px; width: 66px; height: 24px; color: var(--drum-design-key-ink); font: 400 17px/normal Roboto, sans-serif; text-align: center; }
+}

@@ -1,7 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useStudioCanvasColors } from '../../hooks/useStudioCanvasTheme';
 
+const darkWaveformColors={outside:'#171717',inside:'#252525',waveform:'#ececec',secondary:'#b8b8b8',accent:'#ff6b26'};
+
 interface SmallWaveformProps {
+  darkSurface?: boolean;
   audioBuffer: AudioBuffer | null;
   inPoint?: number;
   outPoint?: number;
@@ -14,6 +17,7 @@ interface SmallWaveformProps {
 
 export function SmallWaveform({
   audioBuffer,
+  darkSurface = false,
   inPoint = 0,
   outPoint,
   loopStart,
@@ -23,7 +27,8 @@ export function SmallWaveform({
   onZoomEdit
 }: SmallWaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const canvasColors=useStudioCanvasColors();
+  const themeColors=useStudioCanvasColors();
+  const canvasColors=darkSurface?darkWaveformColors:themeColors;
   const [dragState, setDragState] = useState<{
     type: 'inPoint' | 'outPoint' | 'loopStart' | 'loopEnd' | null;
     startX: number;
@@ -40,7 +45,7 @@ export function SmallWaveform({
     bgAlt: 'var(--color-bg-secondary)',
     border: 'var(--color-border-light)',
     text: 'var(--color-text-primary)',
-    textSecondary: 'var(--color-text-secondary)',
+    textSecondary: darkSurface ? '#d4d4d4' : 'var(--color-text-secondary)',
     action: 'var(--color-interactive-focus)',
   };
 
@@ -362,9 +367,10 @@ export function SmallWaveform({
             zIndex: 10,
             padding: 0
           }}
-          title="zoom and edit"
+          title="Zoom and edit waveform"
+          aria-label="Zoom and edit waveform"
         >
-          <i className="fas fa-search-plus"></i>
+          <i className="fas fa-search-plus" aria-hidden="true"></i>
         </button>
       )}
       <canvas

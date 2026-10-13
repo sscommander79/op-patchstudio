@@ -17,7 +17,7 @@ for(const width of [1440,390])test(`multisample table ${width}px root editing re
  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(root).toHaveValue(original);
  await root.fill('invalid');await root.blur();await expect(root).toHaveValue(original);
  await page.getByRole('button',{name:'Focus',exact:true}).click();
- const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Replace zone',exact:true}).click();await(await chooser).setFiles(tone('replacement-C4.wav'));
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Replace sample',exact:true}).click();await(await chooser).setFiles(tone('replacement-C4.wav'));
  await page.getByRole('dialog',{name:'Import audio'}).getByLabel('Assignment for replacement-C4.wav').selectOption('replace');
  await applyAudioImport(page);
  await expect(page.getByText('replacement-C4.wav',{exact:true}).first()).toBeVisible();

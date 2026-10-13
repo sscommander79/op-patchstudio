@@ -1,5 +1,5 @@
 import { Content, Theme } from '@carbon/react';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { StudioShell } from './components/common/StudioShell';
 import { NotificationSystem } from './components/common/NotificationSystem';
 import { AppContextProvider, useAppContext } from './context/AppContext';
@@ -20,6 +20,7 @@ import './styles/studio.css';
 // Scoped to [data-studio-appearance="opxy"]; must load after studio.css.
 import './styles/studio-opxy.css';
 
+
 const FeedbackPage = lazy(() => import('./components/common/FeedbackPage').then(module => ({ default: module.FeedbackPage })));
 const DonatePage = lazy(() => import('./components/common/DonatePage').then(module => ({ default: module.DonatePage })));
 
@@ -37,6 +38,7 @@ function AppContent() {
   const { state, dispatch } = useAppContext();
   const { resolved } = useStudioTheme();
   const [currentRoute, setCurrentRoute] = useState(() => window.location.hash === '#/feedback' ? 'feedback' : window.location.hash === '#/donate' ? 'donate' : 'home');
+  const lastRoute = useRef(window.location.hash);
   const { loadSession, declineSessionRestoration, saveSession, recoveryPending, recoveryError } = useSessionManagement();
 
   useEffect(() => {
@@ -44,7 +46,17 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    const handleHashChange = () => setCurrentRoute(window.location.hash === '#/feedback' ? 'feedback' : window.location.hash === '#/donate' ? 'donate' : 'home');
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      const modal = document.querySelector<HTMLElement>('[data-recording-modal="true"], [data-workspace-modal]');
+      if ((hash === '#/feedback' || hash === '#/donate') && modal) {
+        window.history.replaceState(null, '', lastRoute.current || '#/studio/overview');
+        modal.focus();
+        return;
+      }
+      lastRoute.current = hash;
+      setCurrentRoute(hash === '#/feedback' ? 'feedback' : hash === '#/donate' ? 'donate' : 'home');
+    };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);

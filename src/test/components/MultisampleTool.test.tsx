@@ -660,11 +660,11 @@ describe('MultisampleTool ADSR Integration', () => {
     render(<MultisampleTool />);
 
     expect(screen.getByRole('region',{name:'Focused multisample editor'})).toBeVisible();
-    expect(screen.getByRole('spinbutton',{name:'Root note'})).toBeVisible();
-    expect(screen.getByRole('spinbutton',{name:/Loop Start/})).toBeVisible();
-    expect(screen.getByText(/Preset and performance settings/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'Change assignment'})).toBeVisible();
+    expect(screen.getByRole('spinbutton',{name:/Loop start/i})).toBeVisible();
+    expect(screen.getByText(/^Preset and performance settings/)).toBeVisible();
     expect(screen.getByTestId('multisample-preset-settings')).not.toBeVisible();
-    fireEvent.click(screen.getByText(/Preset and performance settings/));
+    fireEvent.click(screen.getByText(/^Preset and performance settings/));
     expect(screen.getByTestId('multisample-preset-settings')).toBeVisible();
   });
 

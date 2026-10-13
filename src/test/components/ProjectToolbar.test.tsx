@@ -33,19 +33,19 @@ describe('ProjectToolbar', () => {
   afterEach(()=>vi.restoreAllMocks());
   it('offers clearly labelled backup and history controls', () => {
     render(<AppContextProvider><Harness /></AppContextProvider>);
-    expect(screen.getByRole('button',{name:'Download project'})).toBeEnabled();
+    expect(screen.getByRole('button',{name:'Back up project'})).toBeEnabled();
     expect(screen.getByRole('button',{name:'Open project'})).toBeEnabled();
     expect(screen.getByRole('button',{name:'Undo'})).toBeDisabled();
     expect(screen.getByRole('button',{name:'Redo'})).toBeDisabled();
     fireEvent.click(screen.getByText('Project'));
-    expect(screen.getByText(/project backup.*device patch/i)).toBeVisible();
+    expect(screen.getByText(/project backup.*OP-XY preset/i)).toBeVisible();
   });
 
   it('owns the editable instrument name and opens mapped-only device preflight', async () => {
     render(<AppContextProvider><Harness /></AppContextProvider>);
     fireEvent.change(screen.getByRole('textbox',{name:'Instrument name'}),{target:{value:'Keep me'}});
     fireEvent.click(screen.getByRole('button',{name:'seed samples'}));
-    fireEvent.click(screen.getByRole('button',{name:'Export OP-XY'}));
+    fireEvent.click(screen.getByRole('button',{name:'Download OP-XY preset'}));
 
     const dialog=screen.getByRole('dialog',{name:'Export OP-XY preset'});
     expect(dialog).toHaveTextContent('1 mapped sample');
@@ -60,11 +60,11 @@ describe('ProjectToolbar', () => {
     fireEvent.change(screen.getByLabelText('Filename separator'),{target:{value:'-'}});
     fireEvent.change(screen.getByLabelText('Audio format'),{target:{value:'aiff'}});
     expect(within(dialog).getByRole('status',{name:'Final check status'})).toHaveTextContent(/checks are still open/i);
-    fireEvent.click(screen.getByRole('button',{name:'Download preset'}));
+    fireEvent.click(within(screen.getByRole('dialog',{name:'Export OP-XY preset'})).getByRole('button',{name:'Download OP-XY preset'}));
     await waitFor(()=>expect(generateDrumPatchFile).toHaveBeenCalledWith('Keep me',{includeUnassigned:false}));
     expect(dialog).toHaveTextContent(/browser created.*not.*device transfer/i);
-    expect(within(dialog).getByRole('region',{name:'Transfer to OP-XY'})).toHaveTextContent(/COM.*M4/i);
-    expect(within(dialog).getByRole('region',{name:'Transfer to OP-XY'})).toHaveTextContent(/extract the downloaded ZIP.*patch.json/i);
+    expect(within(dialog).getByRole('region',{name:'How to copy to OP-XY'})).toHaveTextContent(/COM.*M4/i);
+    expect(within(dialog).getByRole('region',{name:'How to copy to OP-XY'})).toHaveTextContent(/extract the downloaded ZIP.*patch.json/i);
     expect(within(dialog).getByRole('link',{name:/current OP-XY transfer guide/i})).toHaveAttribute('href','https://teenage.engineering/guides/op-xy/how-to');
   });
 
@@ -73,8 +73,8 @@ describe('ProjectToolbar', () => {
     render(<AppContextProvider><Harness /></AppContextProvider>);
     fireEvent.change(screen.getByRole('textbox',{name:'Instrument name'}),{target:{value:'Keep me'}});
     fireEvent.click(screen.getByRole('button',{name:'seed samples'}));
-    fireEvent.click(screen.getByRole('button',{name:'Export OP-XY'}));
-    fireEvent.click(screen.getByRole('button',{name:'Download preset'}));
+    fireEvent.click(screen.getByRole('button',{name:'Download OP-XY preset'}));
+    fireEvent.click(within(screen.getByRole('dialog',{name:'Export OP-XY preset'})).getByRole('button',{name:'Download OP-XY preset'}));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('conversion exploded');
     expect(screen.getByRole('dialog',{name:'Export OP-XY preset'})).toBeVisible();
@@ -84,7 +84,7 @@ describe('ProjectToolbar', () => {
     const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
     render(<AppContextProvider><Harness /></AppContextProvider>);
     fireEvent.click(screen.getByRole('button',{name:'edit'}));
-    fireEvent.click(screen.getByRole('button',{name:'Download project'}));
+    fireEvent.click(screen.getByRole('button',{name:'Back up project'}));
     await waitFor(()=>expect(click).toHaveBeenCalledOnce());
     expect(URL.createObjectURL).toHaveBeenCalled();
     click.mockRestore();

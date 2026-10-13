@@ -75,7 +75,7 @@ export function LibraryPage() {
       if(preset.type!=='drum'&&preset.type!=='multisample'){failureMessage='This saved preset type cannot be previewed.';throw new Error('Unsupported saved preset type');}
       await preview(preset as LibraryPreset);
     }catch{
-      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'preview failed',message:failureMessage}});
+      if(mountedRef.current&&requestId===latestPreviewRequestRef.current)dispatch({type:'ADD_NOTIFICATION',payload:{id:Date.now().toString(),type:'error',title:'Preview failed',message:failureMessage}});
     }
   },[dispatch,preview]);
 
@@ -90,6 +90,11 @@ export function LibraryPage() {
   },[presets,searchTerm,filterType,filterFavorites,sortBy,sortOrder,scope,activeCollection]);
   // Bulk actions and counts only ever apply to selected presets the current filters still show.
   const visibleSelection=useMemo(()=>new Set(filteredPresets.filter(preset=>selectedPresets.has(preset.id)).map(preset=>preset.id)),[filteredPresets,selectedPresets]);
+  // Empty states distinguish "nothing saved", "nothing in this section", and "nothing matches the filters".
+  const hasFilters=Boolean(searchTerm.trim())||filterType!=='all'||filterFavorites;
+  const scopePresetCount=useMemo(()=>scope==='all'?presets.length:scope==='favorites'?presets.filter(preset=>preset.isFavorite).length:presets.filter(preset=>activeCollection?.presetIds.includes(preset.id)).length,[presets,scope,activeCollection]);
+  const clearFilters=()=>{setSearchTerm('');setFilterType('all');setFilterFavorites(false);setCurrentPage(1);};
+  const openWorkspace=(workspace:'drum'|'multisample')=>{stopLibraryPreview(false);window.dispatchEvent(new CustomEvent('opstudio-open-workspace',{detail:workspace}));};
   const totalPages=Math.max(1,Math.ceil(filteredPresets.length/pageSize));
   const visiblePage=Math.min(currentPage,totalPages);
   const paginatedPresets=filteredPresets.slice((visiblePage-1)*pageSize,visiblePage*pageSize);
@@ -113,8 +118,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'error',
-          title: 'load failed',
-          message: 'failed to load presets from library'
+          title: 'Library unavailable',
+          message: 'Could not load saved presets from this browser. Use Retry loading library.'
         }
       });
     } finally {
@@ -162,12 +167,12 @@ export function LibraryPage() {
   const chooseScope=(next:string)=>{setScope(next);setFilterFavorites(false);setSelectedPresets(new Set());setCurrentPage(1);setSortBy(next==='all'||next==='favorites'?'date':'collection');setSortOrder('desc');};
 
   // Helper: is there a session in progress?
-  const sessionInProgress = state.drumSamples.some(s => s.isLoaded) || state.multisampleFiles.length > 0;
+  const hasInstrumentToReplace = (type:PresetSummary['type']) => type==='drum' ? state.drumSamples.some(s => s.isLoaded) : state.multisampleFiles.length > 0;
 
   // Wrapped handler for preset loading with confirmation
   const handleLoadPreset = async (preset: PresetSummary) => {
     stopLibraryPreview(false);
-    if (sessionInProgress) {
+    if (hasInstrumentToReplace(preset.type)) {
       setPendingPresetToLoad(preset);
       setIsLoadConfirmOpen(true);
       return;
@@ -195,8 +200,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'success',
-          title: 'preset loaded',
-          message: `loaded "${preset.name}" preset`
+          title: 'Preset loaded',
+          message: `Loaded "${preset.name}" into the ${preset.type==='drum'?'drum':'multisample'} editor.`
         }
       });
 
@@ -207,8 +212,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'error',
-          title: 'load failed',
-          message: 'failed to load preset'
+          title: 'Load failed',
+          message: 'Could not load this preset. Your current project is unchanged.'
         }
       });
     }
@@ -227,8 +232,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'success',
-          title: 'preset downloaded',
-          message: `downloaded "${preset.name}" preset`
+          title: 'Download requested',
+          message: `The browser was asked to download "${preset.name}". This does not copy it to your OP-XY.`
         }
       });
 
@@ -239,8 +244,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'error',
-          title: 'download failed',
-          message: 'failed to download preset'
+          title: 'Download failed',
+          message: 'Could not prepare this preset for download. It is still saved in your library.'
         }
       });
     }
@@ -257,8 +262,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'success',
-          title: updatedPreset.isFavorite ? 'added to favorites' : 'removed from favorites',
-          message: `"${preset.name}" ${updatedPreset.isFavorite ? 'added to' : 'removed from'} favorites`
+          title: updatedPreset.isFavorite ? 'Added to favorites' : 'Removed from favorites',
+          message: `"${preset.name}" was ${updatedPreset.isFavorite ? 'added to' : 'removed from'} favorites.`
         }
       });
     } catch (error) {
@@ -268,8 +273,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'error',
-          title: 'update failed',
-          message: 'failed to update favorite status'
+          title: 'Update failed',
+          message: 'Could not change the favorite. Try again.'
         }
       });
     }
@@ -320,8 +325,8 @@ export function LibraryPage() {
           payload: {
             id: Date.now().toString(),
             type: 'success',
-            title: 'presets deleted',
-            message: `deleted ${presetIds.length} presets`
+            title: presetIds.length===1?'Preset deleted':'Presets deleted',
+            message: `Deleted ${presetIds.length} ${presetIds.length===1?'preset':'presets'} from the library.`
           }
         });
       } else if (presetToDelete) {
@@ -333,8 +338,8 @@ export function LibraryPage() {
           payload: {
             id: Date.now().toString(),
             type: 'success',
-            title: 'preset deleted',
-            message: `deleted "${presetToDelete.name}" preset`
+            title: 'Preset deleted',
+            message: `Deleted "${presetToDelete.name}" from the library.`
           }
         });
       }
@@ -350,8 +355,8 @@ export function LibraryPage() {
         payload: {
           id: Date.now().toString(),
           type: 'error',
-          title: 'delete failed',
-          message: 'failed to delete preset(s)'
+          title: 'Delete failed',
+          message: 'Could not delete from the library. Refresh the library to see what is still saved.'
         }
       });
     } finally {
@@ -469,7 +474,7 @@ export function LibraryPage() {
       if(controller.signal.aborted)throw new DOMException('Batch export canceled','AbortError');
       const stem=sanitizeName(collection?.name??'Selected presets').trim().replace(/^[. ]+|[. ]+$/g,'')||'Library presets';
       downloadBlob(archive,`${stem}.zip`);
-      setExportStatus(`Downloaded ${snapshot.length} ${snapshot.length===1?'preset':'presets'} in one ZIP.`);
+      setExportStatus(`Download requested for ${snapshot.length} ${snapshot.length===1?'preset':'presets'} in one ZIP. Check your downloads; nothing has been copied to the OP-XY.`);
     }catch(error){
       if(controller.signal.aborted)setExportStatus('Export canceled. No ZIP was downloaded.');
       else {setExportError(error instanceof Error?error.message:'Batch export failed');setExportStatus('');}
@@ -521,24 +526,24 @@ export function LibraryPage() {
             <div className="studio-library-heading"><div><p className="studio-library-eyebrow">SAVED SOUNDS</p><h1>{activeCollection?.name??(scope==='favorites'?'Favorites':'All presets')}</h1><p>{activeCollection?`${activeCollection.presetIds.length} saved ${activeCollection.presetIds.length===1?'preset':'presets'} · ordered for export`:scope==='favorites'?'Your marked sounds, ready to find again.':'Search, preview, and organize sounds saved in this browser.'}</p></div></div>
             {activeCollection&&<div className="studio-library-collection-actions"><button type="button" className="studio-button-secondary" onClick={()=>openCollectionDialog('rename')}>Rename collection</button><button type="button" className="studio-button-secondary" onClick={()=>setDeleteCollectionOpen(true)}>Delete collection</button><button type="button" className="studio-button-primary" disabled={exportBusy||activeCollection.presetIds.length===0} onClick={()=>void startBatchExport('collection')}>Export collection ({activeCollection.presetIds.length})</button></div>}
             {loadError&&<div className="studio-library-load-error"><p role="alert" className="studio-message studio-message-error">Could not load saved presets from this browser's storage.{presets.length>0?' The list below may be out of date.':''}</p><button type="button" className="studio-button-secondary" onClick={()=>void loadPresets()}>Retry loading library</button></div>}
-            {visibleSelection.size>0&&<div className="studio-library-selection-bar" role="group" aria-label="Selected preset actions"><strong>{visibleSelection.size} selected</strong><button type="button" className="studio-button-secondary" onClick={()=>openCollectionDialog('add')}>Add to collection</button><button type="button" className="studio-button-primary" disabled={exportBusy} onClick={()=>void startBatchExport('selected')}>Export selected</button><button type="button" className="studio-button-secondary" onClick={handleBulkDelete}>Delete selected</button><button type="button" className="studio-button-secondary" onClick={clearSelection}>Clear selection</button></div>}
+            {visibleSelection.size>0&&<div className="studio-library-selection-bar" role="group" aria-label="Selected preset actions"><strong>{visibleSelection.size} selected</strong><span className="studio-visually-hidden">{visibleSelection.size===1?' preset':' presets'}</span><button type="button" className="studio-button-secondary" onClick={()=>openCollectionDialog('add')}>Add to collection</button><button type="button" className="studio-button-primary" disabled={exportBusy} onClick={()=>void startBatchExport('selected')}>Export selected</button><button type="button" className="studio-button-secondary" onClick={handleBulkDelete}>Delete selected</button><button type="button" className="studio-button-secondary" onClick={clearSelection}>Clear selection</button></div>}
             {collectionError&&!collectionDialog&&<p role="alert" className="studio-message studio-message-error">{collectionError}</p>}
             {exportError&&<p role="alert" className="studio-message studio-message-error">{exportError}</p>}
             {exportStatus&&<div className="studio-library-export-progress"><p role="status" aria-label="Library export status">{exportStatus}</p>{exportBusy&&<button type="button" className="studio-button-secondary" onClick={()=>{exportController.current?.abort();setExportStatus('Canceling after the current preset…');}}>Cancel export</button>}</div>}
           <LibraryTable
-            title={`${filteredPresets.length} presets`}
+            title={`${filteredPresets.length} ${filteredPresets.length===1?'preset':'presets'}`}
             headerStyle={{gridTemplateColumns:'minmax(0, 1fr)',gap:'.7rem'}}
             titleTooltip={
               <>
                 <h3>
-                  <i className="fas fa-shield-alt" style={{ marginRight: '0.5rem' }}></i>
-                  privacy & data
+                  <i aria-hidden="true" className="fas fa-shield-alt" style={{ marginRight: '0.5rem' }}></i>
+                  Privacy and data
                 </h3>
                 <p>
-                  all data is stored locally on your device. no data is sent to external servers or shared with third parties.
+                  Library presets and their audio are stored in this browser on this device. The library does not upload them.
                 </p>
                 <p style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                  your presets, samples, and settings remain private and secure.
+                  Clearing this browser's site data removes them, so keep project backups of anything you need.
                 </p>
               </>
             }
@@ -568,27 +573,38 @@ export function LibraryPage() {
               )
             }
             isLoading={isLoading}
-            emptyState={<>{tableContent}<div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '200px',
-                color: 'var(--color-text-secondary)',
-                textAlign: 'center'
-              }}>
-                <i className="fas fa-folder-open" style={{ fontSize: '2rem', marginBottom: '1rem' }}></i>
-                <p>{loadError ? 'Library unavailable' : 'No presets found'}</p>
-                <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                  {loadError
-                    ? 'Saved presets could not be read. Use Retry loading library above.'
-                    : activeCollection
-                    ? 'This collection has no matching presets. Add selected sounds from All presets.'
-                    : searchTerm || filterType !== 'all' || filterFavorites || scope==='favorites'
-                      ? 'No presets match these filters. Try adjusting your search or filters.'
-                      : 'Save a drum or multisample preset to begin your library.'}
-                </p>
-              </div></>}
+            emptyState={<div className="studio-library-empty" style={{margin:'1rem'}}>
+                {loadError ? <>
+                  <p role="status"><strong>Library unavailable</strong></p>
+                  <p>Saved presets could not be read. Use Retry loading library above.</p>
+                </> : presets.length===0 ? <>
+                  <p role="status"><strong>No saved presets yet</strong></p>
+                  <p>Build an instrument, then choose Save to library in its editor. Saved presets appear here and stay in this browser.</p>
+                  <div className="studio-action-row">
+                    <button type="button" className="studio-button-primary" onClick={()=>openWorkspace('drum')}>Build a drum kit</button>
+                    <button type="button" className="studio-button-secondary" onClick={()=>openWorkspace('multisample')}>Make a multisample instrument</button>
+                  </div>
+                </> : hasFilters&&scopePresetCount>0 ? <>
+                  <p role="status"><strong>No presets match your search</strong></p>
+                  <p>{scopePresetCount} {scopePresetCount===1?'preset in this section is':'presets in this section are'} hidden by the search or filters above.</p>
+                  <div className="studio-action-row">
+                    <button type="button" className="studio-button-primary" onClick={clearFilters}>Clear search and filters</button>
+                    {scope!=='all'&&<button type="button" className="studio-button-secondary" onClick={()=>chooseScope('all')}>Browse all presets</button>}
+                  </div>
+                </> : activeCollection ? <>
+                  <p role="status"><strong>This collection is empty</strong></p>
+                  <p>Open All presets, select the presets you want, then choose Add to collection. Collections reference presets without copying their audio.</p>
+                  <div className="studio-action-row">
+                    <button type="button" className="studio-button-primary" onClick={()=>chooseScope('all')}>Browse all presets</button>
+                  </div>
+                </> : <>
+                  <p role="status"><strong>{scope==='favorites'?'No favorites yet':'This section is no longer available'}</strong></p>
+                  <p>{scope==='favorites'?'Use the star on a preset to mark it as a favorite.':'The collection may have been deleted. Your saved presets are still in All presets.'}</p>
+                  <div className="studio-action-row">
+                    <button type="button" className="studio-button-primary" onClick={()=>chooseScope('all')}>Browse all presets</button>
+                  </div>
+                </>}
+              </div>}
             tableContent={filteredPresets.length>0?tableContent:undefined}
           />
 
@@ -611,17 +627,17 @@ export function LibraryPage() {
         {collectionDialog==='add'?<>
           <p>Add {visibleSelection.size} selected {visibleSelection.size===1?'preset':'presets'} without copying audio.</p>
           <label className="studio-name-field">Choose collection<select aria-label="Choose collection" value={collectionTarget} onChange={event=>setCollectionTarget(event.target.value)}>{collections.map(collection=><option key={collection.id} value={collection.id}>{collection.name}</option>)}</select></label>
-          {collections.length===0&&<p>Create a collection first.</p>}
+          {collections.length===0&&<p>No collections yet. Cancel this dialog, choose New collection, then return to All presets to select and add sounds.</p>}
         </>:<label className="studio-name-field">Collection name<input aria-label="Collection name" value={collectionName} maxLength={80} onChange={event=>setCollectionName(event.target.value)}/></label>}
         {collectionError&&<p role="alert" className="studio-message studio-message-error">{collectionError}</p>}
         <div className="studio-dialog-actions"><button type="button" className="studio-button-secondary" disabled={collectionBusy} onClick={()=>setCollectionDialog(null)}>Cancel</button><button type="button" className="studio-button-primary" disabled={collectionBusy||(collectionDialog==='add'?!collectionTarget:!collectionName.trim())} onClick={()=>void submitCollection()}>{collectionDialog==='create'?'Create collection':collectionDialog==='rename'?'Save collection name':'Add to collection'}</button></div>
       </AccessibleDialog>}
-      <ConfirmationModal isOpen={deleteCollectionOpen} onConfirm={()=>void confirmDeleteCollection()} onCancel={()=>setDeleteCollectionOpen(false)} message={`Delete collection "${activeCollection?.name??''}"? Saved presets and their audio will remain in the library.`}/>
+      <ConfirmationModal isOpen={deleteCollectionOpen} onConfirm={confirmDeleteCollection} onCancel={()=>setDeleteCollectionOpen(false)} message={`Delete collection "${activeCollection?.name??''}"? Saved presets and their audio will remain in the library.`}/>
       {editing&&<AccessibleDialog labelledBy="library-details-title" onClose={()=>{if(!editBusy)setEditing(null);}} returnFocus={editReturnFocus.current}>
         <div className="studio-dialog-heading"><h2 id="library-details-title">Edit details for {editing.name}</h2><button type="button" className="studio-icon-button" aria-label="Close preset details" onClick={()=>setEditing(null)} disabled={editBusy}>×</button></div>
         <p>These notes organize this saved preset locally. Its audio and the current instrument stay unchanged.</p>
-        <label className="studio-name-field">Description<textarea aria-label="Preset description" value={editing.description} maxLength={280} rows={3} onChange={event=>setEditing(current=>current?{...current,description:event.target.value}:current)}/></label>
-        <label className="studio-name-field">Tags, separated by commas<input aria-label="Preset tags" value={editing.tags} maxLength={400} onChange={event=>setEditing(current=>current?{...current,tags:event.target.value}:current)}/></label>
+        <label className="studio-name-field" style={{display:'grid',gap:8,marginBlock:'1rem'}}>Description<textarea style={{width:'100%',minWidth:0,boxSizing:'border-box',padding:'.65rem',background:'var(--studio-recess)',color:'var(--studio-text)',border:'1px solid var(--studio-border)',font:'inherit'}} aria-label="Preset description" value={editing.description} maxLength={280} rows={3} onChange={event=>setEditing(current=>current?{...current,description:event.target.value}:current)}/></label>
+        <label className="studio-name-field" style={{display:'grid',gap:8,marginBlock:'1rem'}}>Tags, separated by commas<input aria-label="Preset tags" value={editing.tags} maxLength={400} onChange={event=>setEditing(current=>current?{...current,tags:event.target.value}:current)}/></label>
         <p>Up to 12 tags, 30 characters each. Search finds preset names, descriptions, and tags.</p>
         {editError&&<p role="alert" className="studio-message studio-message-error">{editError}</p>}
         <div className="studio-dialog-actions"><button type="button" className="studio-button-secondary" disabled={editBusy} onClick={()=>setEditing(null)}>Cancel</button><button type="button" className="studio-button-primary" disabled={editBusy} onClick={()=>void saveMetadata()}>{editBusy?'Saving…':'Save details'}</button></div>
@@ -632,8 +648,8 @@ export function LibraryPage() {
         onCancel={handleCancelDelete}
         message={
           presetToDelete?.id === 'bulk'
-            ? `are you sure you want to delete the ${visibleSelection.size} selected presets? this action cannot be undone.`
-            : `are you sure you want to delete "${presetToDelete?.name}"? this action cannot be undone.`
+            ? `Delete the ${visibleSelection.size} selected ${visibleSelection.size===1?'preset':'presets'} from the library? This cannot be undone.`
+            : `Delete "${presetToDelete?.name}" from the library? This cannot be undone.`
         }
       />
       {/* Confirmation for preset loading */}
@@ -643,7 +659,7 @@ export function LibraryPage() {
         onCancel={handleCancelLoadPreset}
         message={
           pendingPresetToLoad
-            ? `loading a preset will overwrite your current session. are you sure you want to load "${pendingPresetToLoad.name}"?`
+            ? `Loading "${pendingPresetToLoad.name}" replaces your current ${pendingPresetToLoad.type==='drum'?'drum kit':'playable instrument'}. Your other instrument stays unchanged. Load it?`
             : ''
         }
       />

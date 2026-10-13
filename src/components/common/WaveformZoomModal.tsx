@@ -45,8 +45,15 @@ interface WaveformZoomModalProps {
   gain?: number;
   reverse?: boolean;
   ampEnvelope?: { attack: number; decay: number; sustain: number; release: number };
-  onSaveForAll: (payload: Partial<DrumSample | MultisampleFile>) => void;
+  sectionOnly?: boolean;
+  onSaveForAll?: (payload: Partial<DrumSample | MultisampleFile>) => void;
+  /** Number of samples Save for all will overwrite, when the caller knows it. */
+  saveForAllCount?: number;
+  /** Plural description of what Save for all reaches, e.g. "loaded drum samples". */
+  saveForAllScope?: string;
 }
+
+const markerLabels: Record<Marker, string> = { in: 'Playback start', out: 'Playback end', loopStart: 'Loop start', loopEnd: 'Loop end' };
 
 const c = {
   bg: 'var(--color-bg-primary)', bgAlt: 'var(--color-bg-secondary)',
@@ -79,7 +86,7 @@ function makePreviewCopy(source: AudioBuffer, loop: FrameRange, fadeFrames: numb
 export function WaveformZoomModal({
   isOpen, onClose, audioBuffer, initialInPoint, initialOutPoint, initialLoopStart, initialLoopEnd,
   initialCrossfade, crossfadeNotice, onSave, loopEnabled = false, loopOnRelease = false,
-  playbackRate = 1, gain = 0, reverse = false, ampEnvelope, onSaveForAll,
+  playbackRate = 1, gain = 0, reverse = false, ampEnvelope, sectionOnly = false, onSaveForAll, saveForAllCount, saveForAllScope,
 }: WaveformZoomModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasColors=useStudioCanvasColors();
@@ -105,8 +112,11 @@ export function WaveformZoomModal({
   const [crossfadeEdited, setCrossfadeEdited] = useState(false);
   const [transport, setTransport] = useState<'stopped' | 'playing' | 'paused' | 'released'>('stopped');
   const [playheadFrame, setPlayheadFrame] = useState(0);
+  const [confirmingSaveForAll, setConfirmingSaveForAll] = useState(false);
+  const focusKeepEditing = useCallback((node: HTMLButtonElement | null) => { node?.focus(); }, []);
   const { playWithADSR, releaseNote } = useAudioPlayer();
-  useOwnedDialog({active:isOpen,dialogRef:modalRef,onClose});
+  // Escape backs out of the Save for all question before it closes the editor.
+  useOwnedDialog({active:isOpen,dialogRef:modalRef,onClose:()=>{if(confirmingSaveForAll)setConfirmingSaveForAll(false);else onClose();}});
 
   const hasLoopPoints = initialLoopStart !== undefined && initialLoopEnd !== undefined;
   const frameCount = audioBuffer?.length ?? 1;
@@ -134,6 +144,7 @@ export function WaveformZoomModal({
       setSelectedMarker('in');
       setCrossfade(initialCrossfade ? { ...initialCrossfade } : { fraction: 0 });
       setCrossfadeEdited(false);
+      setConfirmingSaveForAll(false);
       setTransport('stopped');
       initializedBufferRef.current = audioBuffer;
     }
@@ -377,29 +388,32 @@ export function WaveformZoomModal({
   };
   const payload = (forAll = false): Partial<MultisampleFile> => ({ inPoint: framesToSeconds(draft.sample.start, sampleRate), outPoint: framesToSeconds(draft.sample.end, sampleRate), ...(hasLoopPoints ? { loopStart: framesToSeconds(draft.loop.start, sampleRate), loopEnd: framesToSeconds(draft.loop.end, sampleRate), loopCrossfade: forAll ? { fraction: Math.min(0.75, crossfade.fraction) } : { ...crossfade } } : {}) });
   const save = () => { const values = payload(); onSave(values.inPoint!, values.outPoint!, values.loopStart, values.loopEnd, values.loopCrossfade); onClose(); };
-  const saveForAll = () => { onSaveForAll(payload(true)); onClose(); };
+  const saveForAll = () => { setConfirmingSaveForAll(false); onSaveForAll?.(payload(true)); onClose(); };
   const cancel = () => { stop(); onClose(); };
   if (!isOpen) return null;
 
-  const fields: Array<{ marker: Marker; label: string; frame: number }> = [{ marker: 'in', label: 'Sample start', frame: draft.sample.start }, { marker: 'out', label: 'Sample end', frame: draft.sample.end }];
-  if (hasLoopPoints) fields.push({ marker: 'loopStart', label: 'Loop start', frame: draft.loop.start }, { marker: 'loopEnd', label: 'Loop end', frame: draft.loop.end });
+  const fields: Array<{ marker: Marker; label: string; frame: number }> = [{ marker: 'in', label: markerLabels.in, frame: draft.sample.start }, { marker: 'out', label: markerLabels.out, frame: draft.sample.end }];
+  if (hasLoopPoints) fields.push({ marker: 'loopStart', label: markerLabels.loopStart, frame: draft.loop.start }, { marker: 'loopEnd', label: markerLabels.loopEnd, frame: draft.loop.end });
+  const saveForAllScopeText = saveForAllScope ?? 'loaded samples in this instrument';
+  const saveForAllMarkers = hasLoopPoints ? 'playback start and end, loop start and end, and loop crossfade' : 'playback start and end';
   const importedAbovePreviewLimit = !crossfadeEdited && crossfade.fraction > 0.75;
 
   return <div role="dialog" aria-modal="true" aria-labelledby="waveform-zoom-modal-title" ref={modalRef} tabIndex={-1}
-    style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+    style={{ position: 'fixed', inset: 0, zIndex: sectionOnly ? 10001 : 9999, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
     onPointerDown={(event) => { if (event.target === event.currentTarget) cancel(); }}>
     <div style={{ width: 'min(900px, 100%)', maxHeight: '100%', overflow: 'auto', background: c.bg, color: c.text, borderRadius: '6px', boxShadow: '0 8px 32px rgba(0,0,0,.15)' }}>
-      <header style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${c.border}` }}><h3 id="waveform-zoom-modal-title" style={{ margin: 0, fontWeight: 400 }}>zoom and edit</h3></header>
+      <header style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${c.border}` }}><h3 id="waveform-zoom-modal-title" style={{ margin: 0, fontWeight: 400 }}>{sectionOnly?'Choose a section':'Zoom and edit'}</h3></header>
       <main style={{ padding: '1rem 1.5rem' }}>
-        <canvas ref={canvasRef} aria-label="waveform editor: drag markers to set sample and loop points" tabIndex={0} onPointerDown={onPointerDown} onKeyDown={adjustSelected}
+        {sectionOnly&&<p>Drag the start and end handles to keep the part you want. Press Play to listen. Your original audio stays available.</p>}
+        <canvas ref={canvasRef} aria-label={`Waveform editor: drag a marker, or use the arrow keys to move the selected marker, to set playback${hasLoopPoints ? ' and loop' : ''} points`} tabIndex={0} onPointerDown={onPointerDown} onKeyDown={adjustSelected}
           style={{ width: '100%', height: '200px', display: 'block', border: `1px solid ${c.border}`, touchAction: 'none', cursor: dragRef.current ? 'grabbing' : 'pointer' }} />
-        <p aria-live="polite" style={{ margin: '.5rem 0' }}>Selected marker: {selectedMarker}</p>
+        <p aria-live="polite" style={{ margin: '.5rem 0' }}>Selected marker: {markerLabels[selectedMarker]}</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(285px, 1fr))', gap: '.75rem' }}>
           {fields.map(({ marker, label, frame }) => <fieldset key={marker} style={{ border: `1px solid ${c.border}`, borderRadius: '3px', padding: '.6rem' }}><legend>{label}</legend>
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem', marginBottom: '.4rem' }}>frames
+            <label hidden={sectionOnly} style={{ display: sectionOnly?'none':'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem', marginBottom: '.4rem' }}>Frames
               <input aria-label={`${label} frames`} type="number" step="1" min="0" max={frameCount} value={frame} onFocus={() => setSelectedMarker(marker)} onChange={(event) => setFrameValue(marker, event.target.value, 'frames')} style={inputStyle} />
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>seconds
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>Seconds
               <input aria-label={`${label} seconds`} type="number" step={1 / sampleRate} min="0" max={frameCount / sampleRate} value={framesToSeconds(frame, sampleRate)} onFocus={() => setSelectedMarker(marker)} onChange={(event) => setFrameValue(marker, event.target.value, 'seconds')} style={inputStyle} />
             </label>
           </fieldset>)}
@@ -415,19 +429,33 @@ export function WaveformZoomModal({
         </section>}
         <section style={{ marginTop: '1rem', borderTop: `1px solid ${c.border}`, paddingTop: '1rem' }}>
           <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button ref={firstButtonRef} data-initial-focus="true" type="button" aria-label="play" onClick={() => void play()} disabled={transport === 'playing'}>play</button>
-            <button type="button" aria-label="pause" onClick={pause} disabled={transport !== 'playing'}>pause</button>
-            <button type="button" aria-label="release" onClick={release} disabled={transport !== 'playing'}>release</button>
-            <button type="button" aria-label="stop" onClick={stop}>stop</button>
-            <span aria-live="polite">Playhead: {playheadFrame} frames</span>
-            <label><input type="checkbox" checked={snapToZero} onChange={(event) => setSnapToZero(event.target.checked)} /> snap to zero crossings</label>
+            <button ref={firstButtonRef} data-initial-focus="true" type="button" onClick={() => void play()} disabled={transport === 'playing'}>Play</button>
+            <button type="button" onClick={pause} disabled={transport !== 'playing'}>Pause</button>
+            <button hidden={sectionOnly} type="button" title="Let go of the held note to hear how it ends" onClick={release} disabled={transport !== 'playing'}>Release</button>
+            <button type="button" onClick={stop}>Stop</button>
+            <span hidden={sectionOnly} aria-live="polite">Playhead: {playheadFrame} frames</span>
+            <label hidden={sectionOnly}><input type="checkbox" checked={snapToZero} onChange={(event) => setSnapToZero(event.target.checked)} /> Snap to zero crossings</label>
           </div>
+          {hasLoopPoints&&!loopEnabled&&<p>Looping is off for this instrument; these loop points are stored but not heard.</p>}
           {hasLoopPoints && <p style={{ margin: '.6rem 0 0' }}>Loop until release stops looping when the note is released. Loop forever keeps the looped section running through the release.</p>}
-          <p style={{ margin: '.6rem 0 0' }}>ADSR numbers remain the raw export values. Preview timing uses an approximate quadratic mapping up to 30 seconds; it is not calibrated hardware timing.</p>
+          <p hidden={sectionOnly} style={{ margin: '.6rem 0 0' }}>ADSR numbers remain the raw export values. Preview timing uses an approximate quadratic mapping up to 30 seconds; it is not calibrated hardware timing.</p>
         </section>
       </main>
       <footer style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '.75rem', background: c.bgAlt, borderTop: `1px solid ${c.border}` }}>
-        <button type="button" onClick={saveForAll}>save for all</button><button type="button" onClick={cancel}>cancel</button><button type="button" onClick={save} style={{ background: c.action, color: 'var(--studio-accent-text)' }}>save markers</button>
+        {confirmingSaveForAll ? <div role="alert" style={{ flex: 1, minWidth: 0 }}>
+          <p id="waveform-save-for-all-title" style={{ margin: '0 0 .35rem', fontWeight: 600 }}>
+            {saveForAllCount !== undefined ? `Replace markers on ${saveForAllCount} ${saveForAllCount === 1 ? 'sample' : 'samples'}?` : 'Replace markers on every loaded sample?'}
+          </p>
+          <p id="waveform-save-for-all-detail" style={{ margin: '0 0 .75rem' }}>
+            {saveForAllCount !== undefined ? `Samples affected: ${saveForAllCount} (${saveForAllScopeText}).` : `Scope: all ${saveForAllScopeText}.`} This overwrites {saveForAllMarkers} on each one with the values shown here, fitted to each recording’s length. The audio itself is not changed. Use Undo to bring back the previous markers.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', flexWrap: 'wrap' }}>
+            <button type="button" ref={focusKeepEditing} onClick={() => setConfirmingSaveForAll(false)}>Keep editing</button>
+            <button type="button" onClick={saveForAll}>{saveForAllCount !== undefined ? `Replace markers on ${saveForAllCount} ${saveForAllCount === 1 ? 'sample' : 'samples'}` : 'Replace markers on all samples'}</button>
+          </div>
+        </div> : <>
+          {onSaveForAll&&!sectionOnly&&<button type="button" onClick={() => setConfirmingSaveForAll(true)}>Save for all…</button>}<button type="button" onClick={cancel}>Cancel</button><button type="button" onClick={save} style={{ background: c.action, color: 'var(--studio-accent-text)' }}>{sectionOnly?'Use this section':'Save markers'}</button>
+        </>}
       </footer>
     </div>
   </div>;

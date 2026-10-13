@@ -17,6 +17,10 @@ export function Footer() {
       fontSize: '0.9rem',
       color: 'var(--color-text-tertiary)'
     }}>
+      <nav aria-label="Project information" style={{display:'flex',justifyContent:'center',gap:'1.25rem',marginBottom:'1rem'}}>
+        <a href="#/feedback" style={{color:'var(--color-text-secondary)'}}>Feedback</a>
+        <a href="#/donate" style={{color:'var(--color-text-secondary)'}}>Support the project</a>
+      </nav>
       <div style={{ marginBottom: '1rem', color: 'var(--color-text-tertiary)', fontSize: '0.85rem' }}>
         OP-PatchStudio is an unofficial tool not affiliated with or endorsed by teenage engineering.<br />
         this software is provided "as is" without warranty of any kind. use at your own risk. for educational and personal use only.<br />

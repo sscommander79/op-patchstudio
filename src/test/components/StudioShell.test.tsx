@@ -36,10 +36,10 @@ describe('StudioShell presentation landmarks', () => {
     expect(document.querySelectorAll('[data-start-diagram]').length).toBe(0);
 
     expect(screen.queryByRole('button', { name: 'Create' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Setup guide: multisample a synth' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guide: make a playable instrument' }));
 
-    expect(window.location.hash).toBe('#/studio/create');
-    expect(screen.getByRole('heading', { name: 'Where is your synth?' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/studio/source');
+    expect(screen.getByRole('heading', { name: 'Where will your sound come from?' })).toBeInTheDocument();
     expect(document.querySelectorAll('[data-launch-diagram]').length).toBe(0);
   });
 
@@ -48,7 +48,7 @@ describe('StudioShell presentation landmarks', () => {
 
     const launch = screen.getByRole('region', { name: 'What are you working on?' });
     const modules = within(launch).getAllByRole('article');
-    expect(modules.map(module => within(module).getByRole('heading', { level: 2 }).textContent)).toEqual(['Multisample a synth', 'Sample a sound', 'Build a drum kit', 'Record OP-XY tracks']);
+    expect(modules.map(module => within(module).getByRole('heading', { level: 2 }).textContent)).toEqual(['Make a playable instrument', 'Record a drum sound', 'Build a drum kit', 'Record OP-XY tracks']);
     expect(modules.map(module => module.querySelector('[data-launch-diagram]')?.getAttribute('data-launch-diagram'))).toEqual(['note-range', 'capture', 'pad-map', 'tracks']);
     expect(within(launch).getByRole('img', { name: 'Note range diagram: 24 zones across the keyboard, 0 loaded' })).toBeInTheDocument();
     expect(within(launch).getByRole('img', { name: 'Drum kit illustration: bass drum, snare and percussion on six colorful pads' })).toBeInTheDocument();
@@ -60,8 +60,8 @@ describe('StudioShell presentation landmarks', () => {
     expect(launch.querySelector('[data-launch-diagram="pad-map"] text')).toBeNull();
     expect(launch.querySelectorAll('[data-zone]')).toHaveLength(24);
     expect(modules.map(module => within(module).getAllByRole('button').map(button => button.getAttribute('aria-label') ?? button.textContent))).toEqual([
-      ['Setup guide: multisample a synth', 'Open capture →'],
-      ['Setup guide: sample a sound', 'Open sampler →'],
+      ['Guide: make a playable instrument', 'Choose a source →'],
+      ['Setup guide: record a drum sound', 'Record a sound →'],
       ['Setup guide: build a drum kit', 'Open kit →'],
       ['Record OP-XY tracks'],
     ]);
@@ -81,22 +81,25 @@ describe('StudioShell presentation landmarks', () => {
     expect(JSON.parse(screen.getByTestId('main-tabs').getAttribute('data-recorder-request') ?? 'null')).toBeNull();
   });
 
-  it.each([
-    ['Open capture', true],
-    ['Open sampler', false],
-  ])('%s opens the multisample editor with the matching recorder request', (name, guided) => {
+  it('routes recording a drum sound to the drum recorder', () => {
     render(<StudioShell />);
-    fireEvent.click(screen.getByRole('button', { name }));
-
-    expect(window.location.hash).toBe('#/studio/multisample');
-    expect(JSON.parse(screen.getByTestId('main-tabs').getAttribute('data-recorder-request') ?? 'null')).toMatchObject({ tab: 'multisample', guided, source: 'hardware' });
+    fireEvent.click(screen.getByRole('button', { name: 'Record a sound' }));
+    expect(window.location.hash).toBe('#/studio/drum');
+    expect(JSON.parse(screen.getByTestId('main-tabs').getAttribute('data-recorder-request') ?? 'null')).toMatchObject({tab: 'drum', guided: false});
+  });
+  it('passes the chosen source into guided recording', () => {
+    render(<StudioShell />);
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a source' }));
+    fireEvent.click(screen.getByRole('button', { name: /A software instrument/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect and check sound' }));
+    expect(JSON.parse(screen.getByTestId('main-tabs').getAttribute('data-recorder-request') ?? 'null')).toMatchObject({tab: 'multisample', guided: true, source: 'software'});
   });
 
   it('keeps the optional setup guidance one step away from each launch module', () => {
     render(<StudioShell />);
     fireEvent.click(screen.getByRole('button', { name: 'Setup guide: build a drum kit' }));
 
-    expect(window.location.hash).toBe('#/studio/create');
+    expect(window.location.hash).toBe('#/studio/setup');
     expect(screen.getByRole('heading', { level: 1, name: 'Build your kit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open editor and Record takes' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open editor to import audio' })).toBeInTheDocument();
@@ -110,7 +113,7 @@ describe('StudioShell presentation landmarks', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     fireEvent.click(screen.getByRole('button', { name: 'Back up or transfer Keep an editable project copy' }));
     expect(window.location.hash).toBe('#/studio/transfer');
-    expect(screen.getByRole('heading', { level: 1, name: 'Back up or transfer' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Back up and transfer' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open library Browse saved instruments' }));
@@ -161,13 +164,12 @@ describe('StudioShell presentation landmarks', () => {
     window.history.replaceState(null, '', '#/studio/transfer');
     const { unmount } = render(<StudioShell />);
 
-    expect(screen.getByRole('button', { name: 'Open drum kit editor (Project menu)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open drum kit editor (Export OP-XY)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Return to drum kit editor' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How to copy to OP-XY' })).toBeInTheDocument();
     unmount();
 
     studio.state.currentTab = 'multisample';
     render(<StudioShell />);
-    expect(screen.getByRole('button', { name: 'Open multisample editor (Project menu)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open multisample editor (Export OP-XY)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Return to multisample editor' })).toBeInTheDocument();
   });
 });

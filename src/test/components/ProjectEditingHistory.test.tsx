@@ -106,7 +106,7 @@ describe('production compound edit history', () => {
     fireEvent.change(selects[1],{target:{value:'reverse'}});
     const ranges=container.querySelectorAll('input[type="range"]');
     fireEvent.change(ranges[0],{target:{value:'7'}});
-    fireEvent.click(screen.getByRole('button',{name:'apply to 2 samples'}));
+    fireEvent.click(screen.getByRole('button',{name:'Apply to 2 samples'}));
     expect(screen.getByLabelText('sample-state')).toHaveTextContent('"reverse":true');
     expect(screen.getByLabelText('sample-state')).toHaveTextContent('"transpose":7');
     fireEvent.click(screen.getByRole('button',{name:'undo test'}));

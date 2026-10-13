@@ -11,15 +11,15 @@ beforeEach(()=>{dispatch.mockClear();const audioBuffer=new AudioBuffer({numberOf
 afterEach(cleanup);
 it('legacy zero-crossing action stays in the draft and Cancel discards it',()=>{
  const close=vi.fn();render(<DrumSampleSettingsModal isOpen onClose={close} sampleIndex={0}/>);const before=screen.getByTestId('markers').textContent;
- fireEvent.click(screen.getByRole('button',{name:'apply zero crossing'}));expect(screen.getByTestId('markers').textContent).not.toBe(before);expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'cancel'}));expect(close).toHaveBeenCalledOnce();expect(dispatch).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Apply zero crossing'}));expect(screen.getByTestId('markers').textContent).not.toBe(before);expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Cancel'}));expect(close).toHaveBeenCalledOnce();expect(dispatch).not.toHaveBeenCalled();
 });
 it('Save commits snapped current bounds once and marks a marker-only edit',()=>{
- render(<DrumSampleSettingsModal isOpen onClose={vi.fn()} sampleIndex={0}/>);fireEvent.click(screen.getByRole('button',{name:'apply zero crossing'}));expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'save'}));expect(dispatch).toHaveBeenCalledOnce();const action=dispatch.mock.calls[0][0];expect(action).toMatchObject({type:'UPDATE_DRUM_SAMPLE',payload:{index:0,updates:{hasBeenEdited:true}}});expect(action.payload.updates.inPoint).toBeGreaterThanOrEqual(.002);expect(action.payload.updates.outPoint).toBeLessThanOrEqual(.09);expect(action.payload.updates.outPoint).toBeGreaterThan(action.payload.updates.inPoint);
+ render(<DrumSampleSettingsModal isOpen onClose={vi.fn()} sampleIndex={0}/>);fireEvent.click(screen.getByRole('button',{name:'Apply zero crossing'}));expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Save'}));expect(dispatch).toHaveBeenCalledOnce();const action=dispatch.mock.calls[0][0];expect(action).toMatchObject({type:'UPDATE_DRUM_SAMPLE',payload:{index:0,updates:{hasBeenEdited:true}}});expect(action.payload.updates.inPoint).toBeGreaterThanOrEqual(.002);expect(action.payload.updates.outPoint).toBeLessThanOrEqual(.09);expect(action.payload.updates.outPoint).toBeGreaterThan(action.payload.updates.inPoint);
 });
 
 it('opening a legacy sample without markers and cancelling does not mutate it',()=>{
- const context=useAppContext();context.state.drumSamples[0]={...context.state.drumSamples[0],inPoint:undefined,outPoint:undefined} as unknown as typeof context.state.drumSamples[number];render(<DrumSampleSettingsModal isOpen onClose={vi.fn()} sampleIndex={0}/>);expect(screen.getByTestId('markers')).toHaveTextContent('[0,4800]');expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'cancel'}));expect(dispatch).not.toHaveBeenCalled();
+ const context=useAppContext();context.state.drumSamples[0]={...context.state.drumSamples[0],inPoint:undefined,outPoint:undefined} as unknown as typeof context.state.drumSamples[number];render(<DrumSampleSettingsModal isOpen onClose={vi.fn()} sampleIndex={0}/>);expect(screen.getByTestId('markers')).toHaveTextContent('[0,4800]');expect(dispatch).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Cancel'}));expect(dispatch).not.toHaveBeenCalled();
 });
 it('saving unchanged settings closes without an undo-producing dispatch',()=>{
- const close=vi.fn();render(<DrumSampleSettingsModal isOpen onClose={close} sampleIndex={0}/>);fireEvent.click(screen.getByRole('button',{name:'save'}));expect(close).toHaveBeenCalledOnce();expect(dispatch).not.toHaveBeenCalled();
+ const close=vi.fn();render(<DrumSampleSettingsModal isOpen onClose={close} sampleIndex={0}/>);fireEvent.click(screen.getByRole('button',{name:'Save'}));expect(close).toHaveBeenCalledOnce();expect(dispatch).not.toHaveBeenCalled();
 });

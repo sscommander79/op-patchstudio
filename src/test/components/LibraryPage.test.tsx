@@ -259,6 +259,16 @@ describe('LibraryPage', () => {
       expect(screen.queryByText('Drum Kit 1')).not.toBeInTheDocument();
     });
 
+    it('does not warn about replacing an empty instrument when only the other instrument has sounds',async()=>{
+      sessionInProgress=true; // drum has sounds; multisample is empty
+      render(<LibraryPage/>);
+      const preset=mockPresets.find(item=>item.type==='multisample')!;
+      await screen.findByText(preset.name);
+      fireEvent.click(screen.getByRole('button',{name:`Load ${preset.name}`}));
+      await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY',payload:expect.objectContaining({mode:'multisample'})})));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     it('keeps the selected Load confirmation owned through a background refresh', async () => {
       sessionInProgress = true;
       let resolveRefresh!: (value: PresetSummary[]) => void;
@@ -270,7 +280,7 @@ describe('LibraryPage', () => {
 
       const row=screen.getByText('Drum Kit 1').closest('tr');
       if(!row)throw new Error('Drum Kit 1 row was not rendered');
-      fireEvent.click(within(row).getByRole('button',{name:'load preset'}));
+      fireEvent.click(within(row).getByRole('button',{name:'Load Drum Kit 1'}));
       expect(screen.getByRole('dialog')).toHaveTextContent('Drum Kit 1');
       act(() => window.dispatchEvent(new Event('library-refresh')));
       expect(screen.getByRole('dialog')).toHaveTextContent('Drum Kit 1');
@@ -290,7 +300,7 @@ describe('LibraryPage', () => {
       const navigate=vi.fn();window.addEventListener('opstudio-open-workspace',navigate);
       try {
         render(<LibraryPage/>);await screen.findByText('Drum Kit 1');
-        fireEvent.click(screen.getAllByRole('button',{name:'load preset'})[0]);
+        fireEvent.click(screen.getAllByRole('button',{name:/^Load /})[0]);
         await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error'})})));
         expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
         expect(navigate).not.toHaveBeenCalled();
@@ -301,9 +311,9 @@ describe('LibraryPage', () => {
       vi.mocked(projectEditIdentityMatches).mockReturnValueOnce(false);
       render(<LibraryPage/>);
       await screen.findByText('Drum Kit 1');
-      fireEvent.click(screen.getAllByRole('button',{name:'load preset'})[0]);
+      fireEvent.click(screen.getAllByRole('button',{name:/^Load /})[0]);
       await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
-        type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error',message:'failed to load preset'}),
+        type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error',message:'Could not load this preset. Your current project is unchanged.'}),
       })));
       expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
     });
@@ -338,7 +348,8 @@ describe('LibraryPage', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Could not load saved presets');
       expect(screen.queryByText('No presets found')).not.toBeInTheDocument();
-      expect(screen.queryByText('Save a drum or multisample preset to begin your library.')).not.toBeInTheDocument();
+      expect(screen.queryByText('No saved presets yet')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button',{name:'Build a drum kit'})).not.toBeInTheDocument();
       expect(screen.getByRole('combobox',{name:'Sort presets'})).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Retry loading library' }));
@@ -420,13 +431,14 @@ describe('LibraryPage', () => {
 
       // Wait for the table headers to be rendered
       await waitFor(() => {
-        expect(screen.getByText('name')).toBeInTheDocument();
+        expect(screen.getByRole('button',{name:'Name'})).toBeInTheDocument();
       });
 
-      const nameHeader = screen.getByText('name');
+      const nameHeader = screen.getByRole('button',{name:'Name'});
       fireEvent.click(nameHeader);
 
       await waitFor(() => {
+        expect(screen.getByRole('columnheader',{name:'Name'})).toHaveAttribute('aria-sort','ascending');
         const presetNames = within(screen.getByRole('table')).getAllByText(/^(Drum Kit [12]|Multisample 1)$/);
         expect(presetNames[0]).toHaveTextContent('Drum Kit 1');
         expect(presetNames[1]).toHaveTextContent('Drum Kit 2');
@@ -649,7 +661,7 @@ describe('LibraryPage', () => {
       expect(screen.getByRole('group', { name: 'Selected preset actions' })).toHaveTextContent('1 selected');
 
       fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
-      expect(screen.getByRole('dialog')).toHaveTextContent('1 selected presets');
+      expect(screen.getByRole('dialog')).toHaveTextContent('Delete the 1 selected preset from the library?');
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ok' }));
       await waitFor(() => expect(mockIndexedDB.deletePresetsFromLibrary).toHaveBeenCalledWith(['preset-1']));
     });
@@ -691,12 +703,22 @@ describe('LibraryPage', () => {
         expect(screen.queryByText('loading...')).not.toBeInTheDocument();
       });
 
-      // When no presets exist, the table is still rendered but empty
+      // When no presets exist, the empty state replaces the table and its header
       await waitFor(() => {
-        expect(screen.getByText('name')).toBeInTheDocument(); // Table header
-        expect(screen.getByText('actions')).toBeInTheDocument(); // Table header
+        expect(screen.getByRole('status')).toHaveTextContent('No saved presets yet');
         expect(screen.getByRole('combobox',{name:'Sort presets'})).toBeInTheDocument();
       });
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading',{level:2,name:'0 presets'})).toBeInTheDocument();
+
+      const navigate=vi.fn();window.addEventListener('opstudio-open-workspace',navigate);
+      try {
+        fireEvent.click(screen.getByRole('button',{name:'Build a drum kit'}));
+        fireEvent.click(screen.getByRole('button',{name:'Make a multisample instrument'}));
+        expect(navigate.mock.calls.map(([event])=>(event as CustomEvent).detail)).toEqual(['drum','multisample']);
+      } finally {window.removeEventListener('opstudio-open-workspace',navigate);}
+      expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
     });
 
     it('should show filtered empty state when no presets match filters', async () => {
@@ -711,11 +733,19 @@ describe('LibraryPage', () => {
       const searchInput = screen.getByPlaceholderText('Search presets or tags');
       fireEvent.change(searchInput, { target: { value: 'Nonexistent' } });
 
-      // When filtering results in no matches, the table is still rendered but empty
+      // When filtering results in no matches, the empty state replaces the table and its header
       await waitFor(() => {
-        expect(screen.getByText('name')).toBeInTheDocument(); // Table header
+        expect(screen.getByRole('status')).toHaveTextContent('No presets match your search');
         expect(screen.queryByText('Drum Kit 1')).not.toBeInTheDocument(); // No presets shown
       });
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+      expect(screen.getByText('3 presets in this section are hidden by the search or filters above.')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button',{name:'Clear search and filters'}));
+      expect(searchInput).toHaveValue('');
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getByText('Drum Kit 1')).toBeInTheDocument();
     });
   });
 
@@ -743,9 +773,9 @@ describe('LibraryPage', () => {
       try {
         render(<LibraryPage />);
         await screen.findByText('Drum Kit 1');
-        fireEvent.click(screen.getByRole('button',{name:'load preset'}));
+        fireEvent.click(screen.getByRole('button',{name:'Load Drum Kit 1'}));
         await waitFor(()=>expect(stableDispatch).toHaveBeenCalledWith(expect.objectContaining({
-          type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error',message:'failed to load preset'}),
+          type:'ADD_NOTIFICATION',payload:expect.objectContaining({type:'error',message:'Could not load this preset. Your current project is unchanged.'}),
         })));
         expect(stableDispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'RESTORE_LIBRARY'}));
       } finally {

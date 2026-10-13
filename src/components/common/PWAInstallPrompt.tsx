@@ -13,6 +13,7 @@ interface BeforeInstallPromptEvent extends Event {
 const STORAGE_KEYS = {
   INSTALL_DISMISSED: 'pwa_install_dismissed',
   INSTALL_ACCEPTED: 'pwa_install_accepted',
+  REMIND_LATER: 'pwa_install_remind_later',
   VISIT_COUNT: 'pwa_visit_count',
   LAST_PROMPT_DATE: 'pwa_last_prompt_date'
 };
@@ -21,16 +22,15 @@ const STORAGE_KEYS = {
 const PROMPT_CONFIG = {
   FIRST_VISIT_DELAY: 3000, // 3 seconds after first visit
   REPROMPT_INTERVAL: 7 * 24 * 60 * 60 * 1000, // 7 days
-  VISIT_THRESHOLD: 6, // Show again after 6 visits
+  VISIT_THRESHOLD: 6, // After Later, stay hidden until this many further visits
   MOBILE_DELAY: 2000, // Shorter delay for mobile
   DESKTOP_DELAY: 5000 // Longer delay for desktop
 };
 
-const PWAInstallPrompt: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const readVisitCount = (): number => {
+    const count = parseInt(localStorage.getItem(STORAGE_KEYS.VISIT_COUNT) || '0', 10);
+    return Number.isFinite(count) && count > 0 ? count : 0;
+  };
 
   // Check if user should see the prompt
   const shouldShowPrompt = (): boolean => {
@@ -56,14 +56,30 @@ const PWAInstallPrompt: React.FC = () => {
       }
     }
 
+    // Later hides the promotion until the visit threshold is reached again
+    if (localStorage.getItem(STORAGE_KEYS.REMIND_LATER) && readVisitCount() < PROMPT_CONFIG.VISIT_THRESHOLD) {
+      return false;
+    }
+
     return true;
   };
 
+  // A visit is one loaded document. This module is evaluated once per document, so the flag
+  // survives the prompt unmounting and remounting as the user moves between in-app pages.
+  let visitCountedForThisDocument = false;
+
   // Track visit count
   const trackVisit = () => {
-    const currentCount = parseInt(localStorage.getItem(STORAGE_KEYS.VISIT_COUNT) || '0');
-    localStorage.setItem(STORAGE_KEYS.VISIT_COUNT, (currentCount + 1).toString());
+    if (visitCountedForThisDocument) return;
+    visitCountedForThisDocument = true;
+    localStorage.setItem(STORAGE_KEYS.VISIT_COUNT, (readVisitCount() + 1).toString());
   };
+
+const PWAInstallPrompt: React.FC = () => {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Check device type
   const checkDeviceType = () => {
@@ -72,10 +88,13 @@ const PWAInstallPrompt: React.FC = () => {
     setIsMobile(isMobileDevice);
   };
 
+  // trackVisit counts once per document however often this mounts; kept apart from the listener effect, which re-runs when isMobile settles.
   useEffect(() => {
     checkDeviceType();
     trackVisit();
+  }, []);
 
+  useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
@@ -99,7 +118,6 @@ const PWAInstallPrompt: React.FC = () => {
       handleFadeOut();
       // Mark as accepted
       localStorage.setItem(STORAGE_KEYS.INSTALL_ACCEPTED, new Date().toISOString());
-      console.log('PWA was installed');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -128,11 +146,11 @@ const PWAInstallPrompt: React.FC = () => {
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
 
+    // An answered prompt replaces any earlier Later reminder
+    localStorage.removeItem(STORAGE_KEYS.REMIND_LATER);
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
       localStorage.setItem(STORAGE_KEYS.INSTALL_ACCEPTED, new Date().toISOString());
     } else {
-      console.log('User dismissed the install prompt');
       localStorage.setItem(STORAGE_KEYS.INSTALL_DISMISSED, new Date().toISOString());
     }
 
@@ -142,13 +160,15 @@ const PWAInstallPrompt: React.FC = () => {
 
   const handleDismiss = () => {
     handleFadeOut();
+    localStorage.removeItem(STORAGE_KEYS.REMIND_LATER);
     localStorage.setItem(STORAGE_KEYS.INSTALL_DISMISSED, new Date().toISOString());
   };
 
   const handleRemindLater = () => {
     handleFadeOut();
-    // Clear dismiss state and reset visit count to show again after threshold
+    // Swap any week-long dismissal for a visit-based reminder, counted from this visit
     localStorage.removeItem(STORAGE_KEYS.INSTALL_DISMISSED);
+    localStorage.setItem(STORAGE_KEYS.REMIND_LATER, new Date().toISOString());
     localStorage.setItem(STORAGE_KEYS.VISIT_COUNT, '0');
   };
 
@@ -158,6 +178,8 @@ const PWAInstallPrompt: React.FC = () => {
 
   return (
     <div
+      role="region"
+      aria-label="Install OP-PatchStudio"
       style={{
         position: 'fixed',
         bottom: isMobile ? '10px' : '20px',
@@ -185,17 +207,14 @@ const PWAInstallPrompt: React.FC = () => {
           fontWeight: '500',
           color: 'var(--color-text-primary)'
         }}>
-          install OP-PatchStudio offline
+          Install OP-PatchStudio (optional)
         </strong>
         <span style={{
           fontSize: '0.875rem',
           color: 'var(--color-text-secondary)',
           lineHeight: '1.4'
         }}>
-          {isMobile
-            ? 'install as app for offline use and quick access'
-            : 'install as app for offline use and quick access'
-          }
+          Installing adds an app shortcut that opens in its own window. The studio works the same in this browser tab, and your work stays in this browser either way. Installing does not back it up.
         </span>
       </div>
 
@@ -206,6 +225,8 @@ const PWAInstallPrompt: React.FC = () => {
         justifyContent: 'flex-end'
       }}>
         <button
+          type="button"
+          title={`Hide this and ask again after ${PROMPT_CONFIG.VISIT_THRESHOLD} more visits`}
           onClick={handleRemindLater}
           style={{
             padding: '0.5rem 0.75rem',
@@ -231,9 +252,11 @@ const PWAInstallPrompt: React.FC = () => {
             e.currentTarget.style.color = 'var(--color-text-secondary)';
           }}
         >
-          later
+          Later
         </button>
         <button
+          type="button"
+          title="Hide this for a week"
           onClick={handleDismiss}
           style={{
             padding: '0.5rem 0.75rem',
@@ -259,9 +282,11 @@ const PWAInstallPrompt: React.FC = () => {
             e.currentTarget.style.color = 'var(--color-text-secondary)';
           }}
         >
-          dismiss
+          Dismiss
         </button>
         <button
+          type="button"
+          title="Open the browser's install dialog"
           onClick={handleInstallClick}
           style={{
             padding: '0.5rem 0.75rem',
@@ -287,7 +312,7 @@ const PWAInstallPrompt: React.FC = () => {
             e.currentTarget.style.boxShadow = 'none';
           }}
         >
-          install
+          Install
         </button>
       </div>
     </div>

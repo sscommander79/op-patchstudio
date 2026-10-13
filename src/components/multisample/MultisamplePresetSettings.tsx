@@ -78,7 +78,7 @@ const createTrueDefaultSettings = (): MultisampleAdvancedSettings => {
   };
 };
 
-export function MultisamplePresetSettings() {
+export function MultisamplePresetSettings({showLoopSwitch=true}:{showLoopSwitch?:boolean}={}) {
   const { state, dispatch, importPresetFile } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transposeGesture = useProjectEditGesture('multisample-preset-transpose');
@@ -388,7 +388,7 @@ export function MultisamplePresetSettings() {
                     </div>
                   </div>
 
-                  <div style={{
+                  {showLoopSwitch&&<div style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: isMobile ? 'center' : 'flex-start',
@@ -413,7 +413,7 @@ export function MultisamplePresetSettings() {
                         size="sm"
                       />
                     </div>
-                  </div>
+                  </div>}
 
                   <div style={{
                     display: 'flex',
@@ -733,34 +733,17 @@ export function MultisamplePresetSettings() {
                   />
                 </div>
 
-                {/* Filters (Coming Soon) */}
-                <div className="studio-settings-placeholder" style={{
+                {/* Filter type/cutoff are not editable here; the filter envelope beside this note is exported. */}
+                <p data-filter-note="true" style={{
                   flex: isMobile ? '1' : '1 1 50%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  minHeight: isMobile ? '200px' : '300px',
-                  border: '1px solid var(--color-border-light)',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--color-bg-panel)',
+                  minWidth: 0,
+                  margin: 0,
+                  fontSize: '0.875rem',
+                  lineHeight: 1.5,
                   color: 'var(--color-text-secondary)'
                 }}>
-                  <div style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '500',
-                    marginBottom: '0.5rem',
-                    textAlign: 'center'
-                  }}>
-                    filters
-                  </div>
-                  <div style={{
-                    fontSize: '0.9rem',
-                    textAlign: 'center'
-                  }}>
-                    coming soon
-                  </div>
-                </div>
+                  The amp and filter envelopes are saved in the exported preset. Filter type and cutoff cannot be edited here yet.
+                </p>
               </div>
             )}
           </section>
@@ -862,6 +845,22 @@ export function MultisamplePresetSettings() {
 
       {/* Slider Styling */}
       <style>{`
+        /* Loop toggles: Carbon's own track tokens are not themed here, so off/on read from studio tokens. */
+        [id^="multisample-loop-"] .cds--toggle__switch {
+          background-color: var(--color-text-secondary) !important;
+        }
+        [id^="multisample-loop-"] .cds--toggle__switch--checked {
+          background-color: var(--color-text-primary) !important;
+        }
+        [id^="multisample-loop-"] .cds--toggle__switch::before {
+          background-color: var(--color-bg-primary) !important;
+        }
+        [id^="multisample-loop-"] .cds--toggle__check {
+          fill: var(--color-text-primary) !important;
+        }
+        [id^="multisample-loop-"] .cds--toggle__text {
+          color: var(--color-text-primary) !important;
+        }
         #multisample-transpose .cds--slider__track,
         #multisample-velocity-sensitivity .cds--slider__track,
         #multisample-volume .cds--slider__track,

@@ -13,8 +13,11 @@ import { cookieUtils, COOKIE_KEYS } from '../../utils/cookies';
 import { sessionStorageIndexedDB } from '../../utils/sessionStorageIndexedDB';
 import { ToggleSwitch } from '../common/ToggleSwitch';
 import { AUDIO_CONSTANTS } from '../../utils/constants';
+import { multisampleInstrumentResetActions } from '../../utils/instrumentReset';
 import { useAudioImport } from '../common/AudioImportContext';
 import { AUDIO_FILE_ACCEPT } from '../../utils/audioFormats';
+import { MultisampleGuide } from './MultisampleGuide';
+import type { SampleHelpTopic } from './multisampleHelp';
 import { MultisampleFocusWorkspace } from './MultisampleFocusWorkspace';
 import type { RecorderRequest } from '../common/MainTabs';
 
@@ -40,6 +43,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
   const browseInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
   const browseFilesRef = useRef<(() => void) | null>(null);
+  const [helpTopic,setHelpTopic]=useState<SampleHelpTopic|null>(null);
   const [workspaceView,setWorkspaceView]=useState<'focus'|'table'>('focus');
   const [selectedIndex,setSelectedIndex]=useState(state.selectedMultisample??0);
   const selectedAssetRef=useRef<(typeof state.multisampleFiles)[number]|undefined>(state.multisampleFiles[selectedIndex]);
@@ -215,18 +219,29 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
 
 
 
+  // The instrument change is already committed when this runs, so the dialog always closes;
+  // a failed library-flag write is reported as a warning about the flag, never as a failed change.
+  const finishCommittedChange = async (title: string) => {
+    try {
+      // Reset saved to library flag since we're starting fresh
+      await sessionStorageIndexedDB.resetSavedToLibraryFlag();
+    } catch {
+      dispatch({type:'ADD_NOTIFICATION',payload:{id:crypto.randomUUID(),type:'warning',title,message:'The change was applied. This browser could not update its saved-to-library marker, so the library status shown for this instrument may be out of date.'}});
+    } finally {
+      setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
+    }
+  };
+
   const handleClearAll = async () => {
     setConfirmDialog({
       isOpen: true,
-      message: 'are you sure you want to clear all loaded samples?',
+      message: 'Remove all sounds from this instrument? Its settings stay unchanged. Back up your project first if you need to keep a copy.',
       onConfirm: async () => {
         dispatch({ type:'BATCH_EDIT', payload:state.multisampleFiles.map((_,index)=>({
           type:'CLEAR_MULTISAMPLE_FILE' as const,
           payload:state.multisampleFiles.length-index-1,
         })) });
-        // Reset saved to library flag since we're starting fresh
-        await sessionStorageIndexedDB.resetSavedToLibraryFlag();
-        setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
+        await finishCommittedChange('all sounds removed');
       }
     });
   };
@@ -234,32 +249,10 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
   const handleResetAll = async () => {
     setConfirmDialog({
       isOpen: true,
-      message: 'are you sure you want to reset everything to defaults? this will clear all samples, reset preset name and audio settings.',
+      message: 'Reset the whole instrument? This removes all sounds, discards any imported preset data, and resets its name, audio output settings, preset settings and envelopes to factory values. Back up your project first if you need to keep a copy.',
       onConfirm: async () => {
-        dispatch({ type:'BATCH_EDIT', payload:[
-          { type:'BUMP_PROJECT_GENERATION' },
-          ...state.multisampleFiles.map((_,index)=>({
-            type:'CLEAR_MULTISAMPLE_FILE' as const,
-            payload:state.multisampleFiles.length-index-1,
-          })),
-          { type:'SET_MULTISAMPLE_PRESET_NAME', payload:'' },
-          { type:'SET_MULTISAMPLE_SAMPLE_RATE', payload:0 },
-          { type:'SET_MULTISAMPLE_BIT_DEPTH', payload:0 },
-          { type:'SET_MULTISAMPLE_CHANNELS', payload:0 },
-          { type:'SET_MULTISAMPLE_NORMALIZE', payload:false },
-          { type:'SET_MULTISAMPLE_NORMALIZE_LEVEL', payload:AUDIO_CONSTANTS.MULTISAMPLE_NORMALIZATION_LEVEL },
-          { type:'SET_MULTISAMPLE_CUT_AT_LOOP_END', payload:false },
-          { type:'SET_MULTISAMPLE_GAIN', payload:0 },
-          { type:'SET_MULTISAMPLE_LOOP_ENABLED', payload:true },
-          { type:'SET_MULTISAMPLE_LOOP_ON_RELEASE', payload:true },
-          { type:'SET_MULTISAMPLE_RENAME_FILES', payload:false },
-          { type:'SET_MULTISAMPLE_FILENAME_SEPARATOR', payload:' ' },
-        ] });
-
-        // Reset saved to library flag since we're starting fresh
-        await sessionStorageIndexedDB.resetSavedToLibraryFlag();
-
-        setConfirmDialog({ isOpen: false, message: '', onConfirm: async () => {} });
+        dispatch({ type:'BATCH_EDIT', payload:multisampleInstrumentResetActions(state.multisampleFiles.length) });
+        await finishCommittedChange('instrument reset');
       }
     });
   };
@@ -414,6 +407,8 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
         <div className="studio-keyboard-positioner">
           <VirtualMidiKeyboard
             assignedNotes={Array.from(zoneMap.keys())}
+            rootNotes={state.multisampleFiles.map(file=>file.rootNote)}
+            selectedRoot={state.multisampleFiles[selectedIndex]?.rootNote}
             onKeyClick={handleKeyClick} // Pass the handler directly so source is respected
             onKeyRelease={handleKeyRelease} // Add release handler for ADSR
             onUnassignedKeyClick={handleUnassignedKeyClick}
@@ -433,7 +428,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
           <button type="button" className="studio-button-primary" onClick={()=>targetMidiNote===null?browseInputRef.current?.click():audioFileInputRef.current?.click()}>
             Add sounds{targetMidiNote===null?'':` to MIDI ${targetMidiNote}`}
           </button>
-          <button type="button" className="studio-button-primary" data-studio-open-recording="multisample" onClick={()=>handleOpenRecording()}>
+          <button type="button" className="studio-button-secondary" data-studio-open-recording="multisample" onClick={()=>handleOpenRecording()}>
             Record takes
           </button>
         </div>
@@ -446,7 +441,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
           {/* Header */}
           <div className="studio-section-heading">
             <div className="studio-section-heading-title">
-              <h3>Sample management</h3>
+              <h3>Edit your recordings</h3>
             </div>
             <div className="studio-section-heading-actions">
               <div className="studio-view-switch" aria-label="Multisample workspace view"><button type="button" aria-pressed={workspaceView==='focus'} onClick={()=>setWorkspaceView('focus')}>Focus</button><button type="button" aria-pressed={workspaceView==='table'} onClick={()=>setWorkspaceView('table')}>Table</button></div>
@@ -466,7 +461,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
 
           {/* Content */}
           <div className="studio-management-body">
-            {workspaceView==='focus'?<MultisampleFocusWorkspace selectedIndex={Math.min(selectedIndex,Math.max(0,state.multisampleFiles.length-1))} onSelect={selectZone} onBrowse={()=>browseInputRef.current?.click()} onReplace={handleFileUpload} onClear={handleClearSample} onRecord={handleOpenRecording}/>:<MultisampleSampleTable
+            {workspaceView==='focus'?<MultisampleFocusWorkspace onApplyLoopAndEnableLooping={(index,loop)=>dispatch({type:'BATCH_EDIT',payload:[{type:'UPDATE_MULTISAMPLE_FILE',payload:{index,updates:loop}},{type:'SET_MULTISAMPLE_LOOP_ENABLED',payload:true}]})} onHelpTopic={setHelpTopic} selectedIndex={Math.min(selectedIndex,Math.max(0,state.multisampleFiles.length-1))} onSelect={selectZone} onBrowse={()=>browseInputRef.current?.click()} onReplace={handleFileUpload} onClear={handleClearSample} onRecord={handleOpenRecording}/>:<MultisampleSampleTable
               onFileUpload={handleFileUpload}
               onClearSample={handleClearSample}
               onRecordSample={handleOpenRecording}
@@ -474,7 +469,7 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
               onBrowseFilesRef={browseFilesRef}
             />}
             <div className="studio-utility-actions" aria-label="Multisample instrument actions">
-              <button type="button" className="studio-utility-action studio-utility-action--danger" onClick={handleResetAll}>reset instrument</button>
+              <button type="button" className="studio-utility-action studio-utility-action--danger" onClick={handleResetAll}>Reset whole instrument</button>
               <button
                 type="button"
                 className="studio-utility-action studio-utility-action--danger"
@@ -482,24 +477,25 @@ export function MultisampleTool({ recorderRequest, onRecorderRequestConsumed }: 
                 disabled={!hasLoadedSamples}
               >
                 <i className="fas fa-trash" aria-hidden="true" style={{ fontSize: '1rem' }}></i>
-                clear all
+                Clear all sounds
               </button>
-              <button type="button" className="studio-utility-action" onClick={()=>directoryInputRef.current?.click()}>browse folder</button>
+              <button type="button" className="studio-utility-action" onClick={()=>directoryInputRef.current?.click()}>Add a folder</button>
             </div>
           </div>
         </div>
       </div>
+      <MultisampleGuide midiNoteMapping={state.midiNoteMapping} topic={helpTopic} sample={state.multisampleFiles[Math.min(selectedIndex,Math.max(0,state.multisampleFiles.length-1))]} loopEnabled={state.multisampleSettings.loopEnabled} multiple={state.multisampleFiles.length>1}/>
       </div>
 
-      <details className="studio-advanced-disclosure">
+      <details className="studio-advanced-disclosure studio-multisample-settings-row">
         <summary>Preset and performance settings <span>{state.multisampleSettings.playmode} · transpose {state.multisampleSettings.transpose} · volume {state.multisampleSettings.volume}%</span></summary>
         <div>
-        <MultisamplePresetSettings />
+        <MultisamplePresetSettings showLoopSwitch={workspaceView==='table'||state.multisampleFiles.length===0} />
         </div>
       </details>
 
-      <details className="studio-advanced-disclosure">
-        <summary>Audio output and processing <span>{state.multisampleSettings.audioFormat.toUpperCase()} · {state.multisampleSettings.sampleRate/1000} kHz · {state.multisampleSettings.bitDepth}-bit · {state.multisampleSettings.channels===1?'mono':state.multisampleSettings.channels===2?'stereo':'original channels'}</span></summary>
+      <details className="studio-advanced-disclosure studio-multisample-settings-row">
+        <summary>Audio output and processing <span>{state.multisampleSettings.audioFormat.toUpperCase()} · {state.multisampleSettings.sampleRate ? `${state.multisampleSettings.sampleRate/1000} kHz` : 'original sample rate'} · {state.multisampleSettings.bitDepth ? `${state.multisampleSettings.bitDepth}-bit` : 'original bit depth'} · {state.multisampleSettings.channels===1?'mono':state.multisampleSettings.channels===2?'stereo':'original channels'}</span></summary>
         <div>
         <AudioProcessingSection
           type="multisample"

@@ -1,35 +1,21 @@
 import {test,expect} from './control-audit-test';
 
-for(const task of ['Multisample a synth','Sample a sound','Build a drum kit'])test(`guided ${task} navigation help and import entry`,async({page})=>{
-  await page.goto('/#/studio/create');
-  await page.getByRole('button',{name:new RegExp(`^${task}`)}).click();
-  if(task!=='Build a drum kit'){
-    await page.getByRole('button',{name:/^Hardware synth/}).click();
-    await page.getByRole('button',{name:'Connection help',exact:true}).click();
-    await expect(page.getByRole('dialog')).toContainText('Hardware');
-    await page.getByRole('button',{name:'Close Help',exact:true}).click();
-    await page.getByRole('button',{name:'Continue to setup',exact:true}).click();
-  }
-  await expect(page.getByRole('heading',{name:'Before recording'})).toBeVisible();
-  await page.getByRole('button',{name:'Setup help',exact:true}).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button',{name:'Close Help',exact:true}).click();
-  await page.getByRole('button',{name:'Open editor to import audio',exact:true}).click();
-  await expect(page).toHaveURL(new RegExp(task==='Build a drum kit'?'#/studio/drum$':'#/studio/multisample$'));
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+for(const source of ['A software instrument','A hardware instrument'])test(`guided ${source} reaches source-specific connection help`,async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'Choose a source',exact:true}).click();
+ await page.getByRole('button',{name:new RegExp(source)}).click();
+ await expect(page.getByRole('region',{name:source+' steps'})).toBeVisible();
+ await page.getByRole('button',{name:'Help',exact:true}).click();await expect(page.getByRole('dialog',{name:'Help',exact:true})).toBeVisible();await page.getByRole('button',{name:'Close Help',exact:true}).click();
+ await page.getByRole('button',{name:'Connect and check sound',exact:true}).click();await expect(page.getByRole('dialog',{name:'Record takes',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Close',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
-
-test('transfer actions open the expected workspace',async({page})=>{
-  for(const action of ['Open library','Open drum kit editor (Project menu)','Open drum kit editor (Export OP-XY)']){
-    await page.goto('/#/studio/transfer');
-    await page.getByRole('button',{name:action,exact:true}).click();
-    await expect(page).toHaveURL(new RegExp(action==='Open library'?'#/studio/library$':'#/studio/drum$'));
-  }
+test('drum setup help and import entry reach the drum editor',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'Setup guide: build a drum kit',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Before recording'})).toBeVisible();await page.getByRole('button',{name:'Setup help',exact:true}).click();await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'Close Help',exact:true}).click();await page.getByRole('button',{name:'Open editor to import audio',exact:true}).click();await expect(page).toHaveURL(/#\/studio\/drum$/);
 });
-
-test('guided Back controls retain task choice without opening a recorder',async({page})=>{
- await page.goto('/#/studio/create');await page.getByRole('button',{name:/^Multisample a synth/}).click();
- await page.getByRole('button',{name:'← Back to Create',exact:true}).click();await expect(page).toHaveURL(/#\/studio\/create$/);
- await page.getByRole('button',{name:/^Multisample a synth/}).click();await page.getByRole('button',{name:/^Hardware synth/}).click();await page.getByRole('button',{name:'Continue to setup',exact:true}).click();
- await page.getByRole('button',{name:'← Back',exact:true}).click();await expect(page.getByRole('button',{name:/^Hardware synth/})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
+test('transfer actions open the selected editor or library',async({page})=>{
+ await page.goto('/#/studio/transfer');await page.getByRole('button',{name:'Browse saved instruments',exact:true}).click();await expect(page).toHaveURL(/#\/studio\/library$/);
+ await page.getByRole('button',{name:'Transfer',exact:true}).click();await page.getByRole('button',{name:'Return to drum kit editor',exact:true}).click();await expect(page).toHaveURL(/#\/studio\/drum$/);
+});
+test('source Back returns to Overview without opening a recorder',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'Choose a source',exact:true}).click();await page.getByRole('button',{name:/A hardware instrument/}).click();await page.getByRole('button',{name:'← Back to Overview',exact:true}).click();await expect(page).toHaveURL(/#\/studio\/overview$/);await expect(page.getByRole('dialog')).toHaveCount(0);
 });

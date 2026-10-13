@@ -29,7 +29,7 @@ test('library details persist and sample previews leave the working instrument u
   await page.getByLabel('Instrument name',{exact:true}).fill('Library audition');
   await page.getByLabel('Instrument name',{exact:true}).blur();
   await projectAction(page,'Save to library');
-  await expect(page.getByText('Saved Library audition to the library.',{exact:true})).toBeVisible();
+  await expect(page.getByText('Saved playable instrument “Library audition” to the library in this browser.',{exact:true})).toBeVisible();
   await page.getByLabel('Instrument name',{exact:true}).fill('Unsaved current instrument');
   await page.getByLabel('Instrument name',{exact:true}).blur();
   const undoBefore=await page.getByRole('button',{name:'Undo',exact:true}).isEnabled();
@@ -39,8 +39,8 @@ test('library details persist and sample previews leave the working instrument u
   await page.getByLabel('Preset tags',{exact:true}).fill('Warm, nina, Warm');
   await page.getByRole('button',{name:'Save details',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button',{name:'add to favorites',exact:true}).click();
-  await expect(page.getByRole('button',{name:'remove from favorites',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Add Library audition to favorites',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Remove Library audition from favorites',exact:true})).toBeVisible();
   await page.getByLabel('Search presets, descriptions, and tags',{exact:true}).fill(' nina ');
   await expect(page.getByRole('button',{name:'Preview first sample of Library audition',exact:true})).toBeVisible();
   const starts=await page.evaluate(()=>(window as typeof window&{libraryAudioCounts:{starts:number}}).libraryAudioCounts.starts);
@@ -53,11 +53,11 @@ test('library details persist and sample previews leave the working instrument u
   await expect(page.getByRole('region',{name:'Multisample instrument, 1 of 24 loaded'})).toBeVisible();
   expect(await page.getByRole('button',{name:'Undo',exact:true}).isEnabled()).toBe(undoBefore);
   await page.reload();
-  await page.getByRole('button',{name:'restore',exact:true}).click();
+  await page.getByRole('button',{name:'Restore saved work',exact:true}).click();
   await expect(page).toHaveURL(/#\/studio\/multisample$/);
   await expect(page.getByRole('region',{name:'Multisample instrument, 1 of 24 loaded'})).toBeVisible();
   await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Library'}).click();
-  await expect(page.getByRole('button',{name:'remove from favorites',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Remove Library audition from favorites',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Edit details for Library audition',exact:true}).click();
   await expect(page.getByLabel('Preset description',{exact:true})).toHaveValue('Warm sound for evening sketches');
   await expect(page.getByLabel('Preset tags',{exact:true})).toHaveValue('Warm, nina');
@@ -65,14 +65,14 @@ test('library details persist and sample previews leave the working instrument u
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
   await page.reload();
-  await page.getByRole('button',{name:'restore',exact:true}).click();
-  await expect(page.getByRole('button',{name:'restore',exact:true})).toBeHidden();
+  await page.getByRole('button',{name:'Restore saved work',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Restore saved work',exact:true})).toBeHidden();
   await expect(page).toHaveURL(/#\/studio\/library$/);
   await page.getByRole('navigation',{name:'Workspace'}).getByRole('button',{name:'Library'}).click();
   await expect(page.getByRole('button',{name:'Edit details for Library audition',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Preview first sample of Library audition',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  for(const name of ['load','download','Preview first sample of Library audition','Edit details for Library audition','delete preset']){
+  for(const name of ['Load Library audition','Download Library audition','Preview first sample of Library audition','Edit details for Library audition','Delete Library audition']){
     const box=await page.getByRole('button',{name,exact:true}).boundingBox();
     expect(box, name).not.toBeNull();
     expect(box!.x,name).toBeGreaterThanOrEqual(0);

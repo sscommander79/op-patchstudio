@@ -29,6 +29,17 @@ describe('StemRecordingModal',()=>{
   it('does not request audio or MIDI merely by opening or selecting tracks',async()=>{const media=vi.spyOn(navigator.mediaDevices,'getUserMedia'),midi=vi.fn(async()=>({outputs:new Map(),addEventListener:vi.fn(),removeEventListener:vi.fn()}));midiNavigator.requestMIDIAccess=midi;render(<StemRecordingModal isOpen onClose={vi.fn()} onSlice={vi.fn()}/>);expect(screen.getByRole('dialog',{name:'Record OP-XY tracks'})).toBeInTheDocument();await userEvent.click(screen.getByRole('checkbox',{name:'Track 2'}));expect(media).not.toHaveBeenCalled();expect(midi).not.toHaveBeenCalled();expect(screen.getByText(/untouched modal send nothing/)).toBeInTheDocument();});
   it('shows beginner warnings, bounded defaults, Stop, and discard confirmation',async()=>{const close=vi.fn();render(<StemRecordingModal isOpen onClose={close} onSlice={vi.fn()}/>);expect(screen.getByLabelText('BPM')).toHaveValue(120);expect(screen.getByLabelText('Bars (4/4)')).toHaveValue(4);expect(screen.getByLabelText('Tail seconds')).toHaveValue(1);expect(screen.getByText(/does not separate sources/i)).toBeInTheDocument();expect(screen.getByRole('button',{name:'Stop recording'})).toBeDisabled();expect(screen.getByText(/cannot read or restore the original hardware mute state/i)).toBeInTheDocument();});
   it('renders readable unsupported guidance while retaining explicit controls',()=>{const descriptor=Object.getOwnPropertyDescriptor(globalThis,'AudioWorkletNode');Object.defineProperty(globalThis,'AudioWorkletNode',{value:undefined,configurable:true});try{render(<StemRecordingModal isOpen onClose={vi.fn()} onSlice={vi.fn()}/>);expect(screen.getByRole('alert')).toHaveTextContent(/Chrome or Edge on HTTPS/i);expect(screen.getByRole('button',{name:'Enable audio'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Enable MIDI'})).toBeInTheDocument();}finally{if(descriptor)Object.defineProperty(globalThis,'AudioWorkletNode',descriptor);}});
+  it('explains invalid track selection even after a MIDI permission error',async()=>{
+    midiNavigator.requestMIDIAccess=vi.fn().mockRejectedValue(new Error('MIDI permission was refused.'));
+    render(<StemRecordingModal isOpen onClose={vi.fn()} onSlice={vi.fn()}/>);
+    await userEvent.click(screen.getByRole('button',{name:'Enable MIDI'}));
+    expect(await screen.findByText(/MIDI permission was refused/)).toBeInTheDocument();
+    for(const checkbox of screen.getAllByRole('checkbox',{name:/^Track [1-8]$/}))if((checkbox as HTMLInputElement).checked)await userEvent.click(checkbox);
+    expect(screen.getByText('Choose one to eight unique tracks from 1 to 8.')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Record selected'})).toBeDisabled();
+    await userEvent.click(screen.getByRole('checkbox',{name:'Track 1'}));
+    expect(screen.queryByText('Choose one to eight unique tracks from 1 to 8.')).not.toBeInTheDocument();
+  });
   it('discards a pending MIDI permission result after close without attaching a listener',async()=>{
     let resolveAccess!:(value:StemMidiAccess)=>void;
     const request=new Promise<StemMidiAccess>(resolve=>{resolveAccess=resolve;});

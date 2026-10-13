@@ -40,7 +40,11 @@ export async function setDirectoryFiles(chooser:FileChooser,folder:string,names:
 export async function applyAudioImport(page:Page) {
   const dialog=page.getByRole('dialog',{name:'Import audio'});
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('button',{name:'Apply import'})).toBeEnabled();
-  await dialog.getByRole('button',{name:'Apply import'}).click();
+  await expect(dialog.getByText(/\d+ audio files? ready\./)).toBeVisible();
+  // Test fixtures without pitch metadata are deliberately assigned a note by the test user.
+  const notes=dialog.getByRole('combobox',{name:/^Recorded note for /});
+  for(let index=0;index<await notes.count();index++){if(await notes.nth(index).inputValue()==='')await notes.nth(index).selectOption(String(60+index));}
+  await expect(dialog.getByRole('button',{name:'Add selected sounds'})).toBeEnabled();
+  await dialog.getByRole('button',{name:'Add selected sounds'}).click();
   await expect(dialog).not.toBeVisible();
 }

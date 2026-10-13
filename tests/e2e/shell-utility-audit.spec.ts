@@ -12,10 +12,11 @@ test('theme picker persists explicit choices and follows system changes',async({
 
 test('start new discards the offered session while retaining library presets',async({page})=>{
  await gotoWorkspace(page,'drum');await page.getByRole('button',{name:'Load demo kit',exact:true}).click();
- const name=page.getByLabel('Instrument name',{exact:true});await name.fill('Recovery library keep');await name.blur();await projectAction(page,'Save to library');await expect(page.getByText('Saved Recovery library keep to the library.',{exact:true})).toBeVisible();
- await name.fill('Discard this draft');await name.blur();await expect(page.getByRole('status').filter({hasText:'Saved locally'})).toBeVisible();
- await page.reload();const recovery=page.getByRole('dialog',{name:'restore session',exact:true});await expect(recovery).toBeVisible();
- await recovery.getByRole('button',{name:'start new',exact:true}).click();await expect(recovery).toBeHidden();
+ const name=page.getByLabel('Instrument name',{exact:true});await name.fill('Recovery library keep');await name.blur();await projectAction(page,'Save to library');await expect(page.getByText('Saved drum kit “Recovery library keep” to the library in this browser.',{exact:true})).toBeVisible();
+ await name.fill('Discard this draft');await name.blur();await expect(page.getByRole('status').filter({hasText:'Saved in this browser'})).toBeVisible();
+ await page.reload();const recovery=page.getByRole('dialog',{name:'Restore saved work?',exact:true});await expect(recovery).toBeVisible();
+ await expect(recovery).toContainText('It cannot be brought back afterwards.');
+ await recovery.getByRole('button',{name:'Discard saved work and start new',exact:true}).click();await expect(recovery).toBeHidden();
  await openWorkspace(page,'drum');await expect(page.getByRole('region',{name:'Drum pad instrument, 0 of 24 loaded',exact:true})).toBeVisible();await expect(name).not.toHaveValue('Discard this draft');
  await openWorkspace(page,'library');await expect(page.getByRole('checkbox',{name:'Select Recovery library keep',exact:true})).toBeVisible();
 });

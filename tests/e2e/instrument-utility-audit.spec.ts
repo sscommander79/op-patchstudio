@@ -15,14 +15,14 @@ for(const workspace of ['drum','multisample'] as const)test(`${workspace} clear 
  await pin.click();if(wasPinned)await expect(loaded).not.toHaveClass(/\bpinned\b/);else await expect(loaded).toHaveClass(/\bpinned\b/);
  await pin.click();if(wasPinned)await expect(loaded).toHaveClass(/\bpinned\b/);else await expect(loaded).not.toHaveClass(/\bpinned\b/);
  const name=page.getByLabel('Instrument name',{exact:true});await name.fill('Keep utility kit');await name.blur();
- for(const action of ['clear all','reset instrument']){
+ for(const action of ['Clear all sounds','Reset whole instrument']){
   await page.getByRole('button',{name:action,exact:true}).click();await page.getByRole('button',{name:'cancel',exact:true}).click();await expect(loaded).toBeVisible();await expect(name).toHaveValue('Keep utility kit');
   await page.getByRole('button',{name:action,exact:true}).click();await page.getByRole('button',{name:'ok',exact:true}).click();await expect(page.getByRole('region',{name:`${prefix} instrument, 0 of 24 loaded`,exact:true})).toBeVisible();
-  if(action==='reset instrument')await expect(name).toHaveValue('');else await expect(name).toHaveValue('Keep utility kit');
+  if(action==='Reset whole instrument')await expect(name).toHaveValue('');else await expect(name).toHaveValue('Keep utility kit');
   await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(loaded).toBeVisible();await expect(name).toHaveValue('Keep utility kit');
  }
  const settings=await openAdvanced(page,/Audio output and processing/);await settings.locator('#normalize-toggle_label').click();await expect(settings.locator('#normalize-toggle')).toHaveAttribute('aria-checked','true');
- const menu=page.locator('details.studio-project-menu');await menu.locator('summary').click();await menu.getByRole('button',{name:'Save settings as default',exact:true}).click();
+ const menu=page.locator('details.studio-project-menu');await menu.locator('summary').click();await menu.getByRole('button',{name:'Use these settings for new instruments',exact:true}).click();
  const cookies=await context.cookies();expect(cookies.some(cookie=>decodeURIComponent(cookie.value).includes('"normalize":true'))).toBe(true);
  // A fresh browser context carries only saved defaults cookies, without session IndexedDB.
  const defaultsContext=await browser.newContext({baseURL,storageState:{cookies,origins:[]}});const fresh=await defaultsContext.newPage();await gotoWorkspace(fresh,workspace);const restored=await openAdvanced(fresh,/Audio output and processing/);await expect(restored.locator('#normalize-toggle')).toHaveAttribute('aria-checked','true');await defaultsContext.close();
@@ -30,7 +30,7 @@ for(const workspace of ['drum','multisample'] as const)test(`${workspace} clear 
 
 test('drum organize control reveals both row drop zones and returns to playing',async({page})=>{
  await page.setViewportSize({width:1440,height:1000});await gotoWorkspace(page,'drum');
- const organize=page.getByRole('button',{name:'organize',exact:true});await organize.click();await expect(organize).toHaveAttribute('aria-pressed','true');
+ const organize=page.getByRole('button',{name:'Organize',exact:true});await organize.click();await expect(organize).toHaveAttribute('aria-pressed','true');
  await expect(page.getByRole('region',{name:/Drop zone for lower row samples/})).toBeVisible();await expect(page.getByRole('region',{name:/Drop zone for upper row samples/})).toBeVisible();
  await organize.click();await expect(organize).toHaveAttribute('aria-pressed','false');await expect(page.getByRole('region',{name:/Drop zone for lower row samples/})).toHaveCount(0);
 });

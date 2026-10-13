@@ -273,6 +273,8 @@ export function EnhancedWaveformEditor({
     <div className={className}>
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label={`Waveform. Playback start ${frameToTime(inPoint).toFixed(3)} seconds, playback end ${frameToTime(outPoint).toFixed(3)} seconds. Drag a marker to move it.`}
         style={{
           width: '100%',
           height: `${height}px`,
@@ -306,7 +308,7 @@ export function EnhancedWaveformEditor({
               color: c.textSecondary,
               flexShrink: 0
             }}>
-              sample start:
+              Playback start:
             </span>
             <span style={{
               padding: '0.2rem 0.4rem',
@@ -336,7 +338,7 @@ export function EnhancedWaveformEditor({
               marginLeft: '0.25rem',
               flexShrink: 0
             }}>
-              {isNearZeroCrossing(inPoint) ? '✓ zero' : '✗ not zero'}
+              {isNearZeroCrossing(inPoint) ? '✓ At zero crossing' : '✗ Not at zero crossing'}
             </span>
           </div>
 
@@ -352,7 +354,7 @@ export function EnhancedWaveformEditor({
               color: c.textSecondary,
               flexShrink: 0
             }}>
-              sample end:
+              Playback end:
             </span>
             <span style={{
               padding: '0.2rem 0.4rem',
@@ -382,7 +384,7 @@ export function EnhancedWaveformEditor({
               marginLeft: '0.25rem',
               flexShrink: 0
             }}>
-              {isNearZeroCrossing(outPoint) ? '✓ zero' : '✗ not zero'}
+              {isNearZeroCrossing(outPoint) ? '✓ At zero crossing' : '✗ Not at zero crossing'}
             </span>
           </div>
         </div>
@@ -414,7 +416,7 @@ export function EnhancedWaveformEditor({
                 accentColor: c.textSecondary
               }}
             />
-            <span>snap to zero</span>
+            <span>Snap to zero crossings</span>
           </label>
         </div>
       )}

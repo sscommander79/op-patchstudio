@@ -9,12 +9,9 @@ export async function openWorkspace(page:Page,workspace:StudioWorkspace) {
     const editor = page.getByRole('region', {name: workspace === 'drum' ? /Drum pad instrument/ : /Multisample instrument/});
     if (!(await editor.isVisible())) {
       await navigation.getByRole('button', {name:'Overview',exact:true}).click();
-      await page.getByRole('button', {name:workspace==='drum'?'Open kit':'Open capture',exact:true}).click();
-      if (workspace === 'multisample') {
-        const recorder = page.getByRole('dialog', {name:'Record takes',exact:true});
-        await expect(recorder).toBeVisible();
-        await recorder.getByRole('button', {name:'Close',exact:true}).click();
-      }
+      await page.getByRole('button', {name:workspace==='drum'?'Open kit':'Choose a source',exact:true}).click();
+      // The multisample launch module opens the source guide; the editor is one explicit step further.
+      if (workspace === 'multisample') await page.getByRole('button', {name:'Open instrument editor',exact:true}).click();
     }
   }
   if(workspace==='drum') await expect(page.getByRole('region',{name:/Drum pad instrument/})).toBeVisible();
@@ -27,7 +24,7 @@ export async function gotoWorkspace(page:Page,workspace:StudioWorkspace) {
   await openWorkspace(page,workspace);
 }
 
-export async function projectAction(page:Page,name:'Save to library'|'Download project'|'Open project'|'Open library') {
+export async function projectAction(page:Page,name:'Save to library'|'Back up project'|'Open project'|'Open library') {
   const menu=page.locator('details.studio-project-menu');
   if(await menu.getAttribute('open')===null) await menu.locator('summary').click();
   const action=menu.getByRole('button',{name,exact:true});
@@ -36,11 +33,11 @@ export async function projectAction(page:Page,name:'Save to library'|'Download p
 }
 
 export async function downloadDevicePreset(page:Page):Promise<Download> {
-  await page.getByRole('button',{name:'Export OP-XY',exact:true}).click();
+  await page.getByRole('button',{name:'Download OP-XY preset',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Export OP-XY preset'});
   await expect(dialog).toBeVisible();
   const event=page.waitForEvent('download');
-  await dialog.getByRole('button',{name:'Download preset',exact:true}).click();
+  await dialog.getByRole('button',{name:'Download OP-XY preset',exact:true}).click();
   const download=await event;
   await expect(dialog.getByRole('status',{name:'Preset download status'})).toContainText('browser created');
   await dialog.getByRole('button',{name:'Close',exact:true}).click();

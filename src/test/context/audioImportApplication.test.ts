@@ -144,3 +144,10 @@ describe('reviewed audio import application',()=>{
     expect(()=>finalizeAudioImport(prepared,state({projectGeneration:4}))).toThrow(/project was replaced/i);
   });
 });
+
+it('retains original imported audio while applying selected section and valid loops',()=>{
+ const asset=imported('section','sound.wav');asset.section={inPoint:2/8000,outPoint:6/8000};
+ const result=finalizeAudioImport({instrument:'multisample',expectedProjectGeneration:0,assets:[asset],selections:[{id:asset.id,destination:{kind:'multisample-root',rootNote:60,decision:'choose-free'}}]},state({multisampleSettings:{...initialState.multisampleSettings,autoZeroCrossing:false}}));
+ expect(result.multisampleFiles[0]).toMatchObject({inPoint:2/8000,outPoint:6/8000,loopStart:2/8000,loopEnd:6/8000});
+ expect(result.multisampleFiles[0].audioBuffer).toBe(asset.audioBuffer);
+});

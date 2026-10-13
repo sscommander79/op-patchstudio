@@ -132,7 +132,7 @@ export function useSessionManagement() {
       savedRevision.current = revision.current.number;
       recoveryInvalidated.current = false;
       enableAutosave();
-    } catch (error) { setRecoveryError(`Could not restore saved work: ${message(error)}. The saved copy has been kept; retry restore or explicitly start new.`); }
+    } catch (error) { setRecoveryError(`Could not restore saved work: ${message(error)}. The saved copy has been kept; retry restore or choose Discard saved work and start new.`); }
     finally {setRecoveryPending(false);}
   },[dispatch,enableAutosave]);
 

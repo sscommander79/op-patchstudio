@@ -8,7 +8,7 @@ for(const width of [1440,390])test(`library ${width}px cancel details collection
  await page.getByRole('button',{name:'Load demo kit',exact:true}).click();
  await expect(page.getByRole('region',{name:'Drum pad instrument, 10 of 24 loaded',exact:true})).toBeVisible();
  const name=page.getByLabel('Instrument name',{exact:true});await name.fill('Audit library kit');await name.blur();
- await projectAction(page,'Save to library');await expect(page.getByText('Saved Audit library kit to the library.',{exact:true})).toBeVisible();
+ await projectAction(page,'Save to library');await expect(page.getByText('Saved drum kit “Audit library kit” to the library in this browser.',{exact:true})).toBeVisible();
  await openWorkspace(page,'library');
  await page.getByRole('button',{name:'New collection',exact:true}).click();
  const collection=page.getByRole('dialog',{name:'New collection'});await collection.getByLabel('Collection name',{exact:true}).fill('Not saved');
@@ -19,11 +19,11 @@ for(const width of [1440,390])test(`library ${width}px cancel details collection
  await details.getByRole('button',{name:'Close preset details',exact:true}).click();await expect(details).toBeHidden();
  await page.getByRole('button',{name:'Edit details for Audit library kit',exact:true}).click();await expect(details.getByLabel('Preset description',{exact:true})).not.toHaveValue('Discard this draft');
  await details.getByRole('button',{name:'Close preset details',exact:true}).click();
- const download=page.waitForEvent('download');await page.getByRole('button',{name:/^(download|download preset)$/}).click();
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download Audit library kit',exact:true}).click();
  const file=await download;expect(await file.failure()).toBeNull();const zip=await JSZip.loadAsync(await readFile((await file.path())!));expect(Object.keys(zip.files).some(file=>file.endsWith('patch.json'))).toBe(true);
- await page.getByRole('button',{name:'delete preset',exact:true}).click();await page.getByRole('button',{name:'cancel',exact:true}).click();
+ await page.getByRole('button',{name:'Delete Audit library kit',exact:true}).click();await page.getByRole('button',{name:'cancel',exact:true}).click();
  await expect(page.getByRole('checkbox',{name:'Select Audit library kit',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'delete preset',exact:true}).click();await page.getByRole('button',{name:'ok',exact:true}).click();
+ await page.getByRole('button',{name:'Delete Audit library kit',exact:true}).click();await page.getByRole('button',{name:'ok',exact:true}).click();
  await expect(page.getByRole('checkbox',{name:'Select Audit library kit',exact:true})).toHaveCount(0);
  await openWorkspace(page,'drum');await expect(name).toHaveValue('Audit library kit');
  await expect(page.getByRole('region',{name:'Drum pad instrument, 10 of 24 loaded',exact:true})).toBeVisible();

@@ -1,3 +1,4 @@
+import {drumComputerKeyHint} from './drumKeyboardBindings';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { DrumKeyboard } from './DrumKeyboard';
@@ -118,17 +119,18 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
 
   const tooltipContent = isMobile ? (
     <>
-      <h3>keyboard controls</h3>
-      <p><strong>load:</strong> select an empty pad, then use Add sounds nearby</p>
-      <p><strong>play:</strong> tap keys to play loaded samples</p>
-      <p><strong>pin:</strong> use the pin icon to keep the keyboard at the top of the screen</p>
+      <h3>Keyboard controls</h3>
+      <p><strong>Load:</strong> select an empty pad, then use Add sounds nearby.</p>
+      <p><strong>Play:</strong> tap a pad to play its sound.</p>
+      <p><strong>Pin:</strong> use the pin button to keep the pads at the top of the screen.</p>
     </>
   ) : (
     <>
-      <h3>keyboard controls</h3>
-      <p><strong>load:</strong> select an empty pad and use Add sounds, or drag audio directly onto a pad</p>
-      <p><strong>play:</strong> use keyboard keys (<strong>A-J, W, E, R, Y, U</strong>) to trigger samples and <strong>Z</strong> / <strong>X</strong> to switch octaves</p>
-      <p><strong>pin:</strong> use the pin icon to keep the keyboard at the top of the screen</p>
+      <h3>Keyboard controls</h3>
+      <p><strong>Load:</strong> select an empty pad and use Add sounds, or drag audio directly onto a pad.</p>
+      {/* Key names come from the drum keyboard's own bindings, which differ from the multisample keyboard. */}
+      <p><strong>Play:</strong> computer keys <strong>{drumComputerKeyHint.lowerRow.join(' ')}</strong> play the lower row of pads and <strong>{drumComputerKeyHint.upperRow.join(' ')}</strong> play the upper row. {drumComputerKeyHint.switchBanks}: <strong>{drumComputerKeyHint.bankKeys.lower}</strong> for pads 1–12, <strong>{drumComputerKeyHint.bankKeys.upper}</strong> for pads 13–24.</p>
+      <p><strong>Pin:</strong> use the pin button to keep the pads at the top of the screen.</p>
     </>
   );
 
@@ -210,14 +212,17 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
         <div className="studio-performance-header">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
             <h3>
-              drum pads
+              Drum pads
             </h3>
             <EnhancedTooltip
               isVisible={isTooltipVisible}
               content={tooltipContent}
             >
-              <span
-                style={{ display: 'flex' }}
+              <button
+                type="button"
+                aria-label="Keyboard controls help"
+                aria-expanded={isTooltipVisible}
+                style={{ display: 'flex', background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'help' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsTooltipVisible(!isTooltipVisible);
@@ -233,7 +238,7 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     cursor: 'help'
                   }}
                 />
-              </span>
+              </button>
                           </EnhancedTooltip>
           </div>
           <div
@@ -270,11 +275,12 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     fontWeight: 500,
                     minHeight: '32px',
                   }}
-                  title="Organize mode: bulk load samples by keyboard row"
+                  type="button"
+                  title="Organize mode: load several samples at once by keyboard row"
                   aria-pressed={isOrganizeMode}
                 >
                   <i aria-hidden="true" className="fas fa-layer-group" style={{ fontSize: '0.75rem' }}></i>
-                  <span>organize</span>
+                  <span>Organize</span>
                 </button>
                 <button
                   onClick={() => {
@@ -302,10 +308,12 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                     fontWeight: 500,
                     minHeight: '32px'
                   }}
+                  type="button"
                   title="connect midi devices"
+                  aria-expanded={isMidiSelectorVisible}
                 >
                   <i aria-hidden="true" className="fas fa-plug" style={{ fontSize: '0.75rem' }}></i>
-                  <span>midi</span>
+                  <span>MIDI</span>
                 </button>
               </>
             )}
@@ -323,6 +331,9 @@ export const DrumKeyboardContainer: React.FC<DrumKeyboardContainerProps> = ({ on
                 justifyContent: 'center',
                 transition: 'all 0.2s ease',
               }}
+              type="button"
+              aria-label="Pin drum pads to the top of the screen"
+              aria-pressed={isDrumKeyboardPinned}
               title={isDrumKeyboardPinned ? 'Unpin keyboard' : 'Pin keyboard to top'}
             >
               <i aria-hidden="true" className="fas fa-thumbtack" style={{

@@ -28,25 +28,56 @@ function renderFocus(files=[makeSample()],selectedIndex=0) {
 describe('MultisampleFocusWorkspace',()=>{
   beforeEach(()=>{dispatch.mockClear();playWithADSR.mockClear();releaseNote.mockClear();vi.mocked(useAudioPlayer).mockReturnValue({playWithADSR,releaseNote} as unknown as ReturnType<typeof useAudioPlayer>);});
 
-  it('restores invalid root and marker values without creating history',()=>{
-    renderFocus();
-    const root=screen.getByRole('spinbutton',{name:'Root note'});
-    fireEvent.change(root,{target:{value:'128'}});fireEvent.blur(root);
-    expect(root).toHaveValue(60);
-    expect(screen.getByRole('alert')).toHaveTextContent(/whole MIDI value from 0 to 127/i);
-    expect(dispatch).not.toHaveBeenCalled();
+  it('shows the assignment once and changes it without modifying audio or markers',()=>{
+    renderFocus();expect(screen.getByText('Assigned to C3')).toBeVisible();expect(screen.queryByRole('spinbutton',{name:'Root note'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Change assignment'}));fireEvent.change(screen.getByRole('combobox',{name:'Assign to key'}),{target:{value:'69'}});
+    expect(dispatch).toHaveBeenCalledWith({type:'UPDATE_MULTISAMPLE_FILE',payload:{index:0,updates:{rootNote:69,note:'A3'}}});
+    expect(screen.queryByRole('combobox',{name:'Assign to key'})).not.toBeInTheDocument();
+  });
+  it('does not overwrite a key already assigned to another sample',()=>{
+    const other={...makeSample('other.wav'),rootNote:69};renderFocus([makeSample(),other]);
+    fireEvent.click(screen.getByRole('button',{name:'Change assignment'}));fireEvent.change(screen.getByRole('combobox',{name:'Assign to key'}),{target:{value:'69'}});
+    expect(dispatch).not.toHaveBeenCalled();expect(screen.getByRole('alert')).toHaveTextContent(/already assigned/);
+  });
+  it('restores invalid marker values without creating history',()=>{
+    renderFocus();const loopEnd=screen.getByRole('spinbutton',{name:/Loop End \(seconds\)/i});
+    fireEvent.change(loopEnd,{target:{value:'-1'}});fireEvent.blur(loopEnd);expect(loopEnd).toHaveValue(.001);expect(screen.getByRole('alert')).toHaveTextContent(/within the selected audio/i);expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('explains invalid drafts',()=>{
+    renderFocus([makeSample('long.wav',48000)]);const end=screen.getByRole('spinbutton',{name:'Playback end (seconds)'});
+    fireEvent.change(end,{target:{value:'0'}});expect(end).toHaveAttribute('aria-invalid','true');expect(screen.getAllByText(/Needs fixing · Playback end/)).toHaveLength(2);
+    fireEvent.blur(end);expect(end).toHaveValue(6);expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('places the looping switch beside loop points and changes only the loop setting',()=>{
+    renderFocus();const toggle=screen.getByRole('switch',{name:'Looping'});expect(toggle).toBeChecked();expect(toggle.closest('fieldset')).toHaveTextContent('Loop start');
+    fireEvent.click(toggle);expect(dispatch).toHaveBeenCalledWith({type:'SET_MULTISAMPLE_LOOP_ENABLED',payload:false});
+  });
 
-    const loopEnd=screen.getByRole('spinbutton',{name:/Loop End \(seconds\)/i});
-    fireEvent.change(loopEnd,{target:{value:'-1'}});fireEvent.blur(loopEnd);
-    expect(loopEnd).toHaveValue(6/8_000);
-    expect(screen.getByRole('alert')).toHaveTextContent(/within the selected audio/i);
-    expect(dispatch).not.toHaveBeenCalled();
+  it('hides loop points while looping is off and keeps playback help available',()=>{
+    const view=renderFocus();
+    const context=vi.mocked(useAppContext).mock.results.at(-1)!.value;
+    context.state={...context.state,multisampleSettings:{...context.state.multisampleSettings,loopEnabled:false}};
+    vi.mocked(useAppContext).mockReturnValue(context);
+    const help=vi.fn();
+    view.rerender(<MultisampleFocusWorkspace onHelpTopic={help} selectedIndex={0} onSelect={vi.fn()} onBrowse={vi.fn()} onReplace={vi.fn()} onClear={vi.fn()} onRecord={vi.fn()}/>);
+    expect(screen.queryByRole('spinbutton',{name:/Loop start/i})).not.toBeInTheDocument();
+    expect(screen.getByText(/Your loop points are kept/)).toBeVisible();
+    fireEvent.focus(screen.getByRole('spinbutton',{name:'Playback start (seconds)'}));
+    expect(help).toHaveBeenCalledWith('inPoint');
+  });
+
+  it('shows readable times without rounding saved markers on focus and blur',()=>{
+    const sample=makeSample('precise.wav',95563);renderFocus([sample]);
+    const end=screen.getByRole('spinbutton',{name:'Playback end (seconds)'});
+    expect(end).toHaveValue(Number(sample.outPoint.toFixed(3)));
+    fireEvent.focus(end);expect(end).toHaveValue(sample.outPoint);
+    fireEvent.blur(end);expect(dispatch).not.toHaveBeenCalled();
   });
 
   it('normalizes one-frame marker edits before one atomic update',()=>{
     renderFocus([makeSample('one.wav',1)]);
     const loopStart=screen.getByRole('spinbutton',{name:/Loop Start \(seconds\)/i});
-    fireEvent.change(loopStart,{target:{value:'0'}});fireEvent.blur(loopStart);
+    fireEvent.focus(loopStart);fireEvent.change(loopStart,{target:{value:'0.00001'}});fireEvent.blur(loopStart);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0][0]).toMatchObject({type:'UPDATE_MULTISAMPLE_FILE',payload:{index:0,updates:{inPoint:0,outPoint:1/8_000,loopStart:0,loopEnd:1/8_000}}});
   });

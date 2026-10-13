@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, useState } from 'react';
 import { AppContextProvider, initialState, useAppContext, type MultisampleFile } from '../../context/AppContext';
@@ -13,6 +13,7 @@ vi.mock('webmidi',()=>({WebMidi:midi}));
 vi.mock('../../audio/recording/captureProcessor.ts?worker&url',()=>({default:'/assets/capture-test.js'}));
 let sequence=0,enableGate:Promise<void>|undefined,stopGate:Promise<void>|undefined,captureOnStart=true;
 let enableError:string|undefined;
+let capturedTone=false;
 interface FakeDeps {onStatus:(status:{state:string;elapsedFrames?:number})=>void;onTake:(take:SessionTake)=>void|Promise<void>;onError?:(message:string)=>void}
 const sessions:Array<{disposed:boolean;deps:FakeDeps}>=[];
 vi.mock('../../audio/recording/captureSession',()=>({
@@ -22,8 +23,8 @@ vi.mock('../../audio/recording/captureSession',()=>({
     constructor(deps:FakeDeps){this.deps=deps;sessions.push(this)}
     async enableInput(){await enableGate;if(enableError){this.status={state:'error'};this.deps.onStatus(this.status);this.deps.onError?.(enableError);return false;}this.status={state:'monitoring'};this.deps.onStatus(this.status);return true}
     async enumerateInputs(){return [{deviceId:'synthetic',label:'Synthetic input'}]}
-    start(){if(this.status.state==='error')throw new Error('Enable input before recording');this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,2,8_000);buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
-      void Promise.resolve(this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:2,sampleRate:8_000,channels:1,actualPreRollFrames:0,completionReason:'manual'})).catch(reason=>this.deps.onError?.(reason instanceof Error?reason.message:String(reason)));this.status={state:'monitoring'};this.deps.onStatus(this.status);}
+    start(){if(this.status.state==='error')throw new Error('Enable input before recording');this.status={state:'recording'};this.deps.onStatus({...this.status,elapsedFrames:128});if(!captureOnStart)return;const buffer=new OriginalAudioContext().createBuffer(1,capturedTone?44100:2,capturedTone?44100:8_000);if(capturedTone){const data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=.3*Math.sin(2*Math.PI*440*i/44100);}else buffer.copyToChannel(Float32Array.from([.125,-.25]),0);
+      void Promise.resolve(this.deps.onTake({id:'take-'+(++sequence),audioBuffer:buffer,frames:buffer.length,sampleRate:buffer.sampleRate,channels:1,actualPreRollFrames:0,completionReason:'manual'})).catch(reason=>this.deps.onError?.(reason instanceof Error?reason.message:String(reason)));this.status={state:'monitoring'};this.deps.onStatus(this.status);}
     arm(){this.start()} async stop(){await stopGate;this.status={state:'stopped'};this.deps.onStatus(this.status)} async dispose(){this.disposed=true;this.status={state:'closed'}}
   }
 }));
@@ -31,6 +32,7 @@ vi.mock('../../audio/recording/captureSession',()=>({
 const OriginalAudioContext=globalThis.AudioContext;
 const autoSamplingKey='op-patchstudio:auto-sampling:v1';
 let autoSamplingPreferences:string|null=null;
+function openDetails(summaryText:string){const details=screen.getByText(summaryText).closest('details') as HTMLDetailsElement;act(()=>{details.open=true;});return details;}
 function ProjectCount(){const {state}=useAppContext();return <><output aria-label="Loaded drum count">{state.drumSamples.filter(sample=>sample.isLoaded).length}</output><output aria-label="Loaded multisample count">{state.multisampleFiles.length}</output></>}
 function Harness({instrument='drum',target=instrument==='drum'?{kind:'drum' as const}:{kind:'multisample' as const,rootNote:64}}:{instrument?:'drum'|'multisample';target?:RecordingTarget}) {
   return <AppContextProvider><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={target}/></AppContextProvider>;
@@ -51,15 +53,20 @@ function SeedLegacyRoots(){const {dispatch}=useAppContext();useEffect(()=>{const
 function LegacyRootsHarness({instrument}:{instrument:'drum'|'multisample'}){return <AppContextProvider><SeedLegacyRoots/><ProjectCount/><RecordingModal isOpen onClose={vi.fn()} instrument={instrument} target={{kind:instrument}}/></AppContextProvider>}
 
 describe('RecordingModal review workflow',()=>{
-  beforeEach(()=>{enableError=undefined;});
+  beforeEach(()=>{enableError=undefined;capturedTone=false;});
   it.each(['Enable input','Start recording'])('keeps the failed setup explanation and permits recovery after %s',async(trigger)=>{
     const user=userEvent.setup();enableError='Capture channel dimensions changed';render(<Harness/>);
     await user.click(screen.getByRole('button',{name:trigger}));
     expect(await screen.findByRole('alert')).toHaveTextContent('Capture channel dimensions changed');
     expect(screen.getByRole('button',{name:'Start recording'})).toBeDisabled();
-    expect(screen.getByRole('button',{name:'Arm sound trigger'})).toBeDisabled();
+    expect(screen.queryByRole('button',{name:'Wait for sound'})).not.toBeInTheDocument();
     expect(screen.getByLabelText('Input device')).toBeEnabled();
-    expect(screen.getByLabelText('Capture mode')).toBeEnabled();
+    expect(screen.getByLabelText('Recording starts')).toBeEnabled();
+    await user.selectOptions(screen.getByLabelText('Recording starts'),'sound');
+    expect(screen.getByRole('button',{name:'Wait for sound'})).toBeDisabled();
+    expect(screen.queryByRole('button',{name:'Start recording'})).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Recording starts'),'manual');
+    expect(screen.getByRole('button',{name:'Start recording'})).toBeDisabled();
     enableError=undefined;
     await user.click(screen.getByRole('button',{name:'Enable input'}));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -73,7 +80,7 @@ describe('RecordingModal review workflow',()=>{
   afterEach(()=>Object.defineProperty(globalThis,'AudioContext',{value:OriginalAudioContext,configurable:true}));
 
   it('owns deterministic initial focus for manual and guided recording',async()=>{
-    const manual=render(<Harness/>);await waitFor(()=>expect(screen.getByLabelText('Capture mode')).toHaveFocus());manual.unmount();
+    const manual=render(<Harness/>);await waitFor(()=>expect(screen.getByLabelText('Recording starts')).toHaveFocus());manual.unmount();
     render(<GuidedHarness/>);await waitFor(()=>expect(document.querySelector('[data-studio-automatic-panel]')).toHaveFocus());
   });
 
@@ -159,7 +166,7 @@ describe('RecordingModal review workflow',()=>{
     const resumed:{resolve?:()=>void}={},close=vi.fn().mockResolvedValue(undefined),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
     class PreviewContext {destination={};resume=()=>new Promise<void>(resolve=>{resumed.resolve=resolve});close=close;createBufferSource=()=>source}
     Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});
-    await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await user.click(screen.getByRole('button',{name:'Close'}));expect(screen.getByRole('alertdialog',{name:'Discard recording work'})).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Stop and discard'}));resumed.resolve?.();
+    await user.click(screen.getByRole('button',{name:'Listen to take take-1'}));await user.click(screen.getByRole('button',{name:'Close'}));expect(screen.getByRole('alertdialog',{name:'Discard recording work'})).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Stop and discard'}));resumed.resolve?.();
     await waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(source.start).not.toHaveBeenCalled();
   });
 
@@ -168,8 +175,8 @@ describe('RecordingModal review workflow',()=>{
     const attempts:Array<{resolve:()=>void;close:ReturnType<typeof vi.fn>;source:{buffer:AudioBuffer|null;connect:ReturnType<typeof vi.fn>;disconnect:ReturnType<typeof vi.fn>;start:ReturnType<typeof vi.fn>;stop:ReturnType<typeof vi.fn>;onended:(()=>void)|null}}>=[];
     class PreviewContext {destination={};close=vi.fn().mockResolvedValue(undefined);source={buffer:null as AudioBuffer|null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null as (()=>void)|null};resolve!:()=>void;resume=()=>new Promise<void>(resolve=>{this.resolve=resolve});createBufferSource=()=>this.source;constructor(){attempts.push(this)}}
     Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});
-    await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(1));
-    await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(2));expect(attempts[0].close).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button',{name:'Listen to take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(1));
+    await user.click(screen.getByRole('button',{name:'Listen to take take-1'}));await waitFor(()=>expect(attempts).toHaveLength(2));expect(attempts[0].close).toHaveBeenCalledOnce();
     attempts[0].resolve();await Promise.resolve();expect(attempts[0].source.start).not.toHaveBeenCalled();attempts[1].resolve();await waitFor(()=>expect(attempts[1].source.start).toHaveBeenCalledOnce());
     await user.click(screen.getByRole('button',{name:'Stop preview'}));expect(attempts[1].source.stop).toHaveBeenCalledOnce();expect(attempts[1].close).toHaveBeenCalledOnce();
   });
@@ -178,21 +185,21 @@ describe('RecordingModal review workflow',()=>{
     const user=userEvent.setup();render(<ClosingHarness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Start recording'}));captureOnStart=false;await user.click(screen.getByRole('button',{name:'Start recording'}));
     let releaseStop!:()=>void;stopGate=new Promise<void>(resolve=>{releaseStop=resolve});const attempts:Array<{resolve:()=>void;close:ReturnType<typeof vi.fn>;source:{buffer:AudioBuffer|null;connect:ReturnType<typeof vi.fn>;disconnect:ReturnType<typeof vi.fn>;start:ReturnType<typeof vi.fn>;stop:ReturnType<typeof vi.fn>;onended:(()=>void)|null}}>=[];
     class PreviewContext {destination={};close=vi.fn().mockResolvedValue(undefined);source={buffer:null as AudioBuffer|null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null as (()=>void)|null};resolve!:()=>void;resume=()=>new Promise<void>(resolve=>{this.resolve=resolve});createBufferSource=()=>this.source;constructor(){attempts.push(this)}}
-    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});const first=screen.getByRole('button',{name:'Audition take take-1'}),second=kind==='same take'?first:screen.getByRole('button',{name:'Audition take take-2'});await user.click(first);await user.click(second);expect(attempts).toHaveLength(0);releaseStop();
+    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});const first=screen.getByRole('button',{name:'Listen to take take-1'}),second=kind==='same take'?first:screen.getByRole('button',{name:'Listen to take take-2'});await user.click(first);await user.click(second);expect(attempts).toHaveLength(0);releaseStop();
     await waitFor(()=>expect(attempts.length).toBeGreaterThan(0));for(const attempt of [...attempts].reverse())attempt.resolve();await waitFor(()=>expect(attempts.reduce((count,attempt)=>count+attempt.source.start.mock.calls.length,0)).toBe(1));await user.click(screen.getByRole('button',{name:'Close'}));await user.click(screen.getByRole('button',{name:'Stop and discard'}));expect(attempts.every(attempt=>attempt.close.mock.calls.length>=1)).toBe(true);
   });
 
   it('cancels an audition waiting before context allocation with Stop preview',async()=>{
     const user=userEvent.setup();render(<Harness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));captureOnStart=false;await user.click(screen.getByRole('button',{name:'Start recording'}));let releaseStop!:()=>void;stopGate=new Promise<void>(resolve=>{releaseStop=resolve});
     const contexts=vi.fn(),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};class PreviewContext {constructor(){contexts()}destination={};resume=vi.fn().mockResolvedValue(undefined);close=vi.fn().mockResolvedValue(undefined);createBufferSource=vi.fn(()=>source)}
-    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await user.click(screen.getByRole('button',{name:'Stop preview'}));await act(async()=>{releaseStop();await Promise.resolve();await Promise.resolve();});expect(contexts).not.toHaveBeenCalled();
+    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Listen to take take-1'}));await user.click(screen.getByRole('button',{name:'Stop preview'}));await act(async()=>{releaseStop();await Promise.resolve();await Promise.resolve();});expect(contexts).not.toHaveBeenCalled();
   });
 
   it('cancels a pending preview before starting capture',async()=>{
     const user=userEvent.setup();render(<Harness/>);await user.click(screen.getByRole('button',{name:'Start recording'}));
     let resolve!:()=>void;const close=vi.fn().mockResolvedValue(undefined),source={buffer:null,connect:vi.fn(),disconnect:vi.fn(),start:vi.fn(),stop:vi.fn(),onended:null};
     class PreviewContext {destination={};resume=()=>new Promise<void>(done=>{resolve=done});close=close;createBufferSource=()=>source}
-    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Audition take take-1'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Stop preview'})).toBeEnabled());
+    Object.defineProperty(globalThis,'AudioContext',{value:PreviewContext,configurable:true});await user.click(screen.getByRole('button',{name:'Listen to take take-1'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Stop preview'})).toBeEnabled());
     await user.click(screen.getByRole('button',{name:'Start recording'}));expect(close).toHaveBeenCalledOnce();resolve();await Promise.resolve();expect(source.start).not.toHaveBeenCalled();await screen.findByLabelText('Name for take take-2');
   });
 
@@ -216,28 +223,28 @@ describe('RecordingModal review workflow',()=>{
   });
 
   it('keeps automatic range captures in review with exact MIDI roots until one atomic Apply',async()=>{
-    const user=userEvent.setup();render(<Harness instrument="multisample"/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.selectOptions(screen.getByLabelText('MIDI output'),'virtual');for(const [label,value] of [['Start note','60'],['End note','66'],['Note step','6'],['Hold duration','0'],['Release tail','0'],['Between-note settling','0']] as const){const input=screen.getByLabelText(label);await user.clear(input);await user.type(input,value);}
-    await user.click(screen.getByRole('button',{name:'Start automatic capture'}));await waitFor(()=>expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(2));expect(screen.getAllByLabelText(/Root note for take/).map(input=>(input as HTMLInputElement).value)).toEqual(['60','66']);expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('0');
+    const user=userEvent.setup();render(<Harness instrument="multisample"/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.selectOptions(screen.getByLabelText('MIDI output'),'virtual');openDetails('Optional timing details');for(const [label,value] of [['Start note','60'],['End note','66'],['Note step','6'],['Hold duration','0'],['Release tail','0'],['Between-note settling','0']] as const){const input=screen.getByLabelText(label);await user.clear(input);await user.type(input,value);}
+    await user.click(screen.getByRole('button',{name:'Start automatic recording'}));await waitFor(()=>expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(2));expect(screen.getAllByLabelText(/Root note for take/).map(input=>(input as HTMLInputElement).value)).toEqual(['60','66']);expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('0');
     await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('2'));expect(midi.outputs[0].send.mock.calls.map(call=>call[0])).toEqual([[0x90,60,100],[0x80,60,0],[0x90,66,100],[0x80,66,0]]);
   });
 
   it('finishes guided capture only after a checked take is committed',async()=>{
     const settings={startNote:48,endNote:48,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));
     const disconnect=vi.fn();Object.defineProperty(globalThis,'AudioContext',{value:vi.fn(function(){const context=new OriginalAudioContext(),createBufferSource=context.createBufferSource.bind(context);context.createBufferSource=vi.fn(()=>Object.assign(createBufferSource(),{disconnect}));return context;}),configurable:true});
-    const user=userEvent.setup();render(<GuidedHarness/>);expect(screen.getByRole('navigation',{name:'Automatic multisampling steps'})).toHaveTextContent('Connect and check');await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Check sound on one note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Audition check note'})).toBeEnabled());await user.click(screen.getByRole('button',{name:'Audition check note'}));await user.click(screen.getByRole('button',{name:'Stop check preview'}));expect(disconnect).toHaveBeenCalledOnce();await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to capture range'}));await user.click(screen.getByRole('button',{name:'Start automatic capture'}));expect(await screen.findByLabelText(/Root note for take/)).toHaveValue(48);await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));expect(screen.getByRole('heading',{name:'1 take added to this multisample instrument'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Save to library'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Review OP-XY export'})).toBeInTheDocument();
+    const user=userEvent.setup();render(<GuidedHarness/>);const steps=screen.getByRole('navigation',{name:'Automatic multisampling steps'});expect(steps).toHaveTextContent('1. Connect');expect(steps).toHaveTextContent('2. Check');expect(screen.getByRole('heading',{name:'Connect and check'})).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Play a test note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Listen to test recording'})).toBeEnabled());await user.click(screen.getByRole('button',{name:'Listen to test recording'}));await user.click(screen.getByRole('button',{name:'Stop listening'}));expect(disconnect).toHaveBeenCalledOnce();await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to record'}));await user.click(screen.getByRole('button',{name:'Start automatic recording'}));expect(await screen.findByLabelText(/Root note for take/)).toHaveValue(48);await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));expect(screen.getByRole('heading',{name:'1 take added to this multisample instrument'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Save to library'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Review OP-XY export'})).toBeInTheDocument();
   });
 
   it('keeps a guided take audition stoppable from Review',async()=>{
-    const settings={startNote:48,endNote:48,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));const disconnect=vi.fn();Object.defineProperty(globalThis,'AudioContext',{value:vi.fn(function(){const context=new OriginalAudioContext(),createBufferSource=context.createBufferSource.bind(context);context.createBufferSource=vi.fn(()=>Object.assign(createBufferSource(),{disconnect}));return context;}),configurable:true});const user=userEvent.setup();render(<GuidedHarness/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Check sound on one note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Audition check note'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to capture range'}));await user.click(screen.getByRole('button',{name:'Start automatic capture'}));const take=await screen.findByRole('button',{name:/Audition take/});await user.click(take);expect(screen.getByRole('button',{name:'Stop preview'})).toBeEnabled();await user.click(screen.getByRole('button',{name:'Stop preview'}));expect(disconnect).toHaveBeenCalledOnce();expect(screen.getByRole('button',{name:'Stop preview'})).toBeDisabled();
+    const settings={startNote:48,endNote:48,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));const disconnect=vi.fn();Object.defineProperty(globalThis,'AudioContext',{value:vi.fn(function(){const context=new OriginalAudioContext(),createBufferSource=context.createBufferSource.bind(context);context.createBufferSource=vi.fn(()=>Object.assign(createBufferSource(),{disconnect}));return context;}),configurable:true});const user=userEvent.setup();render(<GuidedHarness/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Play a test note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Listen to test recording'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to record'}));await user.click(screen.getByRole('button',{name:'Start automatic recording'}));const take=await screen.findByRole('button',{name:/Listen to take/});await user.click(take);expect(screen.getByRole('button',{name:'Stop preview'})).toBeEnabled();await user.click(screen.getByRole('button',{name:'Stop preview'}));expect(disconnect).toHaveBeenCalledOnce();expect(screen.getByRole('button',{name:'Stop preview'})).toBeDisabled();
   });
 
   it('keeps guided review and its takes when the commit receipt is rejected',async()=>{
     const settings={startNote:48,endNote:48,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));const realPrepare=recordingApplication.prepareRecordingApplication;let releasePrepared!:()=>void,markPrepared!:()=>void;const prepared=new Promise<void>(resolve=>{markPrepared=resolve}),gate=new Promise<void>(resolve=>{releasePrepared=resolve});const prepareSpy=vi.spyOn(recordingApplication,'prepareRecordingApplication').mockImplementation(async options=>{const result=await realPrepare(options);markPrepared();await gate;return result;});
-    try{const user=userEvent.setup();render(<GuidedConflictHarness/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Check sound on one note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Audition check note'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to capture range'}));await user.click(screen.getByRole('button',{name:'Start automatic capture'}));expect(await screen.findByLabelText(/Root note for take/)).toHaveValue(48);await user.click(screen.getByRole('button',{name:'Add selected takes'}));await prepared;await user.click(screen.getByRole('button',{name:'Inject root conflict'}));releasePrepared();expect(await screen.findByRole('alert')).toHaveTextContent(/became occupied/i);expect(screen.getByLabelText(/Root note for take/)).toHaveValue(48);expect(screen.queryByText(/Capture committed/)).not.toBeInTheDocument();}finally{prepareSpy.mockRestore();}
+    try{const user=userEvent.setup();render(<GuidedConflictHarness/>);await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Play a test note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Listen to test recording'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to record'}));await user.click(screen.getByRole('button',{name:'Start automatic recording'}));expect(await screen.findByLabelText(/Root note for take/)).toHaveValue(48);await user.click(screen.getByRole('button',{name:'Add selected takes'}));await prepared;await user.click(screen.getByRole('button',{name:'Inject root conflict'}));releasePrepared();expect(await screen.findByRole('alert')).toHaveTextContent(/became occupied/i);expect(screen.getByLabelText(/Root note for take/)).toHaveValue(48);expect(screen.queryByText(/Capture committed/)).not.toBeInTheDocument();}finally{prepareSpy.mockRestore();}
   });
 
   it('keeps a partial guided commit in Review with exact retained count',async()=>{
-    const settings={startNote:48,endNote:54,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));const user=userEvent.setup();render(<GuidedCapacityHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('23'));await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Check sound on one note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Audition check note'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to capture range'}));await user.click(screen.getByRole('button',{name:'Start automatic capture'}));await waitFor(()=>expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(2));await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByText(/1 take added; 1 retained in review/)).toBeInTheDocument());expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('24');expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(1);expect(screen.queryByText(/Capture committed/)).not.toBeInTheDocument();
+    const settings={startNote:48,endNote:54,step:6,velocity:100,channel:1,holdSeconds:0,tailSeconds:0,settleSeconds:0,readinessTimeoutSeconds:2};localStorage.setItem('op-patchstudio:auto-sampling:v1',JSON.stringify({profile:'custom',routes:{custom:{audioDeviceId:'',outputId:'virtual',settings},'nina-digitakt':{audioDeviceId:'',outputId:'',settings},ableton:{audioDeviceId:'',outputId:'',settings}}}));const user=userEvent.setup();render(<GuidedCapacityHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('23'));await user.click(screen.getByRole('button',{name:'Enable MIDI'}));await user.click(screen.getByRole('button',{name:'Play a test note'}));await waitFor(()=>expect(screen.getByRole('button',{name:'Listen to test recording'})).toBeEnabled());await user.click(screen.getByRole('checkbox',{name:/intended instrument/i}));await user.click(screen.getByRole('button',{name:'Continue to record'}));await user.click(screen.getByRole('button',{name:'Start automatic recording'}));await waitFor(()=>expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(2));await user.click(screen.getByRole('button',{name:'Add selected takes'}));await waitFor(()=>expect(screen.getByText(/1 take added; 1 retained in review/)).toBeInTheDocument());expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('24');expect(screen.getAllByLabelText(/Root note for take/)).toHaveLength(1);expect(screen.queryByText(/Capture committed/)).not.toBeInTheDocument();
   });
 
   it('proposes roots from the explicit anchor using current project and retained tray reservations',async()=>{
@@ -268,6 +275,33 @@ describe('RecordingModal review workflow',()=>{
     const user=userEvent.setup();render(<LegacyRootsHarness instrument="multisample"/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('128'));await user.click(screen.getByRole('button',{name:'Start recording'}));expect(await screen.findByRole('alert')).toHaveTextContent(/All MIDI root notes are already reserved/);expect(screen.queryAllByLabelText(/Name for take/)).toHaveLength(0);
   });
 
+  it('explains the disabled Add only while Cancel is the chosen occupied-target resolution',async()=>{
+    const user=userEvent.setup();render(<OccupiedMultisampleHarness/>);await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));await user.click(screen.getByRole('button',{name:'Start recording'}));expect(await screen.findByLabelText('Name for take take-1')).toBeInTheDocument();
+    expect(screen.queryByText(/Cancel is chosen/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio',{name:'Replace'}));expect(screen.queryByText(/Cancel is chosen/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio',{name:'Cancel'}));
+    const explanation=screen.getByText(/Cancel is chosen/);expect(explanation).toHaveAttribute('role','status');expect(explanation).toHaveTextContent(/Your takes stay in review\. To add them, choose Replace or Choose free note\./);
+    expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();expect(screen.getByLabelText('Name for take take-1')).toBeInTheDocument();expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1');
+    await user.click(screen.getByRole('radio',{name:/Choose free note/}));expect(screen.queryByText(/Cancel is chosen/)).not.toBeInTheDocument();expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();await user.selectOptions(await screen.findByRole('combobox',{name:'Assign key for take take-1'}),'65');expect(screen.getByRole('button',{name:'Add selected takes'})).toBeEnabled();
+  });
+
+  it('explains that Stop recording unlocks the input settings without renaming the button',async()=>{
+    const user=userEvent.setup();render(<Harness/>);expect(screen.queryByText(/locked while the input is on/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button',{name:'Enable input'}));
+    expect(await screen.findByText(/locked while the input is on\. Stop recording also turns the input off/)).toBeInTheDocument();expect(screen.getByLabelText('Input device')).toBeDisabled();expect(screen.getByLabelText('Recording starts')).toBeDisabled();
+    await user.click(screen.getByRole('button',{name:'Stop recording'}));
+    await waitFor(()=>expect(screen.queryByText(/locked while the input is on/)).not.toBeInTheDocument());expect(screen.getByLabelText('Input device')).toBeEnabled();expect(screen.getByLabelText('Recording starts')).toBeEnabled();expect(screen.getByRole('button',{name:'Stop recording'})).toBeInTheDocument();
+  });
+
+  it('shows guided MIDI-unsupported alternatives on open without requesting any device permission',async()=>{
+    const originalMidiApi=Object.getOwnPropertyDescriptor(navigator,'requestMIDIAccess');Object.defineProperty(navigator,'requestMIDIAccess',{value:undefined});midi.enable.mockClear();
+    try{
+      render(<GuidedHarness/>);await waitFor(()=>expect(document.querySelector('[data-studio-automatic-panel]')).toHaveFocus());
+      const note=screen.getByRole('note');expect(note).toHaveTextContent(/This browser cannot send MIDI/);expect(note).toHaveTextContent(/Close this guided window, then in the editor use Record takes .* or Add sounds/);expect(note).not.toHaveTextContent(/allow MIDI/i);
+      expect(midi.enable).not.toHaveBeenCalled();expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();expect(sessions).toHaveLength(0);
+    }finally{if(originalMidiApi)Object.defineProperty(navigator,'requestMIDIAccess',originalMidiApi);else Reflect.deleteProperty(navigator,'requestMIDIAccess');}
+  });
+
   it('shows the bounded file-import fallback when worklet capture is unavailable',async()=>{
     Object.defineProperty(globalThis,'AudioWorkletNode',{value:undefined,configurable:true});const rendered=render(<Harness/>);
     expect(await screen.findByRole('alert')).toHaveTextContent('Recording requires a supported browser on HTTPS; import an audio file instead.');
@@ -275,4 +309,59 @@ describe('RecordingModal review workflow',()=>{
     expect(screen.getByRole('button',{name:'Stop recording'})).toBeInTheDocument();
     expect(navigator.mediaDevices.addEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));rendered.unmount();expect(navigator.mediaDevices.removeEventListener).toHaveBeenCalledWith('devicechange',expect.any(Function));
   });
+
+
+it('requires a chosen original note for an unlabelled manual take',async()=>{
+ const user=userEvent.setup();render(<Harness instrument="multisample" target={{kind:'multisample'}}/>);
+ await user.click(screen.getByRole('button',{name:'Start recording'}));
+ expect(await screen.findByText(/couldn’t identify a clear note/)).toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();
+ const chooser=screen.getByRole('combobox',{name:'Assign key for take take-1'});
+ await user.selectOptions(chooser,'69');
+ expect(screen.getByRole('button',{name:'Add selected takes'})).toBeEnabled();
+ await user.click(screen.getByRole('button',{name:'Add selected takes'}));
+ await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));
+});
+
+
+it('suggests a recorded tone, preserves manual changes, and adds only after confirmation',async()=>{
+ capturedTone=true;const user=userEvent.setup();render(<Harness instrument="multisample" target={{kind:'multisample'}}/>);
+ await user.click(screen.getByRole('button',{name:'Start recording'}));
+ const confirm=await screen.findByRole('button',{name:/Yes, assign to A/});
+ expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();
+ await user.click(confirm);
+ expect(screen.getByText(/Assigned to A/)).toBeInTheDocument();await user.click(screen.getByRole('button',{name:'Change'}));
+ const chooser=screen.getByRole('combobox',{name:'Assign key for take take-1'});expect(chooser).toHaveFocus();await user.selectOptions(chooser,'72');expect(screen.queryByRole('combobox',{name:'Assign key for take take-1'})).not.toBeInTheDocument();
+ await user.click(screen.getByRole('button',{name:'Add selected takes'}));
+ await waitFor(()=>expect(screen.getByLabelText('Loaded multisample count')).toHaveTextContent('1'));
+});
+
+it('does not treat the next free slot as a confirmed recorded note',async()=>{
+ const user=userEvent.setup();render(<Harness instrument="multisample"/>);
+ await user.click(screen.getByRole('button',{name:'Start recording'}));
+ await user.click(screen.getByRole('button',{name:'Start recording'}));
+ const second=await screen.findByRole('combobox',{name:'Assign key for take take-2'});
+ expect(second).toHaveValue('');expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();
+ await user.selectOptions(second,'65');expect(screen.getByRole('button',{name:'Add selected takes'})).toBeEnabled();
+});
+it('keeps a confirmed free note when resolving an occupied recording target',async()=>{
+ const user=userEvent.setup();render(<OccupiedMultisampleHarness/>);
+ await user.click(screen.getByRole('button',{name:'Start recording'}));
+ await user.click(await screen.findByRole('button',{name:'Change'}));const chooser=await screen.findByRole('combobox',{name:'Assign key for take take-1'});
+ await user.selectOptions(chooser,'69');await user.click(screen.getByRole('radio',{name:/Choose free note/}));
+ expect(screen.getByText(/Assigned to A/)).toBeInTheDocument();
+});
+
+it('lets a take be shortened before note confirmation and carries the section into apply',async()=>{
+ capturedTone=true;const user=userEvent.setup();const spy=vi.spyOn(recordingApplication,'prepareRecordingApplication');
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({beginPath:vi.fn(),clearRect:vi.fn(),closePath:vi.fn(),fill:vi.fn(),fillRect:vi.fn(),lineTo:vi.fn(),moveTo:vi.fn(),setLineDash:vi.fn(),stroke:vi.fn()} as unknown as CanvasRenderingContext2D);
+ render(<Harness instrument="multisample"/>);await user.click(screen.getByRole('button',{name:'Start recording'}));await user.click(screen.getByRole('button',{name:'Stop recording'}));
+ await user.click(screen.getByRole('button',{name:'Choose a section of take take-1'}));
+ fireEvent.change(screen.getByLabelText('Playback start seconds'),{target:{value:'.2'}});fireEvent.change(screen.getByLabelText('Playback end seconds'),{target:{value:'.8'}});
+ await user.click(screen.getByRole('button',{name:'Use this section'}));expect(screen.getByRole('button',{name:'Add selected takes'})).toBeDisabled();
+ await user.click(await screen.findByRole('button',{name:/Yes, assign to A/}));await user.click(screen.getByRole('button',{name:'Add selected takes'}));
+ await waitFor(()=>expect(spy).toHaveBeenCalled());expect(spy.mock.calls[0][0].takes[0].section).toEqual({inPoint:.2,outPoint:.8});
+ expect(spy.mock.calls[0][0].takes[0].audioBuffer.length).toBe(44100);
+});
+
 });

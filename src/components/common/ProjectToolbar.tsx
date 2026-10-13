@@ -7,9 +7,9 @@ import { exportProjectArchive, importProjectArchive, projectArchiveFilename } fr
 import {captureProjectEditIdentity,projectEditIdentityMatches} from '../../utils/projectEditIdentity';
 import { ExportPreflight } from './ExportPreflight';
 
-interface ProjectToolbarProps { onRetrySave?: () => void | Promise<void> }
+interface ProjectToolbarProps { onRetrySave?: () => void | Promise<void>; showFileActions?: boolean; selectedInstrument?: 'drum'|'multisample' }
 
-export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
+export function ProjectToolbar({ onRetrySave, showFileActions = false, selectedInstrument }: ProjectToolbarProps) {
   const { state, dispatch } = useAppContext();
   const { canUndo, canRedo, historyLimited } = useProjectHistory();
   const backupInput = useRef<HTMLInputElement>(null);
@@ -21,7 +21,7 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
   const [busy, setBusy] = useState<'download' | 'open' | 'library' | null>(null);
   const [message, setMessage] = useState<{ kind: 'status' | 'error'; text: string } | null>(null);
   const [showPreflight, setShowPreflight] = useState(false);
-  const instrument = state.currentTab === 'multisample' ? 'multisample' : 'drum';
+  const instrument = selectedInstrument ?? (state.currentTab === 'multisample' ? 'multisample' : 'drum');
   const settings = instrument === 'drum' ? state.drumSettings : state.multisampleSettings;
   currentState.current=state;
 
@@ -43,7 +43,7 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
       const anchor = document.createElement('a');
       anchor.href = url; anchor.download = filename; anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      setMessage({ kind: 'status', text: `Downloaded project backup ${filename}` });
+      setMessage({ kind: 'status', text: `Project backup download requested: ${filename}. Check your downloads to keep the file.` });
     } catch (error) {
       setMessage({ kind: 'error', text: `Could not download project: ${error instanceof Error ? error.message : 'unknown error'}` });
     } finally { setBusy(null); }
@@ -78,15 +78,24 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
     const result = await savePresetToLibrary(state, settings.presetName, instrument);
     setBusy(null);
     setMessage(result.success
-      ? { kind: 'status', text: `Saved ${settings.presetName} to the library.` }
+      ? { kind: 'status', text: `Saved ${instrument==='drum'?'drum kit':'playable instrument'} “${settings.presetName || 'Untitled'}” to the library in this browser.` }
       : { kind: 'error', text: result.error ?? 'Could not save to the library.' });
   },[instrument,settings.presetName,state]);
 
   useEffect(() => {
-    const save = () => { if (state.currentTab === 'multisample') void saveLibrary(); };
+    const save = () => { if (state.currentTab === 'multisample' || state.currentTab === 'drum') void saveLibrary(); };
     window.addEventListener('opstudio-save-library', save);
     return () => window.removeEventListener('opstudio-save-library', save);
   },[saveLibrary,state.currentTab]);
+
+  // The drum journey reuses the project actions instead of maintaining a second save/export implementation.
+  useEffect(() => {
+    const backup = () => { if (busy === null) void downloadProject(); };
+    const open = () => { if (busy === null) backupInput.current?.click(); };
+    window.addEventListener('opstudio-backup-project', backup);
+    window.addEventListener('opstudio-open-project', open);
+    return () => { window.removeEventListener('opstudio-backup-project', backup); window.removeEventListener('opstudio-open-project', open); };
+  });
 
   const saveDefault = () => {
     const result = instrument === 'drum'
@@ -99,12 +108,13 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
 
   const saveStatus = state.sessionSaveStatus === 'checking' ? 'Checking saved work…'
     : state.sessionSaveStatus === 'saving' ? 'Saving…'
-      : state.sessionSaveStatus === 'saved' ? 'Saved locally'
+      : state.sessionSaveStatus === 'saved' ? 'Saved in this browser'
         : state.sessionSaveStatus === 'error' ? 'Save failed · Retry'
-          : 'Unsaved changes';
+          : canUndo||canRedo?'Unsaved changes':'Ready to edit';
   const revisionConflict = state.sessionSaveStatus === 'error' && state.sessionSaveError?.includes('another tab');
 
   return <section data-project-busy={busy !== null ? 'true' : undefined} aria-label="Instrument project controls" className="studio-toolbar">
+    {showFileActions&&<p className="studio-toolbar-instrument">Selected for saving and download: <strong>{instrument==='drum'?'Drum kit':'Playable instrument'} — {settings.presetName||'Untitled'}</strong></p>}
     <div className="studio-toolbar-main">
       <label className="studio-name-field" htmlFor="instrument-name">
         <span>Instrument name</span>
@@ -116,21 +126,22 @@ export function ProjectToolbar({ onRetrySave }: ProjectToolbarProps) {
       {state.sessionSaveStatus === 'error' && state.sessionSaveError && <div className="studio-save-error" role="alert">{state.sessionSaveError}</div>}
       {state.sessionSaveStatus === 'error' && !revisionConflict && <button type="button" className="studio-button-secondary" onClick={() => void onRetrySave?.()}>Retry save</button>}
       <div className="studio-toolbar-actions">
+        {showFileActions && <><button type="button" className="studio-button-secondary" disabled={busy !== null} onClick={() => void downloadProject()}>Back up project</button><button type="button" className="studio-button-secondary" disabled={busy !== null} onClick={() => backupInput.current?.click()}>Open project</button><button type="button" className="studio-button-secondary" disabled={busy !== null} onClick={() => void saveLibrary()}>Save to library</button></>}
         <button type="button" className="studio-button-secondary" disabled={!canUndo || busy !== null} onClick={() => dispatch({ type: 'UNDO' })} title="Undo (Ctrl/Cmd+Z)">Undo</button>
         <button type="button" className="studio-button-secondary" disabled={!canRedo || busy !== null} onClick={() => dispatch({ type: 'REDO' })} title="Redo (Shift+Ctrl/Cmd+Z)">Redo</button>
         <details ref={projectMenu} className="studio-project-menu">
           <summary>Project</summary>
           <div className="studio-project-menu-popover" onClick={event => { if (event.target instanceof HTMLButtonElement && projectMenu.current) projectMenu.current.open = false; }}>
-            <p className="studio-project-menu-note">Project backup keeps editable audio and settings; device patch export is separate.</p>
+            <p className="studio-project-menu-note">A project backup keeps editable audio and settings. An OP-XY preset is a separate file for your device.</p>
             <button type="button" disabled={busy !== null} onClick={() => void saveLibrary()}>Save to library</button>
-            <button type="button" disabled={busy !== null} onClick={() => void downloadProject()}>Download project</button>
+            <button type="button" disabled={busy !== null} onClick={() => void downloadProject()}>Back up project</button>
             <button type="button" disabled={busy !== null} onClick={() => backupInput.current?.click()}>Open project</button>
-            <button type="button" onClick={saveDefault}>Save settings as default</button>
+            <button type="button" onClick={saveDefault}>Use these settings for new instruments</button>
             <button type="button" onClick={() => { window.dispatchEvent(new CustomEvent('opstudio-open-workspace', { detail: 'library' })); }}>Open library</button>
           </div>
         </details>
         <input ref={backupInput} aria-label="Project backup file" hidden type="file" accept=".opstudio,application/vnd.op-patchstudio.project+zip,application/zip" onChange={event => void openProject(event.target.files?.[0])} />
-        <button ref={exportButton} type="button" className="studio-button-primary" onClick={() => setShowPreflight(true)}>Export OP-XY</button>
+        <button ref={exportButton} type="button" className="studio-button-primary" onClick={() => setShowPreflight(true)}>Download OP-XY preset</button>
       </div>
     </div>
     {historyLimited && <div role="status">Earlier undo steps were discarded to keep memory use bounded.</div>}

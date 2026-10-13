@@ -24,7 +24,7 @@ async function loadPad(page: Page, label: string, file: ReturnType<typeof wavFix
   const chooser = await chooseDrumPadFile(page,label);
   await (await chooser).setFiles(file);
   await expect(page.getByRole('region',{name:'Focused sample editor'})).toContainText(file.name);
-  await expect(page.getByRole('button', { name: 'Export OP-XY', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download OP-XY preset', exact: true })).toBeVisible();
 }
 
 async function downloadPatch(page: Page, rename = true) {
@@ -105,11 +105,11 @@ test('an older saved session can be restored after reload with its pad assignmen
   // audio and musical state came from the actual file chooser and autosave.
   await setCurrentSessionTimestamp(page,Date.now()-2*24*60*60*1000);
   await page.reload();
-  const dialog = page.getByRole('dialog', { name: 'restore session' });
+  const dialog = page.getByRole('dialog', { name: 'Restore saved work?', exact: true });
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'restore', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Restore saved work', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await openWorkspace(page,'drum');
   await expect(page.getByRole('textbox', { name: 'Instrument name', exact: true })).toHaveValue('Keep this session');
@@ -166,10 +166,10 @@ test('library reload restores saved multisample settings and keeps the drum kit'
   };
   await importSettings(original);
   await projectAction(page,'Save to library');
-  await expect(page.getByText('Saved Library complete to the library.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saved playable instrument “Library complete” to the library in this browser.', { exact: true })).toBeVisible();
   await importSettings({ type: 'multisampler', name: 'Temporary setting', octave: -1, engine: { transpose: -12, playmode: 'poly', volume: 32767 }, fx: { active: false } });
   await openWorkspace(page,'library');
-  await page.getByRole('button', { name: /^(load preset|load)$/ }).click();
+  await page.getByRole('button', { name: 'Load Library complete', exact: true }).click();
   await page.getByRole('button', { name: 'ok', exact: true }).click();
   await expect(page.locator('.studio-shell-location strong')).toHaveText('Multisample editor');
   await expect(page).toHaveURL(/#\/studio\/multisample$/);
@@ -193,7 +193,7 @@ test('portable project restores sparse audio and its import can be undone', asyn
   await expectDrumLoaded(page,1);
   await page.getByRole('textbox', { name: 'Instrument name', exact: true }).fill('Portable project');
   const backupEvent = page.waitForEvent('download');
-  await projectAction(page,'Download project');
+  await projectAction(page,'Back up project');
   const backup = await backupEvent;
   expect(backup.suggestedFilename()).toMatch(/\.opstudio$/);
   const backupPath = await backup.path();
@@ -221,9 +221,9 @@ test('settings-only work is offered for recovery after reload', async ({ page })
   await page.getByRole('textbox', { name: 'Instrument name', exact: true }).fill('Settings before samples');
   await expect.poll(async () => (await readCurrentSession(page))?.drumSettings?.presetName).toBe('Settings before samples');
   await page.reload();
-  const dialog = page.getByRole('dialog', { name: 'restore session' });
+  const dialog = page.getByRole('dialog', { name: 'Restore saved work?', exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'restore', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Restore saved work', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await openWorkspace(page,'drum');
   await expect(page.getByRole('textbox', { name: 'Instrument name', exact: true })).toHaveValue('Settings before samples');

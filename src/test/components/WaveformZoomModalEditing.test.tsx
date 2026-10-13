@@ -42,18 +42,31 @@ describe('WaveformZoomModal frame editor', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it('offers a simple section selection with bounded playback and no bulk edits', async()=>{
+    const onSave=vi.fn();render(<WaveformZoomModal isOpen sectionOnly onClose={()=>{}} audioBuffer={makeBuffer()} initialInPoint={0} initialOutPoint={1} onSave={onSave}/>);
+    expect(screen.getByRole('heading',{name:'Choose a section'})).toBeInTheDocument();
+    expect(screen.queryByText('Save for all…')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Playback start seconds'),{target:{value:'.2'}});
+    fireEvent.change(screen.getByLabelText('Playback end seconds'),{target:{value:'.6'}});
+    fireEvent.click(screen.getByRole('button',{name:'Play'}));
+    await waitFor(()=>expect(audio.playWithADSR).toHaveBeenCalled());
+    expect(audio.playWithADSR.mock.calls[0][2]).toMatchObject({inFrame:20,outFrame:60,loopEnabled:false});
+    fireEvent.click(screen.getByRole('button',{name:'Use this section'}));
+    expect(onSave.mock.calls[0].slice(0,2)).toEqual([.2,.6]);
+  });
+
   it('edits half-open frame and second values, retaining exact zero and final-frame boundaries', () => {
     const onSave = vi.fn();
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={1}
       initialCrossfade={{ fraction: 0 }} onSave={onSave} onSaveForAll={() => {}} />);
 
-    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
-    expect(screen.getByLabelText('Sample end frames')).toHaveValue(100);
+    expect(screen.getByLabelText('Playback start frames')).toHaveValue(0);
+    expect(screen.getByLabelText('Playback end frames')).toHaveValue(100);
     fireEvent.change(screen.getByLabelText('Loop start seconds'), { target: { value: '0.2' } });
     fireEvent.change(screen.getByLabelText('Loop end frames'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Loop crossfade percent'), { target: { value: '25' } });
-    fireEvent.click(screen.getByRole('button', { name: 'save markers' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save markers' }));
 
     expect(onSave).toHaveBeenCalledWith(0, 1, 0.2, 1, { fraction: 0.25 });
   });
@@ -64,11 +77,11 @@ describe('WaveformZoomModal frame editor', () => {
     const buffer = makeBuffer();
     const { rerender } = render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={buffer}
       initialInPoint={0} initialOutPoint={1} onSave={onSave} onSaveForAll={onSaveForAll} />);
-    fireEvent.change(screen.getByLabelText('Sample start frames'), { target: { value: '12' } });
+    fireEvent.change(screen.getByLabelText('Playback start frames'), { target: { value: '12' } });
     rerender(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={buffer}
       initialInPoint={0} initialOutPoint={1} onSave={() => onSave()} onSaveForAll={() => onSaveForAll()} />);
-    expect(screen.getByLabelText('Sample start frames')).toHaveValue(12);
-    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    expect(screen.getByLabelText('Playback start frames')).toHaveValue(12);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onSave).not.toHaveBeenCalled();
     expect(onSaveForAll).not.toHaveBeenCalled();
   });
@@ -82,14 +95,14 @@ describe('WaveformZoomModal frame editor', () => {
 
     dispatchPointer(canvas, 'pointerdown', 7, 20, 190);
     dispatchPointer(document, 'pointermove', 7, -50, 190);
-    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
+    expect(screen.getByLabelText('Playback start frames')).toHaveValue(0);
     dispatchPointer(document, 'pointerup', 7, -50, 190);
 
     dispatchPointer(canvas, 'pointerdown', 8, 0, 190);
     dispatchPointer(document, 'pointermove', 8, 40, 190);
-    expect(screen.getByLabelText('Sample start frames')).toHaveValue(40);
+    expect(screen.getByLabelText('Playback start frames')).toHaveValue(40);
     dispatchPointer(document, 'pointercancel', 8, 40, 190);
-    expect(screen.getByLabelText('Sample start frames')).toHaveValue(0);
+    expect(screen.getByLabelText('Playback start frames')).toHaveValue(0);
   });
 
   it('uses the audio clock for playhead, pause/resume, speed, reverse, and force stop', async () => {
@@ -108,23 +121,23 @@ describe('WaveformZoomModal frame editor', () => {
       initialInPoint={0} initialOutPoint={1} onSave={() => {}} onSaveForAll={() => {}}
       playbackRate={2} reverse />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     clock.now = 0.25;
     act(() => animationFrame?.(250));
     expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'pause' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(audio.releaseNote).toHaveBeenCalledWith('preview-note', true);
     act(() => completions[0]());
     expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     act(() => completions[0]());
-    expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
     expect(audio.playWithADSR.mock.calls[1][2]).toMatchObject({ inFrame: 0, outFrame: 100, startTime: 0.5, reverse: true, playbackRate: 2 });
-    fireEvent.click(screen.getByRole('button', { name: 'stop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(screen.getByText('Playhead: 100 frames')).toBeInTheDocument();
   });
 
@@ -135,7 +148,7 @@ describe('WaveformZoomModal frame editor', () => {
       initialCrossfade={{ fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav' }}
       onSave={onSave} onSaveForAll={() => {}} />);
     expect(screen.getByText(/90%.*preview editor supports up to 75%/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'save markers' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save markers' }));
     expect(onSave.mock.calls[0][4]).toEqual({
       fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav',
     });
@@ -147,7 +160,9 @@ describe('WaveformZoomModal frame editor', () => {
       initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={1}
       initialCrossfade={{ fraction: 0.9, importedRaw: 90, importedFramecount: 100, sourceIdentity: 'sample.wav' }}
       onSave={() => {}} onSaveForAll={onSaveForAll} />);
-    fireEvent.click(screen.getByRole('button', { name: 'save for all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save for all…' }));
+    expect(onSaveForAll).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace markers on all samples' }));
     expect(onSaveForAll.mock.calls[0][0].loopCrossfade).toEqual({ fraction: 0.75 });
   });
 
@@ -161,13 +176,13 @@ describe('WaveformZoomModal frame editor', () => {
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} initialLoopStart={0.2} initialLoopEnd={0.4}
       loopEnabled loopOnRelease={loopOnRelease} onSave={() => {}} onSaveForAll={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'release' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Release' })).toBeEnabled());
     await waitFor(() => expect(animationFrame).toBeTypeOf('function'));
     clock.now = 0.3;
     act(() => animationFrame?.(300));
     expect(screen.getByText('Playhead: 30 frames')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'release' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Release' }));
     expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', false);
     clock.now = 0.5;
     act(() => animationFrame?.(500));
@@ -182,8 +197,8 @@ describe('WaveformZoomModal frame editor', () => {
       initialInPoint={0} initialOutPoint={1} onSave={onSave} onSaveForAll={() => {}} />);
     const canvas = screen.getByLabelText(/waveform editor/i);
     dispatchPointer(canvas, 'pointerdown', 9, 0, 190);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     unmount();
     expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', true);
     dispatchPointer(document, 'pointermove', 9, 50, 190);
@@ -195,12 +210,12 @@ describe('WaveformZoomModal frame editor', () => {
     audio.playWithADSR.mockImplementationOnce(() => new Promise<string>((resolve) => { finishStart = resolve; }));
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} onSave={() => {}} onSaveForAll={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'stop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     await act(async () => finishStart?.('late-note'));
     expect(audio.releaseNote).toHaveBeenLastCalledWith('late-note', true);
-    expect(screen.getByRole('button', { name: 'pause' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled();
   });
 
   it('keeps P-key ownership across the playback rerender until keyup', async () => {
@@ -209,7 +224,7 @@ describe('WaveformZoomModal frame editor', () => {
       loopEnabled onSave={() => {}} onSaveForAll={() => {}} />);
     fireEvent.keyDown(document, { key: 'p' });
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     fireEvent.keyUp(document, { key: 'p' });
     expect(audio.releaseNote).toHaveBeenLastCalledWith('preview-note', true);
   });
@@ -222,9 +237,9 @@ describe('WaveformZoomModal frame editor', () => {
     dispatchPointer(canvas, 'pointerdown', 17, 20, 190);
     dispatchPointer(document, 'pointermove', 17, -100, 190);
     dispatchPointer(document, 'pointerup', 17, -100, 190);
-    fireEvent.click(screen.getByRole('dialog', { name: 'zoom and edit' }));
+    fireEvent.click(screen.getByRole('dialog', { name: 'Zoom and edit' }));
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: 'zoom and edit' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Zoom and edit' })).toBeVisible();
   });
 
   it('uses an immutable voice clock when markers change during playback', async () => {
@@ -234,8 +249,8 @@ describe('WaveformZoomModal frame editor', () => {
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} initialLoopStart={0.2} initialLoopEnd={0.4}
       loopEnabled onSave={() => {}} onSaveForAll={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     expect(audio.playWithADSR.mock.calls[0][2]).toMatchObject({ loopStart: 0.2, loopEnd: 0.4 });
     fireEvent.change(screen.getByLabelText('Loop end frames'), { target: { value: '80' } });
     clock.now = 0.5;
@@ -251,15 +266,15 @@ describe('WaveformZoomModal frame editor', () => {
       initialInPoint={0} initialOutPoint={1} initialLoopStart={0} initialLoopEnd={0.08}
       initialCrossfade={{ fraction: 0.04 }} loopEnabled={false}
       onSave={() => {}} onSaveForAll={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(1));
     expect(Array.from(audio.playWithADSR.mock.calls[0][0].getChannelData(0))).toEqual(Array.from(source));
   });
 
   it.each([
-    { reverse: false, marker: 'Sample start frames', value: '80', expectedStart: 80, nextFrame: 90 },
-    { reverse: false, marker: 'Sample end frames', value: '40', expectedStart: 0, nextFrame: 10 },
-    { reverse: true, marker: 'Sample end frames', value: '40', expectedStart: 40, nextFrame: 30 },
+    { reverse: false, marker: 'Playback start frames', value: '80', expectedStart: 80, nextFrame: 90 },
+    { reverse: false, marker: 'Playback end frames', value: '40', expectedStart: 0, nextFrame: 10 },
+    { reverse: true, marker: 'Playback end frames', value: '40', expectedStart: 40, nextFrame: 30 },
   ])('restarts a paused voice and clock at a valid boundary after editing $marker with reverse=$reverse', async ({ reverse, marker, value, expectedStart, nextFrame }) => {
     let frameId=0;const frames=new Map<number,FrameRequestCallback>();
     vi.stubGlobal('requestAnimationFrame',vi.fn((callback:FrameRequestCallback)=>{const id=++frameId;frames.set(id,callback);return id;}));
@@ -268,16 +283,16 @@ describe('WaveformZoomModal frame editor', () => {
     render(<WaveformZoomModal isOpen onClose={() => {}} audioBuffer={makeBuffer()}
       initialInPoint={0} initialOutPoint={1} reverse={reverse}
       onSave={() => {}} onSaveForAll={() => {}} />);
-    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'play' }));});
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'Play' }));});
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     clock.now = 0.5;
     tick(500);
     expect(screen.getByText('Playhead: 50 frames')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'pause' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     fireEvent.change(screen.getByLabelText(marker), { target: { value } });
-    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'play' }));});
+    await act(async()=>{fireEvent.click(screen.getByRole('button', { name: 'Play' }));});
     await waitFor(() => expect(audio.playWithADSR).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'pause' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
     const options = audio.playWithADSR.mock.calls[1][2];
     expect(options).toMatchObject({ inFrame: reverse ? 0 : Number(value === '80' ? 80 : 0), outFrame: reverse ? 40 : Number(value === '40' ? 40 : 100), startTime: 0 });
     expect(screen.getByText(`Playhead: ${expectedStart} frames`)).toBeInTheDocument();
