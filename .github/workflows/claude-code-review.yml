@@ -37,8 +37,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          # model: "claude-opus-4-20250514"
+          # Explicitly avoid the beta action's retired Sonnet 4 default.
+          model: "claude-sonnet-4-6"
           
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |
@@ -50,6 +50,8 @@ jobs:
             - Test coverage
             
             Be constructive and helpful in your feedback.
+            This is a read-only review. Report findings with file and line references.
+            Do not edit files, commit, push, merge, or deploy.
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
