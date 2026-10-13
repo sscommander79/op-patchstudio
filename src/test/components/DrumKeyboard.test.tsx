@@ -142,7 +142,7 @@ describe('DrumKeyboard', () => {
 
     const loaded = screen.getByRole('button', { name: 'KD1 drum key A' });
     const empty = screen.getByRole('button', { name: 'SD1 drum key S' });
-    expect(loaded).toHaveAccessibleDescription('LOADED');
+    expect(loaded).toHaveAccessibleDescription('LOADED 0');
     expect(empty).toHaveAccessibleDescription('EMPTY');
     expect(loaded.querySelector('.studio-drum-pad-status')).not.toHaveAttribute('data-status-quiet');
     expect(empty.querySelector('.studio-drum-pad-status')).toHaveAttribute('data-status-quiet', 'true');

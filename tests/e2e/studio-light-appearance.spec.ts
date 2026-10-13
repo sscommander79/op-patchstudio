@@ -216,17 +216,25 @@ test.describe('OP-XY light appearance', () => {
         await check(page, `create-${width}`);
         await noHorizontalOverflow(page, 'create');
 
-        await page.getByRole('button', { name: /Multisample a synth/ }).click();
-        await expect(page.getByRole('button', { name: 'Continue to setup' })).toBeVisible();
+        await page.getByRole('button', { name: /Make a playable instrument/ }).click();
+        await expect(page.getByRole('heading', { name: 'Where will your sound come from?' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Open instrument editor', exact: true })).toBeVisible();
         // Selected source card (aria-pressed) is part of this state.
+        await expect(page.getByRole('button', { name: /^One audio file/ })).toHaveAttribute('aria-pressed', 'true');
         await check(page, `create-source-${width}`);
         await noHorizontalOverflow(page, 'create source');
-        await page.getByRole('button', { name: 'Continue to setup' }).click();
+        // Reload keeps the source route. Return through Overview for the separate drum setup guide.
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.getByRole('heading', { name: 'Where will your sound come from?' })).toBeVisible();
+        await page.goto('/#/studio/create', {waitUntil:'domcontentloaded'});
+        await expect(page.getByRole('heading', { name: 'What would you like to make?' })).toBeVisible();
+        await page.getByRole('button', { name: /^Build a drum kit/ }).click();
+        await expect(page.getByRole('heading', { name: 'Build your kit', level: 1 })).toBeVisible();
         await check(page, `create-setup-${width}`);
         await noHorizontalOverflow(page, 'create setup');
 
         await page.goto('/#/studio/transfer', { waitUntil: 'domcontentloaded' });
-        await expect(page.getByRole('heading', { name: 'Back up or transfer' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Back up and transfer', level: 1 })).toBeVisible();
         await check(page, `transfer-${width}`);
         await noHorizontalOverflow(page, 'transfer');
 
@@ -255,13 +263,13 @@ test.describe('OP-XY light appearance', () => {
         await check(page, `drum-loaded-settings-${width}`);
         await noHorizontalOverflow(page, 'drum loaded');
         // Disabled state stays visibly different from enabled: bulk edit needs 2+ loaded pads (enabled here).
-        await expect(page.getByRole('button', { name: 'bulk edit' })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Edit multiple sounds', exact: true })).toBeEnabled();
 
         await page.getByRole('button', { name: 'Table', exact: true }).click();
         await check(page, `drum-table-${width}`);
         await noHorizontalOverflow(page, 'drum table');
 
-        await page.getByRole('button', { name: 'bulk edit' }).click();
+        await page.getByRole('button', { name: 'Edit multiple sounds', exact: true }).click();
         const bulk = page.getByRole('dialog').last();
         await expect(bulk).toBeVisible();
         await check(page, `dialog-drum-bulk-${width}`, bulk);
@@ -274,7 +282,7 @@ test.describe('OP-XY light appearance', () => {
         await check(page, `dialog-drum-record-${width}`, recorder);
         await recorder.getByRole('button', { name: 'Close', exact: true }).click();
 
-        await page.getByRole('button', { name: 'Export OP-XY', exact: true }).click();
+        await page.getByRole('button', { name: 'Download OP-XY preset', exact: true }).click();
         const exportDialog = page.getByRole('dialog', { name: 'Export OP-XY preset' });
         await expect(exportDialog).toBeVisible();
         for (const summary of await exportDialog.locator('details:not([open]) > summary').all()) await summary.click();
@@ -292,7 +300,7 @@ test.describe('OP-XY light appearance', () => {
         await check(page, `multisample-empty-${width}`);
         await noHorizontalOverflow(page, 'multisample empty');
         await page.getByRole('button', { name: 'Table', exact: true }).click();
-        await expect(page.getByText('no samples loaded', { exact: true })).toBeVisible();
+        await expect(page.getByText('No recordings added yet', { exact: true })).toBeVisible();
         await check(page, `multisample-empty-table-${width}`);
         await noHorizontalOverflow(page, 'multisample empty table');
         await page.getByRole('button', { name: 'Focus', exact: true }).click();
@@ -353,24 +361,24 @@ test.describe('OP-XY light appearance', () => {
     await page.getByRole('button', { name: 'Load demo kit', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Drum pad instrument, 10 of 24 loaded' })).toBeVisible();
     for (const value of await clipped('.studio-focus, .studio-focus-main, .studio-sample-controls, .studio-assignment')) expect(value, 'drum focus overflow px').toBeLessThanOrEqual(1);
-    const outPoint = page.getByLabel('Out point (seconds)');
+    const outPoint = page.getByLabel('Playback end (seconds)', { exact: true });
     const [box, column] = [await outPoint.boundingBox(), await page.locator('.studio-focus').boundingBox()];
     expect(box!.x + box!.width).toBeLessThanOrEqual(column!.x + column!.width + 1);
     await check(page, 'drum-focus-1056');
     await noHorizontalOverflow(page, 'drum focus 1056');
 
-    await page.getByRole('button', { name: 'bulk edit' }).click();
-    const bulk = page.getByRole('dialog', { name: 'bulk edit samples' });
+    await page.getByRole('button', { name: 'Edit multiple sounds', exact: true }).click();
+    const bulk = page.getByRole('dialog', { name: 'Bulk edit samples', exact: true });
     await expect(bulk).toBeVisible();
-    await expect(bulk.getByRole('heading', { name: 'bulk edit samples' })).toBeInViewport({ ratio: 1 });
-    await expect(bulk.getByRole('button', { name: /apply to 10 samples/ })).toBeInViewport({ ratio: 1 });
+    await expect(bulk.getByRole('heading', { name: 'Bulk edit samples', exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(bulk.getByRole('button', { name: 'Apply to 10 samples', exact: true })).toBeInViewport({ ratio: 1 });
     for (const range of await bulk.locator('input[type="range"]').all()) {
       const bounds = (await range.boundingBox())!;
       expect(bounds.height, 'bulk slider keeps a 44px target').toBeGreaterThanOrEqual(43.5);
       expect(await range.evaluate(element => getComputedStyle(element).backgroundImage), 'no painted block track').toBe('none');
     }
     await check(page, 'dialog-drum-bulk-1056', bulk);
-    await bulk.getByRole('button', { name: 'cancel' }).click();
+    await bulk.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(bulk).toHaveCount(0);
 
     // Reloading with saved drum work offers session restoration; scan that dialog, then start fresh.
@@ -378,7 +386,7 @@ test.describe('OP-XY light appearance', () => {
     const restore = page.locator('[aria-labelledby="session-restoration-title"]');
     await expect(restore).toBeVisible();
     await check(page, 'dialog-session-restore-1056', restore);
-    await restore.getByRole('button', { name: 'start new' }).click();
+    await restore.getByRole('button', { name: 'Discard saved work and start new', exact: true }).click();
     await expect(restore).toHaveCount(0);
     await gotoWorkspace(page, 'multisample');
     await page.getByLabel('choose multisample audio files').setInputFiles(toneWav('focus-C4.wav'));

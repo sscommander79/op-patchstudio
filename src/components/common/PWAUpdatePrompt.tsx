@@ -47,10 +47,10 @@ export function PWAUpdatePrompt({ reloadPage = reloadCurrentPage }: { reloadPage
     <aside className="studio-pwa-notice" role="status" aria-live="polite">
       <p>
         {notice === 'update'
-          ? 'An update is ready. Save or back up your project before updating.'
+          ? 'An update is ready. Update now reloads this page, so anything that has not been saved may be lost. Download a project backup first if you need one. Later keeps this version running and leaves your current work as it is.'
           : notice === 'blocked'
-            ? 'Close other OP-PatchStudio tabs before updating, then choose Update now again.'
-          : 'The studio is ready to work offline.'}
+            ? 'Close other OP-PatchStudio tabs before updating, then choose Update now again. Nothing has changed in this tab.'
+          : 'The studio files are stored in this browser, so the app can open without a connection. Hosted pages such as the feedback form still need one.'}
       </p>
       <div className="studio-pwa-notice__actions">
         {(notice === 'update' || notice === 'blocked') && (
@@ -67,7 +67,8 @@ export function PWAUpdatePrompt({ reloadPage = reloadCurrentPage }: { reloadPage
             Update now
           </button>
         )}
-        <button type="button" onClick={() => setNotice(null)}>Later</button>
+        {/* Offline-ready has nothing to defer, so its only action acknowledges rather than postpones. */}
+        <button type="button" onClick={() => setNotice(null)}>{notice === 'offline' ? 'Got it' : 'Later'}</button>
       </div>
     </aside>
   );

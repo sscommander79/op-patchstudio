@@ -1,3 +1,4 @@
+import {physicalKeyRows,bankKeys,drumComputerKeyHint} from './drumKeyboardBindings';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
@@ -6,6 +7,7 @@ import type { MidiEvent } from '../../utils/midi';
 import type { WebMidiState, WebMidiHookReturn } from '../../hooks/useWebMidi';
 import { shouldIgnoreKeyboardKeyDown } from '../../utils/keyboardOwnership';
 import { AUDIO_FILE_ACCEPT } from '../../utils/audioFormats';
+import './DrumKeyboardDesign.css';
 
 
 // Drum key mapping for two octaves (matching legacy)
@@ -50,16 +52,19 @@ const drumIndexByMidiNote: Record<number, number> = Object.fromEntries(
   Array.from({length:24}, (_, index) => [53 + index, index]),
 );
 const keyByDrumIndex = ['A','W','S','E','D','R','F','G','Y','H','U','J','A','W','S','E','D','R','F','G','Y','H','U','J'];
-const physicalKeyRows = [
-  { name: 'upper', keys: ['W', 'E', 'R', 'Y', 'U'] },
-  { name: 'lower', keys: ['A', 'S', 'D', 'F', 'G', 'H', 'J'] },
-] as const;
+
+const audioExtension = /\.(wav|aiff?|mp3|m4a|ogg|flac)$/i;
 
 // Organize mode label mapping
 // White key indices (lower row) in order
 const lowerIndices = [0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23];
 // Black key indices (upper row) in order
 const upperIndices = [1, 3, 5, 8, 10, 13, 15, 17, 20, 22];
+
+// Exact cap exports and geometry from approved Figma frame 453:4448.
+const designCapPairs = [["97543.svg", "62ed7.svg"], ["e4def.svg", "d9ee0.svg"], ["36434.svg", "e9fff.svg"], ["1dabd.svg", "ba4db.svg"], ["8185b.svg", "967d1.svg"], ["e8e49.svg", "b3e99.svg"], ["3db8e.svg", "cc917.svg"], ["400ab.svg", "4bdcd.svg"], ["2c7b4.svg", "7b99a.svg"], ["06ff3.svg", "3eed6.svg"], ["098a8.svg", "2e6e1.svg"], ["4c8f6.svg", "c5739.svg"], ["05d9a.svg", "341f7.svg"], ["41943.svg", "9e72a.svg"]] as const;
+const designUpperPositions = [74, 166, 258, 442, 534, 718, 810, 902, 1086, 1178];
+const capAsset = (file: string) => `/assets/drum-design/keyboard/${file}`;
 
 // Short labels for keyboard: "LO1"-"LO14", "UP1"-"UP10"
 const getOrganizeModeLabel = (idx: number): string => {
@@ -120,6 +125,17 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
   const internalWebMidi = useWebMidi();
   const onMidiEvent = onMidiEventExternal ?? internalWebMidi.onMidiEvent;
   const midiState = externalMidiState ?? internalWebMidi.state;
+
+  // Scale the complete native-size cap, including SVG layers, rather than distorting assets.
+  useEffect(() => {
+    const element = keyboardRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      element.style.setProperty('--drum-design-key-scale', String(entry.contentRect.width / 1344));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   // Detect mobile screen size changes
   useEffect(() => {
@@ -189,11 +205,11 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
       const key = e.key.toUpperCase();
 
       // Handle octave switching
-      if (key === 'Z') {
+      if (key === bankKeys.lower) {
         setCurrentOctave(0);
         return;
       }
-      if (key === 'X') {
+      if (key === bankKeys.upper) {
         setCurrentOctave(1);
         return;
       }
@@ -328,6 +344,23 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
     const statusText = isSelected && !(isMobile && row === 'lower') ? 'SELECTED' : isActive ? 'LOADED' : 'EMPTY';
     // Repeated EMPTY labels are hidden visually; the text stays in the pad's accessible description.
     const statusId = mapping ? `drum-key-status-${mapping.idx}-${octave}` : undefined;
+    const slotLabel = mapping ? isOrganizeMode ? getOrganizeModeLabel(mapping.idx) : mapping.label : '—';
+    // The loaded sound's own name leads; the pad number and slot abbreviation follow it.
+    // Phone upper pads are 48px circles; their sound name stays in the accessible name and the editor heading.
+    const soundName = hasContent && sample?.name && !(isMobile && row === 'upper') ? sample.name.replace(audioExtension, '') : null;
+    const padTitle = mapping
+      ? `Pad ${mapping.idx + 1} · ${hasContent ? sample?.name || 'Loaded' : 'Empty'} · ${slotLabel} · computer key ${keyChar.toUpperCase()}`
+      : undefined;
+
+    const lowerPosition = mapping ? lowerIndices.indexOf(mapping.idx) : -1;
+    const upperPosition = mapping ? upperIndices.indexOf(mapping.idx) : -1;
+    const capPair = designCapPairs[Math.max(0, lowerPosition)];
+    const designX = lowerPosition >= 0 ? 28 + lowerPosition * 92 : designUpperPositions[upperPosition];
+    const designStyle = {
+      '--drum-design-key-left': `${designX / 1344 * 100}%`,
+      '--drum-design-key-top': row === 'upper' ? '0%' : `${92 / 218 * 100}%`,
+      '--drum-design-key-ink': lowerPosition >= 7 ? '#141414' : '#f7f7f7',
+    } as React.CSSProperties;
 
     // This function contains the core action for the key
     const handleActivate = () => {
@@ -339,7 +372,7 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
     };
 
     return (
-      <div key={`${octave}-${keyChar}`} className="studio-desktop-pad-slot">
+      <div key={`${octave}-${keyChar}`} className="studio-desktop-pad-slot" style={designStyle}>
 
         {/* Key button */}
         <button
@@ -417,7 +450,8 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
             : `${mapping ? mapping.label : 'Empty'} drum key ${keyChar.toUpperCase()}`}
           aria-pressed={isPressed}
           aria-current={isSelected ? 'true' : undefined}
-          aria-describedby={statusId}
+          aria-describedby={soundName ? `${statusId} ${statusId}-sound` : statusId}
+          title={padTitle}
           data-audio-import="drum"
           data-drum-pad={mapping?.idx}
           data-pad-state={isActive ? 'loaded' : 'empty'}
@@ -446,9 +480,23 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
             }
           }}
         >
+          {!isMobile && <span className="drum-design-cap" aria-hidden="true">
+            <span className="drum-design-cap-foot" />
+            <span className="drum-design-cap-lip" />
+            <span className="drum-design-cap-base" />
+            <span className="drum-design-cap-edge" />
+            <img className="drum-design-cap-sidewall" alt="" src={capAsset('7c125.svg')} />
+            <img className="drum-design-cap-shoulder" alt="" src={capAsset(capPair[0])} />
+            <img className="drum-design-cap-face" alt="" src={capAsset(capPair[1])} />
+            <img className="drum-design-cap-locator" alt="" src={capAsset(lowerPosition >= 7 ? '39442.svg' : '8dbb3.svg')} />
+            <span className="drum-design-cap-label">{slotLabel}</span>
+          </span>}
           <span className="studio-drum-pad-keychar" aria-hidden="true">{keyChar.toUpperCase()}</span>
-          <strong className="studio-drum-pad-name" id={mapping ? `drum-key-${mapping.idx}-${octave}` : undefined}>
-            {mapping ? isOrganizeMode ? getOrganizeModeLabel(mapping.idx) : mapping.label : '—'}
+          <strong className="studio-drum-pad-name" id={mapping ? `drum-key-${mapping.idx}-${octave}` : undefined} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, maxWidth: '100%', lineHeight: 1.15 }}>
+            {soundName && <span id={`${statusId}-sound`} className="studio-drum-pad-sound" style={{ display: 'block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{soundName}</span>}
+            <span className="studio-drum-pad-slot" style={soundName ? { display: 'block', fontSize: '.8em', fontWeight: 500, whiteSpace: 'nowrap' } : { display: 'block', whiteSpace: 'nowrap' }}>
+              {mapping && <span className="studio-drum-pad-number" style={isMobile ? { display: 'block' } : undefined}>{mapping.idx + 1}{isMobile ? '' : ' · '}</span>}{slotLabel}
+            </span>
           </strong>
           <small className="studio-drum-pad-status" id={statusId} data-status-quiet={statusText === 'EMPTY' ? 'true' : undefined}>{statusText}</small>
         </button>
@@ -487,7 +535,7 @@ export function DrumKeyboard({ onFileUpload, selectedMidiChannel, midiState: ext
         <div className="studio-desktop-pad-banks studio-drum-pad-tray">
           {[0, 1].map(octave => (
             <div key={octave} role="group" aria-label={octave === 0 ? 'Lower octave drum keys' : 'Upper octave drum keys'} className="studio-desktop-pad-bank" data-active-octave={currentOctave === octave ? 'true' : undefined}>
-              <p>{octave === 0 ? 'Lower pads · 1–12' : 'Upper pads · 13–24'} <span>{currentOctave === octave ? 'Computer keys active' : 'Press Z / X to play'}</span></p>
+              <p>{octave === 0 ? 'Lower pads · 1–12' : 'Upper pads · 13–24'} <span>{currentOctave === octave ? 'Computer keys active' : drumComputerKeyHint.switchBanks}</span></p>
               <div className="studio-desktop-pad-grid">
                 {renderPhysicalRows(octave)}
               </div>

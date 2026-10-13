@@ -117,3 +117,11 @@ describe('guarded recording application',()=>{
     expect(result.recordingCommitResult).toMatchObject({status:'committed',appliedIds:['legacy-replacement']});expect(result.multisampleFiles).toHaveLength(25);expect(result.multisampleFiles.find(file=>file.rootNote===24)?.name).toBe('Legacy replacement.opfloat');
   });
 });
+
+it('keeps the full take with selected playback bounds after commit',async()=>{
+ const buffer=audio([.1,.2,.3,.4,.5,.6,.7,.8]);
+ const prepared=await prepareRecordingApplication({instrument:'multisample',takes:[{id:'section',name:'Take',audioBuffer:buffer,rootNote:60,section:{inPoint:2/8000,outPoint:6/8000}}],state:initialState,target:{kind:'multisample'}});
+ const result=appReducer(initialState,{type:'COMMIT_PREPARED_RECORDINGS',payload:{operationId:'section',prepared}});
+ expect(result.multisampleFiles[0]).toMatchObject({inPoint:2/8000,outPoint:6/8000,loopStart:2/8000,loopEnd:6/8000});
+ expect(result.multisampleFiles[0].audioBuffer).toBe(buffer);
+});

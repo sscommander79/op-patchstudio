@@ -1,3 +1,4 @@
+import {normalizeSection,type SampleSection} from './sampleSection';
 import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
 import { readAudioMetadata, type AudioMetadata } from './audioFormats';
 import type { IntakeFileRecord } from './externalFileIntake';
@@ -10,7 +11,7 @@ import { validateProjectArchiveMetadata } from './projectArchive';
 import { preflightAudioImport } from './audioImportPreflight';
 import { audioContextManager } from './audioContext';
 
-export interface PreparedImportAsset {id:string;sourceIdentity:string;path:string;file:File;audioBuffer:AudioBuffer;metadata:AudioMetadata}
+export interface PreparedImportAsset {section?:SampleSection;id:string;sourceIdentity:string;path:string;file:File;audioBuffer:AudioBuffer;metadata:AudioMetadata}
 export type ImportDestination =
   | {kind:'drum-pad';padIndex:number;decision:'choose-empty'|'replace';expected?:ExpectedAssetIdentity}
   | {kind:'drum-asset';decision:'replace';expected:ExpectedAssetIdentity}
@@ -51,7 +52,7 @@ function drumSample(asset:PreparedImportAsset,isAssigned:boolean,assignedKey?:nu
   playmode:'oneshot',reverse:false,transpose:0,pan:0,gain:0,hasBeenEdited:false,isAssigned,assignedKey,sourceIdentity:asset.sourceIdentity};}
 function multisample(asset:PreparedImportAsset,rootNote:number,mapping:AppState['midiNoteMapping']):MultisampleFile {const {file,audioBuffer,metadata}=asset;return {file,audioBuffer,name:file.name,isLoaded:true,rootNote,note:midiNoteToString(rootNote,mapping),inPoint:0,outPoint:audioBuffer.duration,
   loopStart:metadata.hasLoopData?metadata.loopStart:audioBuffer.duration*.2,loopEnd:metadata.hasLoopData?metadata.loopEnd:audioBuffer.duration*.8,originalBitDepth:metadata.bitDepth,
-  originalSampleRate:metadata.sourceSampleRate,originalChannels:metadata.sourceChannels,fileSize:file.size,duration:audioBuffer.duration,isFloat:metadata.isFloat,sourceIdentity:asset.sourceIdentity};}
+  originalSampleRate:metadata.sourceSampleRate,originalChannels:metadata.sourceChannels,fileSize:file.size,duration:audioBuffer.duration,isFloat:metadata.isFloat,sourceIdentity:asset.sourceIdentity,...(asset.section?(()=>{const bounds=normalizeSection(audioBuffer,asset.section);return {...bounds,loopStart:bounds.inPoint,loopEnd:bounds.outPoint};})():{})};}
 export function finalizeAudioImport(prepared:PreparedAudioImport,state:AppState):ImportCommit {if(prepared.expectedProjectGeneration!==(state.projectGeneration??0))throw new Error('The project was replaced while audio was preparing. Start this import again.');if(!prepared.assets.length)throw new Error('Prepared import is empty');const byId=new Map(prepared.assets.map(asset=>[asset.id,asset]));const ids=new Set<string>();
   for(const selection of prepared.selections){if(ids.has(selection.id)||!byId.has(selection.id))throw new Error('Import selections must reference each prepared file once');ids.add(selection.id);}
   let drums=[...state.drumSamples],multis=[...state.multisampleFiles];const appliedIds:string[]=[],retainedIds:string[]=[];let assignedCount=0,overflowCount=0;

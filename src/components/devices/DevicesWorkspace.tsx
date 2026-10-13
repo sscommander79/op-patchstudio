@@ -56,12 +56,16 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
   }, [deleteCandidate]);
   const finishDeleteDecision = () => { restoreDeleteFocus.current = true; setDeleteCandidate(null); };
 
+  // Mapping edits stay tucked away while a profile supplies them; choosing the blank custom profile opens them.
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const enabledSlots = state.slots.filter(slot => slot.enabled).length;
+
   return <div className="studio-devices-workspace">
     <p className="studio-eyebrow">MIDI tools</p>
     <h1>Devices</h1>
     <p className="studio-shell-lead">
-      Map up to eight named MIDI CC controls for any external synth. NINA is an editable starting template.
-      Opening this page and managing setups never sends MIDI; moving an enabled value slider sends only after you choose a live output and channel and select Confirm MIDI route.
+      Send MIDI CC values to an external synth. Start with Connection: enable MIDI, choose an output and channel, then confirm the route.
+      Opening this page and managing setups never sends MIDI.
     </p>
 
     {!state.browserSupported && <p role="alert" className="studio-message studio-message-warning">
@@ -73,7 +77,7 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
 
     <section className="studio-setup-panel" aria-labelledby="devices-connection-heading">
       <h2 id="devices-connection-heading">Connection</h2>
-      <p>MIDI permission is requested only when you choose Enable MIDI.</p>
+      <p>The browser asks for MIDI permission only when you choose Enable MIDI. Nothing is sent until you choose an output and channel and select Confirm MIDI route.</p>
       <button
         type="button"
         className="studio-button-primary"
@@ -84,7 +88,7 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
       </button>
       <div className="studio-connection-grid">
         <label>Device profile
-          <select aria-label="Device profile" value={state.profileId} onChange={event => actions.selectProfile(event.target.value)}>
+          <select aria-label="Device profile" value={state.profileId} onChange={event => { actions.selectProfile(event.target.value); if (event.target.value === CUSTOM_CC_PROFILE_ID) setMappingOpen(true); }}>
             <option value={NINA_PROFILE.id}>{NINA_PROFILE.label}</option>
             <option value={CUSTOM_CC_PROFILE_ID}>Custom external synth</option>
           </select>
@@ -131,55 +135,77 @@ export function DevicesWorkspace({ session: providedSession, store: providedStor
           </select>
         </label>
       </div>
+      <p>Device profile is a template, not detection. {NINA_PROFILE.label} fills in starting CC names and numbers that you can edit; the app does not identify or verify the synth on the selected output.</p>
       <div className="studio-action-row"><button type="button" className="studio-button-secondary" disabled={!state.output || state.channel === null || Boolean(state.leaseOwner)} onClick={actions.confirmRoute}>Confirm MIDI route</button><span>{state.routeConfirmed && state.output && state.channel !== null ? 'Route ready for deliberate sends' : 'Choose or review output and channel before sending'}</span></div>
       {state.leaseOwner && <p>{state.leaseOwner === 'autosampling' ? 'Autosampling' : 'Stem capture'} owns {state.output?.name ?? 'this MIDI route'}. Devices controls are disabled until capture releases it.</p>}
     </section>
 
     <section className="studio-setup-panel" aria-labelledby="devices-values-heading">
-      <h2 id="devices-values-heading">Eight CC controls</h2>
-      <p>Enable only the controls you need. Labels and CC numbers are editable; no mapping is written to the OP-XY. Number fields are planning state. Once the route is confirmed, a slider gesture sends at a bounded cadence; Send and confirmed Apply remain deliberate actions.</p>
-      <div className="studio-cc-grid">
-        {state.slots.map((slot, index) => {
-          const display = slot.label.trim() || `Slot ${index + 1}`;
-          return <article key={slot.id} className="studio-cc-slot" data-slot-enabled={slot.enabled ? 'true' : 'false'}>
-            <div className="studio-cc-slot-heading"><h3>{String(index + 1).padStart(2, '0')} / {display}</h3><label><input type="checkbox" aria-label={`Enable CC slot ${index + 1}`} checked={slot.enabled} onChange={event => actions.updateSlot(slot.id, { enabled: event.target.checked })} /> Enabled</label></div>
-            <div className="studio-cc-slot-fields"><label>Control label
-              <input aria-label={`CC slot ${index + 1} label`} maxLength={40} value={slot.label} onChange={event => actions.updateSlot(slot.id, { label: event.target.value })} />
-            </label><label>CC number
-              <input type="number" aria-label={`CC slot ${index + 1} number`} min={0} max={127} step={1} value={slot.controller ?? ''} onChange={event => actions.updateSlot(slot.id, { controller: event.target.value === '' ? null : Number(event.target.value) })} />
-            </label></div>
-            <p>CC {slot.controller ?? '—'} · desired value {slot.value}</p>
-            <label>{display} desired value slider
-              <input
-                type="range"
-                aria-label={`${display} desired value slider`}
-                min={0}
-                max={127}
-                step={1}
-                value={slot.value}
-                onChange={event => void actions.setSlotFromGesture(slot.id, Number(event.target.value))}
-              />
-            </label>
-            <label>{display} desired value
-              <input
-                type="number"
-                aria-label={`${display} desired value`}
-                min={0}
-                max={127}
-                step={1}
-                value={slot.value}
-                onChange={event => actions.updateSlot(slot.id, { value: Number(event.target.value) })}
-              />
-            </label>
-            <button
-              type="button"
-              className="studio-button-secondary"
-              disabled={!state.canSend || !slot.enabled || slot.controller === null}
-              onClick={() => void actions.send(slot.id)}
-            >Send {display}</button>
-          </article>;
-        })}
-      </div>
+      <h2 id="devices-values-heading">CC controls</h2>
+      <p id="devices-slider-hint">Slider: live. After the route is confirmed, moving a slider sends that CC as you move it, at a limited rate.</p>
+      <p id="devices-number-hint">Number field: prepared only. Typing a value sends nothing until you choose Send for that control, or Preview Apply and then Confirm Apply for all enabled controls.</p>
+      {enabledSlots === 0
+        ? <p>No controls are enabled. Open Edit CC mapping below to name a control, set its CC number, and enable it.</p>
+        : <div className="studio-cc-grid">
+          {state.slots.map((slot, index) => {
+            if (!slot.enabled) return null;
+            const display = slot.label.trim() || `Slot ${index + 1}`;
+            return <article key={slot.id} className="studio-cc-slot" data-slot-enabled="true">
+              <div className="studio-cc-slot-heading"><h3>{String(index + 1).padStart(2, '0')} / {display}</h3></div>
+              <p>CC {slot.controller ?? '—'} · desired value {slot.value}</p>
+              <label>{display} desired value slider
+                <input
+                  type="range"
+                  aria-label={`${display} desired value slider`}
+                  aria-describedby="devices-slider-hint"
+                  min={0}
+                  max={127}
+                  step={1}
+                  value={slot.value}
+                  onChange={event => void actions.setSlotFromGesture(slot.id, Number(event.target.value))}
+                />
+              </label>
+              <label>{display} desired value
+                <input
+                  type="number"
+                  aria-label={`${display} desired value`}
+                  aria-describedby="devices-number-hint"
+                  min={0}
+                  max={127}
+                  step={1}
+                  value={slot.value}
+                  onChange={event => actions.updateSlot(slot.id, { value: Number(event.target.value) })}
+                />
+              </label>
+              <button
+                type="button"
+                className="studio-button-secondary"
+                disabled={!state.canSend || !slot.enabled || slot.controller === null}
+                onClick={() => void actions.send(slot.id)}
+              >Send {display}</button>
+            </article>;
+          })}
+        </div>}
+
+      <details className="studio-advanced-disclosure" style={{ marginInline: 0 }} open={mappingOpen} onToggle={event => setMappingOpen(event.currentTarget.open)}>
+        <summary>Edit CC mapping <span>{enabledSlots} of {state.slots.length} enabled · names and CC numbers</span></summary>
+        <div>
+          <p>Up to eight controls. Enable only the ones you need, and give each enabled control its own CC number. This mapping is saved with your setup in this browser; nothing is written to the synth or the OP-XY, and editing it sends no MIDI.</p>
+          <div className="studio-cc-grid">
+            {state.slots.map((slot, index) => {
+              const display = slot.label.trim() || `Slot ${index + 1}`;
+              return <article key={slot.id} className="studio-cc-slot" data-slot-enabled={slot.enabled ? 'true' : 'false'}>
+                <div className="studio-cc-slot-heading"><h3>Slot {index + 1}{slot.label.trim() ? ` / ${display}` : ''}</h3><label><input type="checkbox" aria-label={`Enable CC slot ${index + 1}`} checked={slot.enabled} onChange={event => actions.updateSlot(slot.id, { enabled: event.target.checked })} /> Enabled</label></div>
+                <div className="studio-cc-slot-fields"><label>Control label
+                  <input aria-label={`CC slot ${index + 1} label`} maxLength={40} value={slot.label} onChange={event => actions.updateSlot(slot.id, { label: event.target.value })} />
+                </label><label>CC number
+                  <input type="number" aria-label={`CC slot ${index + 1} number`} min={0} max={127} step={1} value={slot.controller ?? ''} onChange={event => actions.updateSlot(slot.id, { controller: event.target.value === '' ? null : Number(event.target.value) })} />
+                </label></div>
+              </article>;
+            })}
+          </div>
+        </div>
+      </details>
 
       <div className="studio-action-row">
         <button type="button" className="studio-button-primary" onClick={actions.previewApply}>Preview Apply</button>

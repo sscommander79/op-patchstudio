@@ -7,7 +7,8 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  duration?: number; // in milliseconds, default 5000
+  // In milliseconds. Defaults to 5000, except errors, which stay until dismissed unless a duration is given.
+  duration?: number;
 }
 
 interface NotificationSystemProps {
@@ -16,12 +17,14 @@ interface NotificationSystemProps {
 }
 
 export function NotificationSystem({ notifications, onDismiss }: NotificationSystemProps) {
-  // Auto-dismiss notifications after their duration
+  // Auto-dismiss notifications after their duration. An error without an explicit
+  // duration gets no timer, so it cannot disappear before it has been read.
   useEffect(() => {
     const timers: number[] = [];
 
     notifications.forEach(notification => {
-      const duration = notification.duration || 5000;
+      const duration = notification.duration || (notification.type === 'error' ? 0 : 5000);
+      if (!duration) return;
       const timer = window.setTimeout(() => {
         onDismiss(notification.id);
       }, duration);
@@ -50,7 +53,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
       position: 'fixed',
       top: '20px',
       right: '20px',
-      zIndex: 10000,
+      zIndex: 900,
       display: 'flex',
       flexDirection: 'column',
       gap: '10px',
@@ -59,10 +62,15 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
     }}>
       {notifications.map(notification => {
         const icon = getIcon(notification.type);
+        const isError = notification.type === 'error';
 
         return (
           <div
             key={notification.id}
+            // The region announces politely; an error interrupts because it needs a response.
+            aria-live={isError ? 'assertive' : undefined}
+            aria-atomic="true"
+            data-notification-type={notification.type}
             style={{
               backgroundColor: 'var(--color-bg-notification)',
               border: '1px solid var(--color-border-notification)',
@@ -80,6 +88,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
               gap: '12px'
             }}>
               <i
+                aria-hidden="true"
                 className={`fas ${icon}`}
                 style={{
                   color: 'var(--color-text-secondary)',
@@ -95,6 +104,7 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                   marginBottom: '4px',
                   color: 'var(--color-text-primary)'
                 }}>
+                  {(isError || notification.type === 'warning') && <span className="studio-visually-hidden">{isError ? 'Error: ' : 'Warning: '}</span>}
                   {notification.title}
                 </div>
                 <div style={{
@@ -106,7 +116,9 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                 </div>
               </div>
               <button
+                type="button"
                 aria-label={`Dismiss ${notification.title} notification`}
+                title="Dismiss"
                 onClick={() => onDismiss(notification.id)}
                 style={{
                   background: 'none',
@@ -115,6 +127,10 @@ export function NotificationSystem({ notifications, onDismiss }: NotificationSys
                   cursor: 'pointer',
                   fontSize: '16px',
                   padding: '0',
+                  // 44px target without growing the card.
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  margin: '-10px -14px -10px 0',
                   opacity: 1,
                   flexShrink: 0
                 }}

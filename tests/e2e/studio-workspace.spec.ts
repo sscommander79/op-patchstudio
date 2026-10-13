@@ -69,13 +69,13 @@ test('Studio Seed plays, edits atomically, restores, and exports its sparse ten-
   await page.getByRole('button',{name:'Undo',exact:true}).click();
   await expect(direction).toBeVisible();
 
-  await page.getByRole('button',{name:'Export OP-XY',exact:true}).click();
+  await page.getByRole('button',{name:'Download OP-XY preset',exact:true}).click();
   const preflight=page.getByRole('dialog',{name:'Export OP-XY preset'});
   await expect(preflight).toContainText('10 mapped samples');
   await expect(preflight).toContainText('0 retained unassigned samples');
   await expect(preflight.getByLabel(/Include .* unassigned/)).toHaveCount(0);
   const event=page.waitForEvent('download');
-  await preflight.getByRole('button',{name:'Download preset',exact:true}).click();
+  await preflight.getByRole('button',{name:'Download OP-XY preset',exact:true}).click();
   const zip=await JSZip.loadAsync(await downloadedBytes(await event));
   const patchFile=zip.file('patch.json');
   expect(patchFile).not.toBeNull();

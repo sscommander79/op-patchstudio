@@ -235,8 +235,8 @@ async function parseAifMetadata(arrayBuffer: ArrayBuffer, filename: string, mapp
     }
 
     // Extract root note from filename if not found in INST chunk
-    let midiNote = rootNote || 60;
-    if (!rootNote) {
+    let midiNote = rootNote ?? -1;
+    if (rootNote === undefined) {
       try {
         const { parseFilename } = await import('./audio');
         const parsed = parseFilename(filename, mapping);
@@ -498,7 +498,7 @@ export async function audioBufferToWavWithMetadata(
   // Use metadata loop points if available
   // Convert from seconds to frames since audioBufferToWav expects frame indices
   const options = {
-    rootNote: metadata.rootNote || metadata.midiNote,
+    rootNote: metadata.rootNote ?? metadata.midiNote,
     loopStart: metadata.hasLoopData ? Math.floor(metadata.loopStart * audioBuffer.sampleRate) : undefined,
     loopEnd: metadata.hasLoopData ? Math.floor(metadata.loopEnd * audioBuffer.sampleRate) : undefined
   };

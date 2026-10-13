@@ -219,6 +219,13 @@ describe('audioFormats', () => {
         vi.unstubAllGlobals()
       }
     })
+    it('leaves an AIFF without embedded or filename pitch unresolved',async()=>{
+      const {parseFilename}=await import('../../utils/audio');
+      vi.mocked(parseFilename).mockReturnValue(['mystery',-1]);
+      const bytes=new Uint8Array(readFileSync('tests/fixtures/task7-audio/sample.aiff'));
+      const metadata=await readAudioMetadataFromArrayBuffer(bytes.buffer,'mystery.aiff',bytes.length,'C3');
+      expect(metadata.midiNote).toBe(-1);
+    });
     it('should read WAV metadata', async () => {
       const { readWavMetadataFromArrayBuffer } = await import('../../utils/audio')
       const mockWavMetadata = {

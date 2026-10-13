@@ -8,6 +8,8 @@ import { UI_CONSTANTS } from '../../utils/constants';
 import { shouldIgnoreKeyboardKeyDown } from '../../utils/keyboardOwnership';
 
 interface VirtualMidiKeyboardProps {
+  rootNotes?: number[];
+  selectedRoot?: number;
   assignedNotes?: number[]; // MIDI note numbers that have samples assigned
   onKeyClick?: (midiNote: number) => void | Promise<void>;
   onKeyRelease?: (midiNote: number) => void; // Add release handler for ADSR
@@ -27,6 +29,8 @@ const keyboardMapping = {
 } as const;
 
 export function VirtualMidiKeyboard({
+  rootNotes = [],
+  selectedRoot,
   assignedNotes = [],
   onKeyClick,
   onKeyRelease,
@@ -133,7 +137,7 @@ export function VirtualMidiKeyboard({
 
     // Each octave is 7 white keys * 24px = 168px wide
     const octaveWidth = 7 * 24;
-    const targetOctave = activeOctave + 1; // +1 because our octaves start from -1
+    const targetOctave = activeOctave + 2; // Rendered octaves start at -2.
     const targetPosition = targetOctave * octaveWidth;
 
     // Center the target octave in the viewport
@@ -145,6 +149,21 @@ export function VirtualMidiKeyboard({
       behavior: 'smooth'
     });
   }, [activeOctave]);
+
+  // Keep the selected recording's original note visible without changing playback mappings.
+  useEffect(() => {
+    if (selectedRoot === undefined) return;
+    const frame = requestAnimationFrame(() => {
+      const scroller = keyboardScrollRef.current;
+      const key = scroller?.querySelector<HTMLElement>(`[data-multisample-root="${selectedRoot}"]`);
+      if (!scroller || !key) return;
+      const bounds = scroller.getBoundingClientRect();
+      const note = key.getBoundingClientRect();
+      scroller.scrollLeft += note.left - bounds.left - bounds.width / 2 + note.width / 2;
+      setFocusedNote(selectedRoot);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedRoot, isMobile]);
 
   // Keyboard event handlers
   useEffect(() => {
@@ -648,7 +667,7 @@ export function VirtualMidiKeyboard({
         octaveKeys.push(
           <div
             key={`white-${midiNote}`}
-            className="midi-key white-key"
+            className={`midi-key white-key ${rootNotes.includes(midiNote) ? 'studio-original-note' : ''}`}
             style={{
               position: 'relative',
               width: '24px',
@@ -683,7 +702,7 @@ export function VirtualMidiKeyboard({
               <span style={{
                 fontSize: '10px',
                 fontWeight: '600',
-                color: isAssigned ? 'var(--color-black)' : 'var(--color-text-secondary)'
+                color: 'var(--color-text-primary)'
               }}>
                 C{state.midiNoteMapping === 'C4' ? octave + 1 : octave}
               </span>
@@ -726,7 +745,7 @@ export function VirtualMidiKeyboard({
         octaveKeys.push(
           <div
             key={`black-${midiNote}`}
-            className="midi-key black-key"
+            className={`midi-key black-key ${rootNotes.includes(midiNote) ? 'studio-original-note' : ''}`}
             style={{
               position: 'absolute',
               left: `${position}px`,
@@ -787,30 +806,6 @@ export function VirtualMidiKeyboard({
         className={`virtual-midi-keyboard studio-performance-surface studio-multisample-surface ${isPinned ? 'pinned' : ''} ${className}`}
         style={combinedStyles}
       >
-        {/* Left fade overlay */}
-        <div className="studio-performance-header" style={{
-          position: 'absolute',
-          left: 0,
-          top: '60px', // Start below the header section
-          bottom: 0,
-          width: '30px',
-          background: 'linear-gradient(to right, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0))',
-          zIndex: 10,
-          pointerEvents: 'none'
-        }} />
-
-        {/* Right fade overlay */}
-        <div style={{
-          position: 'absolute',
-          right: 0,
-          top: '60px', // Start below the header section
-          bottom: 0,
-          width: '30px',
-          background: 'linear-gradient(to left, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0))',
-          zIndex: 10,
-          pointerEvents: 'none'
-        }} />
-
         {/* Header */}
         <div style={{
           display: 'flex',
@@ -947,11 +942,12 @@ export function VirtualMidiKeyboard({
           />
         </div>
 
+        <p className="studio-keyboard-recording-legend">{loadedSamplesCount} / 24 recordings · Orange dots mark original notes. Scroll sideways for more keys.</p>
         <div
           ref={keyboardScrollRef}
           className="hide-scrollbar"
           style={{
-            backgroundColor: '#fff',
+            backgroundColor: 'var(--color-bg-primary)',
             border: 'none',
             borderRadius: '0',
             padding: '1rem',
@@ -1012,7 +1008,7 @@ export function VirtualMidiKeyboard({
                   top: '10px',
                   width: `${indicatorWidth}px`,
                   height: '24px',
-                  backgroundColor: '#fff',
+                  backgroundColor: 'var(--color-bg-primary)',
                   border: '2px solid #000',
                   borderRadius: '3px',
                   boxShadow: '0 6px 12px rgba(0, 0, 0, 0.4)',
@@ -1036,7 +1032,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('a') ? '700' : '600',
-                    color: pressedKeys.has('a') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('a') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('a') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1053,7 +1049,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('w') ? '700' : '600',
-                    color: pressedKeys.has('w') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('w') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('w') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1070,7 +1066,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('s') ? '700' : '600',
-                    color: pressedKeys.has('s') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('s') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('s') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1087,7 +1083,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('e') ? '700' : '600',
-                    color: pressedKeys.has('e') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('e') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('e') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1104,7 +1100,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('d') ? '700' : '600',
-                    color: pressedKeys.has('d') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('d') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('d') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1121,7 +1117,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('f') ? '700' : '600',
-                    color: pressedKeys.has('f') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('f') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('f') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1138,7 +1134,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('t') ? '700' : '600',
-                    color: pressedKeys.has('t') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('t') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('t') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1155,7 +1151,7 @@ export function VirtualMidiKeyboard({
                     transform: 'translate(-50%, -50%)',
                     fontSize: '10px',
                     fontWeight: pressedKeys.has('g') ? '700' : '600',
-                    color: pressedKeys.has('g') ? 'var(--color-interactive-secondary)' : '#000',
+                    color: pressedKeys.has('g') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                     letterSpacing: '0.5px',
                     lineHeight: '1',
                     textShadow: pressedKeys.has('g') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1175,7 +1171,7 @@ export function VirtualMidiKeyboard({
                         transform: 'translate(-50%, -50%)',
                         fontSize: '10px',
                         fontWeight: pressedKeys.has('y') ? '700' : '600',
-                        color: pressedKeys.has('y') ? 'var(--color-interactive-secondary)' : '#000',
+                        color: pressedKeys.has('y') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                         letterSpacing: '0.5px',
                         lineHeight: '1',
                         textShadow: pressedKeys.has('y') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1192,7 +1188,7 @@ export function VirtualMidiKeyboard({
                         transform: 'translate(-50%, -50%)',
                         fontSize: '10px',
                         fontWeight: pressedKeys.has('h') ? '700' : '600',
-                        color: pressedKeys.has('h') ? 'var(--color-interactive-secondary)' : '#000',
+                        color: pressedKeys.has('h') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                         letterSpacing: '0.5px',
                         lineHeight: '1',
                         textShadow: pressedKeys.has('h') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1209,7 +1205,7 @@ export function VirtualMidiKeyboard({
                         transform: 'translate(-50%, -50%)',
                         fontSize: '10px',
                         fontWeight: pressedKeys.has('u') ? '700' : '600',
-                        color: pressedKeys.has('u') ? 'var(--color-interactive-secondary)' : '#000',
+                        color: pressedKeys.has('u') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                         letterSpacing: '0.5px',
                         lineHeight: '1',
                         textShadow: pressedKeys.has('u') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1226,7 +1222,7 @@ export function VirtualMidiKeyboard({
                         transform: 'translate(-50%, -50%)',
                         fontSize: '10px',
                         fontWeight: pressedKeys.has('j') ? '700' : '600',
-                        color: pressedKeys.has('j') ? 'var(--color-interactive-secondary)' : '#000',
+                        color: pressedKeys.has('j') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                         letterSpacing: '0.5px',
                         lineHeight: '1',
                         textShadow: pressedKeys.has('j') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1248,7 +1244,7 @@ export function VirtualMidiKeyboard({
                       transform: 'translateY(-50%)',
                       fontSize: '10px',
                       fontWeight: pressedKeys.has('z') ? '700' : '600',
-                      color: pressedKeys.has('z') ? 'var(--color-interactive-secondary)' : '#000',
+                      color: pressedKeys.has('z') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                       letterSpacing: '-0.5px',
                       lineHeight: '1',
                       textShadow: pressedKeys.has('z') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',
@@ -1267,7 +1263,7 @@ export function VirtualMidiKeyboard({
                       transform: 'translateY(-50%)',
                       fontSize: '10px',
                       fontWeight: pressedKeys.has('x') ? '700' : '600',
-                      color: pressedKeys.has('x') ? 'var(--color-interactive-secondary)' : '#000',
+                      color: pressedKeys.has('x') ? 'var(--color-interactive-secondary)' : 'var(--color-text-primary)',
                       letterSpacing: '-0.5px',
                       lineHeight: '1',
                       textShadow: pressedKeys.has('x') ? '0 0 2px rgba(51, 51, 51, 0.8)' : 'none',

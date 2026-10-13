@@ -17,10 +17,11 @@ export function ToggleSwitch({
   const knobLeft = isRight ? 19 : 3;
 
   // Colors to match amp/filter toggle
-  const activeColor = 'var(--studio-appearance-ink-strong, #000)';
-  const inactiveColor = 'var(--studio-appearance-ink-muted, #999)';
-  const pillBg = '#393939';
-  const knobBg = '#fff';
+  const activeColor = 'var(--studio-text, var(--color-text-primary))';
+  const inactiveColor = 'var(--studio-muted, var(--color-text-secondary))';
+  // Track and knob follow the theme; a fixed #393939 track vanished on dark panels.
+  const pillBg = activeColor;
+  const knobBg = 'var(--studio-panel, var(--color-bg-primary))';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

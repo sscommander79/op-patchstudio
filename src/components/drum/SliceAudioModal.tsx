@@ -11,6 +11,7 @@ import { useOwnedDialog } from '../../hooks/useOwnedDialog';
 import { SliceKeyboardMapping, SLICE_DRAG_TYPE, SLICE_PAD_GROUPS } from './SliceKeyboardMapping';
 
 const PLAYBACK_FAILURE = 'Could not play this sound. Check audio output and try again.';
+const PREPARING = 'Preparing sounds...';
 
 export type SliceSourceRequest = { kind:'existing'; source:SliceSource } | { kind:'file'; file:File };
 
@@ -41,10 +42,15 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
   const [mapping,setMapping]=useState<Record<string,number>>({}),[destination,setDestination]=useState(0),[replacement,setReplacement]=useState<{rangeId:string;keyIndex:number;stagedRangeId?:string}|null>(null);
   const [replacementApprovals,setReplacementApprovals]=useState<Record<number,DrumSample>>({});
   const [unassignments,setUnassignments]=useState<Record<number,DrumSample>>({});
+  // Detection settings last used to analyze; a later change is unsaved work even before detecting again.
+  const initialAnalysisRef=useRef<{ranges:readonly FrameRange[];sensitivity:number;spacingMs:number}|null>(null);
+  const [detectionBaseline,setDetectionBaseline]=useState({sensitivity:.5,spacingMs:20}),[closeConfirm,setCloseConfirm]=useState(false);
+  const closeReturnFocusRef=useRef<HTMLElement|null>(null);
+  const focusKeepEditing=useCallback((node:HTMLButtonElement|null)=>{node?.focus();},[]);
   const focusReplacement=useCallback((node:HTMLDivElement|null)=>{if(node){node.scrollIntoView?.({block:'nearest'});node.querySelector<HTMLButtonElement>('button:last-child')?.focus();}},[]);
   useEffect(()=>{const stale=Object.keys(unassignments).filter(key=>unassignments[Number(key)]!==existingSamples[Number(key)]);if(!stale.length)return;setUnassignments(current=>Object.fromEntries(Object.entries(current).filter(([key])=>!stale.includes(key))));setError(`Pad ${stale.map(key=>Number(key)+1).join(', ')} changed. Its unassignment was cancelled; select it again to review the current sound.`);},[existingSamples,unassignments]);
 
-  const decisionPending=confirmAction!==null||replacement!==null,mutationsDisabled=Boolean(busy)||decisionPending;
+  const decisionPending=confirmAction!==null||replacement!==null||closeConfirm,mutationsDisabled=Boolean(busy)||decisionPending;
   openRef.current=isOpen;
   const setSource=useCallback((value:SliceSource|null)=>{sourceRef.current=value;setSourceState(value);},[]);
   const setBusyValue=useCallback((value:string)=>{busyRef.current=Boolean(value);setBusy(value);},[]);
@@ -57,6 +63,7 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
   const runAnalysis=useCallback(async(loaded:SliceSource,controller:AbortController)=>{const editGeneration=++editGenerationRef.current;setBusyValue('Finding sounds...');setError('');setProgress(0);try{
     const result=await analyzeAudio(loaded.audioBuffer,{sensitivity,minimumSpacingFrames:Math.max(1,Math.round(spacingMs*loaded.audioBuffer.sampleRate/1000))},{signal:controller.signal,onProgress:setProgress});
     if(controller.signal.aborted||sourceRef.current!==loaded||editGeneration!==editGenerationRef.current||!openRef.current)return;
+    if(!initialAnalysisRef.current){initialAnalysisRef.current={ranges:result.ranges.map(({start,end})=>({start,end})),sensitivity,spacingMs};setDetectionBaseline({sensitivity,spacingMs});}
     acceptRanges(result.ranges);if(result.reason==='no-onsets')setError('No sounds found. Adjust Detection settings or use Add sound to begin manually.');
   }catch(reason){if((reason as Error).name!=='AbortError'&&!controller.signal.aborted)setError(reason instanceof Error?reason.message:'Slice analysis failed');}
   finally{if(!controller.signal.aborted&&editGeneration===editGenerationRef.current&&openRef.current)setBusyValue('');}},[acceptRanges,analyzeAudio,sensitivity,setBusyValue,spacingMs]);
@@ -66,7 +73,7 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
     const retained=sourceRef.current;
     if(retained&&!busyRef.current&&(request.kind==='existing'?retained===request.source:retained.file===request.file))return;
     const generation=++generationRef.current;abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;
-    stop();pendingCommitRef.current=null;setSource(null);acceptRanges([]);setError('');setAdvanced(false);setBusyValue(request.kind==='file'?'Reading source...':'');setProgress(0);
+    stop();pendingCommitRef.current=null;initialAnalysisRef.current=null;setDetectionBaseline({sensitivity,spacingMs});setSource(null);acceptRanges([]);setCloseConfirm(false);setError('');setAdvanced(false);setBusyValue(request.kind==='file'?'Reading source...':'');setProgress(0);
     const load=async()=>{try{let loaded:SliceSource;if(request.kind==='existing')loaded=request.source;else{
       if(!request.file.size||request.file.size>SLICE_LIMITS.sourceFileBytes)throw new Error('Slice source must be a nonempty WAV or AIFF no larger than 64 MiB');
       const bytes=await request.file.arrayBuffer();if(controller.signal.aborted||generation!==generationRef.current)return;const dimensions=inspectSliceSource(bytes,request.file.name),contextRate=audioContextManager.getSampleRate();
@@ -79,7 +86,7 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
   // A request identifies the source snapshot. Live project edits do not restart decode/analysis.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[isOpen,request,midiNoteMapping]);
-  useEffect(()=>{if(!isOpen){abortRef.current?.abort();editGenerationRef.current+=1;busyRef.current=false;stop();setSource(null);}},[isOpen,setSource,stop]);
+  useEffect(()=>{if(!isOpen){abortRef.current?.abort();editGenerationRef.current+=1;busyRef.current=false;stop();setSource(null);setCloseConfirm(false);}},[isOpen,setSource,stop]);
   useEffect(()=>()=>{abortRef.current?.abort();editGenerationRef.current+=1;stop();},[stop]);
   useEffect(()=>{if(!commitResult||commitResult.operationId!==pendingCommitRef.current)return;pendingCommitRef.current=null;if(commitResult.status==='committed'){stop();onClose();return;}setBusyValue('');setError(commitResult.error??'The project changed while slicing. No sounds were added; retry.');},[commitResult,onClose,setBusyValue,stop]);
 
@@ -116,7 +123,7 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
   const reset=()=>{if(!source||busyRef.current||decisionPending)return;if(hasChanges){setConfirmAction('reset');return;}stop();acceptRanges([{start:0,end:source.audioBuffer.length}]);};
   const confirmReplacement=()=>{if(!source||!confirmAction)return;const action=confirmAction;setConfirmAction(null);stop();if(action==='reset'){acceptRanges([{start:0,end:source.audioBuffer.length}]);return;}abortRef.current?.abort();const controller=new AbortController();abortRef.current=controller;void runAnalysis(source,controller);};
   const commitDraft=(edge:'start'|'end',unit:'seconds'|'frames')=>{if(!selected||!source||mutationsDisabled)return;const key=`${selected.id}-${edge}-${unit}`,draft=drafts[key];if(draft===undefined)return;const parsed=Number(draft.text),frame=unit==='seconds'?Math.round(parsed*source.audioBuffer.sampleRate):parsed;if(draft.text!==draft.initialText&&draft.text.trim()&&Number.isFinite(frame)&&frame!==draft.frame)updateRange(selected.id,edge,frame);setDrafts(current=>{const next={...current};delete next[key];return next;});};
-  const rangeInput=(edge:'start'|'end',unit:'seconds'|'frames')=>{if(!selected||!source)return null;const key=`${selected.id}-${edge}-${unit}`,frame=selected[edge],value=unit==='seconds'?(frame/source.audioBuffer.sampleRate).toFixed(3):String(frame),edgeName=edge[0].toUpperCase()+edge.slice(1),label=`Sound ${selectedIndex+1} ${edgeName}${unit==='frames'?' frame':''}`;return <label style={{display:'grid',gap:'.25rem'}}>{edgeName} {unit==='seconds'?'(seconds)':'frame'}<input aria-label={label} type="number" step={unit==='seconds'?.001:1} min="0" max={unit==='seconds'?source.audioBuffer.duration:source.audioBuffer.length} value={drafts[key]?.text??value} disabled={mutationsDisabled||transport==='playing'} onFocus={()=>setDrafts(current=>({...current,[key]:{text:value,initialText:value,frame}}))} onChange={event=>setDrafts(current=>({...current,[key]:{text:event.target.value,initialText:current[key]?.initialText??value,frame:current[key]?.frame??frame}}))} onBlur={()=>commitDraft(edge,unit)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();commitDraft(edge,unit);}}} style={inputStyle}/></label>;};
+  const rangeInput=(edge:'start'|'end',unit:'seconds'|'frames')=>{if(!selected||!source)return null;const key=`${selected.id}-${edge}-${unit}`,frame=selected[edge],value=unit==='seconds'?(frame/source.audioBuffer.sampleRate).toFixed(3):String(frame),edgeName=edge[0].toUpperCase()+edge.slice(1),label=`Sound ${selectedIndex+1} ${edgeName}${unit==='frames'?' frame':''}`;return <label style={{display:'grid',gap:'.25rem'}}>{edgeName} {unit==='seconds'?'(seconds)':'frame'}<input aria-label={label} type="number" step={unit==='seconds'?.001:1} min="0" max={unit==='seconds'?source.audioBuffer.duration:source.audioBuffer.length} value={drafts[key]?.text??value} disabled={mutationsDisabled||transport==='playing'} onFocus={()=>setDrafts(current=>current[key]?current:({...current,[key]:{text:value,initialText:value,frame}}))} onChange={event=>setDrafts(current=>({...current,[key]:{text:event.target.value,initialText:current[key]?.initialText??value,frame:current[key]?.frame??frame}}))} onBlur={()=>commitDraft(edge,unit)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();commitDraft(edge,unit);}}} style={inputStyle}/></label>;};
   const startManualEditing=()=>{if(!source)return;abortRef.current?.abort();editGenerationRef.current+=1;setBusyValue('');stop();if(!rangesRef.current.length)acceptRanges([{start:0,end:source.audioBuffer.length}]);setError('');};
   const addSound=()=>{if(!source||busyRef.current||decisionPending||transportRef.current!=='stopped'||ranges.length>=SLICE_LIMITS.sliceCount)return;const gaps=[{start:0,end:ranges[0]?.start??source.audioBuffer.length},...ranges.map((range,index)=>({start:range.end,end:ranges[index+1]?.start??source.audioBuffer.length}))].filter(range=>range.end>range.start);const widest=gaps.sort((a,b)=>(b.end-b.start)-(a.end-a.start))[0];if(widest){const added={id:`sound-${++rangeSequenceRef.current}`,...widest};setRanges(current=>[...current,added].sort((a,b)=>a.start-b.start));setSelectedIdState(added.id);}else if(selected)splitAt(selected.start+Math.floor((selected.end-selected.start)/2));setEdited(true);setOverflowAccepted(false);};
   const removeSelected=()=>{if(!selected||busyRef.current||decisionPending||transportRef.current!=='stopped')return;const remaining=ranges.filter(range=>range.id!==selected.id);const removedTarget=mapping[selected.id];setRanges(remaining);setMapping(current=>{const next={...current};delete next[selected.id];return next;});if(removedTarget!==undefined)setReplacementApprovals(current=>{const next={...current};delete next[removedTarget];return next;});setReplacement(current=>current?.rangeId===selected.id?null:current);setSelectedIdState(remaining[Math.min(selectedIndex,remaining.length-1)]?.id??null);setEdited(true);setOverflowAccepted(false);};
@@ -128,12 +135,22 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
     setReplacement(null);setOverflowAccepted(false);setError('');
   };
   const autoFill=()=>{if(mutationsDisabled)return;const reserved=new Set(Object.values(mapping));const empty=existingSamples.slice(0,24).flatMap((sample,index)=>(!sample?.isLoaded||unassignments[index]===sample)&&!reserved.has(index)?[index]:[]);setMapping(current=>{const next={...current};let cursor=0;for(const range of ranges)if(next[range.id]===undefined&&cursor<empty.length)next[range.id]=empty[cursor++];return next;});setReplacement(null);setOverflowAccepted(false);};
-  const apply=async()=>{if(!source||!ranges.length||busyRef.current||decisionPending||overflowCount>0&&!overflowAccepted)return;abortRef.current?.abort();editGenerationRef.current+=1;stop();const controller=new AbortController();abortRef.current=controller;setBusyValue('Preparing sounds...');setProgress(0);setError('');const draftRanges=ranges.map(({start,end})=>({start,end})),explicitMapping=ranges.map(range=>mapping[range.id]??null),approvals=Object.values(mapping).flatMap(key=>{const sample=replacementApprovals[key];return sample&&existingSamples[key]===sample?[{targetKeyIndex:key,sample}]:[];}),unassignmentApprovals=Object.entries(unassignments).filter(([key])=>!Object.values(mapping).includes(Number(key))).map(([key,sample])=>({targetKeyIndex:Number(key),sample}));for(const key of Object.values(mapping)){if(unassignments[key]&&existingSamples[key]===unassignments[key]&&!approvals.some(approval=>approval.targetKeyIndex===key))approvals.push({targetKeyIndex:key,sample:unassignments[key]});}try{const prepared=await prepareApplication({source,ranges:draftRanges,mapping:explicitMapping,replacementApprovals:approvals,unassignmentApprovals,existingSamples,projectAssets,signal:controller.signal,onProgress:setProgress});if(controller.signal.aborted||!openRef.current)return;const operationId=crypto.randomUUID();pendingCommitRef.current=operationId;setBusyValue('Adding sounds...');onApply(operationId,prepared);}catch(reason){if((reason as Error).name!=='AbortError')setError(reason instanceof Error?reason.message:'Could not add sounds');}finally{if(!controller.signal.aborted&&openRef.current&&!pendingCommitRef.current)setBusyValue('');}};
-  const cancel=()=>{abortRef.current?.abort();editGenerationRef.current+=1;pendingCommitRef.current=null;stop();onClose();};
-  useOwnedDialog({active:isOpen,dialogRef:modalRef,onClose:cancel});
+  const apply=async()=>{if(!source||!ranges.length||busyRef.current||decisionPending||overflowCount>0&&!overflowAccepted)return;abortRef.current?.abort();editGenerationRef.current+=1;stop();const controller=new AbortController();abortRef.current=controller;setBusyValue(PREPARING);setProgress(0);setError('');const draftRanges=ranges.map(({start,end})=>({start,end})),explicitMapping=ranges.map(range=>mapping[range.id]??null),approvals=Object.values(mapping).flatMap(key=>{const sample=replacementApprovals[key];return sample&&existingSamples[key]===sample?[{targetKeyIndex:key,sample}]:[];}),unassignmentApprovals=Object.entries(unassignments).filter(([key])=>!Object.values(mapping).includes(Number(key))).map(([key,sample])=>({targetKeyIndex:Number(key),sample}));for(const key of Object.values(mapping)){if(unassignments[key]&&existingSamples[key]===unassignments[key]&&!approvals.some(approval=>approval.targetKeyIndex===key))approvals.push({targetKeyIndex:key,sample:unassignments[key]});}try{const prepared=await prepareApplication({source,ranges:draftRanges,mapping:explicitMapping,replacementApprovals:approvals,unassignmentApprovals,existingSamples,projectAssets,signal:controller.signal,onProgress:setProgress});if(controller.signal.aborted||!openRef.current)return;const operationId=crypto.randomUUID();pendingCommitRef.current=operationId;setBusyValue('Adding sounds...');onApply(operationId,prepared);}catch(reason){if((reason as Error).name!=='AbortError')setError(reason instanceof Error?reason.message:'Could not add sounds');}finally{if(!controller.signal.aborted&&openRef.current&&!pendingCommitRef.current)setBusyValue('');}};
+  const cancel=()=>{abortRef.current?.abort();editGenerationRef.current+=1;pendingCommitRef.current=null;setCloseConfirm(false);stop();onClose();};
+  // Selection, playback and scrolling never count; the first analyzed draft is not a change either.
+  const boundariesChanged=initialAnalysisRef.current?JSON.stringify(ranges.map(({start,end})=>({start,end})))!==JSON.stringify(initialAnalysisRef.current.ranges):edited;
+  const draftChanges=[boundariesChanged||Object.values(drafts).some(draft=>draft.text!==draft.initialText)?'sound boundaries or the list of sounds':'',assignedCount>0?`${assignedCount} pad ${assignedCount===1?'assignment':'assignments'}`:'',Object.keys(unassignments).length>0?`${Object.keys(unassignments).length} pad ${Object.keys(unassignments).length===1?'unassignment':'unassignments'}`:'',sensitivity!==detectionBaseline.sensitivity||spacingMs!==detectionBaseline.spacingMs?'detection settings':''].filter(Boolean);
+  // Cancel, the backdrop and Escape all arrive here. A changed draft is kept until the user chooses to discard it.
+  const requestClose=()=>{if(closeConfirm)return;
+    // Once sounds have been sent to the project the commit result owns closing; keep the existing immediate cancel.
+    if(!source||!draftChanges.length||pendingCommitRef.current){cancel();return;}
+    if(busy===PREPARING){abortRef.current?.abort();editGenerationRef.current+=1;setBusyValue('');}
+    closeReturnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;stop();setCloseConfirm(true);};
+  const keepEditing=()=>{setCloseConfirm(false);requestAnimationFrame(()=>{const target=closeReturnFocusRef.current; if(target?.isConnected)target.focus();else modalRef.current?.focus();});};
+  useOwnedDialog({active:isOpen,dialogRef:modalRef,onClose:()=>{if(closeConfirm)keepEditing();else requestClose();}});
   if(!isOpen)return null;
 
-  return <div ref={modalRef} data-workspace-modal="slice" role="dialog" aria-modal="true" aria-label="slice audio" tabIndex={-1} className="studio-slicer-overlay" onPointerDown={event=>{if(event.target===event.currentTarget)cancel();}}>
+  return <div ref={modalRef} data-workspace-modal="slice" role="dialog" aria-modal="true" aria-label="slice audio" tabIndex={-1} className="studio-slicer-overlay" onPointerDown={event=>{if(event.target===event.currentTarget)requestClose();}}>
     <div className="studio-slicer-shell">
       <header className="studio-slicer-header">
         <h3>Turn a loop into drum sounds</h3>
@@ -212,7 +229,10 @@ export function SliceAudioModal({isOpen,onClose,request,existingSamples,projectA
           </section>
         </>}
       </main>
-      <footer className="studio-slicer-footer"><button type="button" onClick={cancel} style={buttonStyle}>Cancel</button><button type="button" onClick={()=>void apply()} disabled={!source||!ranges.length||mutationsDisabled||(overflowCount>0&&!overflowAccepted)} style={{...buttonStyle,background:colors.action,color:'var(--studio-accent-text)'}}>Add sounds to kit</button></footer>
+      <footer className="studio-slicer-footer">{closeConfirm?<div role="alert" className="studio-slicer-confirmation" style={{flex:'1 1 100%',minWidth:0,marginTop:0}}>
+        <p><strong>Discard your slicing changes?</strong> You changed {draftChanges.length?draftChanges.join(', '):'this draft'}. Closing now discards this draft. Your kit and the original audio stay as they are either way.</p>
+        <div className="studio-slicer-actions"><button type="button" ref={focusKeepEditing} onClick={keepEditing} style={buttonStyle}>Keep editing</button><button type="button" onClick={cancel} style={buttonStyle}>Discard changes and close</button></div>
+      </div>:<><button type="button" onClick={requestClose} style={buttonStyle}>Cancel</button><button type="button" onClick={()=>void apply()} disabled={!source||!ranges.length||mutationsDisabled||(overflowCount>0&&!overflowAccepted)} style={{...buttonStyle,background:colors.action,color:'var(--studio-accent-text)'}}>Add sounds to kit</button></>}</footer>
     </div>
   </div>;
 }

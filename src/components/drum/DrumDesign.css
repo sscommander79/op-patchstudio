@@ -1,0 +1,71 @@
+@font-face{font-family:Drum Roboto;src:url('/assets/drum-design/roboto-light.ttf') format('truetype');font-weight:300;font-display:swap}
+@font-face{font-family:Drum Roboto;src:url('/assets/drum-design/roboto-regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:Drum Mono;src:url('/assets/drum-design/roboto-mono.ttf') format('truetype');font-weight:400;font-display:swap}
+.drum-design{--color-bg-primary:#111213;--color-bg-secondary:#202225;--color-text-primary:#edede8;--color-text-secondary:#b9bab7;--color-border-light:#454545;--color-border-medium:#56595b;--studio-recess:#101113;--studio-muted:#b9bab7;--studio-panel:#202225;--studio-text:#edede8;--studio-border:#56595b;--studio-accent-text:#111;--color-interactive-focus:#92b7a6;position:relative;isolation:isolate;color:#edede8;background:linear-gradient(#1b1b1b,#121212);border:1px solid #454545;border-radius:16px;padding:40px 48px 32px;max-width:1440px;margin:0 auto;box-shadow:inset 0 0 0 6px #151515,inset 0 0 0 11px #50a7d2;font:17px/1.3 'Drum Roboto',Roboto,Arial,sans-serif;min-width:0}
+.drum-design[data-step='2']{box-shadow:inset 0 0 0 5px #151515,inset 0 0 0 10px #50a7d2,inset 0 0 0 14px #151515,inset 0 0 0 19px #92b7a6}
+.drum-design[data-step='3']{box-shadow:inset 0 0 0 5px #151515,inset 0 0 0 10px #50a7d2,inset 0 0 0 14px #151515,inset 0 0 0 19px #92b7a6,inset 0 0 0 23px #151515,inset 0 0 0 28px #c0b277}
+.drum-design[data-step='4']{box-shadow:inset 0 0 0 4px #151515,inset 0 0 0 8px #50a7d2,inset 0 0 0 11px #151515,inset 0 0 0 15px #92b7a6,inset 0 0 0 18px #151515,inset 0 0 0 22px #c0b277,inset 0 0 0 25px #151515,inset 0 0 0 29px #c28b79}
+.drum-design *{box-sizing:border-box}
+.drum-design [hidden]{display:none!important}
+.drum-design button,.drum-design input,.drum-design select,.drum-design summary{font:inherit;color:inherit}
+.drum-design button{cursor:pointer}
+.drum-design button:disabled{opacity:.38;cursor:default}
+.drum-design button:focus-visible,.drum-design summary:focus-visible,.drum-design a:focus-visible{outline:3px solid #50a7d2;outline-offset:3px}
+.drum-design-context,.drum-design-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.drum-design-context{font:11px/1.3 'Drum Mono',monospace;letter-spacing:.03em;margin-bottom:16px;color:#b9bab7}
+.drum-design-heading h1{font:300 38px/1.3 'Drum Roboto',Arial,sans-serif;margin:0 0 20px;color:#edede8;letter-spacing:0;text-transform:none}
+.drum-design-heading>span{font:12px/1.3 'Drum Mono',monospace;color:#b9bab7;white-space:nowrap}
+.drum-design-lead{margin:0 0 22px;color:#b9bab7}
+.drum-design .studio-drum-surface{background:#212121;border:0;border-radius:8px;padding:12px 18px 18px;box-shadow:none;margin:0 0 16px;width:100%}
+.drum-design .studio-performance-header{padding:0 8px 10px;font-size:12px;min-height:0;border:0;background:transparent}
+.drum-design .studio-performance-header h3{font:400 13px 'Drum Mono',monospace;margin:0}
+.drum-design .studio-performance-header button{font-family:'Drum Roboto',Arial,sans-serif!important;font-size:12px!important}
+.drum-selected-sound{display:grid;grid-template-columns:minmax(170px,1fr) minmax(200px,2fr) minmax(150px,1fr);gap:24px;align-items:center;min-height:206px;background:#101113;border:1px solid #56595b;border-radius:8px;padding:20px 24px;margin-bottom:14px}
+.drum-sound-identity{min-width:0}
+.drum-sound-identity p{font:16px/1.4 'Drum Mono',monospace;margin:0 0 10px;color:#b9bab7}
+.drum-sound-identity h2{font:400 22px/1.3 'Drum Roboto',Arial,sans-serif;margin:0 0 12px;overflow-wrap:anywhere;color:#edede8}
+.drum-sound-identity small{font-size:12px;color:#b9bab7;display:block}
+.drum-inspector-waveform{min-width:0}
+.drum-selected-actions{min-width:0}
+.drum-text-actions{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0 0}
+.drum-text-actions button{border:0;background:none;padding:0;color:#dedede;font-size:14px;min-height:28px;text-align:left}
+.drum-function-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
+.drum-design .drum-function-button{display:flex;align-items:center;gap:16px;min-height:76px;width:100%;border:0;border-radius:4px;padding:10px 12px;background:linear-gradient(#2b2b2b,#1f1f1f);color:#dedede;box-shadow:0 2px 1px #000c,inset 0 1px #9993;text-align:left;font:400 clamp(16px,1.6vw,24px)/1.3 'Drum Roboto',Arial,sans-serif;text-transform:none;min-width:0}
+.drum-function-button>span:last-child{overflow-wrap:anywhere;min-width:0}
+.drum-function-cap{display:flex;align-items:center;justify-content:center;flex:0 0 54px;width:54px;height:54px;border-radius:50%;background:linear-gradient(#292929,#171717);box-shadow:0 1.5px 1.5px #000a,inset 0 1px 1px #b2b2b240}
+.drum-design-icon{position:relative;display:block;width:32px;height:32px;flex:0 0 32px}
+.drum-design-icon img{display:block;max-width:none}
+.drum-design-icon--settings{width:24px;height:24px;flex-basis:24px}
+.drum-design-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;min-height:440px}
+.drum-machine{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:16px 0}
+.drum-machine h2,.drum-design-well h2{font:400 24px/1.3 'Drum Roboto',Arial,sans-serif;margin:0 0 18px;color:#edede8}
+.drum-machine p{font-size:17px;color:#b9bab7;margin:0 0 10px}
+.drum-machine>img{display:block;width:100%;height:auto;aspect-ratio:640/250;object-fit:contain;margin:8px 0 20px}
+.drum-machine small,.drum-design-well small{display:block;font-size:14px;color:#b9bab7;line-height:1.4}
+.drum-design-well{min-width:0;background:#101113;border:1px solid #56595b;border-radius:8px;padding:24px;display:flex;flex-direction:column;justify-content:center}
+.drum-design-well p{color:#b9bab7;font-size:17px;margin:0 0 18px;overflow-wrap:anywhere}
+.drum-design-well>strong{overflow-wrap:anywhere;margin-bottom:12px}
+.drum-design-well>button{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:50px;background:none;border:0;border-bottom:1px solid #292b2c;padding:10px 0;text-align:left;color:#edede8}
+.drum-design-well>button>span:last-child{font-size:14px;color:#b9bab7;text-align:right}
+.drum-design-well small{margin-top:18px}
+.drum-design-advanced{margin:16px 0;background:none;border:0}
+.drum-design-advanced>summary{display:flex;gap:12px;align-items:center;cursor:pointer;list-style:none;font-size:17px;min-height:38px}
+.drum-design-advanced>summary::-webkit-details-marker{display:none}
+.drum-design-advanced>summary>span:last-child{margin-left:16px}
+.drum-advanced-content,.drum-organize-panel{padding:20px;background:#202225;border:1px solid #454545;border-radius:8px;margin-top:12px}
+.drum-journey-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.drum-journey-progress button{background:#101113;border:1px solid #56595b;color:#b9bab7;min-height:50px;padding:10px 16px;text-align:left;font-size:17px}
+.drum-journey-progress button[aria-current],.drum-journey-progress button[data-complete='true']{background:#202225;color:#edede8;border-color:#50a7d2}
+.drum-journey-progress button:nth-child(2)[aria-current],.drum-journey-progress button:nth-child(2)[data-complete='true']{border-color:#92b7a6}
+.drum-journey-progress button:nth-child(3)[aria-current],.drum-journey-progress button:nth-child(3)[data-complete='true']{border-color:#c0b277}
+.drum-journey-progress button:nth-child(4)[aria-current]{border-color:#c28b79}
+.drum-design-note,.drum-preview-status{font-size:14px;color:#b9bab7;margin:12px 0 0}
+.drum-design-active .studio-dialog,.drum-design-active [data-workspace-modal],.drum-design [role='dialog']{--color-bg-primary:#151617;--color-bg-secondary:#202225;--color-text-primary:#edede8;--color-text-secondary:#b9bab7;--color-border-light:#454545;--color-border-medium:#56595b;--studio-recess:#101113;--studio-muted:#b9bab7;--studio-panel:#202225;--studio-text:#edede8;--studio-border:#56595b;--studio-accent-text:#101113;--color-interactive-focus:#92b7a6;font-family:'Drum Roboto',Arial,sans-serif}
+.drum-design-active .studio-dialog{background:linear-gradient(#202020,#141414);color:#edede8;border:1px solid #56595b;border-radius:12px}
+.drum-design-active [data-workspace-modal='import'] h2{font:300 32px 'Drum Roboto',Arial,sans-serif}
+.drum-design-active [data-workspace-modal='import'] li{background:#101113;border:1px solid #454545;border-radius:6px;margin-bottom:8px;padding:12px}
+.drum-design-active .studio-toolbar{max-width:1440px;margin:0 auto 16px}
+@media(max-width:1100px){.drum-design{padding:36px}.drum-function-cap{width:40px;height:40px;flex-basis:40px}.drum-function-button{gap:10px!important}.drum-selected-sound{gap:16px;padding:16px;grid-template-columns:minmax(130px,1fr) minmax(130px,1.5fr) minmax(130px,1fr)}}
+@media(max-width:768px){.drum-design{padding:32px 24px}.drum-design-heading h1{font-size:28px}.drum-design-context>span:last-child{display:none}.drum-design-split{grid-template-columns:1fr}.drum-selected-sound{grid-template-columns:1fr}.drum-function-row{grid-template-columns:repeat(2,minmax(0,1fr))}.drum-journey-progress{grid-template-columns:repeat(2,minmax(0,1fr))}.drum-design .drum-function-button{min-height:58px;font-size:16px}.drum-machine>img{max-height:180px}.drum-design .studio-performance-header{flex-wrap:wrap}}
+
+.drum-design-active .studio-dialog input:not([type="checkbox"]):not([type="radio"]),.drum-design-active .studio-dialog select{background:#101113;color:#edede8;border-color:#56595b}

@@ -1,8 +1,31 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DonatePage } from '../../components/common/DonatePage';
 
 const fetchMock = vi.fn<typeof fetch>();
+
+// The page relies on the shared studio layout at every width instead of width-specific inline padding.
+function expectSharedLayout() {
+  const heading = screen.getByRole('heading', { level: 1, name: 'Support the project' });
+  const content = heading.closest('.studio-shell-content') as HTMLElement;
+  expect(content).toBeInTheDocument();
+  expect(content.style.padding).toBe('');
+
+  const back = screen.getByRole('link', { name: '← Back to the studio' });
+  expect(back).toHaveAttribute('href', '#/studio/overview');
+  expect(back).not.toHaveAttribute('target');
+  expect(content).toContainElement(back);
+  expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  const panels = [screen.getByRole('heading', { level: 2, name: 'Ways to support' }), screen.getByRole('heading', { level: 2, name: 'Latest posts' })]
+    .map(panelHeading => panelHeading.closest('section.studio-setup-panel') as HTMLElement);
+  panels.forEach(panel => {
+    expect(content).toContainElement(panel);
+    expect(panel.style.padding).toBe('');
+  });
+}
+
+it('does not request external posts just by opening Support',()=>{const calls=fetchMock.mock.calls.length;render(<DonatePage/>);expect(screen.getByRole('button',{name:'Load project posts'})).toBeVisible();expect(fetchMock.mock.calls.length).toBe(calls);});
 
 describe('DonatePage', () => {
   beforeEach(() => {
@@ -31,11 +54,12 @@ describe('DonatePage', () => {
     } as Response);
 
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
     expect(await screen.findByText(/hello makers today/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('img')).not.toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'today' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'read more →' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Read more: remote update (opens Patreon in a new tab)' })).toHaveAttribute(
       'href',
       'https://www.patreon.com/posts/123',
     );
@@ -58,6 +82,7 @@ describe('DonatePage', () => {
     } as unknown as Response);
 
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
     expect(await screen.findByText(/Live Patreon posts are unavailable/)).toBeInTheDocument();
     expect(screen.getByRole('link', {name:'View posts directly on Patreon.'})).toHaveAttribute(
@@ -70,13 +95,16 @@ describe('DonatePage', () => {
 
   it('should render donate page with headers', () => {
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
-    expect(screen.getByText('support the project')).toBeInTheDocument();
-    expect(screen.getByText('latest posts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Support the project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Ways to support' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest posts' })).toBeInTheDocument();
   });
 
   it('should render support text and links', () => {
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
     // Check main text content
     expect(screen.getByText(/OP-PatchStudio is a 100% free and/)).toBeInTheDocument();
@@ -92,12 +120,14 @@ describe('DonatePage', () => {
 
   it('should render support buttons', () => {
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
-    const patreonButton = screen.getByText('support on patreon');
+    const patreonButton = screen.getByRole('link', { name: 'Support on Patreon' });
     expect(patreonButton).toHaveAttribute('href', 'https://www.patreon.com/c/oppatchstudio');
 
-    const coffeeButton = screen.getByRole('link', { name: 'buy Joseph a coffee' });
+    const coffeeButton = screen.getByRole('link', { name: 'Buy Joseph a coffee' });
     expect(coffeeButton).toHaveAttribute('href', 'https://buymeacoffee.com/jxavierh');
+    expect(screen.getByText(/any payment or account is handled there/)).toBeInTheDocument();
   });
 
   it('should handle mobile layout', () => {
@@ -110,15 +140,10 @@ describe('DonatePage', () => {
     });
 
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
-    // Check if mobile styles are applied to the content divs
-    const contentDivs = screen.getAllByText(/support the project|latest posts/)
-      .map(heading => heading.closest('div')?.parentElement?.nextElementSibling)
-      .filter(Boolean);
-
-    contentDivs.forEach(div => {
-      expect(div).toHaveStyle({ padding: '1rem' });
-    });
+    // Shared layout and back navigation apply at mobile width
+    expectSharedLayout();
 
     // Restore window.innerWidth
     Object.defineProperty(window, 'innerWidth', {
@@ -138,15 +163,10 @@ describe('DonatePage', () => {
     });
 
     render(<DonatePage />);
+    fireEvent.click(screen.getByRole('button',{name:'Load project posts'}));
 
-    // Check if desktop styles are applied to the content divs
-    const contentDivs = screen.getAllByText(/support the project|latest posts/)
-      .map(heading => heading.closest('div')?.parentElement?.nextElementSibling)
-      .filter(Boolean);
-
-    contentDivs.forEach(div => {
-      expect(div).toHaveStyle({ padding: '2rem' });
-    });
+    // Shared layout and back navigation apply at desktop width
+    expectSharedLayout();
 
     // Restore window.innerWidth
     Object.defineProperty(window, 'innerWidth', {

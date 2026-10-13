@@ -26,7 +26,7 @@ describe('EnhancedWaveformEditor marker bounds', () => {
     fireEvent.mouseMove(canvas, { clientX: 800 });
 
     expect(onMarkersChange).toHaveBeenLastCalledWith({ inPoint: 795, outPoint: 2_000 });
-    fireEvent.mouseUp(canvas);fireEvent.click(screen.getByRole('checkbox',{name:'snap to zero'}));fireEvent.mouseDown(canvas,{clientX:0});fireEvent.mouseMove(canvas,{clientX:800});expect(onMarkersChange).toHaveBeenLastCalledWith({inPoint:800,outPoint:2_000});fireEvent.mouseUp(canvas);
+    fireEvent.mouseUp(canvas);fireEvent.click(screen.getByRole('checkbox',{name:'Snap to zero crossings'}));fireEvent.mouseDown(canvas,{clientX:0});fireEvent.mouseMove(canvas,{clientX:800});expect(onMarkersChange).toHaveBeenLastCalledWith({inPoint:800,outPoint:2_000});fireEvent.mouseUp(canvas);
   });
 
   it('keeps marker ranges valid for clips shorter than the normal minimum gap', () => {

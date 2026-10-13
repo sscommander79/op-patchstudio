@@ -1,14 +1,15 @@
+import {normalizeSection,type SampleSection} from './sampleSection';
 import type { AppState, DrumSample, MultisampleFile } from '../context/AppContext';
 import { SLICE_LIMITS, planProjectAudioCapacity } from './audioSlicing';
 import { encodeStoredAudio, STORED_AUDIO_TYPE } from './storedAudio';
 import { midiNoteToString } from './audio';
 
-export interface RecordingTakeDraft {id:string;name:string;audioBuffer:AudioBuffer;rootNote:number}
+export interface RecordingTakeDraft {section?:SampleSection;id:string;name:string;audioBuffer:AudioBuffer;rootNote:number}
 export interface ExpectedAssetIdentity {audioBuffer:AudioBuffer|null;file:File|null}
 export type RecordingTarget =
   | {kind:'drum';padIndex?:number;decision?:'replace'|'choose-empty';expected?:ExpectedAssetIdentity}
   | {kind:'multisample';rootNote?:number;decision?:'replace'|'choose-free';expected?:ExpectedAssetIdentity};
-export interface PreparedRecordingAsset {id:string;file:File;audioBuffer:AudioBuffer;rootNote:number;sample:DrumSample}
+export interface PreparedRecordingAsset {section?:SampleSection;id:string;file:File;audioBuffer:AudioBuffer;rootNote:number;sample:DrumSample}
 export interface PreparedRecordingApplication {
   instrument:'drum'|'multisample';assets:PreparedRecordingAsset[];retainedIds:string[];target:RecordingTarget;
 }
@@ -33,7 +34,7 @@ function toMultisample(asset:PreparedRecordingAsset,mapping:AppState['midiNoteMa
   const {audioBuffer,file}=asset;
   return {file,audioBuffer,name:file.name,isLoaded:true,rootNote:asset.rootNote,note:midiNoteToString(asset.rootNote,mapping),inPoint:0,outPoint:audioBuffer.duration,
     loopStart:0,loopEnd:audioBuffer.duration,originalBitDepth:32,originalSampleRate:audioBuffer.sampleRate,
-    originalChannels:audioBuffer.numberOfChannels,fileSize:file.size,duration:audioBuffer.duration,isFloat:true};
+    originalChannels:audioBuffer.numberOfChannels,fileSize:file.size,duration:audioBuffer.duration,isFloat:true,...(asset.section?(()=>{const bounds=normalizeSection(audioBuffer,asset.section);return {...bounds,loopStart:bounds.inPoint,loopEnd:bounds.outPoint};})():{})};
 }
 
 function validateDrafts(takes:readonly RecordingTakeDraft[]) {
@@ -84,7 +85,7 @@ export async function prepareRecordingApplication(options:{instrument:'drum'|'mu
   for(const take of candidates){
     if(options.signal?.aborted)throw new DOMException('Recording Apply canceled','AbortError');
     const payload=encodeStoredAudio(take.audioBuffer);const file=new File([payload],filename(take.name),{type:STORED_AUDIO_TYPE});
-    assets.push({id:take.id,file,audioBuffer:take.audioBuffer,rootNote:take.rootNote,sample:sampleFor(file,take.audioBuffer)});
+    assets.push({section:take.section,id:take.id,file,audioBuffer:take.audioBuffer,rootNote:take.rootNote,sample:sampleFor(file,take.audioBuffer)});
     await Promise.resolve();
   }
   return {instrument:options.instrument,assets,retainedIds,target:options.target} satisfies PreparedRecordingApplication;

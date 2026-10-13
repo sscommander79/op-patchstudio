@@ -126,6 +126,9 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
     onClose();
   };
 
+  // Matches the reducer: only loaded samples with audio receive the shared markers.
+  const loadedSamplesCount = state.drumSamples.filter(item => item?.isLoaded && item.audioBuffer).length;
+
   const handleSaveForAll = (payload: Partial<DrumSample>) => {
     dispatch({
       type: 'UPDATE_ALL_DRUM_SAMPLES',
@@ -223,6 +226,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
         role="dialog"
         aria-modal="true"
         aria-labelledby="drum-sample-options-title"
+        aria-describedby={sample?.isLoaded ? 'drum-sample-options-sound' : undefined}
         tabIndex={-1}
         className="drum-sample-settings-modal"
         style={{
@@ -256,11 +260,11 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             fontSize: '1.1rem',
             fontWeight: 500,
             color: c.text,
-            textTransform: 'lowercase',
             letterSpacing: 0,
           }}>
-            sample options
+            Sample options
           </h3>
+          {sample?.isLoaded && <p id="drum-sample-options-sound" style={{ margin: 0, fontSize: '0.9rem', color: c.textSecondary, overflowWrap: 'anywhere' }}>{sample.name}</p>}
         </div>
         {/* Body - Make scrollable */}
         <div style={{ 
@@ -274,17 +278,17 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
         }}>
           {/* Playmode */}
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <label style={{
+            <label htmlFor="drum-sample-playmode" style={{
               minWidth: '80px',
               margin: 0,
               fontSize: '0.9rem',
               fontWeight: 500,
               color: c.text,
-              textTransform: 'lowercase',
             }}>
-              playmode
+              Play mode
             </label>
             <select
+              id="drum-sample-playmode"
               style={{
                 flex: 1,
                 minWidth: '180px',
@@ -300,26 +304,26 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               value={settings.playmode}
               onChange={(e) => setSettings({ ...settings, playmode: e.target.value as DrumSample['playmode'] })}
             >
-              <option value="oneshot">oneshot - play whole sample</option>
-              <option value="group">mute group - choke when another sample plays</option>
-              <option value="loop">loop - loop at sample end</option>
-              <option value="gate">key - play while held</option>
+              <option value="oneshot">One shot – play the whole sample</option>
+              <option value="group">Mute group – choke when another sample plays</option>
+              <option value="loop">Loop – loop at sample end</option>
+              <option value="gate">Hold to play (Gate) – play while held</option>
             </select>
           </div>
           {/* Direction */}
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <label style={{
+            <span aria-hidden="true" style={{
               minWidth: '80px',
               margin: 0,
               fontSize: '0.9rem',
               fontWeight: 500,
               color: c.text,
-              textTransform: 'lowercase',
             }}>
-              direction
-            </label>
+              Direction
+            </span>
             <button
               type="button"
+              aria-label={`Direction: ${settings.reverse ? 'Reverse' : 'Forward'}. Switch to ${settings.reverse ? 'forward' : 'reverse'}`}
               style={{
                 background: c.bgAlt,
                 color: c.text,
@@ -342,7 +346,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                 className="fa fa-play"
                 style={{ transform: settings.reverse ? 'scaleX(-1)' : '', color: c.text }}
               ></i>
-              <span style={{ marginLeft: '0.5rem', textTransform: 'lowercase' }}>{settings.reverse ? 'reverse' : 'forward'}</span>
+              <span style={{ marginLeft: '0.5rem' }}>{settings.reverse ? 'Reverse' : 'Forward'}</span>
             </button>
           </div>
           {/* Enhanced Waveform Display */}
@@ -373,7 +377,8 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               />
               <button
                 type="button"
-                aria-label="zoom waveform"
+                aria-label="Zoom waveform"
+                title="Zoom and edit playback start and end"
                 style={{
                   position: 'absolute',
                   top: 8,
@@ -420,7 +425,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                   }}
                 >
                   <i aria-hidden="true" className="fas fa-wave-square" style={{ fontSize: '1rem' }}></i>
-                  apply zero crossing
+                  Apply zero crossing
                 </button>
               )}
               {showZoomModal && (
@@ -439,6 +444,8 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
                     setShowZoomModal(false);
                   }}
                   onSaveForAll={handleSaveForAll}
+                  saveForAllCount={loadedSamplesCount}
+                  saveForAllScope="loaded drum samples"
                 />
               )}
             </div>
@@ -450,13 +457,14 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               fontWeight: 500,
               color: c.text,
               marginBottom: '0.5rem',
-              textTransform: 'lowercase',
             }}>
-              transpose: {settings.transpose} semitones
+              Transpose: {settings.transpose} semitones
             </div>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: 0, margin: 0 }}>
               <Slider
                 id="sample-transpose"
+                labelText="Transpose (semitones)"
+                hideLabel
                 min={-48}
                 max={48}
                 step={1}
@@ -475,13 +483,14 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               fontWeight: 500,
               color: c.text,
               marginBottom: '0.5rem',
-              textTransform: 'lowercase',
             }}>
-              gain: {settings.gain} dbfs
+              Gain: {settings.gain} dB
             </div>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: 0, margin: 0 }}>
               <Slider
                 id="sample-gain"
+                labelText="Gain (dB)"
+                hideLabel
                 min={-30}
                 max={20}
                 step={1}
@@ -499,13 +508,14 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
               fontSize: '0.9rem',
               fontWeight: 500,
               color: c.text,
-              textTransform: 'lowercase',
             }}>
-              pan: {settings.pan}
+              Pan: {settings.pan}
             </div>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: 0, margin: 0 }}>
               <Slider
                 id="sample-pan"
+                labelText="Pan (−100 left to 100 right)"
+                hideLabel
                 min={-100}
                 max={100}
                 step={1}
@@ -562,7 +572,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             }}
           >
             <i aria-hidden="true" className="fas fa-times" style={{ marginRight: '0.25rem' }}></i>
-            cancel
+            Cancel
           </button>
           <button
             type="button"
@@ -617,7 +627,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             }}
           >
             <i aria-hidden="true" className="fa fa-play" style={{ marginRight: '0.25rem' }}></i>
-            play (P)
+            {settings.playmode === 'gate' ? 'Hold to play (P)' : 'Play (P)'}
           </button>
           <button
             type="button"
@@ -651,7 +661,7 @@ export function DrumSampleSettingsModal({ isOpen, onClose, sampleIndex }: DrumSa
             }}
           >
             <i aria-hidden="true" className="fa fa-save" style={{ marginRight: '0.25rem' }}></i>
-            save
+            Save
           </button>
         </div>
       </div>

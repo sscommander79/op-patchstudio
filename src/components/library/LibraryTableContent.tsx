@@ -26,6 +26,14 @@ interface LibraryTableContentProps {
   formatDate: (timestamp: number) => string;
 }
 
+const typeLabel = (preset: PresetSummary) => preset.type === 'drum' ? 'Drum' : 'Multisample';
+const sampleLabel = (preset: PresetSummary) => preset.sampleCount === undefined
+  ? 'No samples'
+  : `${preset.sampleCount} ${preset.sampleCount === 1 ? 'sample' : 'samples'}`;
+const favoriteLabel = (preset: PresetSummary) => preset.isFavorite
+  ? `Remove ${preset.name} from favorites`
+  : `Add ${preset.name} to favorites`;
+
 export function LibraryTableContent({
   presets,
   selectedPresets,
@@ -69,37 +77,38 @@ export function LibraryTableContent({
             {/* Header with name, type, and favorite */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontWeight: 600, 
-                  fontSize: '1.1rem', 
+                <div style={{
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
                   color: 'var(--color-text-primary)',
-                  marginBottom: '0.25rem'
+                  marginBottom: '0.25rem',
+                  overflowWrap: 'anywhere'
                 }}>
                   {preset.name}
                 </div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '0.5rem',
-                  color: 'var(--color-text-secondary)', 
-                  fontSize: '0.9rem' 
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '0.9rem'
                 }}>
-                  <i className={`fas fa-${preset.type === 'drum' ? 'drum' : 'keyboard'}`}></i>
-                  {preset.type}
+                  <i aria-hidden="true" className={`fas fa-${preset.type === 'drum' ? 'drum' : 'keyboard'}`}></i>
+                  {typeLabel(preset)}
                 </div>
               </div>
               <IconButton
                 icon={preset.isFavorite ? 'fas fa-star' : 'far fa-star'}
                 onClick={() => onToggleFavorite(preset)}
-                title={preset.isFavorite ? 'remove from favorites' : 'add to favorites'}
+                title={favoriteLabel(preset)}
                 color={preset.isFavorite ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'}
               />
             </div>
 
             {/* Description */}
             {preset.description && (
-              <div style={{ 
-                color: 'var(--color-text-secondary)', 
+              <div style={{
+                color: 'var(--color-text-secondary)',
                 fontSize: '0.85rem',
                 lineHeight: '1.4'
               }}>
@@ -109,19 +118,19 @@ export function LibraryTableContent({
             {Array.isArray(preset.tags)&&preset.tags.length>0&&<div style={{fontSize:'0.8rem',color:'var(--color-text-secondary)'}}>Tags: {preset.tags.join(', ')}</div>}
 
             {/* Metadata row */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               fontSize: '0.8rem',
               color: 'var(--color-text-secondary)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fas fa-music"></i>
-                {preset.sampleCount !== undefined ? `${preset.sampleCount} samples` : 'no samples'}
+                <i aria-hidden="true" className="fas fa-music"></i>
+                {sampleLabel(preset)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fas fa-clock"></i>
+                <i aria-hidden="true" className="fas fa-clock"></i>
                 {formatDate(preset.updatedAt)}
               </div>
             </div>
@@ -129,15 +138,17 @@ export function LibraryTableContent({
             {/* Action buttons */}
             <label className="studio-library-select"><input type="checkbox" aria-label={`Select ${preset.name}`} checked={selectedPresets.has(preset.id)} onChange={() => onToggleSelection(preset.id)}/> Select preset</label>
             <div className="studio-library-card-actions">
-              <button 
-                onClick={() => onLoadPreset(preset)} 
-                style={{ 
-                  fontSize: '0.9rem', 
-                  padding: '0.75rem 1rem', 
-                  borderRadius: '6px', 
-                  border: 'none', 
-                  background: 'var(--color-interactive-focus)', 
-                  color: 'var(--color-white)', 
+              <button
+                type="button"
+                onClick={() => onLoadPreset(preset)}
+                aria-label={`Load ${preset.name}`}
+                style={{
+                  fontSize: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'var(--color-interactive-focus)',
+                  color: 'var(--color-white)',
                   cursor: 'pointer',
                   minWidth:0,
                   minHeight:44,
@@ -146,17 +157,19 @@ export function LibraryTableContent({
                   fontWeight: '500'
                 }}
               >
-                load
+                Load
               </button>
-              <button 
-                onClick={() => onDownloadPreset(preset)} 
-                style={{ 
-                  fontSize: '0.9rem', 
-                  padding: '0.75rem 1rem', 
-                  borderRadius: '6px', 
-                  border: '1px solid var(--color-border-light)', 
-                  background: 'var(--color-bg-secondary)', 
-                  color: 'var(--color-text-primary)', 
+              <button
+                type="button"
+                onClick={() => onDownloadPreset(preset)}
+                aria-label={`Download ${preset.name}`}
+                style={{
+                  fontSize: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border-light)',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
                   cursor: 'pointer',
                   minWidth:0,
                   minHeight:44,
@@ -164,14 +177,14 @@ export function LibraryTableContent({
                   boxSizing:'border-box',
                 }}
               >
-                download
+                Download
               </button>
-              <button type="button" className="studio-button-secondary" style={{minWidth:0,minHeight:44,width:'100%'}} onClick={()=>previewingId===preset.id?onStopPreview():onPreviewPreset(preset)} disabled={!hasLibraryPreview(preset)&&previewingId!==preset.id} aria-label={previewingId===preset.id?`Stop preview of ${preset.name}`:`Preview first sample of ${preset.name}`}>{previewingId===preset.id?'stop':'preview'}</button>
-              <button type="button" className="studio-button-secondary" style={{minWidth:0,minHeight:44,width:'100%'}} onClick={()=>onEditMetadata(preset)} aria-label={`Edit details for ${preset.name}`}>details</button>
+              <button type="button" className="studio-button-secondary" style={{minWidth:0,minHeight:44,width:'100%'}} onClick={()=>previewingId===preset.id?onStopPreview():onPreviewPreset(preset)} disabled={!hasLibraryPreview(preset)&&previewingId!==preset.id} aria-label={previewingId===preset.id?`Stop preview of ${preset.name}`:`Preview first sample of ${preset.name}`}>{previewingId===preset.id?'Stop':'Preview'}</button>
+              <button type="button" className="studio-button-secondary" style={{minWidth:0,minHeight:44,width:'100%'}} onClick={()=>onEditMetadata(preset)} aria-label={`Edit details for ${preset.name}`}>Details</button>
               <IconButton
                 icon="fas fa-trash"
                 onClick={() => onDeletePreset(preset)}
-                title="delete preset"
+                title={`Delete ${preset.name}`}
                 color="var(--color-text-secondary)"
               />
             </div>
@@ -222,26 +235,42 @@ export function LibraryTableContent({
                 }}
               /></label>
             </th>
-            <th 
+            <th
               style={{
                 padding: '0.75rem',
                 textAlign: 'left',
                 fontSize: '0.85rem',
                 fontWeight: '500',
                 color: 'var(--color-text-primary)',
-                cursor: 'pointer'
               }}
-              onClick={() => onSort('name')}
+              aria-sort={sortBy === 'name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
               scope="col"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>name</span>
+              {/* A real button keeps the column sort reachable from the keyboard. */}
+              <button
+                type="button"
+                onClick={() => onSort('name')}
+                title="Sort by name"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  minHeight: 44,
+                  padding: 0,
+                  border: 0,
+                  background: 'transparent',
+                  color: 'inherit',
+                  font: 'inherit',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>Name</span>
                 {sortBy === 'name' ? (
-                  <i className={`fas fa-sort-${sortOrder === 'asc' ? 'up' : 'down'}`}></i>
+                  <i aria-hidden="true" className={`fas fa-sort-${sortOrder === 'asc' ? 'up' : 'down'}`}></i>
                 ) : (
-                  <i className="fas fa-sort" style={{ color: 'var(--color-text-secondary)' }}></i>
+                  <i aria-hidden="true" className="fas fa-sort" style={{ color: 'var(--color-text-secondary)' }}></i>
                 )}
-              </div>
+              </button>
             </th>
             <th style={{
               padding: '0.75rem',
@@ -251,7 +280,7 @@ export function LibraryTableContent({
               color: 'var(--color-text-primary)',
               width: '330px',
             }} scope="col">
-              actions
+              Actions
             </th>
           </tr>
         </thead>
@@ -260,8 +289,8 @@ export function LibraryTableContent({
             <tr
               key={preset.id}
               style={{
-                backgroundColor: selectedPresets.has(preset.id) 
-                  ? 'var(--color-bg-secondary)' 
+                backgroundColor: selectedPresets.has(preset.id)
+                  ? 'var(--color-bg-secondary)'
                   : 'var(--color-bg-primary)',
                 borderBottom: '1px solid var(--color-border-light)',
                 transition: 'all 0.2s ease'
@@ -301,7 +330,7 @@ export function LibraryTableContent({
                 }}>
                   {preset.name}
                 </div>
-                <div className="studio-library-row-meta">{preset.type === 'drum' ? 'Drum' : 'Multisample'} · {preset.sampleCount !== undefined ? `${preset.sampleCount} samples` : 'No samples'} · {formatDate(preset.updatedAt)}</div>
+                <div className="studio-library-row-meta">{typeLabel(preset)} · {sampleLabel(preset)} · {formatDate(preset.updatedAt)}</div>
                 {preset.description&&<div style={{fontSize:'0.78rem',color:'var(--color-text-secondary)',marginTop:4}}>{preset.description}</div>}
                 {Array.isArray(preset.tags)&&preset.tags.length>0&&<div style={{fontSize:'0.75rem',color:'var(--color-text-secondary)',marginTop:4}}>Tags: {preset.tags.join(', ')}</div>}
               </td>
@@ -310,10 +339,13 @@ export function LibraryTableContent({
                 verticalAlign: 'top'
               }}>
                 <div className="studio-library-row-actions">
+                  {/* Primary actions carry visible words; the preset name is added for assistive technology. */}
+                  <button type="button" className="studio-button-primary" aria-label={`Load ${preset.name}`} onClick={() => onLoadPreset(preset)}>Load</button>
+                  <button type="button" className="studio-button-secondary" aria-label={`Download ${preset.name}`} onClick={() => onDownloadPreset(preset)}>Download</button>
                   <IconButton
                     icon={preset.isFavorite ? 'fas fa-star' : 'far fa-star'}
                     onClick={() => onToggleFavorite(preset)}
-                    title={preset.isFavorite ? 'remove from favorites' : 'add to favorites'}
+                    title={favoriteLabel(preset)}
                     color={preset.isFavorite ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'}
                   />
                   <IconButton
@@ -328,27 +360,15 @@ export function LibraryTableContent({
                     title={`Edit details for ${preset.name}`}
                   />
                   <IconButton
-                    icon="fas fa-folder-open"
-                    onClick={() => onLoadPreset(preset)}
-                    title="load preset"
-                    color="var(--color-interactive-focus)"
-                  />
-                  <IconButton
-                    icon="fas fa-download"
-                    onClick={() => onDownloadPreset(preset)}
-                    title="download preset"
-                    color="var(--color-text-secondary)"
-                  />
-                  <IconButton
                     icon="fas fa-trash"
                     onClick={() => onDeletePreset(preset)}
-                    title="delete preset"
+                    title={`Delete ${preset.name}`}
                     color="var(--color-text-secondary)"
                   />
                 {collectionIds && <>
-                  <button type="button" className="studio-icon-button" aria-label={`Move ${preset.name} up`} disabled={collectionIds.indexOf(preset.id) <= 0} onClick={() => onMoveInCollection?.(preset,-1)}>↑</button>
-                  <button type="button" className="studio-icon-button" aria-label={`Move ${preset.name} down`} disabled={collectionIds.indexOf(preset.id) >= collectionIds.length-1} onClick={() => onMoveInCollection?.(preset,1)}>↓</button>
-                  <button type="button" className="studio-icon-button" aria-label={`Remove ${preset.name} from collection`} onClick={() => onRemoveFromCollection?.(preset)}>×</button>
+                  <button type="button" className="studio-icon-button" aria-label={`Move ${preset.name} up`} title="Move up in collection" disabled={collectionIds.indexOf(preset.id) <= 0} onClick={() => onMoveInCollection?.(preset,-1)}>↑</button>
+                  <button type="button" className="studio-icon-button" aria-label={`Move ${preset.name} down`} title="Move down in collection" disabled={collectionIds.indexOf(preset.id) >= collectionIds.length-1} onClick={() => onMoveInCollection?.(preset,1)}>↓</button>
+                  <button type="button" className="studio-icon-button" aria-label={`Remove ${preset.name} from collection`} title="Remove from collection" onClick={() => onRemoveFromCollection?.(preset)}>×</button>
                 </>}
                 </div>
               </td>

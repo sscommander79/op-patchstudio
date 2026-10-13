@@ -28,13 +28,14 @@ export function LibraryPagination({
     boxSizing: 'border-box',
   } as const;
 
-  const nextButtonStyle = {
+  const nextButtonStyle = (disabled: boolean) => ({
     ...baseButtonStyle,
     backgroundColor: 'var(--color-interactive-focus)',
     color: 'var(--color-white)',
     border: 'none',
-    opacity: 1,
-  } as const;
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  } as const);
 
   const previousButtonStyle = (disabled: boolean) => ({
     ...baseButtonStyle,
@@ -90,7 +91,7 @@ export function LibraryPagination({
         <button
           onClick={handleNext}
           disabled={isNextDisabled}
-          style={nextButtonStyle}
+          style={nextButtonStyle(isNextDisabled)}
           onMouseEnter={e => {
             if (!isNextDisabled) {
               e.currentTarget.style.backgroundColor = 'var(--color-interactive-dark)';
@@ -150,7 +151,7 @@ export function LibraryPagination({
       <button
         onClick={handleNext}
         disabled={isNextDisabled}
-        style={nextButtonStyle}
+        style={nextButtonStyle(isNextDisabled)}
         onMouseEnter={e => {
           if (!isNextDisabled) {
             e.currentTarget.style.backgroundColor = 'var(--color-interactive-dark)';

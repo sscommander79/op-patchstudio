@@ -46,12 +46,12 @@ async function uploadDrum(page: Page) {
 }
 
 async function openEditor(page: Page) {
-  const zoom = page.getByTitle('zoom and edit').first();
+  const zoom = page.getByTitle('Zoom and edit waveform', { exact: true }).first();
   await expect(zoom).toBeVisible();
   const touchCapable = await page.evaluate(() => navigator.maxTouchPoints > 0);
   if (touchCapable) await zoom.tap();
   else await zoom.click();
-  return page.getByRole('dialog', { name: 'zoom and edit' });
+  return page.getByRole('dialog', { name: 'Zoom and edit', exact: true });
 }
 
 async function readPatch(download: Download) {
@@ -72,34 +72,34 @@ test.describe('explicit 48 kHz source-to-44.1 kHz export contract', () => {
 test('zoom editor saves one atomic half-open edit and exports real converted loop bytes', async ({ page }) => {
   await uploadMultisample(page);
   let dialog = await openEditor(page);
-  await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
-  await expect(dialog.getByLabel('Sample end frames')).toHaveValue('4800');
-  const snapping=dialog.getByRole('checkbox',{name:'snap to zero crossings'});await snapping.uncheck();await expect(snapping).not.toBeChecked();await snapping.check();await expect(snapping).toBeChecked();
+  await expect(dialog.getByLabel('Playback start frames')).toHaveValue('0');
+  await expect(dialog.getByLabel('Playback end frames')).toHaveValue('4800');
+  const snapping=dialog.getByRole('checkbox',{name:'Snap to zero crossings',exact:true});await snapping.uncheck();await expect(snapping).not.toBeChecked();await snapping.check();await expect(snapping).toBeChecked();
 
   const playhead = dialog.getByText(/^Playhead:/);
   const readPlayhead = async () => Number((await playhead.textContent())?.match(/\d+/)?.[0] ?? 0);
-  await dialog.getByRole('button', { name: 'play' }).click();
+  await dialog.getByRole('button', { name: 'Play', exact: true }).click();
   await expect.poll(readPlayhead).toBeGreaterThan(0);
-  await dialog.getByRole('button', { name: 'pause' }).click();
+  await dialog.getByRole('button', { name: 'Pause', exact: true }).click();
   const pausedText = await playhead.textContent();
   await page.waitForTimeout(150);
   await expect(playhead).toHaveText(pausedText ?? '');
-  await dialog.getByRole('button', { name: 'play' }).click();
-  await expect(dialog.getByRole('button', { name: 'pause' })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
   const resumedFrom = await readPlayhead();
   await expect.poll(readPlayhead).not.toBe(resumedFrom);
-  await dialog.getByRole('button', { name: 'stop' }).click();
+  await dialog.getByRole('button', { name: 'Stop', exact: true }).click();
   await page.keyboard.down('p');
-  await expect(dialog.getByRole('button', { name: 'pause' })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
   const heldFrom = await readPlayhead();
   await expect.poll(readPlayhead).not.toBe(heldFrom);
   await page.keyboard.up('p');
-  await expect(dialog.getByRole('button', { name: 'pause' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
 
   await dialog.getByLabel('Loop start frames').fill('480');
   await dialog.getByLabel('Loop end frames').fill('2400');
   await dialog.getByLabel('Loop crossfade percent').fill('25');
-  await dialog.getByRole('button', { name: 'save markers' }).click();
+  await dialog.getByRole('button', { name: 'Save markers', exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -107,7 +107,7 @@ test('zoom editor saves one atomic half-open edit and exports real converted loo
   await expect(dialog.getByLabel('Loop start frames')).toHaveValue('960');
   await expect(dialog.getByLabel('Loop end frames')).toHaveValue('3840');
   await expect(dialog.getByLabel('Loop crossfade percent')).toHaveValue('0');
-  await dialog.getByRole('button', { name: 'cancel' }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: 'Redo', exact: true }).click();
   dialog = await openEditor(page);
   await expect(dialog.getByLabel('Loop start frames')).toHaveValue('480');
@@ -122,13 +122,13 @@ test('zoom editor saves one atomic half-open edit and exports real converted loo
   await page.mouse.move(box.x + box.width * 0.25, box.y + box.height - 4);
   await page.mouse.move(box.x - 100, box.y + box.height - 4);
   await page.mouse.up();
-  await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
+  await expect(dialog.getByLabel('Playback start frames')).toHaveValue('0');
 
   await dialog.getByLabel('Loop start frames').fill('1000');
-  await dialog.getByRole('button', { name: 'cancel' }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   dialog = await openEditor(page);
   await expect(dialog.getByLabel('Loop start frames')).toHaveValue('480');
-  await dialog.getByRole('button', { name: 'cancel' }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await openAdvanced(page,/Audio output and processing/);
   await page.locator('#sample-rate').selectOption('44100');
@@ -162,7 +162,7 @@ test('portrait touch opens the responsive editor without a rotation gate', async
   await uploadMultisample(page);
   let dialog = await openEditor(page);
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'cancel' }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.setViewportSize({ width: 844, height: 390 });
   dialog = await openEditor(page);
   await expect(dialog).toBeVisible();
@@ -172,20 +172,20 @@ test('drum table opens the same frame editor and Cancel preserves its markers', 
   await uploadDrum(page);
   await page.getByRole('button', { name: 'Table', exact: true }).click();
   let dialog = await openEditor(page);
-  await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
+  await expect(dialog.getByLabel('Playback start frames')).toHaveValue('0');
   const decodedFrames = await page.evaluate(async bytes => {
     const context = new AudioContext();
     try { return (await context.decodeAudioData(Uint8Array.from(bytes).buffer)).length; }
     finally { await context.close(); }
   }, Array.from(wavFixture48k('drum.wav').buffer));
-  await expect(dialog.getByLabel('Sample end frames')).toHaveValue(String(decodedFrames));
-  await dialog.getByLabel('Sample start frames').fill('480');
-  await dialog.getByRole('button', { name: 'cancel' }).click();
+  await expect(dialog.getByLabel('Playback end frames')).toHaveValue(String(decodedFrames));
+  await dialog.getByLabel('Playback start frames').fill('480');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   dialog = await openEditor(page);
-  await expect(dialog.getByLabel('Sample start frames')).toHaveValue('0');
-  await expect(dialog.getByLabel('Sample end frames')).toHaveValue(String(decodedFrames));
+  await expect(dialog.getByLabel('Playback start frames')).toHaveValue('0');
+  await expect(dialog.getByLabel('Playback end frames')).toHaveValue(String(decodedFrames));
 });
 
 test('waveform surface opens zoom and Escape preserves existing markers',async({page})=>{
- await uploadDrum(page);const editor=page.getByRole('region',{name:'Focused sample editor'});const before=await editor.getByLabel('In point (seconds)',{exact:true}).inputValue();await editor.locator('canvas').click({position:{x:40,y:45}});const dialog=page.getByRole('dialog',{name:'zoom and edit',exact:true});await expect(dialog).toBeVisible();await dialog.getByLabel('Sample start frames').fill('100');await dialog.press('Escape');await expect(dialog).toBeHidden();await expect(editor.getByLabel('In point (seconds)',{exact:true})).toHaveValue(before);
+ await uploadDrum(page);const editor=page.getByRole('region',{name:'Focused sample editor'});const before=await editor.getByLabel('Playback start (seconds)',{exact:true}).inputValue();await editor.locator('canvas').click({position:{x:40,y:45}});const dialog=page.getByRole('dialog',{name:'Zoom and edit',exact:true});await expect(dialog).toBeVisible();await dialog.getByLabel('Playback start frames').fill('100');await dialog.press('Escape');await expect(dialog).toBeHidden();await expect(editor.getByLabel('Playback start (seconds)',{exact:true})).toHaveValue(before);
 });

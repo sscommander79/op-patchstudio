@@ -53,6 +53,9 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
   const maxSize = 8 * 1024 * 1024; // 8mb limit
   const percentage = Math.min(100, (patchSize / maxSize) * 100);
   const warning = getPatchSizeWarning(patchSize);
+  // Display casing only; the byte thresholds above are unchanged.
+  const sizeLabel = formatFileSize(patchSize).replace(/ (mb|kb|b)$/, unit => unit.toUpperCase());
+  const guidanceId = `preset-size-guidance-${type}`;
 
 
 
@@ -74,7 +77,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
           fontWeight: '500',
           color: 'var(--color-text-primary)'
         }}>
-          preset size estimate
+          Preset size estimate
         </span>
         <span style={{
           fontSize: '0.9rem',
@@ -83,7 +86,7 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
           {isCalculating ? (
             <InlineLoading description="Calculating..." />
           ) : (
-            formatFileSize(patchSize)
+            sizeLabel
           )}
         </span>
       </div>
@@ -94,7 +97,15 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
         position: 'relative'
       }}>
         {/* Background bar */}
-        <div style={{
+        <div
+          role="progressbar"
+          aria-label="Preset size estimate"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(percentage)}
+          aria-valuetext={`${sizeLabel} of the recommended 8 MB`}
+          aria-describedby={guidanceId}
+          style={{
           width: '100%',
           height: '8px',
           backgroundColor: 'var(--color-progress-track)',
@@ -131,24 +142,23 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
           fontSize: '0.7rem',
           color: 'var(--color-text-info)'
         }}>
-          <span>0 mb</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <i
-              className="fas fa-info-circle"
-              style={{
-                fontSize: '0.6rem',
-                color: 'var(--color-text-info)',
-                cursor: 'help'
-              }}
-              title="the OP-XY has 64mb allocated to samples across all presets. the 8mb limit per preset is recommended to prevent memory issues and note dropping. 16-bit samples load faster than 24-bit and help stay within memory constraints."
-            ></i>
-            8.0 mb
-          </span>
+          <span>0 MB</span>
+          <span>8.0 MB recommended</span>
         </div>
       </div>
 
+      {/* Shown as text so it does not depend on hover. */}
+      <p id={guidanceId} style={{
+        margin: '0.25rem 0 0',
+        fontSize: '0.8rem',
+        lineHeight: 1.4,
+        color: 'var(--color-text-secondary)'
+      }}>
+        The OP-XY has 64 MB allocated to samples across all presets. The 8 MB limit per preset is recommended to prevent memory issues and note dropping. 16-bit samples load faster than 24-bit and help stay within memory constraints.
+      </p>
+
       {warning && (
-        <div style={{
+        <div role="status" style={{
           fontSize: '0.8rem',
           color: 'var(--color-text-secondary)',
           fontStyle: 'italic',
@@ -167,13 +177,13 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
         }}>
           {audioBuffers.length} sample{audioBuffers.length !== 1 ? 's' : ''}
           {settings.sampleRate !== 0 && (
-            <> • {settings.sampleRate === 44100 ? '44.1 khz' : settings.sampleRate === 22050 ? '22.1 khz' : settings.sampleRate === 11025 ? '11 khz' : `${settings.sampleRate / 1000} khz`}</>
+            <> • {`${settings.sampleRate / 1000} kHz`}</>
           )}
           {settings.bitDepth !== 0 && (
-            <> • {settings.bitDepth}bit</>
+            <> • {settings.bitDepth}-bit</>
           )}
           {settings.channels !== 0 && (
-            <> • {settings.channels === 1 ? 'mono' : 'stereo'}</>
+            <> • {settings.channels === 1 ? 'Mono' : 'Stereo'}</>
           )}
         </div>
       )}
@@ -189,18 +199,18 @@ export function PatchSizeIndicator({ type, className = '' }: PatchSizeIndicatorP
           borderRadius: '3px',
           border: '1px solid var(--color-progress-track)'
         }}>
-          <strong>optimization tips:</strong>
+          <strong>Ways to reduce the size:</strong>
           <ul style={{ margin: '0.25rem 0 0 1rem', padding: 0 }}>
             {(settings.sampleRate === 0 || settings.sampleRate > 22050) && (
-              <li>reduce sample rate to 22.1 khz for smaller size</li>
+              <li>Reduce the sample rate to 22.05 kHz for a smaller size</li>
             )}
             {(settings.bitDepth === 0 || settings.bitDepth > 16) && (
-              <li>use 16-bit instead of 24-bit</li>
+              <li>Use 16-bit instead of 24-bit</li>
             )}
             {(settings.channels === 0 || settings.channels === 2) && (
-              <li>convert to mono if stereo imaging isn't needed</li>
+              <li>Convert to mono if stereo imaging isn't needed</li>
             )}
-            <li>trim unused portions of samples</li>
+            <li>Trim unused portions of samples</li>
           </ul>
         </div>
       )}

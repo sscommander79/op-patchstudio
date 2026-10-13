@@ -75,7 +75,7 @@ async function readProject(bytes:Buffer) {
 
 test('direct slice replacement and existing-pad unassignment preserve originals, cancel, and atomic Undo/Redo',async({page})=>{
   await gotoWorkspace(page,'drum');await page.getByRole('button',{name:'Load demo kit',exact:true}).click();await expectDrumLoaded(page,10);
-  const backup=async()=>{const event=page.waitForEvent('download');await projectAction(page,'Download project');return downloadedBytes(await event);};
+  const backup=async()=>{const event=page.waitForEvent('download');await projectAction(page,'Back up project');return downloadedBytes(await event);};
   const before=await backup();
   const open=async()=>{await page.getByRole('button',{name:'Slice this sample',exact:true}).click();const dialog=page.getByRole('dialog',{name:'slice audio'});await expect(dialog.getByRole('button',{name:'Select sound 1',exact:true})).toBeVisible();return dialog;};
   let dialog=await open();
@@ -95,7 +95,18 @@ test('direct slice replacement and existing-pad unassignment preserve originals,
   await expect(dialog.getByLabel('Destination pad')).toHaveValue('2');
   await dialog.getByRole('button',{name:'Unassign pad sound',exact:true}).click();
   await expect(dialog.getByRole('button',{name:'Pad 3, SD1, Empty',exact:true})).toBeVisible();
-  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expectDrumLoaded(page,10);
+  // Cancel on a changed draft asks first; Keep editing retains the staged replacement and unassignment.
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  const discardPrompt=dialog.getByRole('alert').filter({hasText:'Discard your slicing changes?'});
+  await expect(discardPrompt).toContainText('1 pad assignment');await expect(discardPrompt).toContainText('1 pad unassignment');
+  await expect(dialog.getByRole('button',{name:'Keep editing',exact:true})).toBeFocused();
+  await dialog.getByRole('button',{name:'Keep editing',exact:true}).click();
+  await expect(discardPrompt).toHaveCount(0);await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Pad 1, KD1, Sound 1',exact:true})).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Pad 3, SD1, Empty',exact:true})).toBeVisible();
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await dialog.getByRole('button',{name:'Discard changes and close',exact:true}).click();
+  await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,10);
   const afterCancel=await backup();expect(projectPadState(await readProject(afterCancel))).toEqual(projectPadState(await readProject(before)));
   dialog=await open();
   await dragSoundToPad(dialog,1,'Pad 1, KD1, Seed Kick');
@@ -132,6 +143,7 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await dialog.getByRole('button',{name:'Select sound 2'}).click();
   await expect(dialog.getByRole('button',{name:'Stop',exact:true})).toBeEnabled();
   await dialog.getByRole('button',{name:'Stop',exact:true}).click();
+  // Selection and playback are not draft changes, so Cancel closes without a discard prompt.
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(dialog).not.toBeVisible();
   await expectDrumLoaded(page,0);
@@ -196,7 +208,7 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await expect(page.locator('#bit-depth')).toHaveValue('16');
 
   const backupEvent=page.waitForEvent('download');
-  await projectAction(page,'Download project');
+  await projectAction(page,'Back up project');
   const backupDownload=await backupEvent,backupBytes=await downloadedBytes(backupDownload);
   const manifest=await readProject(backupBytes);
   const sliceRefs=manifest.project.drumSamples.filter(ref=>ref.sliceProvenance).sort((a,b)=>a.sliceProvenance!.startFrame-b.sliceProvenance!.startFrame);
@@ -246,7 +258,7 @@ test('slice source, live clock mark, apply, export, undo, and portable provenanc
   await expectDrumLoaded(page,2);
   await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('button',{name:'browser-break.wav',exact:true})).toBeVisible();
   const restoredBackupEvent=page.waitForEvent('download');
-  await projectAction(page,'Download project');
+  await projectAction(page,'Back up project');
   const restored=await readProject(await downloadedBytes(await restoredBackupEvent));
   expect(restored.project.drumSamples.filter(ref=>ref.sliceProvenance).map(ref=>ref.sliceProvenance)).toEqual(
     manifest.project.drumSamples.filter(ref=>ref.sliceProvenance).map(ref=>ref.sliceProvenance),
@@ -263,7 +275,18 @@ test('edited slicing session survives browser Back until explicitly discarded',a
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL(/#\/studio\/drum$/);
   await expect(dialog.locator('[data-slice-pad="2"]')).toHaveAttribute('aria-label',/Sound 1/);
+  // Escape asks before discarding; a second Escape answers the question with Keep editing.
+  await page.keyboard.press('Escape');
+  const discardPrompt=dialog.getByRole('alert').filter({hasText:'Discard your slicing changes?'});
+  await expect(discardPrompt).toContainText('1 pad assignment');
+  await expect(dialog.getByRole('button',{name:'Keep editing',exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(discardPrompt).toHaveCount(0);await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-slice-pad="2"]')).toHaveAttribute('aria-label',/Sound 1/);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(discardPrompt).toBeVisible();
+  await dialog.getByRole('button',{name:'Discard changes and close',exact:true}).click();
+  await expect(dialog).not.toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/#\/studio\/overview$/);
 });
@@ -293,6 +316,7 @@ for(const viewport of [{width:1280,height:720},{width:390,height:640}]) {
     expect(geometry.scroll).toBeGreaterThan(geometry.client);expect(geometry.top).toBeGreaterThan(0);expect(geometry.contentWidth).toBeLessThanOrEqual(geometry.width+1);
     await expect(cancel).toBeVisible();await expect(apply).toBeVisible();
     await page.screenshot({path:testInfo.outputPath('slicer-grouped.png')});
+    // Opening disclosures and scrolling leave the draft untouched, so Cancel closes immediately.
     await cancel.click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);
   });
 }

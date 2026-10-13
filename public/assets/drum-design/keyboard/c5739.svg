@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle id="matte cap face" cx="34" cy="34" r="34" fill="url(#paint0_linear_0_709)"/>
+<defs>
+<linearGradient id="paint0_linear_0_709" x1="34" y1="0" x2="34" y2="68" gradientUnits="userSpaceOnUse">
+<stop stop-color="#BEBEBE"/>
+<stop offset="0.35" stop-color="#B6B6B6"/>
+<stop offset="0.8" stop-color="#B0B0B0"/>
+<stop offset="1" stop-color="#ADADAD"/>
+</linearGradient>
+</defs>
+</svg>

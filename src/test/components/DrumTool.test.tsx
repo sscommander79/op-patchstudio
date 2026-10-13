@@ -277,7 +277,9 @@ describe('DrumTool', () => {
     const audioBuffer=new AudioContext().createBuffer(1,8,8_000),file=new File(['tray'],'tray.wav');
     const tray={...defaultState.drumSamples[0],file,audioBuffer,name:file.name,isLoaded:true,isAssigned:false,assignedKey:undefined,outPoint:audioBuffer.duration,duration:audioBuffer.duration,sourceIdentity:'old-source',sliceProvenance:{sourceIdentity:'old-source',sourceName:'break.wav',startFrame:0,endFrame:8,sourceFrameCount:8,sourceSampleRate:8_000,sourceChannels:1}};
     mockUseAppContext.mockReturnValue({state:{...defaultState,drumSamples:[...defaultState.drumSamples,tray]},dispatch:mockDispatch});
-    render(<DrumTool/>);await userEvent.click(screen.getByRole('button',{name:'tray.wav'}));
+    render(<DrumTool/>);
+    await userEvent.click(screen.getByRole('button',{name:'Organize →'}));
+    await userEvent.click(screen.getByRole('button',{name:'tray.wav'}));
     const replacement=new File(['replacement'],'replacement.wav',{type:'audio/wav'});
     fireEvent.change(screen.getByLabelText('Choose audio for selected unassigned sound'),{target:{files:[replacement]}});
     expect(audioImportMocks.beginFiles).toHaveBeenCalledWith([replacement],{instrument:'drum',drumReplacement:{file,audioBuffer}});
@@ -298,7 +300,7 @@ describe('DrumTool', () => {
   it('should handle reset all button click', async () => {
     render(<DrumTool />);
 
-    const resetButton = screen.getByText('reset instrument');
+    const resetButton = screen.getByText('Reset whole instrument');
     await userEvent.click(resetButton);
 
     // Should open confirmation modal

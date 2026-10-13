@@ -1,10 +1,22 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-const FOCUSABLE='button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE='summary, button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const dialogStack:symbol[]=[];
 
+function isVisibleControl(control:HTMLElement,dialog:HTMLElement) {
+    if(control.hidden||control.closest('[hidden], [aria-hidden="true"]'))return false;
+    for(let node:HTMLElement|null=control;node&&node!==dialog;node=node.parentElement){
+      if(node instanceof HTMLDetailsElement&&!node.open){
+        const summary=[...node.children].find(child=>child.tagName==='SUMMARY');
+        if(!summary?.contains(control))return false;
+      }
+      const style=getComputedStyle(node);
+      if(style.display==='none'||style.visibility==='hidden')return false;
+    }
+    return true;
+}
 function controls(dialog:HTMLElement) {
-  return [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(control=>!control.hidden&&!control.closest('[hidden], [aria-hidden="true"]'));
+  return [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(control=>isVisibleControl(control,dialog));
 }
 
 /** Gives a custom modal one topmost Escape owner, a focus loop, and trigger restoration. */
@@ -20,7 +32,9 @@ export function useOwnedDialog({active,dialogRef,onClose,returnFocus}:{active:bo
     const dialog=dialogRef.current;
     queueMicrotask(()=>{
       if(dialogStack.at(-1)!==token)return;
-      const target=dialog?.querySelector<HTMLElement>('[data-initial-focus="true"]')??(dialog?controls(dialog)[0]:null)??dialog;
+      const visible=dialog?controls(dialog):[];
+      const initial=dialog?[...dialog.querySelectorAll<HTMLElement>('[data-initial-focus="true"]')].find(control=>!control.matches(':disabled')&&isVisibleControl(control,dialog)):undefined;
+      const target=initial??visible[0]??dialog;
       target?.focus();
     });
     const key=(event:KeyboardEvent)=>{

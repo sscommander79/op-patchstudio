@@ -58,6 +58,12 @@ const generateRandomEnvelope = (): ADSRValues => {
   };
 };
 
+// Theme tokens resolved in every appearance and theme; hardcoded grays disappeared on dark panels.
+const INK = 'var(--color-text-primary)';
+const INK_MUTED = 'var(--color-text-secondary)';
+const SURFACE = 'var(--color-bg-primary)';
+const RULE = 'var(--studio-border, var(--color-border-medium))';
+
 // Convert 0-32767 to 0-100% for display
 const valueToPercent = (value: number): number => Math.round((value / 32767) * 100);
 
@@ -482,8 +488,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
           height={handleSize * 2}
           rx="3"
           ry="3"
-          fill={isActive ? "#333333" : "#999999"}
-          style={{ cursor: 'grab', pointerEvents: 'none' }}
+          style={{ cursor: 'grab', pointerEvents: 'none', fill: isActive ? INK : INK_MUTED }}
         />
       </g>
     ));
@@ -501,7 +506,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>envelopes</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'amp' ? 'var(--studio-appearance-ink-strong, #000)' : 'var(--studio-appearance-ink-muted, #999)' }}>amp</span>
+          <span data-envelope-label="amp" data-active={activeEnvelope === 'amp'} style={{ fontSize: '0.875rem', fontWeight: activeEnvelope === 'amp' ? 700 : 400, color: activeEnvelope === 'amp' ? INK : INK_MUTED }}>amp</span>
           <div
             role="switch"
             tabIndex={0}
@@ -516,7 +521,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
             style={{
               width: '32px',
               height: '16px',
-              backgroundColor: '#393939',
+              backgroundColor: INK,
               borderRadius: '8px',
               position: 'relative',
               cursor: 'pointer',
@@ -524,10 +529,11 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
             }}
           >
             <div
+              data-switch-knob="true"
               style={{
                 width: '10px',
                 height: '10px',
-                backgroundColor: '#fff',
+                backgroundColor: SURFACE,
                 borderRadius: '50%',
                 position: 'absolute',
                 top: '3px',
@@ -537,7 +543,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
               }}
             />
           </div>
-          <span style={{ fontSize: '0.875rem', color: activeEnvelope === 'filter' ? 'var(--studio-appearance-ink-strong, #000)' : 'var(--studio-appearance-ink-muted, #999)' }}>filter</span>
+          <span data-envelope-label="filter" data-active={activeEnvelope === 'filter'} style={{ fontSize: '0.875rem', fontWeight: activeEnvelope === 'filter' ? 700 : 400, color: activeEnvelope === 'filter' ? INK : INK_MUTED }}>filter</span>
         </div>
       </div>
       
@@ -563,8 +569,8 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
           y1={(Math.round(25 * 7.74) - Math.round(20 * 7.74)) / 2 + Math.round(20 * 7.74)} 
           x2={(width - Math.round(55 * 7.74)) / 2 + (Math.round(55 * 7.74) - Math.round(46 * 7.74)) / 2 + Math.round(46 * 7.74)} 
           y2={(Math.round(25 * 7.74) - Math.round(20 * 7.74)) / 2 + Math.round(20 * 7.74)} 
-          stroke="#ddd" 
-          strokeWidth="4" 
+          style={{ stroke: RULE }}
+          strokeWidth="4"
         />
         
         {/* Vertical guide lines from key points */}
@@ -581,7 +587,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
                 y1={pos.attack.y} 
                 x2={pos.attack.x} 
                 y2={envelopeBottom} 
-                stroke="#ddd" 
+                style={{ stroke: RULE }}
                 strokeWidth="4" 
                 opacity="0.5"
               />
@@ -592,7 +598,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
                 y1={pos.decay.y} 
                 x2={pos.decay.x} 
                 y2={envelopeBottom} 
-                stroke="#ddd" 
+                style={{ stroke: RULE }}
                 strokeWidth="4" 
                 opacity="0.5"
               />
@@ -603,7 +609,7 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
                 y1={pos.release.y} 
                 x2={pos.release.x} 
                 y2={envelopeBottom} 
-                stroke="#ddd" 
+                style={{ stroke: RULE }}
                 strokeWidth="4" 
                 opacity="0.5"
               />
@@ -615,7 +621,8 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
         <path
           d={generateEnvelopePath(inactiveEnvelope)}
           fill="none"
-          stroke="#cccccc"
+          data-envelope-curve="inactive"
+          style={{ stroke: RULE }}
           strokeWidth="4"
           opacity="0.5"
         />
@@ -624,7 +631,8 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
         <path
           d={generateEnvelopePath(currentEnvelope)}
           fill="none"
-          stroke="#333333"
+          data-envelope-curve="active"
+          style={{ stroke: INK }}
           strokeWidth="4"
         />
         
@@ -644,9 +652,8 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
                 y={ampPos.release.y - 6}
                 fontSize="12"
                 fontWeight="500"
-                fill={activeEnvelope === 'amp' ? "#333" : "#999"}
                 textAnchor="middle"
-                style={{ userSelect: 'none', pointerEvents: 'none' }}
+                style={{ userSelect: 'none', pointerEvents: 'none', fill: activeEnvelope === 'amp' ? INK : INK_MUTED }}
               >
                 amp
               </text>
@@ -657,9 +664,8 @@ export const ADSREnvelope: React.FC<ADSREnvelopeProps> = ({
                 y={filterPos.release.y - 6}
                 fontSize="12"
                 fontWeight="500"
-                fill={activeEnvelope === 'filter' ? "#333" : "#999"}
                 textAnchor="middle"
-                style={{ userSelect: 'none', pointerEvents: 'none' }}
+                style={{ userSelect: 'none', pointerEvents: 'none', fill: activeEnvelope === 'filter' ? INK : INK_MUTED }}
               >
                 filter
               </text>

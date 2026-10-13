@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle id="rounded shoulder" cx="36" cy="36" r="36" fill="url(#paint0_linear_0_754)"/>
+<defs>
+<linearGradient id="paint0_linear_0_754" x1="36" y1="0" x2="36" y2="72" gradientUnits="userSpaceOnUse">
+<stop stop-color="#6F6F6F"/>
+<stop offset="0.05" stop-color="#585858"/>
+<stop offset="0.3" stop-color="#373737"/>
+<stop offset="0.68" stop-color="#2D2D2D"/>
+<stop offset="0.93" stop-color="#3C3C3C"/>
+<stop offset="1" stop-color="#4C4C4C"/>
+</linearGradient>
+</defs>
+</svg>

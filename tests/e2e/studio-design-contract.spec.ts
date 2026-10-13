@@ -57,7 +57,7 @@ test.describe('unified launch surface', () => {
 
     await expect(page.locator('.studio-shell-brand')).toHaveCount(1);
     await expect(page.locator('.studio-shell-sidebar, .studio-app-header')).toHaveCount(0);
-    await expect(page.getByRole('navigation')).toHaveCount(1);
+    await expect(page.getByRole('navigation',{name:'Workspace'})).toHaveCount(1);
     const primary = page.getByRole('navigation', { name: 'Workspace' }).getByRole('button');
     await expect(primary).toHaveText(['Overview', 'Library', 'Transfer', 'Devices']);
     const primaryTops = await primary.evaluateAll(buttons => buttons.map(button => Math.round(button.getBoundingClientRect().top)));
@@ -67,7 +67,7 @@ test.describe('unified launch surface', () => {
 
     const modules = launch.getByRole('article');
     await expect(modules).toHaveCount(4);
-    await expect(modules.getByRole('heading', { level: 2 })).toHaveText(['Multisample a synth', 'Sample a sound', 'Build a drum kit', 'Record OP-XY tracks']);
+    await expect(modules.getByRole('heading', { level: 2 })).toHaveText(['Make a playable instrument', 'Record a drum sound', 'Build a drum kit', 'Record OP-XY tracks']);
     const moduleBoxes = await Promise.all([0, 1, 2, 3].map(index => box(modules.nth(index))));
     for (const bounds of moduleBoxes) {
       expect(Math.abs(bounds.y - moduleBoxes[0].y)).toBeLessThanOrEqual(2);
@@ -135,8 +135,8 @@ test.describe('unified launch surface', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'What are you working on?' })).toBeFocused();
     const launch = page.getByRole('region', { name: 'What are you working on?' });
     const order = [
-      'Setup guide: multisample a synth', 'Open capture',
-      'Setup guide: sample a sound', 'Open sampler',
+      'Guide: make a playable instrument', 'Choose a source',
+      'Setup guide: record a drum sound', 'Record a sound',
       'Setup guide: build a drum kit', 'Open kit',
       'Record OP-XY tracks',
       'External gear Open devices',
@@ -173,23 +173,25 @@ test.describe('unified launch surface', () => {
     await expect(guide.getByText('Select a browser audio input in Record takes.')).toBeVisible();
 
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Overview' }).click();
-    await launch.getByRole('button', { name: 'Open capture', exact: true }).click();
+    await launch.getByRole('button', { name: 'Choose a source', exact: true }).click();
+    await page.getByRole('button', { name: /A software instrument/ }).click();
+    await page.getByRole('button', { name: 'Connect and check sound' }).click();
     const recorder = page.getByRole('dialog', { name: 'Record takes' });
     await expect(recorder).toBeVisible();
-    await expect(recorder.getByText('Guided automatic multisampling')).toBeVisible();
+    await expect(recorder.getByText('Guided automatic recording')).toBeVisible();
     await recorder.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page).toHaveURL(/#\/studio\/multisample$/);
 
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Overview' }).click();
-    await launch.getByRole('button', { name: 'Open sampler', exact: true }).click();
+    await launch.getByRole('button', { name: 'Record a sound', exact: true }).click();
     await expect(recorder).toBeVisible();
-    await expect(recorder.getByLabel('Capture mode')).toBeFocused();
-    await expect(recorder.getByText('Guided automatic multisampling')).toHaveCount(0);
+    await expect(recorder.getByLabel('Recording starts')).toBeFocused();
+    await expect(recorder.getByText('Guided automatic recording')).toHaveCount(0);
     await recorder.getByRole('button', { name: 'Close', exact: true }).click();
 
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Overview' }).click();
     await launch.getByRole('button', { name: 'Setup guide: build a drum kit' }).click();
-    await expect(page).toHaveURL(/#\/studio\/create$/);
+    await expect(page).toHaveURL(/#\/studio\/setup$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Build your kit' })).toBeVisible();
 
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Overview' }).click();
@@ -210,16 +212,16 @@ test.describe('unified launch surface', () => {
     const red = await resolveColor(page, 'var(--studio-system-red)');
     const background = (locator: Locator) => locator.evaluate(element => getComputedStyle(element).backgroundColor);
 
-    for (const name of ['Open capture', 'Open sampler', 'Open kit']) {
+    for (const name of ['Choose a source', 'Record a sound', 'Open kit']) {
       expect(await background(launch.getByRole('button', { name, exact: true }))).not.toBe(cyan);
     }
     await launch.getByRole('button', { name: 'Open kit', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Drum keyboard', exact: true })).toBeVisible();
-    expect(await background(page.getByRole('button', { name: 'Export OP-XY', exact: true }))).not.toBe(cyan);
+    expect(await background(page.getByRole('button', { name: 'Download OP-XY preset', exact: true }))).not.toBe(cyan);
     expect(await background(page.getByRole('button', { name: 'Load demo kit', exact: true }))).not.toBe(cyan);
     expect(await background(page.getByRole('button', { name: 'Focus', exact: true }))).not.toBe(cyan);
     expect(await background(page.getByRole('button', { name: 'Add sounds', exact: true }))).not.toBe(cyan);
-    expect(await page.getByRole('button', { name: 'reset instrument' }).evaluate(element => getComputedStyle(element).borderLeftColor)).toBe(red);
+    expect(await page.getByRole('button', { name: 'Reset whole instrument' }).evaluate(element => getComputedStyle(element).borderLeftColor)).toBe(red);
 
     await page.getByRole('button', { name: 'Load demo kit', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Drum pad instrument, 10 of 24 loaded' })).toBeVisible();

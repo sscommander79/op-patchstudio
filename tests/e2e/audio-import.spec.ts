@@ -22,9 +22,9 @@ test('actual codec files stay truthful through chooser review, one Apply, and Un
   const compressed=dialog.getByLabel('Include sample-44100.mp3').locator('xpath=ancestor::li');
   await expect(compressed).toContainText('source bit depth unknown');await expect(compressed).toContainText('source rate unknown');await expect(compressed).toContainText(`decoded ${decodedRate} Hz`);
   const wave=dialog.getByLabel('Include original-44100.wav').locator('xpath=ancestor::li');await expect(wave).toContainText('source rate 44100 Hz');
-  await dialog.getByRole('button',{name:'Apply import'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
+  await dialog.getByRole('button',{name:'Add selected sounds'}).click();await expect(dialog).not.toBeVisible();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
 
-  const backupEvent=page.waitForEvent('download');await projectAction(page,'Download project');const backup=await backupEvent,backupBytes=await downloadedBytes(backup);
+  const backupEvent=page.waitForEvent('download');await projectAction(page,'Back up project');const backup=await backupEvent,backupBytes=await downloadedBytes(backup);
   const saved=await inspectProject(backupBytes),mp3=saved.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
   expect(mp3?.sourcePath).toBeTruthy();expect(mp3?.metadata).not.toHaveProperty('bitDepth');expect(mp3?.metadata).not.toHaveProperty('sampleRate');expect(mp3?.metadata).not.toHaveProperty('channels');
   expect(mp3?.audio.sampleRate).toBe(decodedRate);expect(mp3?.audio.frames).toBeGreaterThan(8_000);
@@ -32,7 +32,7 @@ test('actual codec files stay truthful through chooser review, one Apply, and Un
   await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(0);
   const chooser=page.waitForEvent('filechooser');await projectAction(page,'Open project');await (await chooser).setFiles({name:backup.suggestedFilename(),mimeType:'application/zip',buffer:backupBytes});
   await expectDrumLoaded(page,0);await expect(page.getByRole('region',{name:'Unassigned sounds'}).getByRole('listitem')).toHaveCount(expectedPrepared);
-  const restoredEvent=page.waitForEvent('download');await projectAction(page,'Download project');const restored=await inspectProject(await downloadedBytes(await restoredEvent));const restoredMp3=restored.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
+  const restoredEvent=page.waitForEvent('download');await projectAction(page,'Back up project');const restored=await inspectProject(await downloadedBytes(await restoredEvent));const restoredMp3=restored.manifest.samples.find(sample=>sample.name==='sample-44100.mp3');
   expect(restoredMp3?.metadata).not.toHaveProperty('sampleRate');expect(Buffer.from(await restored.zip.file(restoredMp3!.sourcePath!)!.async('uint8array'))).toEqual(await readFile(fixture('sample-44100.mp3')));
 });
 
@@ -44,7 +44,7 @@ test('desktop row multi-chooser is one reviewed batch with collision-free explic
   ]);
   const dialog=page.getByRole('dialog',{name:'Import audio'});await expect(dialog.getByLabel(/^Include /)).toHaveCount(2);
   await expect(dialog.getByLabel('Destination for texture.wav')).toHaveValue('pad:0');await expect(dialog.getByLabel('Destination for kick.wav')).toHaveValue('pad:1');
-  await dialog.getByRole('button',{name:'Apply import'}).click();await expectDrumLoaded(page,2);await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);
+  await dialog.getByRole('button',{name:'Add selected sounds'}).click();await expectDrumLoaded(page,2);await page.getByRole('button',{name:'Undo',exact:true}).click();await expectDrumLoaded(page,0);
 });
 
 test('one sound added after selecting SD2 loads into SD2 rather than the first matching snare pad',async({page})=>{
@@ -66,7 +66,7 @@ test('Replace on a loaded pad proposes that pad and applies the replacement',asy
   await page.getByLabel('Choose audio for pad 3').setInputFiles({name:'new-snare.wav',mimeType:'audio/wav',buffer:await readFile(fixture('original.wav'))});
   const dialog=page.getByRole('dialog',{name:'Import audio'});
   await expect(dialog.getByLabel('Destination for new-snare.wav')).toHaveValue('replace:2');
-  await dialog.getByRole('button',{name:'Apply import'}).click();
+  await dialog.getByRole('button',{name:'Add selected sounds'}).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('heading',{name:'Pad 3 · new-snare.wav'})).toBeVisible();
 });
@@ -84,9 +84,9 @@ test('actual chooser sends unknown-extension, empty, and unsupported files to sh
 
 test('malformed patch settings are rejected in both modes without changing settings',async({page})=>{
   await gotoWorkspace(page,'drum');const invalid=Buffer.from(JSON.stringify({type:'drum',engine:{playmode:['mono']}}));
-  await page.getByLabel('choose drum patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalid});await expect(page.getByText('import failed',{exact:true}).last()).toBeVisible();await expect(page.locator('#preset-playmode')).toHaveValue('poly');
+  await page.getByLabel('choose drum patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalid});await expect(page.getByRole('button',{name:'Dismiss import failed notification'}).last()).toBeVisible();await expect(page.locator('#preset-playmode')).toHaveValue('poly');
   await openWorkspace(page,'multisample');const invalidMulti=Buffer.from(JSON.stringify({type:'multisampler',engine:{playmode:['mono']}}));
-  await page.getByLabel('choose multisample patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalidMulti});await expect(page.getByText('import failed',{exact:true}).last()).toBeVisible();await expect(page.locator('#playmode')).toHaveValue('poly');
+  await page.getByLabel('choose multisample patch settings').setInputFiles({name:'patch.json',mimeType:'application/json',buffer:invalidMulti});await expect(page.getByRole('button',{name:'Dismiss import failed notification'}).last()).toBeVisible();await expect(page.locator('#playmode')).toHaveValue('poly');
 });
 
 test('a captured nested drop keeps a valid sibling and reports the blocked child',async({page})=>{

@@ -23,7 +23,7 @@ export function SessionRestorationModal({
   error
 }: SessionRestorationModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
-  // Recovery requires an explicit Restore/Start new decision; Escape never discards it.
+  // Recovery requires an explicit Restore/Discard decision; Escape never discards it.
   useOwnedDialog({ active: isOpen, dialogRef: modalRef, onClose: () => {} });
 
   useEffect(() => {
@@ -36,19 +36,20 @@ export function SessionRestorationModal({
   useEffect(() => {
     if (!isOpen) return;
     if (pending) modalRef.current?.focus();
-    else modalRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+    // Enter on a freshly opened dialog must never discard: land on Restore, not the first button.
+    else modalRef.current?.querySelector<HTMLButtonElement>('button[data-initial-focus="true"]:not([disabled])')?.focus();
   }, [isOpen, pending]);
 
   if (!isOpen) return null;
 
   const formatSessionInfo = () => {
-    if (!sessionInfo) return '';
+    if (!sessionInfo) return 'Saved work was found in this browser.';
 
     const date = new Date(sessionInfo.timestamp).toLocaleString();
     const drumCount = sessionInfo.drumSamplesCount;
     const multisampleCount = sessionInfo.multisampleFilesCount;
 
-    return `from ${date} with ${drumCount} drum samples and ${multisampleCount} multisample files`;
+    return `Saved work from ${date} was found in this browser: ${drumCount} drum ${drumCount === 1 ? 'sample' : 'samples'} and ${multisampleCount} multisample ${multisampleCount === 1 ? 'file' : 'files'}.`;
   };
 
   return (
@@ -168,7 +169,7 @@ export function SessionRestorationModal({
                 }}
                 aria-hidden="true"
               ></i>
-              restore session
+              Restore saved work?
             </h3>
           </div>
 
@@ -184,10 +185,13 @@ export function SessionRestorationModal({
             }}
           >
             <p style={{ margin: '0 0 1rem 0' }}>
-              a previous session was found {formatSessionInfo()}.
+              {formatSessionInfo()}
+            </p>
+            <p style={{ margin: '0 0 1rem 0' }}>
+              Restore it to continue where you left off, or discard it and start with an empty workspace.
             </p>
             <p style={{ margin: '0' }}>
-              would you like to restore this session or start with a fresh workspace?
+              <strong>Discarding removes this saved work from this browser. It cannot be brought back afterwards.</strong> Presets saved in your library are not affected.
             </p>
           </div>
 
@@ -233,9 +237,10 @@ export function SessionRestorationModal({
                 e.currentTarget.style.color = 'var(--color-text-secondary)';
               }}
             >
-              start new
+              Discard saved work and start new
             </button>
             <button
+              data-initial-focus="true"
               disabled={pending}
               onClick={onLoadSession}
               style={{
@@ -263,7 +268,7 @@ export function SessionRestorationModal({
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              restore
+              Restore saved work
             </button>
           </div>
         </div>

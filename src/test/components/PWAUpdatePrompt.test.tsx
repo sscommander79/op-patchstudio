@@ -68,6 +68,34 @@ describe('PWAUpdatePrompt', () => {
     expect(reloadPage).not.toHaveBeenCalled();
   });
 
+  it('acknowledges the offline-ready notice instead of offering to defer it', () => {
+    const reloadPage = vi.fn();
+    render(<PWAUpdatePrompt reloadPage={reloadPage} />);
+    act(() => pwa.options?.onOfflineReady?.());
+
+    expect(screen.getByRole('status')).toHaveTextContent('can open without a connection');
+    expect(screen.queryByRole('button', { name: 'Later' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(pwa.postMessage).not.toHaveBeenCalled();
+    expect(reloadPage).not.toHaveBeenCalled();
+  });
+
+  it('keeps Later as the deferral for a blocked update', async () => {
+    render(<PWAUpdatePrompt />);
+    act(() => pwa.options?.onNeedRefresh?.());
+    act(() => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {
+      data: { type: 'OPSTUDIO_UPDATE_BLOCKED_OPEN_TABS' },
+    })));
+
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Got it' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('does not reload this tab when another tab activates an update', () => {
     const reloadPage = vi.fn();
     render(<PWAUpdatePrompt reloadPage={reloadPage} />);

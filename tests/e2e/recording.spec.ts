@@ -1,4 +1,4 @@
-import { expect, test, type Download, type Page } from './control-audit-test';
+import { expect, test, type Download, type Locator, type Page } from './control-audit-test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import {expectDrumLoaded, gotoWorkspace, projectAction} from './workspace-actions';
@@ -22,6 +22,16 @@ async function readRecordingProject(bytes:Buffer) {
 async function openDrumRecorder(page:Page) {
   await page.getByRole('button',{name:'Record takes',exact:true}).first().click();
   const dialog=page.getByRole('dialog',{name:'Record takes'});await expect(dialog).toBeVisible();return dialog;
+}
+
+async function openDetails(scope:Locator,name:string) {
+  const details=scope.locator('details',{has:scope.page().locator('summary',{hasText:name})});
+  if(!await details.evaluate(node=>(node as HTMLDetailsElement).open))await details.locator('summary').click();
+  await expect(details).toHaveJSProperty('open',true);
+}
+
+async function statusNumber(dialog:Locator,pattern:RegExp) {
+  return Number((await dialog.locator('[data-studio-recording-status]').textContent())?.match(pattern)?.[1]??0);
 }
 
 async function assertSyntheticFacade(page:Page) {
@@ -60,9 +70,10 @@ test('records two sound-triggered PCM takes, applies one, preserves one, and arc
   await gotoWorkspace(page,'drum');await assertSyntheticFacade(page);await page.getByRole('textbox',{name:'Instrument name',exact:true}).fill('Recording contract');await page.getByRole('textbox',{name:'Instrument name',exact:true}).blur();
   const dialog=await openDrumRecorder(page);
   expect(await page.evaluate(()=>window.__opRecordingSynthetic.calls)).toBe(0);
-  await dialog.getByLabel('Capture mode').selectOption('sound');await dialog.getByLabel('Trigger threshold').fill('-20');await dialog.getByLabel('Pre-roll').fill('0.1');await dialog.getByLabel('Silence stop').fill('0.2');await dialog.getByLabel('Maximum take length').fill('2');
-  await dialog.getByRole('button',{name:'Enable input'}).click();await expect(dialog.getByText(/State: monitoring/)).toBeVisible();
-  await dialog.getByRole('button',{name:'Arm sound trigger'}).click();
+  await dialog.getByLabel('Recording starts').selectOption('sound');await openDetails(dialog,'Technical details');await dialog.getByLabel('Trigger threshold').fill('-20');await dialog.getByLabel('Pre-roll').fill('0.1');await dialog.getByLabel('Silence stop').fill('0.2');await dialog.getByLabel('Maximum take length').fill('2');
+  await dialog.getByRole('button',{name:'Enable input'}).click();await expect(dialog.locator('[data-capture-state="monitoring"]')).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Start recording'})).toHaveCount(0);
+  await dialog.getByRole('button',{name:'Wait for sound'}).click();
   const rows=dialog.getByRole('group',{name:/^Take /});await page.evaluate(()=>window.__opRecordingSynthetic.triggerBurst());await expect(rows).toHaveCount(1,{timeout:15_000});await page.evaluate(()=>window.__opRecordingSynthetic.triggerBurst());await expect(rows).toHaveCount(2,{timeout:15_000});
   await dialog.getByRole('button',{name:'Stop recording'}).click();
   const names=dialog.locator('input[aria-label^="Name for take"]'),selections=dialog.locator('input[aria-label^="Select take"]');
@@ -73,7 +84,7 @@ test('records two sound-triggered PCM takes, applies one, preserves one, and arc
   await dialog.getByRole('alertdialog',{name:'Discard recording work'}).getByRole('button',{name:'Stop and discard'}).click();
   await expect(dialog).toBeHidden();await expectDrumLoaded(page,1);
 
-  const backupEvent=page.waitForEvent('download');await projectAction(page,'Download project');
+  const backupEvent=page.waitForEvent('download');await projectAction(page,'Back up project');
   const {zip,manifest}=await readRecordingProject(await downloadedBytes(await backupEvent));
   const reference=manifest.project.drumSamples.find(item=>item.name==='Browser burst.opfloat');expect(reference).toBeTruthy();
   const asset=manifest.samples.find(item=>item.id===reference!.sampleId);expect(asset).toBeTruthy();expect(asset!.sourcePath).toBeTruthy();
@@ -92,8 +103,8 @@ test('records two sound-triggered PCM takes, applies one, preserves one, and arc
 test('manual Start and Stop can repeat, and Cancel releases every input without changing the project',async({page})=>{
   await gotoWorkspace(page,'drum');await assertSyntheticFacade(page);const dialog=await openDrumRecorder(page);
   for(let take=1;take<=2;take+=1){
-    await dialog.getByRole('button',{name:'Start recording'}).click();await expect(dialog.getByText(/State: recording/)).toBeVisible();
-    await expect.poll(async()=>Number((await dialog.getByText(/Take time/).textContent())?.match(/Take time ([\d.]+)/)?.[1]??0),{timeout:5_000}).toBeGreaterThan(.02);
+    await dialog.getByRole('button',{name:'Start recording'}).click();await expect(dialog.locator('[data-capture-state="recording"]')).toBeVisible();
+    await expect.poll(()=>statusNumber(dialog,/([\d.]+) s of up to/),{timeout:5_000}).toBeGreaterThan(.02);
     await dialog.getByRole('button',{name:'Stop recording'}).click();await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(take);
   }
   expect(await page.evaluate(()=>window.__opRecordingSynthetic.calls)).toBe(2);
@@ -111,10 +122,10 @@ for (const width of [390, 1280]) test(`recorder keeps actions visible and owns d
   const bounds=await apply.boundingBox();expect(bounds).not.toBeNull();
   expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(500);
   await dialog.getByRole('button',{name:'Start recording'}).click();
-  await expect(dialog.getByText(/State: recording/)).toBeVisible();
+  await expect(dialog.locator('[data-capture-state="recording"]')).toBeVisible();
   // Initial WebKit frames can be silent; an all-silent manual take is intentionally discarded.
   await page.evaluate(()=>window.__opRecordingSynthetic.triggerBurst(.5));
-  await expect.poll(async()=>Number((await dialog.getByText(/Take time/).textContent())?.match(/Level ([\d.]+)%/)?.[1]??0),{intervals:[20,50,100]}).toBeGreaterThan(1);
+  await expect.poll(()=>statusNumber(dialog,/Level\s*([\d.]+)%/),{intervals:[20,50,100]}).toBeGreaterThan(1);
   await dialog.getByRole('button',{name:'Stop recording'}).click();
   await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(1);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();

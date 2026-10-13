@@ -1,3 +1,4 @@
+import {DraftNumberInput} from '../common/DraftNumberInput';
 import { useRef, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import type { AppAction, DrumSample } from '../../context/AppContext';
@@ -80,6 +81,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="drum-bulk-edit-title"
+      aria-describedby="drum-bulk-edit-scope"
       tabIndex={-1}
       style={{
         position: 'fixed',
@@ -122,10 +124,11 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             color: 'var(--color-text-primary)',
             fontSize: '1.25rem',
             fontWeight: '300'
-          }}>bulk edit samples</h3>
+          }}>Bulk edit samples</h3>
         </div>
         <div className="studio-bulk-edit-body" style={{ padding: '2rem', flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
           <div
+            id="drum-bulk-edit-scope"
             className="studio-bulk-edit-note"
             style={{
               fontSize: '0.9rem',
@@ -137,88 +140,91 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               marginBottom: '2rem'
             }}
           >
-            these settings will be applied to all <strong>{loadedSamplesCount}</strong> loaded {loadedSamplesCount === 1 ? 'sample' : 'samples'}.
+            All five settings below replace the current values on all <strong>{loadedSamplesCount}</strong> loaded {loadedSamplesCount === 1 ? 'sample' : 'samples'}.
           </div>
 
           {/* Playmode */}
           <div style={{ marginBottom: '2rem' }}>
-            <label className="studio-bulk-edit-label" style={{
+            <label htmlFor="drum-bulk-playmode" className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: '600',
-              color: '#374151'
+              color: 'var(--color-text-primary)'
             }}>
-              playmode
+              Play mode
             </label>
             <select
+              id="drum-bulk-playmode"
               className="studio-bulk-edit-field"
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                border: '1px solid #d1d5db',
+                border: '1px solid var(--color-border-medium)',
                 borderRadius: '6px',
                 fontSize: '0.875rem',
-                backgroundColor: '#fff',
-                color: '#374151',
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
                 outline: 'none'
               }}
               value={settings.playmode}
               onChange={(e) => setSettings({...settings, playmode: e.target.value as DrumSample['playmode']})}
             >
-              <option value="oneshot">oneshot - play whole sample</option>
-              <option value="group">mute group - choke when another sample plays</option>
-              <option value="loop">loop - loop at sample end</option>
-              <option value="gate">key - play while held</option>
+              <option value="oneshot">One shot – play the whole sample</option>
+              <option value="group">Mute group – choke when another sample plays</option>
+              <option value="loop">Loop – loop at sample end</option>
+              <option value="gate">Hold to play (Gate) – play while held</option>
             </select>
           </div>
 
           {/* Direction */}
           <div style={{ marginBottom: '2rem' }}>
-            <label className="studio-bulk-edit-label" style={{
+            <label htmlFor="drum-bulk-direction" className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: '600',
-              color: '#374151'
+              color: 'var(--color-text-primary)'
             }}>
-              direction
+              Direction
             </label>
             <select
+              id="drum-bulk-direction"
               className="studio-bulk-edit-field"
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                border: '1px solid #d1d5db',
+                border: '1px solid var(--color-border-medium)',
                 borderRadius: '6px',
                 fontSize: '0.875rem',
-                backgroundColor: '#fff',
-                color: '#374151',
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
                 outline: 'none'
               }}
               value={settings.reverse ? 'reverse' : 'forward'}
               onChange={(e) => setSettings({...settings, reverse: e.target.value === 'reverse'})}
             >
-              <option value="forward">forward</option>
-              <option value="reverse">reverse</option>
+              <option value="forward">Forward</option>
+              <option value="reverse">Reverse</option>
             </select>
           </div>
 
           {/* Transpose */}
           <div style={{ marginBottom: '2rem' }}>
-            <label className="studio-bulk-edit-label" style={{
+            <label htmlFor="drum-bulk-transpose" className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: '600',
-              color: '#374151'
-            }}>transpose (semitones)</label>
+              color: 'var(--color-text-primary)'
+            }}>Transpose (semitones, −48 to 48)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                aria-label="Transpose slider (semitones)"
                 className="studio-bulk-edit-range"
-                min="-48"
-                max="48"
+                min={-48}
+                max={48}
                 value={settings.transpose}
                 step="1"
                 style={{
@@ -232,45 +238,44 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, transpose: parseInt(e.target.value)})}
               />
-              <input
+              <DraftNumberInput
+                id="drum-bulk-transpose"
                 type="number"
                 className="studio-bulk-edit-field"
-                min="-48"
-                max="48"
+                min={-48}
+                max={48}
                 value={settings.transpose}
                 style={{
                   width: '80px',
                   padding: '0.5rem',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid var(--color-border-medium)',
                   borderRadius: '6px',
                   fontSize: '0.875rem',
-                  backgroundColor: '#fff',
-                  color: '#374151',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
                   outline: 'none'
                 }}
-                onChange={(e) => {
-                  const val = Math.max(-48, Math.min(48, parseInt(e.target.value) || 0));
-                  setSettings({...settings, transpose: val});
-                }}
+                onValueChange={value=>setSettings({...settings,transpose:value})}
               />
             </div>
           </div>
 
           {/* Gain */}
           <div style={{ marginBottom: '2rem' }}>
-            <label className="studio-bulk-edit-label" style={{
+            <label htmlFor="drum-bulk-gain" className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: '600',
-              color: '#374151'
-            }}>gain (db)</label>
+              color: 'var(--color-text-primary)'
+            }}>Gain (dB, −30 to 20)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                aria-label="Gain slider (dB)"
                 className="studio-bulk-edit-range"
-                min="-30"
-                max="20"
+                min={-30}
+                max={20}
                 value={settings.gain}
                 step="1"
                 style={{
@@ -284,45 +289,44 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, gain: parseInt(e.target.value)})}
               />
-              <input
+              <DraftNumberInput
+                id="drum-bulk-gain"
                 type="number"
                 className="studio-bulk-edit-field"
-                min="-30"
-                max="20"
+                min={-30}
+                max={20}
                 value={settings.gain}
                 style={{
                   width: '80px',
                   padding: '0.5rem',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid var(--color-border-medium)',
                   borderRadius: '6px',
                   fontSize: '0.875rem',
-                  backgroundColor: '#fff',
-                  color: '#374151',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
                   outline: 'none'
                 }}
-                onChange={(e) => {
-                  const val = Math.max(-30, Math.min(20, parseInt(e.target.value) || 0));
-                  setSettings({...settings, gain: val});
-                }}
+                onValueChange={value=>setSettings({...settings,gain:value})}
               />
             </div>
           </div>
 
           {/* Pan */}
           <div style={{ marginBottom: '2rem' }}>
-            <label className="studio-bulk-edit-label" style={{
+            <label htmlFor="drum-bulk-pan" className="studio-bulk-edit-label" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: '600',
-              color: '#374151'
-            }}>pan</label>
+              color: 'var(--color-text-primary)'
+            }}>Pan (−100 left to 100 right)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <input
                 type="range"
+                aria-label="Pan slider"
                 className="studio-bulk-edit-range"
-                min="-100"
-                max="100"
+                min={-100}
+                max={100}
                 value={settings.pan}
                 step="1"
                 style={{
@@ -336,27 +340,25 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
                 }}
                 onChange={(e) => setSettings({...settings, pan: parseInt(e.target.value)})}
               />
-              <input
+              <DraftNumberInput
+                id="drum-bulk-pan"
                 type="number"
                 className="studio-bulk-edit-field"
-                min="-100"
-                max="100"
+                min={-100}
+                max={100}
                 value={settings.pan}
                 step="1"
                 style={{
                   width: '80px',
                   padding: '0.5rem',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid var(--color-border-medium)',
                   borderRadius: '6px',
                   fontSize: '0.875rem',
-                  backgroundColor: '#fff',
-                  color: '#374151',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
                   outline: 'none'
                 }}
-                onChange={(e) => {
-                  const val = Math.max(-100, Math.min(100, parseInt(e.target.value) || 0));
-                  setSettings({...settings, pan: val});
-                }}
+                onValueChange={value=>setSettings({...settings,pan:value})}
               />
             </div>
           </div>
@@ -365,7 +367,7 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
         <div className="studio-bulk-edit-actions" style={{
           flex: '0 0 auto',
           padding: '1.5rem 2rem',
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid var(--color-border-light)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '0.75rem'
@@ -376,10 +378,10 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             className="studio-bulk-edit-cancel"
             style={{
               padding: '0.625rem 1.25rem',
-              border: '1px solid #d1d5db',
+              border: '1px solid var(--color-border-medium)',
               borderRadius: '3px',
-              backgroundColor: '#fff',
-              color: '#6b7280',
+              backgroundColor: 'var(--color-bg-primary)',
+              color: 'var(--color-text-secondary)',
               fontSize: '0.9rem',
               fontWeight: '500',
               cursor: 'pointer',
@@ -390,18 +392,18 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             }}
             onClick={handleCancel}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb';
-              e.currentTarget.style.borderColor = '#9ca3af';
-              e.currentTarget.style.color = '#374151';
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
+              e.currentTarget.style.borderColor = 'var(--color-text-primary)';
+              e.currentTarget.style.color = 'var(--color-text-primary)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#fff';
-              e.currentTarget.style.borderColor = '#d1d5db';
-              e.currentTarget.style.color = '#6b7280';
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-primary)';
+              e.currentTarget.style.borderColor = 'var(--color-border-medium)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
             }}
           >
-            <i className="fas fa-times"></i>
-            cancel
+            <i aria-hidden="true" className="fas fa-times"></i>
+            Cancel
           </button>
           <button
             type="button"
@@ -409,8 +411,9 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
               padding: '0.625rem 1.25rem',
               border: 'none',
               borderRadius: '3px',
-              backgroundColor: loadedSamplesCount === 0 ? '#9ca3af' : '#333',
-              color: '#fff',
+              // Filled with the text token so the label inverts correctly in light and dark.
+              backgroundColor: loadedSamplesCount === 0 ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
+              color: 'var(--color-bg-primary)',
               fontSize: '0.9rem',
               fontWeight: '500',
               cursor: loadedSamplesCount === 0 ? 'not-allowed' : 'pointer',
@@ -424,21 +427,19 @@ export function DrumBulkEditModal({ isOpen, onClose }: DrumBulkEditModalProps) {
             disabled={loadedSamplesCount === 0}
             onMouseEnter={(e) => {
               if (loadedSamplesCount > 0) {
-                e.currentTarget.style.backgroundColor = '#555';
                 e.currentTarget.style.transform = 'translateY(-1px)';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
               }
             }}
             onMouseLeave={(e) => {
               if (loadedSamplesCount > 0) {
-                e.currentTarget.style.backgroundColor = '#333';
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
               }
             }}
           >
-            <i className="fas fa-save"></i>
-            apply to {loadedSamplesCount} {loadedSamplesCount === 1 ? 'sample' : 'samples'}
+            <i aria-hidden="true" className="fas fa-save"></i>
+            Apply to {loadedSamplesCount} {loadedSamplesCount === 1 ? 'sample' : 'samples'}
           </button>
         </div>
       </div>

@@ -13,7 +13,7 @@ test('Chromium real getUserMedia reads only the explicit deterministic fake audi
   });
   expect(probe).not.toHaveProperty('error');expect(probe.devices.some(device=>device.kind==='audioinput'&&/^Fake .*Audio Input/.test(device.label))).toBe(true);expect(probe).toHaveProperty('settings.sampleRate',48_000);expect(probe).toHaveProperty('settings.channelCount',1);
   await page.getByRole('button',{name:'Record takes',exact:true}).first().click();
-  const dialog=page.getByRole('dialog',{name:'Record takes'});await expect(dialog).toBeVisible();await dialog.getByRole('button',{name:'Enable input'}).click();await expect(dialog.getByText(/State: monitoring/)).toBeVisible();
-  await dialog.getByRole('button',{name:'Start recording'}).click();await expect.poll(async()=>Number((await dialog.getByText(/Take time/).textContent())?.match(/Take time ([\d.]+)/)?.[1]??0),{timeout:8_000}).toBeGreaterThan(.05);
+  const dialog=page.getByRole('dialog',{name:'Record takes'});await expect(dialog).toBeVisible();await dialog.getByRole('button',{name:'Enable input'}).click();await expect(dialog.locator('[data-capture-state="monitoring"]')).toBeVisible();
+  await dialog.getByRole('button',{name:'Start recording'}).click();await expect.poll(async()=>Number((await dialog.locator('[data-studio-recording-status]').textContent())?.match(/([\d.]+) s of up to/)?.[1]??0),{timeout:8_000}).toBeGreaterThan(.05);
   await dialog.getByRole('button',{name:'Stop recording'}).click();await expect(dialog.locator('input[aria-label^="Name for take"]')).toHaveCount(1);await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expectDrumLoaded(page,0);
 });

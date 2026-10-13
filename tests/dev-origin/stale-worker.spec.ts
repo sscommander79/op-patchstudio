@@ -106,7 +106,7 @@ test('the dev server retires a legacy OP-PatchStudio worker without reloading ta
   await expect(page.getByRole('region', { name: 'Drum pad instrument, 10 of 24 loaded' })).toBeVisible();
   await page.locator('details.studio-project-menu summary').click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
-  await expect(page.getByText('Saved Studio Seed to the library.')).toBeVisible();
+  await expect(page.getByText('Saved drum kit “Studio Seed” to the library in this browser.')).toBeVisible();
   await page.evaluate(() => localStorage.setItem('opstudio-dev-origin-probe', 'kept'));
   expect(await registrations(page)).toEqual([]);
   await stopDevServer();

@@ -63,7 +63,9 @@ test('Project menu Open library synchronizes the route and survives reload',asyn
 
 test('repeated Back while recording does not grow browser history',async({page})=>{
   await page.goto('/',{waitUntil:'domcontentloaded'});
-  await page.getByRole('button',{name:'Open sampler',exact:true}).click();
+  await page.getByRole('button',{name:'Choose a source',exact:true}).click();
+  await page.getByRole('button',{name:/A hardware instrument/}).click();
+  await page.getByRole('button',{name:'Connect and check sound',exact:true}).click();
   const recorder=page.getByRole('dialog',{name:'Record takes',exact:true});
   await expect(recorder).toBeVisible();
   const length=await page.evaluate(()=>history.length);
