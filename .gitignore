@@ -29,3 +29,7 @@ coverage/*
 playwright-report/
 test-results/
 .superpowers/
+
+# Local desktop build outputs
+desktop-instrument/build/
+dist-desktop-instrument/

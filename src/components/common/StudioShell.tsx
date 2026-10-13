@@ -1,3 +1,4 @@
+import { hasNativeInstrumentHost } from '../../utils/nativeInstrument';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { useOwnedDialog } from '../../hooks/useOwnedDialog';
@@ -20,8 +21,9 @@ type Source = 'hardware' | 'software';
 type Topic = 'overview' | 'files' | 'loops' | 'hardware' | 'software' | 'capture' | 'library' | 'backup';
 type Tab = 'drum' | 'multisample' | 'library';
 
-const readStudioRoute = (): { view: View; tab?: Tab } => {
+const readStudioRoute = (): { view: View; tab?: Tab; softwareInstrument?:boolean } => {
   const route = window.location.hash.replace(/^#\/studio\/?/, '');
+  if (route === 'multisample/instrument') return {view:'workspace',tab:'multisample',softwareInstrument:hasNativeInstrumentHost()};
   if (route === 'devices') return { view: 'devices' };
   if (route === 'create') return { view: 'create' };
   if (route === 'source') return { view: 'source' };
@@ -128,6 +130,7 @@ export function StudioShell({
 }) {
   const { state, dispatch } = useAppContext();
   const opxy = useStudioAppearance() === 'opxy';
+  const [softwareInstrument,setSoftwareInstrument]=useState(()=>Boolean(readStudioRoute().softwareInstrument));
   const [view, setView] = useState<View>(() => readStudioRoute().view);
   const routeRef = useRef(window.location.hash);
   const [task, setTask] = useState<Task>('multisample');
@@ -153,13 +156,14 @@ export function StudioShell({
       if (!document.querySelector('[data-recording-modal="true"], [data-workspace-modal]')) setNotice('');
     };
     const observer = new MutationObserver(clearWhenClosed);
-    observer.observe(document.body, {childList:true, subtree:true});
+    observer.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-workspace-modal']});
     clearWhenClosed();
     return () => observer.disconnect();
   }, [notice]);
   const openHelp = useCallback((next: Topic) => setTopic(next), []);
-  const navigate = useCallback((nextView: View, tab?: Tab) => {
-    const hash = routeHash(nextView, tab);
+  const navigate = useCallback((nextView: View, tab?: Tab, instrument = false) => {
+    const hash = instrument ? '#/studio/multisample/instrument' : routeHash(nextView, tab);
+    setSoftwareInstrument(instrument);
     if (window.location.hash !== hash) window.history.pushState(null, '', hash);
     routeRef.current = hash;
     if (nextView !== 'workspace') setRecorderRequest(null);
@@ -181,6 +185,7 @@ export function StudioShell({
       const next = readStudioRoute();
       if (next.view !== 'workspace') setRecorderRequest(null);
       if (next.tab) dispatch({ type: 'SET_TAB', payload: next.tab });
+      setSoftwareInstrument(Boolean(next.softwareInstrument));
       setView(next.view);
     };
     window.addEventListener('popstate', syncFromHistory);
@@ -226,6 +231,7 @@ export function StudioShell({
     return () => cancelAnimationFrame(frame);
   }, [view, state.currentTab]);
   const workspace = (tab: Tab, record = false, guided = task === 'multisample', recordingSource: Source = source) => guard(() => {
+    if(tab==='multisample'&&record&&recordingSource==='software'&&hasNativeInstrumentHost()){setRecorderRequest(null);navigate('workspace',tab,true);return;}
     setRecorderRequest(record && tab !== 'library' ? { id: ++nextRecorderRequestId.current, tab, guided: guided && tab === 'multisample', source: recordingSource } : null);
     navigate('workspace', tab);
   });
@@ -320,7 +326,7 @@ export function StudioShell({
             <article><span className="studio-step-number">03</span><h2>How to copy to OP-XY</h2><p>Download OP-XY preset checks and packages the instrument. The download dialog explains how to unpack it, copy the intact preset folder to your device, safely disconnect, then listen.</p><p>The app cannot confirm that you copied or played it on your OP-XY.</p></article>
           </div><button type="button" className="studio-back-link" onClick={() => workspace(transferTab)}>Return to {transferEditor}</button></>}
         {view === 'devices' && <Suspense fallback={<p>Loading devices…</p>}><DevicesWorkspace {...devicesWorkspaceProps} /></Suspense>}
-        {view === 'workspace' && <>{state.currentTab !== 'library' && <h1 className="studio-visually-hidden">{title}</h1>}{(state.currentTab === 'drum' || state.currentTab === 'multisample') && <ProjectToolbar onRetrySave={onRetrySave} />}<MainTabs recorderRequest={recorderRequest} onRecorderRequestConsumed={() => setRecorderRequest(null)} /></>}
+        {view === 'workspace' && <>{!softwareInstrument && state.currentTab !== 'library' && <h1 className="studio-visually-hidden">{title}</h1>}{!softwareInstrument && (state.currentTab === 'drum' || state.currentTab === 'multisample') && <ProjectToolbar onRetrySave={onRetrySave} />}<MainTabs softwareInstrument={softwareInstrument} recorderRequest={recorderRequest} onRecorderRequestConsumed={() => setRecorderRequest(null)} /></>}
       </div>
     </div>
     {topic && <Help topic={topic} setTopic={setTopic} close={() => setTopic(null)} />}
